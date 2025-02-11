@@ -1,7 +1,5 @@
 import 'package:flutter/cupertino.dart';
 
-/// Flutter code sample for [CupertinoTextFormFieldRow].
-
 void main() => runApp(const FormSectionApp());
 
 class FormSectionApp extends StatelessWidget {
@@ -11,44 +9,50 @@ class FormSectionApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const CupertinoApp(
       theme: CupertinoThemeData(brightness: Brightness.light),
-      home: FromSectionExample(),
+      home: NavigationMenu(),
     );
   }
 }
 
-class FromSectionExample extends StatelessWidget {
-  const FromSectionExample({super.key});
+class NavigationMenu extends StatelessWidget {
+  const NavigationMenu({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('CupertinoFormSection Sample'),
+    return CupertinoTabScaffold(
+      tabBar: CupertinoTabBar(
+        items: const [
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.add), label: 'Add Book'),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.chart_bar), label: 'Log Session'),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.settings), label: 'Settings'),
+        ],
       ),
-      // Add safe area widget to place the CupertinoFormSection below the navigation bar.
-      child: SafeArea(
-        child: Form(
-          autovalidateMode: AutovalidateMode.always,
-          onChanged: () {
-            Form.maybeOf(primaryFocus!.context!)?.save();
-          },
-          child: CupertinoFormSection.insetGrouped(
-            header: const Text('SECTION 1'),
-            children: List<Widget>.generate(5, (int index) {
-              return CupertinoTextFormFieldRow(
-                prefix: const Text('Enter text'),
-                placeholder: 'Enter text',
-                validator: (String? value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a value';
-                  }
-                  return null;
-                },
-              );
-            }),
-          ),
-        ),
-      ),
+      tabBuilder: (context, index) {
+        switch (index) {
+          case 0:
+            return const CupertinoPageScaffold(
+              navigationBar: CupertinoNavigationBar(middle: Text('Home')),
+              child: Center(child: Text('Home Page')),
+            );
+          case 1:
+            return const CupertinoPageScaffold(
+              navigationBar: CupertinoNavigationBar(middle: Text('Add Book')),
+              child: Center(child: Text('Add Book Page')),
+            );
+          case 2:
+            return const CupertinoPageScaffold(
+              navigationBar: CupertinoNavigationBar(middle: Text('Log Session')),
+              child: Center(child: Text('Log Session Page')),
+            );
+          case 3:
+          default:
+            return const CupertinoPageScaffold(
+              navigationBar: CupertinoNavigationBar(middle: Text('Settings')),
+              child: Center(child: Text('Settings Page')),
+            );
+        }
+      },
     );
   }
 }
