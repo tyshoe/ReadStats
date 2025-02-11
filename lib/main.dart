@@ -15,10 +15,17 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _isDarkMode = false;
+  final List<Map<String, dynamic>> _books = []; // List to store books
 
   void _toggleTheme(bool value) {
     setState(() {
       _isDarkMode = value;
+    });
+  }
+
+  void _addBook(Map<String, dynamic> book) {
+    setState(() {
+      _books.add(book);
     });
   }
 
@@ -28,16 +35,29 @@ class _MyAppState extends State<MyApp> {
       theme: CupertinoThemeData(
         brightness: _isDarkMode ? Brightness.dark : Brightness.light,
       ),
-      home: NavigationMenu(toggleTheme: _toggleTheme, isDarkMode: _isDarkMode),
+      home: NavigationMenu(
+        toggleTheme: _toggleTheme,
+        isDarkMode: _isDarkMode,
+        books: _books,
+        addBook: _addBook,
+      ),
     );
   }
 }
 
 class NavigationMenu extends StatelessWidget {
   final Function(bool) toggleTheme;
+  final Function(Map<String, dynamic>) addBook;
   final bool isDarkMode;
+  final List<Map<String, dynamic>> books;
 
-  const NavigationMenu({super.key, required this.toggleTheme, required this.isDarkMode});
+  const NavigationMenu({
+    super.key,
+    required this.toggleTheme,
+    required this.isDarkMode,
+    required this.books,
+    required this.addBook,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -53,9 +73,9 @@ class NavigationMenu extends StatelessWidget {
       tabBuilder: (context, index) {
         switch (index) {
           case 0:
-            return const HomePage();
+            return HomePage(books: books);
           case 1:
-            return const AddBookPage();
+            return AddBookPage(addBook: addBook);
           case 2:
             return const LogSessionPage();
           case 3:

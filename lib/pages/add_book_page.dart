@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 
 class AddBookPage extends StatefulWidget {
-  const AddBookPage({super.key});
+  final Function(Map<String, dynamic>) addBook;
+
+  const AddBookPage({super.key, required this.addBook});
 
   @override
   State<AddBookPage> createState() => _AddBookPageState();
@@ -10,7 +12,7 @@ class AddBookPage extends StatefulWidget {
 class _AddBookPageState extends State<AddBookPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _wordCountController = TextEditingController();
-  double _rating = 3; // Default rating
+  double _rating = 3;
   bool _isCompleted = false;
 
   void _saveBook() {
@@ -34,14 +36,15 @@ class _AddBookPageState extends State<AddBookPage> {
       return;
     }
 
-    // Handle saving the book details
-    print("Book Saved:");
-    print("Title: $title");
-    print("Total Word Count: $wordCount");
-    print("Rating: $_rating");
-    print("Completed: $_isCompleted");
+    // Save the book
+    widget.addBook({
+      "title": title,
+      "wordCount": wordCount,
+      "rating": _rating,
+      "isCompleted": _isCompleted,
+    });
 
-    // Clear form
+    // Clear fields
     _titleController.clear();
     _wordCountController.clear();
     setState(() {
