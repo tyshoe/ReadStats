@@ -1,13 +1,24 @@
 import 'package:flutter/cupertino.dart';
+import 'package:sqflite/sqflite.dart'; // Import sqflite
+import 'package:path/path.dart'; // Import path
 import 'pages/library_page.dart';
 import 'pages/add_book_page.dart';
 import 'pages/log_session_page.dart';
 import 'pages/settings_page.dart';
+import 'database_helper.dart'; // Import the DatabaseHelper
 
-void main() => runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  initializeDatabaseFactory(); // Initialize for desktop/web
+  final dbHelper = DatabaseHelper();
+  await dbHelper.database;
+  runApp(MyApp(dbHelper: dbHelper));
+}
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final DatabaseHelper dbHelper;
+
+  const MyApp({super.key, required this.dbHelper});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -15,7 +26,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _isDarkMode = false;
-  final List<Map<String, dynamic>> _books = []; // List to store books
+  List<Map<String, dynamic>> _books = [];
 
   void _toggleTheme(bool value) {
     setState(() {
@@ -23,10 +34,22 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  void _addBook(Map<String, dynamic> book) {
+  Future<void> _loadBooks() async {
+    final books = await widget.dbHelper.getBooks();
     setState(() {
-      _books.add(book);
+      _books = books;
     });
+  }
+
+  Future<void> _addBook(Map<String, dynamic> book) async {
+    await widget.dbHelper.insertBook(book);
+    await _loadBooks(); // Refresh the book list
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBooks(); // Load books when the app starts
   }
 
   @override
@@ -73,7 +96,7 @@ class NavigationMenu extends StatelessWidget {
       tabBuilder: (context, index) {
         switch (index) {
           case 0:
-            return HomePage(books: books);
+            return LibraryPage(books: books);
           case 1:
             return AddBookPage(addBook: addBook);
           case 2:

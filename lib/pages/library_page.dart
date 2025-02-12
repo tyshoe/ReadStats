@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
 
-class HomePage extends StatelessWidget {
+class LibraryPage extends StatelessWidget {
   final List<Map<String, dynamic>> books;
 
-  const HomePage({super.key, required this.books});
+  const LibraryPage({super.key, required this.books});
 
   @override
   Widget build(BuildContext context) {
@@ -20,8 +20,9 @@ class HomePage extends StatelessWidget {
                   return CupertinoListTile(
                     title: Text(book['title']),
                     subtitle: Text(
-                        "Words: ${book['wordCount']}, Rating: ${book['rating']}"),
-                    trailing: book['isCompleted']
+                      "Author: ${book['author']}, Words: ${book['wordCount']}, Rating: ${book['rating']}",
+                    ),
+                    trailing: book['isCompleted'] == 1
                         ? const Icon(CupertinoIcons.check_mark_circled,
                             color: CupertinoColors.systemGreen)
                         : const Icon(CupertinoIcons.clock,

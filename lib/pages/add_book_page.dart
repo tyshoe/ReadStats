@@ -44,7 +44,7 @@ class _AddBookPageState extends State<AddBookPage> {
       "author": author,
       "wordCount": wordCount,
       "rating": _rating,
-      "isCompleted": _isCompleted,
+      "isCompleted": _isCompleted ? 1 : 0, // Store as integer (1 for true, 0 for false)
     });
 
     // Clear fields
