@@ -63,6 +63,7 @@ class _MyAppState extends State<MyApp> {
         isDarkMode: _isDarkMode,
         books: _books,
         addBook: _addBook,
+        refreshBooks: _loadBooks, // Pass refresh function
       ),
     );
   }
@@ -71,6 +72,7 @@ class _MyAppState extends State<MyApp> {
 class NavigationMenu extends StatelessWidget {
   final Function(bool) toggleTheme;
   final Function(Map<String, dynamic>) addBook;
+  final Function() refreshBooks;
   final bool isDarkMode;
   final List<Map<String, dynamic>> books;
 
@@ -80,6 +82,7 @@ class NavigationMenu extends StatelessWidget {
     required this.isDarkMode,
     required this.books,
     required this.addBook,
+    required this.refreshBooks,
   });
 
   @override
@@ -88,7 +91,7 @@ class NavigationMenu extends StatelessWidget {
       tabBar: CupertinoTabBar(
         items: const [
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.book), label: 'Library'),
-          BottomNavigationBarItem(icon: Icon(CupertinoIcons.book), label: 'Add Book'),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.add), label: 'Add Book'),
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.chart_bar), label: 'Log Session'),
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.settings), label: 'Settings'),
         ],
@@ -96,7 +99,7 @@ class NavigationMenu extends StatelessWidget {
       tabBuilder: (context, index) {
         switch (index) {
           case 0:
-            return LibraryPage(books: books);
+            return LibraryPage(books: books, refreshBooks: refreshBooks);
           case 1:
             return AddBookPage(addBook: addBook);
           case 2:
