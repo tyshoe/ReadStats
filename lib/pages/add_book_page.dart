@@ -11,15 +11,17 @@ class AddBookPage extends StatefulWidget {
 
 class _AddBookPageState extends State<AddBookPage> {
   final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _authorController = TextEditingController();
   final TextEditingController _wordCountController = TextEditingController();
-  double _rating = 3;
+  double _rating = 5;
   bool _isCompleted = false;
 
   void _saveBook() {
     String title = _titleController.text;
+    String author = _authorController.text;
     int? wordCount = int.tryParse(_wordCountController.text);
 
-    if (title.isEmpty || wordCount == null) {
+    if (title.isEmpty || author.isEmpty || wordCount == null) {
       showCupertinoDialog(
         context: context,
         builder: (_) => CupertinoAlertDialog(
@@ -39,6 +41,7 @@ class _AddBookPageState extends State<AddBookPage> {
     // Save the book
     widget.addBook({
       "title": title,
+      "author": author,
       "wordCount": wordCount,
       "rating": _rating,
       "isCompleted": _isCompleted,
@@ -46,9 +49,10 @@ class _AddBookPageState extends State<AddBookPage> {
 
     // Clear fields
     _titleController.clear();
+    _authorController.clear();
     _wordCountController.clear();
     setState(() {
-      _rating = 3;
+      _rating = 5;
       _isCompleted = false;
     });
 
@@ -78,34 +82,56 @@ class _AddBookPageState extends State<AddBookPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Text("Title",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
               CupertinoTextField(
                 controller: _titleController,
                 placeholder: "Enter Book Title",
                 padding: const EdgeInsets.all(12),
               ),
               const SizedBox(height: 16),
+              const Text("Author",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              CupertinoTextField(
+                controller: _authorController,
+                placeholder: "Enter Author Name",
+                padding: const EdgeInsets.all(12),
+              ),
+              const SizedBox(height: 16),
+              const Text("Total Word Count",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
               CupertinoTextField(
                 controller: _wordCountController,
-                placeholder: "Total Word Count",
+                placeholder: "Enter Word Count",
                 padding: const EdgeInsets.all(12),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 16),
+              const Text("Rating",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Rating"),
-                  CupertinoSlider(
-                    value: _rating,
-                    min: 1,
-                    max: 5,
-                    divisions: 4,
-                    onChanged: (value) {
-                      setState(() {
-                        _rating = value;
-                      });
-                    },
+                  const Text("0"),
+                  Expanded(
+                    child: CupertinoSlider(
+                      value: _rating,
+                      min: 0,
+                      max: 10,
+                      divisions: 10,
+                      onChanged: (value) {
+                        setState(() {
+                          _rating = value;
+                        });
+                      },
+                    ),
                   ),
+                  const Text("10"),
+                  const SizedBox(width: 8),
                   Text(_rating.toStringAsFixed(1)),
                 ],
               ),
@@ -113,7 +139,8 @@ class _AddBookPageState extends State<AddBookPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Completed"),
+                  const Text("Completed",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   CupertinoSwitch(
                     value: _isCompleted,
                     onChanged: (value) {

@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'pages/home_page.dart';
+import 'pages/library_page.dart';
 import 'pages/add_book_page.dart';
 import 'pages/log_session_page.dart';
 import 'pages/settings_page.dart';
@@ -64,7 +64,7 @@ class NavigationMenu extends StatelessWidget {
     return CupertinoTabScaffold(
       tabBar: CupertinoTabBar(
         items: const [
-          BottomNavigationBarItem(icon: Icon(CupertinoIcons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.book), label: 'Library'),
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.book), label: 'Add Book'),
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.chart_bar), label: 'Log Session'),
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.settings), label: 'Settings'),

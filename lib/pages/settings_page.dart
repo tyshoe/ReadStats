@@ -4,7 +4,8 @@ class SettingsPage extends StatelessWidget {
   final Function(bool) toggleTheme;
   final bool isDarkMode;
 
-  const SettingsPage({super.key, required this.toggleTheme, required this.isDarkMode});
+  const SettingsPage(
+      {super.key, required this.toggleTheme, required this.isDarkMode});
 
   @override
   Widget build(BuildContext context) {

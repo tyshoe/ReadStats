@@ -8,7 +8,7 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(middle: Text('Home')),
+      navigationBar: const CupertinoNavigationBar(middle: Text('Library')),
       child: SafeArea(
         child: books.isEmpty
             ? const Center(child: Text("No books added yet."))
@@ -19,10 +19,13 @@ class HomePage extends StatelessWidget {
                   final book = books[index];
                   return CupertinoListTile(
                     title: Text(book['title']),
-                    subtitle: Text("Words: ${book['wordCount']}, Rating: ${book['rating']}"),
+                    subtitle: Text(
+                        "Words: ${book['wordCount']}, Rating: ${book['rating']}"),
                     trailing: book['isCompleted']
-                        ? const Icon(CupertinoIcons.check_mark_circled, color: CupertinoColors.systemGreen)
-                        : const Icon(CupertinoIcons.clock, color: CupertinoColors.systemGrey),
+                        ? const Icon(CupertinoIcons.check_mark_circled,
+                            color: CupertinoColors.systemGreen)
+                        : const Icon(CupertinoIcons.clock,
+                            color: CupertinoColors.systemGrey),
                   );
                 },
               ),
