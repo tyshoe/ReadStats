@@ -1,15 +1,12 @@
 import 'package:flutter/cupertino.dart';
-import 'package:sqflite/sqflite.dart'; // Import sqflite
-import 'package:path/path.dart'; // Import path
 import 'pages/library_page.dart';
 import 'pages/add_book_page.dart';
 import 'pages/log_session_page.dart';
 import 'pages/settings_page.dart';
-import 'database_helper.dart'; // Import the DatabaseHelper
+import 'database_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  initializeDatabaseFactory(); // Initialize for desktop/web
   final dbHelper = DatabaseHelper();
   await dbHelper.database;
   runApp(MyApp(dbHelper: dbHelper));

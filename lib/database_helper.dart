@@ -1,11 +1,5 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-
-void initializeDatabaseFactory() {
-  sqfliteFfiInit(); // Initialize FFI
-  databaseFactory = databaseFactoryFfi; // Set the database factory
-}
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
