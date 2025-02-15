@@ -1,4 +1,6 @@
 import 'package:flutter/cupertino.dart';
+import 'add_book_page.dart'; // Import the AddBookPage
+import 'edit_book_page.dart'; // Import the EditBookPage
 import '../database_helper.dart';
 
 class LibraryPage extends StatefulWidget {
@@ -39,29 +41,95 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
+  void _navigateToAddBookPage() async {
+    // Navigate to AddBookPage and wait for a result
+    await Navigator.push(
+      context,
+      CupertinoPageRoute(
+        builder: (context) => AddBookPage(
+          addBook: (book) async {
+            await _dbHelper.insertBook(book);
+            widget.refreshBooks(); // Refresh the book list after adding a new book
+          },
+        ),
+      ),
+    );
+  }
+
+  void _navigateToEditBookPage(Map<String, dynamic> book) async {
+    // Navigate to EditBookPage and wait for a result
+    await Navigator.push(
+      context,
+      CupertinoPageRoute(
+        builder: (context) => EditBookPage(
+          book: book,
+          updateBook: (updatedBook) async {
+            await _dbHelper.updateBook(updatedBook);
+            widget.refreshBooks(); // Refresh the book list after updating
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       navigationBar: const CupertinoNavigationBar(
         middle: Text('Library'),
       ),
-      child: widget.books.isEmpty
-          ? const Center(child: Text('No books added yet.'))
-          : ListView.builder(
+      child: SafeArea(
+        child: Stack(
+          children: [
+            widget.books.isEmpty
+                ? const Center(child: Text('No books added yet.'))
+                : ListView.builder(
               itemCount: widget.books.length,
               itemBuilder: (context, index) {
                 final book = widget.books[index];
-                return CupertinoListTile(
-                  title: Text(book['title']),
-                  subtitle: Text('Author: ${book['author']}'),
-                  trailing: CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    child: const Icon(CupertinoIcons.trash, color: CupertinoColors.destructiveRed),
-                    onPressed: () => _confirmDelete(book['id']),
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8), // Add margin
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.systemGrey6, // Light grey background
+                    borderRadius: BorderRadius.circular(8), // Rounded corners
+                  ),
+                  child: CupertinoListTile(
+                    title: Text(book['title']),
+                    subtitle: Text('${book['author']}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          child: const Icon(CupertinoIcons.pencil, color: CupertinoColors.activeBlue),
+                          onPressed: () => _navigateToEditBookPage(book),
+                        ),
+                        CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          child: const Icon(CupertinoIcons.trash, color: CupertinoColors.destructiveRed),
+                          onPressed: () => _confirmDelete(book['id']),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
             ),
+            // Cupertino-style floating button
+            Positioned(
+              bottom: 20,
+              right: 20,
+              child: CupertinoButton(
+                padding: const EdgeInsets.all(16),
+                borderRadius: BorderRadius.circular(30),
+                color: CupertinoColors.activeBlue,
+                child: const Icon(CupertinoIcons.add, color: CupertinoColors.white),
+                onPressed: _navigateToAddBookPage,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

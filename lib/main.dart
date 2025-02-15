@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'pages/library_page.dart';
-import 'pages/add_book_page.dart';
 import 'pages/log_session_page.dart';
 import 'pages/settings_page.dart';
 import 'database_helper.dart';
@@ -88,7 +87,7 @@ class NavigationMenu extends StatelessWidget {
       tabBar: CupertinoTabBar(
         items: const [
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.book), label: 'Library'),
-          BottomNavigationBarItem(icon: Icon(CupertinoIcons.add), label: 'Add Book'),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.add), label: 'Sessions'),
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.chart_bar), label: 'Log Session'),
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.settings), label: 'Settings'),
         ],
@@ -98,7 +97,8 @@ class NavigationMenu extends StatelessWidget {
           case 0:
             return LibraryPage(books: books, refreshBooks: refreshBooks);
           case 1:
-            return AddBookPage(addBook: addBook);
+          // Return an empty container or the LibraryPage again
+            return LibraryPage(books: books, refreshBooks: refreshBooks);
           case 2:
             return const LogSessionPage();
           case 3:

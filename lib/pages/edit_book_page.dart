@@ -1,22 +1,34 @@
 import 'package:flutter/cupertino.dart';
 
-class AddBookPage extends StatefulWidget {
-  final Function(Map<String, dynamic>) addBook;
+class EditBookPage extends StatefulWidget {
+  final Map<String, dynamic> book;
+  final Function(Map<String, dynamic>) updateBook;
 
-  const AddBookPage({super.key, required this.addBook});
+  const EditBookPage({super.key, required this.book, required this.updateBook});
 
   @override
-  State<AddBookPage> createState() => _AddBookPageState();
+  State<EditBookPage> createState() => _EditBookPageState();
 }
 
-class _AddBookPageState extends State<AddBookPage> {
+class _EditBookPageState extends State<EditBookPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _authorController = TextEditingController();
   final TextEditingController _wordCountController = TextEditingController();
-  double _rating = 0;
+  double _rating = 5;
   bool _isCompleted = false;
 
-  void _saveBook() {
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill the form with the existing book data
+    _titleController.text = widget.book['title'];
+    _authorController.text = widget.book['author'];
+    _wordCountController.text = widget.book['wordCount'].toString();
+    _rating = widget.book['rating'];
+    _isCompleted = widget.book['isCompleted'] == 1;
+  }
+
+  void _updateBook() {
     String title = _titleController.text;
     String author = _authorController.text;
     int? wordCount = int.tryParse(_wordCountController.text);
@@ -38,8 +50,9 @@ class _AddBookPageState extends State<AddBookPage> {
       return;
     }
 
-    // Save the book
-    widget.addBook({
+    // Update the book
+    widget.updateBook({
+      "id": widget.book['id'], // Include the book ID to identify the entry
       "title": title,
       "author": author,
       "wordCount": wordCount,
@@ -47,21 +60,12 @@ class _AddBookPageState extends State<AddBookPage> {
       "isCompleted": _isCompleted ? 1 : 0, // Store as integer (1 for true, 0 for false)
     });
 
-    // Clear fields
-    _titleController.clear();
-    _authorController.clear();
-    _wordCountController.clear();
-    setState(() {
-      _rating = 0;
-      _isCompleted = false;
-    });
-
     // Show confirmation
     showCupertinoDialog(
       context: context,
       builder: (_) => CupertinoAlertDialog(
         title: const Text("Success"),
-        content: const Text("Book added successfully!"),
+        content: const Text("Book updated successfully!"),
         actions: [
           CupertinoDialogAction(
             child: const Text("OK"),
@@ -75,7 +79,7 @@ class _AddBookPageState extends State<AddBookPage> {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(middle: Text('Add Book')),
+      navigationBar: const CupertinoNavigationBar(middle: Text('Edit Book')),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -154,8 +158,8 @@ class _AddBookPageState extends State<AddBookPage> {
               const SizedBox(height: 24),
               Center(
                 child: CupertinoButton.filled(
-                  onPressed: _saveBook,
-                  child: const Text("Save Book"),
+                  onPressed: _updateBook,
+                  child: const Text("Update Book"),
                 ),
               ),
             ],
