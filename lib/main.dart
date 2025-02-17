@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'pages/library_page.dart';
 import 'pages/log_session_page.dart';
 import 'pages/settings_page.dart';
+import 'pages/sessions_page.dart';
 import 'database_helper.dart';
 
 void main() async {
@@ -98,9 +99,9 @@ class NavigationMenu extends StatelessWidget {
             return LibraryPage(books: books, refreshBooks: refreshBooks);
           case 1:
           // Return an empty container or the LibraryPage again
-            return LibraryPage(books: books, refreshBooks: refreshBooks);
+            return SessionsPage();
           case 2:
-            return const LogSessionPage();
+            return LogSessionPage(books: books);
           case 3:
           default:
             return SettingsPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode);

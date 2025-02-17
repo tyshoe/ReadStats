@@ -25,10 +25,14 @@ class DatabaseHelper {
       path,
       version: 1,
       onCreate: _onCreate,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA foreign_keys = ON'); // Enable foreign keys
+      },
     );
   }
 
   Future<void> _onCreate(Database db, int version) async {
+    print('Creating database tables...'); // Debug statement
     await db.execute('''
       CREATE TABLE books(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,21 +43,73 @@ class DatabaseHelper {
         isCompleted INTEGER
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE sessions(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        book_id INTEGER,
+        pages_read INTEGER,
+        hours INTEGER,
+        minutes INTEGER,
+        date TEXT,
+        FOREIGN KEY(book_id) REFERENCES books(id)
+      )
+    ''');
+    print('Database tables created successfully.'); // Debug statement
   }
 
-  // Insert a book
+  Future<int> insertSession(Map<String, dynamic> session) async {
+    try {
+      final db = await database;
+      print('Inserting session: $session'); // Debug statement
+      final id = await db.insert('sessions', session);
+      print('Session inserted with ID: $id'); // Debug statement
+      return id;
+    } catch (e) {
+      print('Error inserting session: $e');
+      return -1;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getSessions() async {
+    try {
+      final db = await database;
+      return await db.query('sessions');
+    } catch (e) {
+      print('Error fetching sessions: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getSessionsWithBooks() async {
+    try {
+      final db = await database;
+      final result = await db.rawQuery('''
+        SELECT 
+          sessions.*, 
+          books.title as book_title 
+        FROM sessions 
+        INNER JOIN books ON sessions.book_id = books.id
+        ORDER BY sessions.date DESC
+      ''');
+      print('Sessions fetched: $result'); // Debug statement
+      return result;
+    } catch (e) {
+      print('Error fetching sessions: $e');
+      return [];
+    }
+  }
+
   Future<int> insertBook(Map<String, dynamic> book) async {
     final db = await database;
     return await db.insert('books', book);
   }
 
-  // Get all books
   Future<List<Map<String, dynamic>>> getBooks() async {
     final db = await database;
     return await db.query('books');
   }
 
-  // Update a book
   Future<int> updateBook(Map<String, dynamic> book) async {
     final db = await database;
     return await db.update(
@@ -64,7 +120,6 @@ class DatabaseHelper {
     );
   }
 
-  // Delete a book
   Future<int> deleteBook(int id) async {
     final db = await database;
     return await db.delete(
