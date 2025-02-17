@@ -36,6 +36,7 @@ class _MyAppState extends State<MyApp> {
     final books = await widget.dbHelper.getBooks();
     setState(() {
       _books = books;
+      FocusScope.of(context).requestFocus(FocusNode());
     });
   }
 
@@ -48,6 +49,7 @@ class _MyAppState extends State<MyApp> {
     final sessions = await widget.dbHelper.getSessionsWithBooks();
     setState(() {
       _sessions = sessions;
+      FocusScope.of(context).requestFocus(FocusNode());
     });
   }
 
