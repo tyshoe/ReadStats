@@ -3,8 +3,9 @@ import '../database_helper.dart';
 
 class LogSessionPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
+  final Function() refreshSessions;
 
-  const LogSessionPage({super.key, required this.books});
+  const LogSessionPage({super.key, required this.books, required this.refreshSessions});
 
   @override
   State<LogSessionPage> createState() => _LogSessionPageState();
@@ -36,6 +37,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
     };
 
     await _dbHelper.insertSession(session);
+    widget.refreshSessions(); // Call to refresh sessions list on SessionsPage
     _showSuccessDialog();
   }
 
@@ -67,6 +69,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
             onPressed: () {
               Navigator.pop(context);
               // Clear form
+              widget.refreshSessions(); // Call to refresh sessions list on SessionsPage
               setState(() {
                 _selectedBook = null;
                 _pagesController.clear();
@@ -151,7 +154,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
                       TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   CupertinoButton(
                     child: Text(
-                        '${_sessionDate.day}/${_sessionDate.month}/${_sessionDate.year}'),
+                        '${_sessionDate.month}/${_sessionDate.day}/${_sessionDate.year}'),
                     onPressed: () => showCupertinoModalPopup(
                       context: context,
                       builder: (_) => Container(

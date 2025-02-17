@@ -32,7 +32,6 @@ class DatabaseHelper {
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    print('Creating database tables...'); // Debug statement
     await db.execute('''
       CREATE TABLE books(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,30 +54,13 @@ class DatabaseHelper {
         FOREIGN KEY(book_id) REFERENCES books(id)
       )
     ''');
-    print('Database tables created successfully.'); // Debug statement
   }
+
 
   Future<int> insertSession(Map<String, dynamic> session) async {
-    try {
       final db = await database;
-      print('Inserting session: $session'); // Debug statement
       final id = await db.insert('sessions', session);
-      print('Session inserted with ID: $id'); // Debug statement
       return id;
-    } catch (e) {
-      print('Error inserting session: $e');
-      return -1;
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> getSessions() async {
-    try {
-      final db = await database;
-      return await db.query('sessions');
-    } catch (e) {
-      print('Error fetching sessions: $e');
-      return [];
-    }
   }
 
   Future<List<Map<String, dynamic>>> getSessionsWithBooks() async {
@@ -98,6 +80,25 @@ class DatabaseHelper {
       print('Error fetching sessions: $e');
       return [];
     }
+  }
+
+  Future<int> updateSession(Map<String, dynamic> session) async {
+    final db = await database;
+    return await db.update(
+      'sessions',
+      session,
+      where: 'id = ?',
+      whereArgs: [session['id']],
+    );
+  }
+
+  Future<int> deleteSession(int id) async {
+    final db = await database;
+    return await db.delete(
+      'sessions',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<int> insertBook(Map<String, dynamic> book) async {
@@ -124,15 +125,6 @@ class DatabaseHelper {
     final db = await database;
     return await db.delete(
       'books',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-  }
-
-  Future<int> deleteSession(int id) async {
-    final db = await database;
-    return await db.delete(
-      'sessions',
       where: 'id = ?',
       whereArgs: [id],
     );

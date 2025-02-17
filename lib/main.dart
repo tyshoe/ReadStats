@@ -24,6 +24,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   bool _isDarkMode = false;
   List<Map<String, dynamic>> _books = [];
+  List<Map<String, dynamic>> _sessions = [];
 
   void _toggleTheme(bool value) {
     setState(() {
@@ -43,10 +44,18 @@ class _MyAppState extends State<MyApp> {
     await _loadBooks(); // Refresh the book list
   }
 
+  Future<void> _loadSessions() async {
+    final sessions = await widget.dbHelper.getSessionsWithBooks();
+    setState(() {
+      _sessions = sessions;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _loadBooks(); // Load books when the app starts
+    _loadSessions(); // Load books when the app starts
   }
 
   @override
@@ -61,6 +70,8 @@ class _MyAppState extends State<MyApp> {
         books: _books,
         addBook: _addBook,
         refreshBooks: _loadBooks, // Pass refresh function
+        refreshSessions: _loadSessions,
+        sessions: _sessions,
       ),
     );
   }
@@ -70,8 +81,10 @@ class NavigationMenu extends StatelessWidget {
   final Function(bool) toggleTheme;
   final Function(Map<String, dynamic>) addBook;
   final Function() refreshBooks;
+  final Function() refreshSessions;
   final bool isDarkMode;
   final List<Map<String, dynamic>> books;
+  final List<Map<String, dynamic>> sessions;
 
   const NavigationMenu({
     super.key,
@@ -80,6 +93,8 @@ class NavigationMenu extends StatelessWidget {
     required this.books,
     required this.addBook,
     required this.refreshBooks,
+    required this.sessions,
+    required this.refreshSessions,
   });
 
   @override
@@ -98,10 +113,9 @@ class NavigationMenu extends StatelessWidget {
           case 0:
             return LibraryPage(books: books, refreshBooks: refreshBooks);
           case 1:
-          // Return an empty container or the LibraryPage again
-            return SessionsPage();
+            return SessionsPage(sessions: sessions, refreshSessions: refreshSessions);
           case 2:
-            return LogSessionPage(books: books);
+            return LogSessionPage(books: books, refreshSessions: refreshSessions);
           case 3:
           default:
             return SettingsPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode);
