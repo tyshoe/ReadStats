@@ -28,6 +28,32 @@ class _SessionsPageState extends State<SessionsPage> {
     return DateFormat('MMM dd, yyyy').format(date);
   }
 
+  void _confirmDeleteSession(int sessionId) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Delete Session'),
+        content: const Text('Are you sure you want to delete this session? This action cannot be undone.'),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            child: const Text('Delete'),
+            onPressed: () async {
+              await _dbHelper.deleteSession(sessionId);
+              Navigator.pop(context);
+              _loadSessions();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+
   @override
   void initState() {
     super.initState();
@@ -59,19 +85,15 @@ class _SessionsPageState extends State<SessionsPage> {
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '📖 ${session['pages_read']} pages',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    Text(
-                      '⏱️ ${_formatDuration(session['hours'], session['minutes'])}',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    Text(
-                      '📅 ${_formatDate(session['date'])}',
-                      style: const TextStyle(fontSize: 14),
-                    ),
+                    Text('📖 ${session['pages_read']} pages', style: const TextStyle(fontSize: 14)),
+                    Text('⏱️ ${_formatDuration(session['hours'], session['minutes'])}', style: const TextStyle(fontSize: 14)),
+                    Text('📅 ${_formatDate(session['date'])}', style: const TextStyle(fontSize: 14)),
                   ],
+                ),
+                trailing: CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  child: const Icon(CupertinoIcons.delete, color: CupertinoColors.destructiveRed),
+                  onPressed: () => _confirmDeleteSession(session['id']),
                 ),
               ),
             );

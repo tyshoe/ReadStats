@@ -128,4 +128,14 @@ class DatabaseHelper {
       whereArgs: [id],
     );
   }
+
+  Future<int> deleteSession(int id) async {
+    final db = await database;
+    return await db.delete(
+      'sessions',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
 }
