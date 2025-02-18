@@ -34,7 +34,7 @@ class _SessionsPageState extends State<SessionsPage> {
   // Delete a session from the database
   Future<void> _deleteSession(int sessionId) async {
     await _dbHelper.deleteSession(sessionId);
-    widget.refreshSessions; // Reload sessions after deleting one
+    widget.refreshSessions();
   }
 
   @override

@@ -23,7 +23,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON'); // Enable foreign keys
@@ -37,9 +37,9 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT,
         author TEXT,
-        wordCount INTEGER,
+        word_count INTEGER,
         rating REAL,
-        isCompleted INTEGER
+        is_completed INTEGER
       )
     ''');
 
@@ -51,7 +51,7 @@ class DatabaseHelper {
         hours INTEGER,
         minutes INTEGER,
         date TEXT,
-        FOREIGN KEY(book_id) REFERENCES books(id)
+        FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
       )
     ''');
   }

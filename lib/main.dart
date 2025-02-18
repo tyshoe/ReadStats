@@ -109,6 +109,12 @@ class NavigationMenu extends StatelessWidget {
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.chart_bar), label: 'Log Session'),
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.settings), label: 'Settings'),
         ],
+        onTap: (index) {
+        // Trigger a function when the Sessions tab is selected
+        if (index == 1) { // Sessions tab index
+          refreshSessions();
+        }
+      },
       ),
       tabBuilder: (context, index) {
         switch (index) {

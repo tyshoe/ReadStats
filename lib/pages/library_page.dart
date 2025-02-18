@@ -21,7 +21,7 @@ class _LibraryPageState extends State<LibraryPage> {
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Delete Book'),
-        content: const Text('Are you sure you want to delete this book?'),
+        content: const Text('Are you sure you want to delete this book and all its sessions?'),
         actions: [
           CupertinoDialogAction(
             child: const Text('Cancel'),

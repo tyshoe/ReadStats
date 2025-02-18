@@ -42,9 +42,9 @@ class _AddBookPageState extends State<AddBookPage> {
     widget.addBook({
       "title": title,
       "author": author,
-      "wordCount": wordCount,
+      "word_count": wordCount,
       "rating": _rating,
-      "isCompleted": _isCompleted ? 1 : 0, // Store as integer (1 for true, 0 for false)
+      "is_completed": _isCompleted ? 1 : 0, // Store as integer (1 for true, 0 for false)
     });
 
     // Clear fields
