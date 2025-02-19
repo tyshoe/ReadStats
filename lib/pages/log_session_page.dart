@@ -155,6 +155,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
                         height: 200,
                         color: CupertinoColors.systemBackground,
                         child: CupertinoDatePicker(
+                          maximumDate: DateTime.now(),
                           initialDateTime: _sessionDate,
                           mode: CupertinoDatePickerMode.date,
                           onDateTimeChanged: (date) =>
