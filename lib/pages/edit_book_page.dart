@@ -14,7 +14,7 @@ class _EditBookPageState extends State<EditBookPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _authorController = TextEditingController();
   final TextEditingController _wordCountController = TextEditingController();
-  double _rating = 5;
+  double _rating = 0;
   bool _isCompleted = false;
 
   @override
@@ -23,9 +23,9 @@ class _EditBookPageState extends State<EditBookPage> {
     // Pre-fill the form with the existing book data
     _titleController.text = widget.book['title'];
     _authorController.text = widget.book['author'];
-    _wordCountController.text = widget.book['wordCount'].toString();
+    _wordCountController.text = widget.book['word_count'].toString();
     _rating = widget.book['rating'];
-    _isCompleted = widget.book['isCompleted'] == 1;
+    _isCompleted = widget.book['is_completed'] == 1;
   }
 
   void _updateBook() {

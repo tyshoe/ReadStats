@@ -101,6 +101,20 @@ class DatabaseHelper {
     );
   }
 
+  Future<Map<String, dynamic>?> getBookById(int bookId) async {
+    final db = await database;
+    List<Map<String, dynamic>> result = await db.query(
+      'books',
+      where: 'id = ?',
+      whereArgs: [bookId],
+    );
+
+    if (result.isNotEmpty) {
+      return result.first; // Return the first matching book
+    }
+    return null; // Return null if no book is found
+  }
+
   Future<int> insertBook(Map<String, dynamic> book) async {
     final db = await database;
     return await db.insert('books', book);

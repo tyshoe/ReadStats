@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
+import 'edit_session_page.dart';
 import '../database_helper.dart';
 
 class SessionsPage extends StatefulWidget {
@@ -14,9 +15,6 @@ class SessionsPage extends StatefulWidget {
 
 class _SessionsPageState extends State<SessionsPage> {
   final DatabaseHelper _dbHelper = DatabaseHelper();
-
-  // Fetch sessions from the database and update the state
-
 
   // Format duration (hours and minutes)
   String _formatDuration(int hours, int minutes) {
@@ -35,6 +33,67 @@ class _SessionsPageState extends State<SessionsPage> {
   Future<void> _deleteSession(int sessionId) async {
     await _dbHelper.deleteSession(sessionId);
     widget.refreshSessions();
+  }
+
+  Future<Map<String, dynamic>?> _fetchBookById(int bookId) async {
+    return await _dbHelper.getBookById(bookId);
+  }
+
+  void _navigateToEditSessionsPage(Map<String, dynamic> session) async {
+    int bookId = session['book_id'];
+
+    Map<String, dynamic>? book = await _fetchBookById(bookId);
+
+    if (book != null) {
+      await Navigator.push(
+        context,
+        CupertinoPageRoute(
+          builder: (context) => EditSessionPage(
+            session: session,
+            book: book,
+            refreshSessions: widget.refreshSessions,
+          ),
+        ),
+      );
+    } else {
+      showCupertinoDialog(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text("Error"),
+          content: const Text("Book details not found."),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text("OK"),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _confirmDelete(int sessionId) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Delete Session'),
+        content: const Text('Are you sure you want to delete this session?'),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            child: const Text('Delete'),
+            isDestructiveAction: true,
+            onPressed: () async {
+              _deleteSession(sessionId);
+              Navigator.pop(context); // Close the dialog
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -89,14 +148,14 @@ class _SessionsPageState extends State<SessionsPage> {
                       padding: EdgeInsets.zero,
                       child: const Icon(CupertinoIcons.pencil),
                       onPressed: () {
-                        // Navigate to the Edit Session Page (we'll set up navigation later)
+                        _navigateToEditSessionsPage(session);
                       },
                     ),
                     CupertinoButton(
                       padding: EdgeInsets.zero,
                       child: const Icon(CupertinoIcons.delete, color: CupertinoColors.destructiveRed),
                       onPressed: () {
-                        _deleteSession(session['id']);
+                        _confirmDelete(session['id']);
                       },
                     ),
                   ],
