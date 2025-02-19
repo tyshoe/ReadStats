@@ -37,7 +37,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT,
         author TEXT,
-        word_count INTEGER,
+        word_count INTEGER DEFAULT 0,
         rating REAL,
         is_completed INTEGER
       )

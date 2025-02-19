@@ -33,9 +33,9 @@ class _EditBookPageState extends State<EditBookPage> {
   void _updateBook() {
     String title = _titleController.text;
     String author = _authorController.text;
-    int? wordCount = int.tryParse(_wordCountController.text);
+    int wordCount = int.tryParse(_wordCountController.text) ?? 0;
 
-    if (title.isEmpty || author.isEmpty || wordCount == null) {
+    if (title.isEmpty || author.isEmpty) {
       setState(() {
         _statusMessage = 'Please fill all fields correctly.';
         _isSuccess = false;
