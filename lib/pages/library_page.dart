@@ -82,7 +82,25 @@ class _LibraryPageState extends State<LibraryPage> {
         child: Stack(
           children: [
             widget.books.isEmpty
-                ? const Center(child: Text('No books added yet.'))
+                ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/images/carl.png', // Path to your PNG image
+                    width: 100, // Adjust the width as needed
+                    height: 100, // Adjust the height as needed
+                  ),
+                  const SizedBox(height: 16), // Add some spacing
+                  const Text(
+                    'Carl is hungry, add a book to your library',
+                    style: TextStyle(
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            )
                 : ListView.builder(
               itemCount: widget.books.length,
               itemBuilder: (context, index) {
