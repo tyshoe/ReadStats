@@ -15,6 +15,8 @@ class _AddBookPageState extends State<AddBookPage> {
   final TextEditingController _wordCountController = TextEditingController();
   double _rating = 0;
   bool _isCompleted = false;
+  String _statusMessage = '';
+  bool _isSuccess = false;
 
   void _saveBook() {
     String title = _titleController.text;
@@ -22,19 +24,11 @@ class _AddBookPageState extends State<AddBookPage> {
     int? wordCount = int.tryParse(_wordCountController.text);
 
     if (title.isEmpty || author.isEmpty || wordCount == null) {
-      showCupertinoDialog(
-        context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: const Text("Error"),
-          content: const Text("Please fill all fields correctly."),
-          actions: [
-            CupertinoDialogAction(
-              child: const Text("OK"),
-              onPressed: () => Navigator.pop(context),
-            )
-          ],
-        ),
-      );
+      setState(() {
+        _statusMessage = 'Please fill all fields correctly.';
+        _isSuccess = false;
+      });
+      _clearStatusMessage();
       return;
     }
 
@@ -54,22 +48,22 @@ class _AddBookPageState extends State<AddBookPage> {
     setState(() {
       _rating = 0;
       _isCompleted = false;
+      _statusMessage = 'Book added successfully!';
+      _isSuccess = true;
     });
 
-    // Show confirmation
-    showCupertinoDialog(
-      context: context,
-      builder: (_) => CupertinoAlertDialog(
-        title: const Text("Success"),
-        content: const Text("Book added successfully!"),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text("OK"),
-            onPressed: () => Navigator.pop(context),
-          )
-        ],
-      ),
-    );
+    _clearStatusMessage();
+  }
+
+  void _clearStatusMessage() {
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _statusMessage = '';
+          _isSuccess = false;
+        });
+      }
+    });
   }
 
   @override
@@ -158,6 +152,18 @@ class _AddBookPageState extends State<AddBookPage> {
                   child: const Text("Save Book"),
                 ),
               ),
+              const SizedBox(height: 16),
+              if (_statusMessage.isNotEmpty)
+                Center(
+                  child: Text(
+                    _statusMessage,
+                    style: TextStyle(
+                      color: _isSuccess ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
+                      fontSize: 16,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
             ],
           ),
         ),

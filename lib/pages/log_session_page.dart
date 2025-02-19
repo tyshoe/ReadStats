@@ -18,13 +18,18 @@ class _LogSessionPageState extends State<LogSessionPage> {
   final TextEditingController _hoursController = TextEditingController();
   final TextEditingController _minutesController = TextEditingController();
   DateTime _sessionDate = DateTime.now();
+  String _statusMessage = '';
+  bool _isSuccess = false;
 
   void _saveSession() async {
     if (_selectedBook == null ||
         _pagesController.text.isEmpty ||
         _hoursController.text.isEmpty ||
         _minutesController.text.isEmpty) {
-      _showErrorDialog('Please fill all fields and select a book.');
+      setState(() {
+        _statusMessage = 'Please fill all fields.'; // Error message
+        _isSuccess = false;
+      });
       return;
     }
 
@@ -37,51 +42,40 @@ class _LogSessionPageState extends State<LogSessionPage> {
     };
 
     await _dbHelper.insertSession(session);
-    widget.refreshSessions(); // Call to refresh sessions list on SessionsPage
-    _showSuccessDialog();
+    widget.refreshSessions();
+
+    try {
+      await _dbHelper.updateSession(session);
+      setState(() {
+        _statusMessage = 'Session logged successfully!'; // Success message
+        _isSuccess = true;
+      });
+      widget.refreshSessions();
+      _resetPageInputs();
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            _statusMessage = ''; // Success message
+            _isSuccess = false;
+          });
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _statusMessage = 'Failed to log session. Please try again.'; // Error message
+        _isSuccess = false;
+      });
+    }
   }
 
-  void _showErrorDialog(String message) {
-    showCupertinoDialog(
-      context: context,
-      builder: (_) => CupertinoAlertDialog(
-        title: const Text('Error'),
-        content: Text(message),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSuccessDialog() {
-    showCupertinoDialog(
-      context: context,
-      builder: (_) => CupertinoAlertDialog(
-        title: const Text('Success'),
-        content: const Text('Session logged successfully!'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () {
-              Navigator.pop(context);
-              // Clear form
-              widget.refreshSessions(); // Call to refresh sessions list on SessionsPage
-              setState(() {
-                _selectedBook = null;
-                _pagesController.clear();
-                _hoursController.clear();
-                _minutesController.clear();
-                _sessionDate = DateTime.now();
-              });
-            },
-          ),
-        ],
-      ),
-    );
+  void _resetPageInputs() {
+    setState(() {
+      _selectedBook = null;
+      _pagesController.clear();
+      _hoursController.clear();
+      _minutesController.clear();
+      _sessionDate = DateTime.now();
+    });
   }
 
   @override
@@ -176,6 +170,17 @@ class _LogSessionPageState extends State<LogSessionPage> {
                 child: const Text('Log Session'),
                 onPressed: _saveSession,
               ),
+                const SizedBox(height: 16),
+                // Display the status message
+                if (_statusMessage.isNotEmpty)
+                  Text(
+                    _statusMessage,
+                    style: TextStyle(
+                      color: _isSuccess ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
+                      fontSize: 16,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
             ],
           ),
         ),

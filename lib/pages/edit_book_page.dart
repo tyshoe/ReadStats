@@ -16,6 +16,8 @@ class _EditBookPageState extends State<EditBookPage> {
   final TextEditingController _wordCountController = TextEditingController();
   double _rating = 0;
   bool _isCompleted = false;
+  String _statusMessage = ''; // To display success/error messages
+  bool _isSuccess = false; // To track if the operation was successful
 
   @override
   void initState() {
@@ -34,19 +36,10 @@ class _EditBookPageState extends State<EditBookPage> {
     int? wordCount = int.tryParse(_wordCountController.text);
 
     if (title.isEmpty || author.isEmpty || wordCount == null) {
-      showCupertinoDialog(
-        context: context,
-        builder: (_) => CupertinoAlertDialog(
-          title: const Text("Error"),
-          content: const Text("Please fill all fields correctly."),
-          actions: [
-            CupertinoDialogAction(
-              child: const Text("OK"),
-              onPressed: () => Navigator.pop(context),
-            )
-          ],
-        ),
-      );
+      setState(() {
+        _statusMessage = 'Please fill all fields correctly.';
+        _isSuccess = false;
+      });
       return;
     }
 
@@ -60,20 +53,16 @@ class _EditBookPageState extends State<EditBookPage> {
       "is_completed": _isCompleted ? 1 : 0, // Store as integer (1 for true, 0 for false)
     });
 
-    // Show confirmation
-    showCupertinoDialog(
-      context: context,
-      builder: (_) => CupertinoAlertDialog(
-        title: const Text("Success"),
-        content: const Text("Book updated successfully!"),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text("OK"),
-            onPressed: () => Navigator.pop(context),
-          )
-        ],
-      ),
-    );
+    setState(() {
+      _statusMessage = 'Book updated successfully!';
+      _isSuccess = true;
+    });
+
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    });
   }
 
   @override
@@ -83,8 +72,7 @@ class _EditBookPageState extends State<EditBookPage> {
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: ListView(
             children: [
               const Text("Title",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -156,12 +144,21 @@ class _EditBookPageState extends State<EditBookPage> {
                 ],
               ),
               const SizedBox(height: 24),
-              Center(
-                child: CupertinoButton.filled(
-                  onPressed: _updateBook,
-                  child: const Text("Update Book"),
-                ),
+              CupertinoButton.filled(
+                onPressed: _updateBook,
+                child: const Text("Update Book"),
               ),
+              const SizedBox(height: 16),
+              // Display the status message
+              if (_statusMessage.isNotEmpty)
+                Text(
+                  _statusMessage,
+                  style: TextStyle(
+                    color: _isSuccess ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
+                    fontSize: 16,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
             ],
           ),
         ),

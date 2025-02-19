@@ -3,7 +3,7 @@ import '../database_helper.dart';
 
 class EditSessionPage extends StatefulWidget {
   final Map<String, dynamic> session;
-  final Map<String, dynamic> book; // Pass the book directly
+  final Map<String, dynamic> book;
   final Function() refreshSessions;
 
   const EditSessionPage({
@@ -23,6 +23,8 @@ class _EditSessionPageState extends State<EditSessionPage> {
   final TextEditingController _hoursController = TextEditingController();
   final TextEditingController _minutesController = TextEditingController();
   late DateTime _sessionDate;
+  String _statusMessage = ''; // To display success/error messages
+  bool _isSuccess = false; // To track if the operation was successful
 
   @override
   void initState() {
@@ -38,59 +40,40 @@ class _EditSessionPageState extends State<EditSessionPage> {
     if (_pagesController.text.isEmpty ||
         _hoursController.text.isEmpty ||
         _minutesController.text.isEmpty) {
-      _showErrorDialog('Please fill all fields.');
+      setState(() {
+        _statusMessage = 'Please fill all fields.'; // Error message
+        _isSuccess = false;
+      });
       return;
     }
 
     final session = {
-      'id': widget.session['id'], // Include the session ID for updating
-      'book_id': widget.book['id'], // Use the book ID from the passed book
+      'id': widget.session['id'],
+      'book_id': widget.book['id'],
       'pages_read': int.parse(_pagesController.text),
       'hours': int.parse(_hoursController.text),
       'minutes': int.parse(_minutesController.text),
       'date': _sessionDate.toIso8601String(),
     };
 
-    await _dbHelper.updateSession(session);
-    widget.refreshSessions(); // Call to refresh sessions list on SessionsPage
-    _showSuccessDialog();
-  }
-
-  void _showErrorDialog(String message) {
-    showCupertinoDialog(
-      context: context,
-      builder: (_) => CupertinoAlertDialog(
-        title: const Text('Error'),
-        content: Text(message),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSuccessDialog() {
-    showCupertinoDialog(
-      context: context,
-      builder: (_) => CupertinoAlertDialog(
-        title: const Text('Success'),
-        content: const Text('Session updated successfully!'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () {
-              Navigator.pop(context);
-              // Clear form and go back
-              widget.refreshSessions(); // Call to refresh sessions list on SessionsPage
-              Navigator.pop(context); // Go back to the previous screen
-            },
-          ),
-        ],
-      ),
-    );
+    try {
+      await _dbHelper.updateSession(session);
+      setState(() {
+        _statusMessage = 'Session updated successfully!'; // Success message
+        _isSuccess = true;
+      });
+      widget.refreshSessions(); // Refresh the sessions list
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          Navigator.pop(context); // Go back to the previous screen after 2 seconds
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _statusMessage = 'Failed to update session. Please try again.'; // Error message
+        _isSuccess = false;
+      });
+    }
   }
 
   @override
@@ -105,7 +88,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
               const Text('Book',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               Text(
-                widget.book['title'], // Display the book title directly
+                widget.book['title'],
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 16),
@@ -168,6 +151,17 @@ class _EditSessionPageState extends State<EditSessionPage> {
                 child: const Text('Update Session'),
                 onPressed: _updateSession,
               ),
+              const SizedBox(height: 16),
+              // Display the status message
+              if (_statusMessage.isNotEmpty)
+                Text(
+                  _statusMessage,
+                  style: TextStyle(
+                    color: _isSuccess ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
+                    fontSize: 16,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
             ],
           ),
         ),
