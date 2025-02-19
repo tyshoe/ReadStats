@@ -55,9 +55,9 @@ class _EditBookPageState extends State<EditBookPage> {
       "id": widget.book['id'], // Include the book ID to identify the entry
       "title": title,
       "author": author,
-      "wordCount": wordCount,
+      "word_count": wordCount,
       "rating": _rating,
-      "isCompleted": _isCompleted ? 1 : 0, // Store as integer (1 for true, 0 for false)
+      "is_completed": _isCompleted ? 1 : 0, // Store as integer (1 for true, 0 for false)
     });
 
     // Show confirmation
