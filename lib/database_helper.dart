@@ -32,7 +32,7 @@ class DatabaseHelper {
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    await db.execute('''
+    await db.execute(''' 
       CREATE TABLE books(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT,
@@ -43,7 +43,7 @@ class DatabaseHelper {
       )
     ''');
 
-    await db.execute('''
+    await db.execute(''' 
       CREATE TABLE sessions(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         book_id INTEGER,
@@ -56,17 +56,16 @@ class DatabaseHelper {
     ''');
   }
 
-
   Future<int> insertSession(Map<String, dynamic> session) async {
-      final db = await database;
-      final id = await db.insert('sessions', session);
-      return id;
+    final db = await database;
+    final id = await db.insert('sessions', session);
+    return id;
   }
 
   Future<List<Map<String, dynamic>>> getSessionsWithBooks() async {
     try {
       final db = await database;
-      final result = await db.rawQuery('''
+      final result = await db.rawQuery(''' 
         SELECT 
           sessions.*, 
           books.title as book_title 
@@ -144,4 +143,61 @@ class DatabaseHelper {
     );
   }
 
+  Future<List<Map<String, dynamic>>> getSessionsByBookId(int bookId) async {
+    final db = await database;
+    return await db.query(
+      'sessions',
+      where: 'book_id = ?',
+      whereArgs: [bookId],
+    );
+  }
+
+  Future<Map<String, dynamic>> getBookStats(int bookId) async {
+    final db = await database;
+    final result = await db.rawQuery(''' 
+    SELECT 
+      COUNT(id) AS session_count, 
+      SUM(pages_read) AS total_pages,
+      SUM(hours * 60 + minutes) AS total_time,  -- Converts time to minutes
+      ROUND(AVG(pages_read * 1.0 / (hours * 60 + minutes))) AS avg_pages_per_minute,
+      ROUND(AVG(pages_read * 1.0 / (hours * 60 + minutes) * 250)) AS avg_words_per_minute,
+      MIN(date) AS start_date,
+      MAX(date) AS finish_date,
+      ROUND(
+        JULIANDAY(MAX(date)) - JULIANDAY(MIN(date))
+      ) AS days_to_complete
+    FROM sessions
+    WHERE book_id = ?
+  ''', [bookId]);
+
+    print(result);
+    if (result.isNotEmpty) {
+      return result.first;
+    } else {
+      return {
+        'session_count': 0,
+        'total_pages': 0,
+        'total_time': 0,
+        'avg_pages_per_minute': 0,
+        'avg_words_per_minute': 0,
+      };
+    }
+
+  }
+
+
+  Future<Map<String, dynamic>> getCompleteBookStats(int bookId) async {
+    final book = await getBookById(bookId);
+    final stats = await getBookStats(bookId);
+
+    if (book != null) {
+      return {
+        'book': book,
+        'stats': stats,
+      };
+    } else {
+      return {};
+    }
+  }
 }
+

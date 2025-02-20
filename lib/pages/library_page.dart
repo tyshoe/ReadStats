@@ -3,6 +3,7 @@ import 'add_book_page.dart';
 import 'edit_book_page.dart';
 import 'log_session_page.dart';
 import '../database_helper.dart';
+import 'package:intl/intl.dart';
 
 class LibraryPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -88,7 +89,29 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  void _showBookPopup(BuildContext context, Map<String, dynamic> book) {
+  void _showBookPopup(BuildContext context, Map<String, dynamic> book) async {
+    final stats = await _dbHelper.getBookStats(book['id']);
+    final DateFormat dateFormat = DateFormat('M/d/yy');
+
+    String formatTime(int totalTimeInMinutes) {
+      int days = totalTimeInMinutes ~/ (24 * 60); // Divide by the number of minutes in a day
+      int hours = (totalTimeInMinutes % (24 * 60)) ~/ 60; // Remainder after days, then divide by 60 to get hours
+      int minutes = totalTimeInMinutes % 60; // Remainder after hours, gives minutes
+
+      // Build the formatted string
+      String formattedTime = '';
+
+      if (days > 0) {
+        formattedTime += '${days}d ';
+      }
+      if (hours > 0 || days > 0) {
+        formattedTime += '${hours}h ';
+      }
+      formattedTime += '${minutes}m';
+
+      return formattedTime;
+    }
+
     showCupertinoModalPopup(
       context: context,
       builder: (context) {
@@ -103,8 +126,7 @@ class _LibraryPageState extends State<LibraryPage> {
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment
-                  .start, // Align children to the start (left)
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Book Title and Stats
                 Text(
@@ -118,41 +140,39 @@ class _LibraryPageState extends State<LibraryPage> {
                   style: const TextStyle(fontSize: 14),
                 ),
                 Text(
-                  book['word_count'].toString() + ' words',
+                  book['word_count']?.toString() ?? '0' + ' words', // Null check for word count
                   style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 16),
                 Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.spaceBetween, // Space out the cards
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _statCard(
                         title: 'Sessions',
-                        value: book['session_count'].toString()),
+                        value: stats['session_count']?.toString() ?? '0'),
                     _statCard(
                         title: 'Pages Read',
-                        value: book['total_pages'].toString()),
+                        value: stats['total_pages']?.toString() ?? '0'),
                     _statCard(
                         title: 'Read Time',
-                        value: book['total_time'].toString()),
+                        value: formatTime(stats['total_time'] ?? 0)),
                   ],
                 ),
                 Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.spaceBetween, // Space out the cards
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _statCard(
                         title: 'Pages/Minute',
-                        value: book['avg_pages_per_minute'].toString()),
+                        value: stats['avg_pages_per_minute']?.toString() ?? '0'),
                     _statCard(
                         title: 'Words/Minute',
-                        value: book['avg_words_per_minute'].toString()),
+                        value: stats['avg_words_per_minute']?.toString() ?? '0'),
                   ],
                 ),
                 _dateStatsCard(
-                  startDate: '01-01-2025',
-                  finishDate: '02-01-2025',
-                  daysToComplete: '31',
+                  startDate: dateFormat.format(DateTime.parse(stats['start_date'] ?? '1970-01-01')),
+                  finishDate: dateFormat.format(DateTime.parse(stats['finish_date'] ?? '1970-01-01')),
+                  daysToComplete: stats['days_to_complete']?.toString() ?? '0',
                 ),
                 const SizedBox(height: 16),
 

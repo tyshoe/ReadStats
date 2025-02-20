@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'pages/library_page.dart';
-import 'pages/log_session_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/sessions_page.dart';
 import 'database_helper.dart';
