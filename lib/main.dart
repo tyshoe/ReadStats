@@ -105,8 +105,8 @@ class NavigationMenu extends StatelessWidget {
       tabBar: CupertinoTabBar(
         items: const [
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.book), label: 'Library'),
-          BottomNavigationBarItem(icon: Icon(CupertinoIcons.add), label: 'Sessions'),
-          BottomNavigationBarItem(icon: Icon(CupertinoIcons.chart_bar), label: 'Log Session'),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.time), label: 'Sessions'),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.chart_bar), label: 'Stats'),
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.settings), label: 'Settings'),
         ],
         onTap: (index) {
@@ -121,9 +121,9 @@ class NavigationMenu extends StatelessWidget {
           case 0:
             return LibraryPage(books: books, refreshBooks: refreshBooks);
           case 1:
-            return SessionsPage(sessions: sessions, refreshSessions: refreshSessions);
+            return SessionsPage(books: books, sessions: sessions, refreshSessions: refreshSessions);
           case 2:
-            return LogSessionPage(books: books, refreshSessions: refreshSessions);
+            return LibraryPage(books: books, refreshBooks: refreshBooks); // Placeholder until stats page exists
           case 3:
           default:
             return SettingsPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode);
