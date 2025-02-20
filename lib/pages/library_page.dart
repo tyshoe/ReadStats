@@ -103,13 +103,60 @@ class _LibraryPageState extends State<LibraryPage> {
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment
+                  .start, // Align children to the start (left)
               children: [
+                // Book Title and Stats
                 Text(
                   book['title'],
                   style: const TextStyle(
                       fontSize: 18, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 3),
+                Text(
+                  book['author'],
+                  style: const TextStyle(fontSize: 14),
+                ),
+                Text(
+                  book['word_count'].toString() + ' words',
+                  style: const TextStyle(fontSize: 14),
+                ),
                 const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment:
+                      MainAxisAlignment.spaceBetween, // Space out the cards
+                  children: [
+                    _statCard(
+                        title: 'Sessions',
+                        value: book['session_count'].toString()),
+                    _statCard(
+                        title: 'Pages Read',
+                        value: book['total_pages'].toString()),
+                    _statCard(
+                        title: 'Read Time',
+                        value: book['total_time'].toString()),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment:
+                      MainAxisAlignment.spaceBetween, // Space out the cards
+                  children: [
+                    _statCard(
+                        title: 'Pages/Minute',
+                        value: book['avg_pages_per_minute'].toString()),
+                    _statCard(
+                        title: 'Words/Minute',
+                        value: book['avg_words_per_minute'].toString()),
+                  ],
+                ),
+                _dateStatsCard(
+                  startDate: '01-01-2025',
+                  finishDate: '02-01-2025',
+                  daysToComplete: '31',
+                ),
+                const SizedBox(height: 16),
+
+                // Actions
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -146,6 +193,88 @@ class _LibraryPageState extends State<LibraryPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _statCard({required String title, required String value}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemGrey6,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          // Title label at the top
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, color: CupertinoColors.systemGrey),
+          ),
+          const SizedBox(height: 12),
+          // Value in center, bold
+          Text(
+            value,
+            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dateStatsCard(
+      {required String startDate,
+      required String finishDate,
+      required String daysToComplete}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemGrey6,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            children: [
+              Text(
+                'Start Date',
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Text(startDate, style: const TextStyle(fontSize: 16)),
+            ],
+          ),
+          Column(
+            children: [
+              Text(
+                'Finish Date',
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Text(finishDate, style: const TextStyle(fontSize: 16)),
+            ],
+          ),
+          Column(
+            children: [
+              Text(
+                'Days to Complete',
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                daysToComplete,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
