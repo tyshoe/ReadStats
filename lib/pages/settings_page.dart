@@ -1,30 +1,36 @@
 import 'package:flutter/cupertino.dart';
 
 class SettingsPage extends StatelessWidget {
-  final Function(bool) toggleTheme;
+  final Function(bool) onThemeSelected;
   final bool isDarkMode;
 
-  const SettingsPage(
-      {super.key, required this.toggleTheme, required this.isDarkMode});
+  const SettingsPage({
+    super.key,
+    required this.onThemeSelected,
+    required this.isDarkMode,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
+    final textColor = CupertinoColors.label.resolveFrom(context);
+
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(middle: Text('Settings')),
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('Settings'),
+      ),
       child: SafeArea(
-        child: Column(
+        child: CupertinoFormSection.insetGrouped(
+          header: const Text('Appearance'),
           children: [
-            const SizedBox(height: 16),
-            CupertinoListSection.insetGrouped(
-              children: [
-                CupertinoListTile(
-                  title: const Text('Dark Mode'),
-                  trailing: CupertinoSwitch(
-                    value: isDarkMode,
-                    onChanged: toggleTheme,
-                  ),
-                ),
-              ],
+            CupertinoFormRow(
+              prefix: const Text('Dark Mode'),
+              child: CupertinoSwitch(
+                value: isDarkMode,
+                onChanged: (bool value) {
+                  onThemeSelected(value);
+                },
+              ),
             ),
           ],
         ),

@@ -117,15 +117,21 @@ class _SessionsPageState extends State<SessionsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
+    final textColor = CupertinoColors.label.resolveFrom(context);
+
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('Reading Sessions'),
-      ),
+      navigationBar: CupertinoNavigationBar(
+          middle: Text('Reading Sessions'), backgroundColor: bgColor),
       child: SafeArea(
         child: Stack(
           children: [
             widget.sessions.isEmpty
-                ? const Center(child: Text('No sessions logged yet'))
+                ? Center(
+                    child: Text(
+                    'No sessions logged yet',
+                    style: TextStyle(color: textColor),
+                  ))
                 : ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: widget.sessions.length,
@@ -141,7 +147,8 @@ class _SessionsPageState extends State<SessionsPage> {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
-                          color: CupertinoColors.systemGrey6,
+                          color: CupertinoColors.secondarySystemBackground
+                              .resolveFrom(context),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: CupertinoListTile(

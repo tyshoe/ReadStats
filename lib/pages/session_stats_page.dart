@@ -65,6 +65,11 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
+    final textColor = CupertinoColors.label.resolveFrom(context);
+    final subtitleColor = CupertinoColors.secondaryLabel.resolveFrom(context);
+    final cardColor = CupertinoColors.systemGrey6.resolveFrom(context);
+
     return CupertinoPageScaffold(
       navigationBar: const CupertinoNavigationBar(
         middle: Text('Total Session Stats'),
@@ -88,10 +93,10 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _statCard(title: 'Total Sessions', value: stats?['totalSessions'].toString() ?? '0'),
-                  _statCard(title: 'Total Pages Read', value: stats?['totalPagesRead'].toString() ?? '0'),
-                  _statCard(title: 'Total Time Spent', value: stats?['totalTimeSpent'] ?? '0'),
-                  _statCard(title: 'Average Pages/Minute', value: stats?['avgPagesPerMinute'].toStringAsFixed(2) ?? '0'),
+                  _statCard(title: 'Total Sessions', value: stats?['totalSessions'].toString() ?? '0', bgColor: cardColor, textColor: textColor, subtitleColor: subtitleColor),
+                  _statCard(title: 'Total Pages Read', value: stats?['totalPagesRead'].toString() ?? '0', bgColor: cardColor, textColor: textColor, subtitleColor: subtitleColor),
+                  _statCard(title: 'Total Time Spent', value: stats?['totalTimeSpent'] ?? '0', bgColor: cardColor, textColor: textColor, subtitleColor: subtitleColor),
+                  _statCard(title: 'Average Pages/Minute', value: stats?['avgPagesPerMinute'].toStringAsFixed(2) ?? '0', bgColor: cardColor, textColor: textColor, subtitleColor: subtitleColor),
                 ],
               ),
             );
@@ -101,19 +106,25 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
     );
   }
 
-  Widget _statCard({required String title, required String value}) {
+  Widget _statCard({
+    required String title,
+    required String value,
+    required Color bgColor,
+    required Color textColor,
+    required Color subtitleColor,
+  }) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: CupertinoColors.systemGrey6,
+        color: bgColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(fontSize: 16, color: CupertinoColors.systemGrey)),
-          Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(title, style: TextStyle(fontSize: 16, color: subtitleColor)), // Use dynamic subtitle color
+          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)), // Use dynamic text color
         ],
       ),
     );

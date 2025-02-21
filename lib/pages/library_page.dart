@@ -221,7 +221,7 @@ class _LibraryPageState extends State<LibraryPage> {
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: CupertinoColors.systemGrey6,
+        color: CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -242,15 +242,16 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  Widget _dateStatsCard(
-      {required String startDate,
-      required String finishDate,
-      required String daysToComplete}) {
+  Widget _dateStatsCard({
+    required String startDate,
+    required String finishDate,
+    required String daysToComplete,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: CupertinoColors.systemGrey6,
+        color: CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -260,8 +261,7 @@ class _LibraryPageState extends State<LibraryPage> {
             children: [
               Text(
                 'Start Date',
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
               Text(startDate, style: const TextStyle(fontSize: 16)),
@@ -271,8 +271,7 @@ class _LibraryPageState extends State<LibraryPage> {
             children: [
               Text(
                 'Finish Date',
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
               Text(finishDate, style: const TextStyle(fontSize: 16)),
@@ -282,14 +281,12 @@ class _LibraryPageState extends State<LibraryPage> {
             children: [
               Text(
                 'Days to Complete',
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
               Text(
                 daysToComplete,
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -321,53 +318,58 @@ class _LibraryPageState extends State<LibraryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
+    final textColor = CupertinoColors.label.resolveFrom(context);
+
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('Library'),
+      navigationBar: CupertinoNavigationBar(
+        middle: Text('Library', style: TextStyle(color: textColor)),
+        backgroundColor: bgColor,
       ),
       child: SafeArea(
         child: Stack(
           children: [
             widget.books.isEmpty
                 ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/images/carl.png',
-                          width: 100,
-                          height: 100,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Carl is hungry, add a book to your library',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: widget.books.length,
-                    itemBuilder: (context, index) {
-                      final book = widget.books[index];
-                      return GestureDetector(
-                        onTap: () => _showBookPopup(context, book),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(
-                              vertical: 4, horizontal: 8),
-                          decoration: BoxDecoration(
-                            color: CupertinoColors.systemGrey6,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: CupertinoListTile(
-                            title: Text(book['title']),
-                            subtitle: Text('${book['author']}'),
-                            trailing: const Icon(CupertinoIcons.chevron_right),
-                          ),
-                        ),
-                      );
-                    },
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset('assets/images/carl.png',
+                      width: 100, height: 100),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Carl is hungry, add a book to your library',
+                    style: TextStyle(fontSize: 16, color: textColor),
                   ),
+                ],
+              ),
+            )
+                : ListView.builder(
+              itemCount: widget.books.length,
+              itemBuilder: (context, index) {
+                final book = widget.books[index];
+                return GestureDetector(
+                  onTap: () => _showBookPopup(context, book),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(
+                        vertical: 4, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.secondarySystemBackground
+                          .resolveFrom(context),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: CupertinoListTile(
+                      title: Text(book['title'],
+                          style: TextStyle(color: textColor)),
+                      subtitle: Text(book['author'],
+                          style: TextStyle(color: textColor)),
+                      trailing: Icon(CupertinoIcons.chevron_right,
+                          color: textColor),
+                    ),
+                  ),
+                );
+              },
+            ),
             Positioned(
               bottom: 20,
               right: 20,
@@ -375,9 +377,9 @@ class _LibraryPageState extends State<LibraryPage> {
                 padding: const EdgeInsets.all(16),
                 borderRadius: BorderRadius.circular(30),
                 color: CupertinoColors.activeBlue,
-                child: const Icon(CupertinoIcons.add,
-                    color: CupertinoColors.white),
                 onPressed: _navigateToAddBookPage,
+                child:
+                const Icon(CupertinoIcons.add, color: CupertinoColors.white),
               ),
             ),
           ],
@@ -385,4 +387,5 @@ class _LibraryPageState extends State<LibraryPage> {
       ),
     );
   }
+
 }

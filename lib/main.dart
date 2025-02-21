@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
+import 'database/database_helper.dart';
 import 'pages/library_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/sessions_page.dart';
 import 'pages/session_stats_page.dart';
-import 'database/database_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,9 +26,9 @@ class _MyAppState extends State<MyApp> {
   List<Map<String, dynamic>> _books = [];
   List<Map<String, dynamic>> _sessions = [];
 
-  void _toggleTheme(bool value) {
+  void _toggleTheme(bool isDark) {
     setState(() {
-      _isDarkMode = value;
+      _isDarkMode = isDark;
     });
   }
 
@@ -36,28 +36,26 @@ class _MyAppState extends State<MyApp> {
     final books = await widget.dbHelper.getBooks();
     setState(() {
       _books = books;
-      FocusScope.of(context).requestFocus(FocusNode());
     });
   }
 
   Future<void> _addBook(Map<String, dynamic> book) async {
     await widget.dbHelper.insertBook(book);
-    await _loadBooks(); // Refresh the book list
+    await _loadBooks();
   }
 
   Future<void> _loadSessions() async {
     final sessions = await widget.dbHelper.getSessionsWithBooks();
     setState(() {
       _sessions = sessions;
-      FocusScope.of(context).requestFocus(FocusNode());
     });
   }
 
   @override
   void initState() {
     super.initState();
-    _loadBooks(); // Load books when the app starts
-    _loadSessions(); // Load books when the app starts
+    _loadBooks();
+    _loadSessions();
   }
 
   @override
@@ -71,7 +69,7 @@ class _MyAppState extends State<MyApp> {
         isDarkMode: _isDarkMode,
         books: _books,
         addBook: _addBook,
-        refreshBooks: _loadBooks, // Pass refresh function
+        refreshBooks: _loadBooks,
         refreshSessions: _loadSessions,
         sessions: _sessions,
       ),
@@ -109,12 +107,6 @@ class NavigationMenu extends StatelessWidget {
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.chart_bar), label: 'Stats'),
           BottomNavigationBarItem(icon: Icon(CupertinoIcons.settings), label: 'Settings'),
         ],
-        onTap: (index) {
-        // Trigger a function when the Sessions tab is selected
-        if (index == 1) { // Sessions tab index
-          refreshSessions();
-        }
-      },
       ),
       tabBuilder: (context, index) {
         switch (index) {
@@ -126,7 +118,10 @@ class NavigationMenu extends StatelessWidget {
             return SessionStatsPage();
           case 3:
           default:
-            return SettingsPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode);
+            return SettingsPage(
+              onThemeSelected: toggleTheme,
+              isDarkMode: isDarkMode,
+            );
         }
       },
     );
