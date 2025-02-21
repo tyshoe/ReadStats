@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'pages/library_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/sessions_page.dart';
+import 'pages/session_stats_page.dart';
 import 'database/database_helper.dart';
 
 void main() async {
@@ -122,7 +123,7 @@ class NavigationMenu extends StatelessWidget {
           case 1:
             return SessionsPage(books: books, sessions: sessions, refreshSessions: refreshSessions);
           case 2:
-            return LibraryPage(books: books, refreshBooks: refreshBooks); // Placeholder until stats page exists
+            return SessionStatsPage();
           case 3:
           default:
             return SettingsPage(toggleTheme: toggleTheme, isDarkMode: isDarkMode);

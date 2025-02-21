@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
+import 'package:intl/intl.dart';
 import 'add_book_page.dart';
 import 'edit_book_page.dart';
 import 'log_session_page.dart';
 import '../database/database_helper.dart';
-import 'package:intl/intl.dart';
 
 class LibraryPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -140,7 +140,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   style: const TextStyle(fontSize: 14),
                 ),
                 Text(
-                  book['word_count']?.toString() ?? '0' + ' words', // Null check for word count
+                    "${book['word_count']?.toString() ?? '0'} words", // Null check for word count
                   style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 16),
