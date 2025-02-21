@@ -2,7 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'edit_session_page.dart';
 import 'log_session_page.dart';
-import '../database_helper.dart';
+import '../repositories/session_repository.dart';
+import '../repositories/book_repository.dart';
 
 class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -20,7 +21,8 @@ class SessionsPage extends StatefulWidget {
 }
 
 class _SessionsPageState extends State<SessionsPage> {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final SessionRepository _sessionRepo = SessionRepository();
+  final BookRepository _bookRepo = BookRepository();
 
   // Format duration (hours and minutes)
   String _formatDuration(int hours, int minutes) {
@@ -36,12 +38,12 @@ class _SessionsPageState extends State<SessionsPage> {
 
   // Delete a session from the database
   Future<void> _deleteSession(int sessionId) async {
-    await _dbHelper.deleteSession(sessionId);
+    await _sessionRepo.deleteSession(sessionId);
     widget.refreshSessions();
   }
 
   Future<Map<String, dynamic>?> _fetchBookById(int bookId) async {
-    return await _dbHelper.getBookById(bookId);
+    return await _bookRepo.getBookById(bookId);
   }
 
   void _navigateToEditSessionsPage(Map<String, dynamic> session) async {

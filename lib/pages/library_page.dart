@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'add_book_page.dart';
 import 'edit_book_page.dart';
 import 'log_session_page.dart';
-import '../database_helper.dart';
+import '../database/database_helper.dart';
 import 'package:intl/intl.dart';
 
 class LibraryPage extends StatefulWidget {

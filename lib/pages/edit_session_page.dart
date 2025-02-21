@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import '../database_helper.dart';
+import '../database/database_helper.dart';
 
 class EditSessionPage extends StatefulWidget {
   final Map<String, dynamic> session;

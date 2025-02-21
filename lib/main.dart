@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'pages/library_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/sessions_page.dart';
-import 'database_helper.dart';
+import 'database/database_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

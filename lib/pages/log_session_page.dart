@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import '../database_helper.dart';
+import '../models/session.dart';
+import '../repositories/session_repository.dart';
 
 class LogSessionPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -18,7 +19,7 @@ class LogSessionPage extends StatefulWidget {
 }
 
 class _LogSessionPageState extends State<LogSessionPage> {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final SessionRepository _sessionRepo = SessionRepository();
   Map<String, dynamic>? _selectedBook;
   final TextEditingController _pagesController = TextEditingController();
   final TextEditingController _hoursController = TextEditingController();
@@ -33,7 +34,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
     // Pre-select book if initialBookId is provided
     if (widget.initialBookId != null) {
       _selectedBook = widget.books.firstWhere(
-        (book) => book['id'] == widget.initialBookId,
+            (book) => book['id'] == widget.initialBookId,
         orElse: () => {},
       );
     }
@@ -63,16 +64,17 @@ class _LogSessionPageState extends State<LogSessionPage> {
       return;
     }
 
-    final session = {
-      'book_id': _selectedBook!['id'],
-      'pages_read': pagesRead,
-      'hours': hours,
-      'minutes': minutes,
-      'date': _sessionDate.toIso8601String(),
-    };
+    // Create a session using the Session model
+    final session = Session(
+      bookId: _selectedBook!['id'],
+      pagesRead: pagesRead,
+      hours: hours,
+      minutes: minutes,
+      date: _sessionDate.toIso8601String(),
+    );
 
     try {
-      await _dbHelper.insertSession(session);
+      await _sessionRepo.addSession(session);
       widget.refreshSessions();
 
       setState(() {
