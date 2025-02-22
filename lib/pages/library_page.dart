@@ -89,18 +89,31 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
+  Widget _buildRatingStars(double rating) {
+    // Convert 0-10 scale to 0-5 scale by dividing by 2
+    int stars = (rating / 2).round();
+
+    return Row(
+      children: List.generate(5, (index) {
+        if (index < stars) {
+          return const Icon(CupertinoIcons.star_fill, color: CupertinoColors.systemYellow);
+        } else {
+          return const Icon(CupertinoIcons.star, color: CupertinoColors.systemGrey);
+        }
+      }),
+    );
+  }
+
   void _showBookPopup(BuildContext context, Map<String, dynamic> book) async {
     final stats = await _dbHelper.getBookStats(book['id']);
     final DateFormat dateFormat = DateFormat('M/d/yy');
 
     String formatTime(int totalTimeInMinutes) {
-      int days = totalTimeInMinutes ~/ (24 * 60); // Divide by the number of minutes in a day
-      int hours = (totalTimeInMinutes % (24 * 60)) ~/ 60; // Remainder after days, then divide by 60 to get hours
-      int minutes = totalTimeInMinutes % 60; // Remainder after hours, gives minutes
+      int days = totalTimeInMinutes ~/ (24 * 60);
+      int hours = (totalTimeInMinutes % (24 * 60)) ~/ 60;
+      int minutes = totalTimeInMinutes % 60;
 
-      // Build the formatted string
       String formattedTime = '';
-
       if (days > 0) {
         formattedTime += '${days}d ';
       }
@@ -108,9 +121,30 @@ class _LibraryPageState extends State<LibraryPage> {
         formattedTime += '${hours}h ';
       }
       formattedTime += '${minutes}m';
-
       return formattedTime;
     }
+
+    String completionStatus = '';
+    IconData completionIcon;
+    Color completionColor;
+
+    if (book['is_completed'] == 1) {
+      completionStatus = 'Completed';
+      completionIcon = CupertinoIcons.check_mark;
+      completionColor = CupertinoColors.activeGreen;
+    } else if (book['is_completed'] == 0 && book['start_date'] != null) {
+      // In progress
+      completionStatus = 'In Progress';
+      completionIcon = CupertinoIcons.hourglass;
+      completionColor = CupertinoColors.systemBlue;
+    } else {
+      // Not started
+      completionStatus = 'Not Started';
+      completionIcon = CupertinoIcons.circle;
+      completionColor = CupertinoColors.systemGrey;
+    }
+
+    double rating = book['rating']?.toDouble() ?? 0.0; // Assuming rating is stored as an integer (e.g., 0-10).
 
     showCupertinoModalPopup(
       context: context,
@@ -129,49 +163,90 @@ class _LibraryPageState extends State<LibraryPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Book Title and Stats
-                Text(
-                  book['title'],
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  book['author'],
-                  style: const TextStyle(fontSize: 14),
-                ),
-                Text(
-                    "${book['word_count']?.toString() ?? '0'} words", // Null check for word count
-                  style: const TextStyle(fontSize: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Book Title, Author, and Word Count
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          book['title'],
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          book['author'],
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        Text(
+                          "${book['word_count']?.toString() ?? '0'} words",
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    // Rating and Completion Status to the right
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Rating
+                        _buildRatingStars(book['rating'] ?? 0), // Assuming rating is on 0/10 scale,
+                        // Completion Status with icon
+                        Row(
+                          children: [
+                            Icon(
+                              completionIcon,
+                              color: completionColor,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              completionStatus,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
+                // Stats (Sessions, Pages, Read Time, etc.)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _statCard(
-                        title: 'Sessions',
-                        value: stats['session_count']?.toString() ?? '0'),
+                      title: 'Sessions',
+                      value: stats['session_count']?.toString() ?? '0',
+                    ),
                     _statCard(
-                        title: 'Pages Read',
-                        value: stats['total_pages']?.toString() ?? '0'),
+                      title: 'Pages Read',
+                      value: stats['total_pages']?.toString() ?? '0',
+                    ),
                     _statCard(
-                        title: 'Read Time',
-                        value: formatTime(stats['total_time'] ?? 0)),
+                      title: 'Read Time',
+                      value: formatTime(stats['total_time'] ?? 0),
+                    ),
                   ],
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _statCard(
-                        title: 'Pages/Minute',
-                        value: stats['avg_pages_per_minute']?.toString() ?? '0'),
+                      title: 'Pages/Minute',
+                      value: stats['avg_pages_per_minute']?.toString() ?? '0',
+                    ),
                     _statCard(
-                        title: 'Words/Minute',
-                        value: stats['avg_words_per_minute']?.toString() ?? '0'),
+                      title: 'Words/Minute',
+                      value: stats['avg_words_per_minute']?.toString() ?? '0',
+                    ),
                   ],
                 ),
                 _dateStatsCard(
-                  startDate: dateFormat.format(DateTime.parse(stats['start_date'] ?? '1970-01-01')),
-                  finishDate: dateFormat.format(DateTime.parse(stats['finish_date'] ?? '1970-01-01')),
+                  startDate: dateFormat.format(
+                      DateTime.parse(stats['start_date'] ?? '1999-11-15')),
+                  finishDate: dateFormat.format(
+                      DateTime.parse(stats['finish_date'] ?? '1999-11-15')),
                   daysToComplete: stats['days_to_complete']?.toString() ?? '0',
                 ),
                 const SizedBox(height: 16),
@@ -215,6 +290,9 @@ class _LibraryPageState extends State<LibraryPage> {
       },
     );
   }
+
+
+
 
   Widget _statCard({required String title, required String value}) {
     return Container(
