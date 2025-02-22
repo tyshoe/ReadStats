@@ -12,9 +12,9 @@ class SessionsPage extends StatefulWidget {
 
   const SessionsPage(
       {super.key,
-      required this.books,
-      required this.sessions,
-      required this.refreshSessions});
+        required this.books,
+        required this.sessions,
+        required this.refreshSessions});
 
   @override
   State<SessionsPage> createState() => _SessionsPageState();
@@ -34,12 +34,6 @@ class _SessionsPageState extends State<SessionsPage> {
   String _formatDate(String isoDate) {
     final date = DateTime.parse(isoDate);
     return DateFormat('MMM dd, yyyy').format(date);
-  }
-
-  // Delete a session from the database
-  Future<void> _deleteSession(int sessionId) async {
-    await _sessionRepo.deleteSession(sessionId);
-    widget.refreshSessions();
   }
 
   Future<Map<String, dynamic>?> _fetchBookById(int bookId) async {
@@ -79,30 +73,6 @@ class _SessionsPageState extends State<SessionsPage> {
     }
   }
 
-  void _confirmDelete(int sessionId) {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Delete Session'),
-        content: const Text('Are you sure you want to delete this session?'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context),
-          ),
-          CupertinoDialogAction(
-            child: const Text('Delete'),
-            isDestructiveAction: true,
-            onPressed: () async {
-              _deleteSession(sessionId);
-              Navigator.pop(context); // Close the dialog
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   void _navigateToAddSessionPage() async {
     await Navigator.push(
       context,
@@ -128,75 +98,61 @@ class _SessionsPageState extends State<SessionsPage> {
           children: [
             widget.sessions.isEmpty
                 ? Center(
-                    child: Text(
-                    'No sessions logged yet',
-                    style: TextStyle(color: textColor),
-                  ))
+                child: Text(
+                  'No sessions logged yet',
+                  style: TextStyle(color: textColor),
+                ))
                 : ListView.builder(
-                    padding: const EdgeInsets.all(8),
-                    itemCount: widget.sessions.length,
-                    itemBuilder: (context, index) {
-                      final session = widget.sessions[index];
-                      final bookTitle = session['book_title'] ??
-                          'Unknown Book'; // Default if null
-                      final pagesRead = session['pages_read'] ?? 0;
-                      final hours = session['hours'] ?? 0;
-                      final minutes = session['minutes'] ?? 0;
-                      final date = session['date'] ?? ''; // Default if null
+              padding: const EdgeInsets.all(8),
+              itemCount: widget.sessions.length,
+              itemBuilder: (context, index) {
+                final session = widget.sessions[index];
+                final bookTitle = session['book_title'] ?? 'Unknown Book'; // Default if null
+                final pagesRead = session['pages_read'] ?? 0;
+                final hours = session['hours'] ?? 0;
+                final minutes = session['minutes'] ?? 0;
+                final date = session['date'] ?? ''; // Default if null
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(vertical: 5),
-                        decoration: BoxDecoration(
-                          color: CupertinoColors.secondarySystemBackground
-                              .resolveFrom(context),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: CupertinoListTile(
-                          title: Text(bookTitle), // Use the fallback string if null
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '📖 $pagesRead pages',
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                              Text(
-                                '⏱️ ${_formatDuration(hours, minutes)}',
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                              Text(
-                                date.isNotEmpty
-                                    ? '📅 ${_formatDate(date)}'
-                                    : '📅 No date available',
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            ],
+                return GestureDetector(
+                  onTap: () {
+                    _navigateToEditSessionsPage(session); // Navigate to the edit session page when tapped
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.secondarySystemBackground
+                          .resolveFrom(context),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: CupertinoListTile(
+                      title: Text(bookTitle), // Use the fallback string if null
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '📖 $pagesRead pages',
+                            style: const TextStyle(fontSize: 14),
                           ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CupertinoButton(
-                                padding: EdgeInsets.zero,
-                                child: const Icon(CupertinoIcons.pencil),
-                                onPressed: () {
-                                  _navigateToEditSessionsPage(session);
-                                },
-                              ),
-                              CupertinoButton(
-                                padding: EdgeInsets.zero,
-                                child: const Icon(CupertinoIcons.delete,
-                                    color: CupertinoColors.destructiveRed),
-                                onPressed: () {
-                                  _confirmDelete(session['id']);
-                                },
-                              ),
-                            ],
+                          Text(
+                            '⏱️ ${_formatDuration(hours, minutes)}',
+                            style: const TextStyle(fontSize: 14),
                           ),
-                        ),
-                      );
-                    },
+                          Text(
+                            date.isNotEmpty
+                                ? '📅 ${_formatDate(date)}'
+                                : '📅 No date available',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                        trailing: Icon(CupertinoIcons.chevron_right,
+                            color: textColor),
+                    ),
                   ),
+                );
+              },
+            ),
             Positioned(
               bottom: 20,
               right: 20,
@@ -205,8 +161,7 @@ class _SessionsPageState extends State<SessionsPage> {
                 borderRadius: BorderRadius.circular(30),
                 color: CupertinoColors.systemPurple,
                 onPressed: _navigateToAddSessionPage,
-                child: const Icon(CupertinoIcons.add,
-                    color: CupertinoColors.white),
+                child: const Icon(CupertinoIcons.add, color: CupertinoColors.white),
               ),
             ),
           ],

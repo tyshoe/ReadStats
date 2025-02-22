@@ -76,6 +76,45 @@ class _EditSessionPageState extends State<EditSessionPage> {
     }
   }
 
+  // Function to delete session
+  void _deleteSession() async {
+    try {
+      await _dbHelper.deleteSession(widget.session['id']);
+      widget.refreshSessions(); // Refresh the sessions list
+      Navigator.pop(context); // Go back to the previous screen
+    } catch (e) {
+      setState(() {
+        _statusMessage = 'Failed to delete session. Please try again.'; // Error message
+        _isSuccess = false;
+      });
+    }
+  }
+
+  // Function to confirm deletion
+  void _confirmDelete() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Delete Session'),
+        content: const Text('Are you sure you want to delete this session?'),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(context); // Close the dialog
+              _deleteSession(); // Delete the session
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
@@ -134,7 +173,8 @@ class _EditSessionPageState extends State<EditSessionPage> {
                       context: context,
                       builder: (_) => Container(
                         height: 200,
-                        color:CupertinoColors.secondarySystemBackground.resolveFrom(context),
+                        color: CupertinoColors.secondarySystemBackground
+                            .resolveFrom(context),
                         child: CupertinoDatePicker(
                           maximumDate: DateTime.now(),
                           initialDateTime: _sessionDate,
@@ -148,9 +188,25 @@ class _EditSessionPageState extends State<EditSessionPage> {
                 ],
               ),
               const SizedBox(height: 24),
-              CupertinoButton.filled(
-                child: const Text('Update Session'),
-                onPressed: _updateSession,
+              // Row to align buttons side by side
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: CupertinoButton.filled(
+                      onPressed: _updateSession,
+                      child: const Text('Update Session'),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: CupertinoButton(
+                      onPressed: _confirmDelete,
+                      color: CupertinoColors.destructiveRed,
+                      child: const Text('Delete Session', style: TextStyle(color: CupertinoColors.white)),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               // Display the status message
