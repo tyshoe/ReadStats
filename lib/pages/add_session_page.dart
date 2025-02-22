@@ -28,15 +28,25 @@ class _LogSessionPageState extends State<LogSessionPage> {
   String _statusMessage = '';
   bool _isSuccess = false;
 
+  List<Map<String, dynamic>> _availableBooks = [];
+
   @override
   void initState() {
     super.initState();
+    // Filter out completed books
+    _availableBooks = widget.books.where((book) => book['is_completed'] == 0).toList();
+
     // Pre-select book if initialBookId is provided
     if (widget.initialBookId != null) {
-      _selectedBook = widget.books.firstWhere(
+      _selectedBook = _availableBooks.firstWhere(
             (book) => book['id'] == widget.initialBookId,
-        orElse: () => {},
+        orElse: () => <String, dynamic>{}, // Return an empty map instead of null
       );
+
+      // If an empty map was returned, set _selectedBook to null
+      if (_selectedBook!.isEmpty) {
+        _selectedBook = null;
+      }
     }
   }
 
@@ -124,7 +134,9 @@ class _LogSessionPageState extends State<LogSessionPage> {
               ),
               CupertinoButton(
                 child: Text(_selectedBook?['title'] ?? 'Tap to choose book'),
-                onPressed: () => showCupertinoModalPopup(
+                onPressed: _availableBooks.isEmpty
+                    ? null  // Disable if no available books
+                    : () => showCupertinoModalPopup(
                   context: context,
                   builder: (_) => Container(
                     height: 200,
@@ -133,16 +145,17 @@ class _LogSessionPageState extends State<LogSessionPage> {
                       itemExtent: 32,
                       onSelectedItemChanged: (index) {
                         setState(() {
-                          _selectedBook = widget.books[index];
+                          _selectedBook = _availableBooks[index];
                         });
                       },
-                      children: widget.books
+                      children: _availableBooks
                           .map((book) => Text(book['title']))
                           .toList(),
                     ),
                   ),
                 ),
               ),
+
               const SizedBox(height: 16),
               CupertinoTextField(
                 controller: _pagesController,

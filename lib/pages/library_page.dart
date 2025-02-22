@@ -266,7 +266,10 @@ class _LibraryPageState extends State<LibraryPage> {
                     _popupAction(
                       icon: CupertinoIcons.book,
                       label: 'Add Session',
-                      onTap: () {
+                      color: book['is_completed'] == 1 ? CupertinoColors.systemGrey : CupertinoColors.activeBlue,
+                      onTap: book['is_completed'] == 1
+                          ? () {} // Disable interaction by providing an empty function
+                          : () {
                         Navigator.pop(context);
                         _navigateToAddSessionPage(book['id']);
                       },
