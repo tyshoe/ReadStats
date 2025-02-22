@@ -152,7 +152,7 @@ class _LibraryPageState extends State<LibraryPage> {
         return CupertinoPopupSurface(
           isSurfacePainted: true,
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            padding: const EdgeInsets.all(16),
             width: double.infinity,
             decoration: BoxDecoration(
               color: CupertinoColors.systemBackground.resolveFrom(context),
@@ -172,13 +172,14 @@ class _LibraryPageState extends State<LibraryPage> {
                       children: [
                         Text(
                           book['title'],
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          book['author'],
-                          style: const TextStyle(fontSize: 14),
+                          "by ${book['author']}",
+                          style: const TextStyle(fontSize: 14, wordSpacing: 2),
                         ),
+                        const SizedBox(height: 3),
                         Text(
                           "${book['word_count']?.toString() ?? '0'} words",
                           style: const TextStyle(fontSize: 14),
@@ -426,14 +427,14 @@ class _LibraryPageState extends State<LibraryPage> {
               ),
             )
                 : ListView.builder(
+              padding: const EdgeInsets.all(8),
               itemCount: widget.books.length,
               itemBuilder: (context, index) {
                 final book = widget.books[index];
                 return GestureDetector(
                   onTap: () => _showBookPopup(context, book),
                   child: Container(
-                    margin: const EdgeInsets.symmetric(
-                        vertical: 4, horizontal: 8),
+                    margin: const EdgeInsets.only(bottom: 8),
                     decoration: BoxDecoration(
                       color: CupertinoColors.secondarySystemBackground
                           .resolveFrom(context),
@@ -442,8 +443,8 @@ class _LibraryPageState extends State<LibraryPage> {
                     child: CupertinoListTile(
                       title: Text(book['title'],
                           style: TextStyle(color: textColor)),
-                      subtitle: Text(book['author'],
-                          style: TextStyle(color: textColor)),
+                      subtitle: Text( "by ${book['author']}",
+                          style: TextStyle(color: textColor, wordSpacing: 2)),
                       trailing: Icon(CupertinoIcons.chevron_right,
                           color: textColor),
                     ),

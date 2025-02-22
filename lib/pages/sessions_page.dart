@@ -133,7 +133,7 @@ class _SessionsPageState extends State<SessionsPage> {
                     style: TextStyle(color: textColor),
                   ))
                 : ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(8),
                     itemCount: widget.sessions.length,
                     itemBuilder: (context, index) {
                       final session = widget.sessions[index];
@@ -145,15 +145,15 @@ class _SessionsPageState extends State<SessionsPage> {
                       final date = session['date'] ?? ''; // Default if null
 
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(vertical: 5),
                         decoration: BoxDecoration(
                           color: CupertinoColors.secondarySystemBackground
                               .resolveFrom(context),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: CupertinoListTile(
-                          title: Text(
-                              bookTitle), // Use the fallback string if null
+                          title: Text(bookTitle), // Use the fallback string if null
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
