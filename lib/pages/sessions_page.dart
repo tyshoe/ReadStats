@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'edit_session_page.dart';
-import 'log_session_page.dart';
+import 'add_session_page.dart';
 import '../repositories/session_repository.dart';
 import '../repositories/book_repository.dart';
 
@@ -203,10 +203,10 @@ class _SessionsPageState extends State<SessionsPage> {
               child: CupertinoButton(
                 padding: const EdgeInsets.all(16),
                 borderRadius: BorderRadius.circular(30),
-                color: CupertinoColors.activeBlue,
+                color: CupertinoColors.systemPurple,
+                onPressed: _navigateToAddSessionPage,
                 child: const Icon(CupertinoIcons.add,
                     color: CupertinoColors.white),
-                onPressed: _navigateToAddSessionPage,
               ),
             ),
           ],

@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'database/database_helper.dart';
 import 'pages/library_page.dart';
 import 'pages/settings_page.dart';
@@ -9,27 +10,44 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final dbHelper = DatabaseHelper();
   await dbHelper.database;
-  runApp(MyApp(dbHelper: dbHelper));
+
+  // Load saved theme preference
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  bool isDarkMode = prefs.getBool('isDarkMode') ?? false;
+
+  runApp(MyApp(dbHelper: dbHelper, isDarkMode: isDarkMode));
 }
 
 class MyApp extends StatefulWidget {
   final DatabaseHelper dbHelper;
+  final bool isDarkMode;
 
-  const MyApp({super.key, required this.dbHelper});
+  const MyApp({super.key, required this.dbHelper, required this.isDarkMode});
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
-  bool _isDarkMode = false;
+  late bool _isDarkMode;
   List<Map<String, dynamic>> _books = [];
   List<Map<String, dynamic>> _sessions = [];
 
-  void _toggleTheme(bool isDark) {
+  @override
+  void initState() {
+    super.initState();
+    _isDarkMode = widget.isDarkMode; // Initialize _isDarkMode with saved value
+    _loadBooks();
+    _loadSessions();
+  }
+
+  void _toggleTheme(bool isDark) async {
     setState(() {
       _isDarkMode = isDark;
     });
+    // Save theme preference
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool('isDarkMode', isDark);
   }
 
   Future<void> _loadBooks() async {
@@ -49,13 +67,6 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _sessions = sessions;
     });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadBooks();
-    _loadSessions();
   }
 
   @override
@@ -101,11 +112,29 @@ class NavigationMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return CupertinoTabScaffold(
       tabBar: CupertinoTabBar(
-        items: const [
-          BottomNavigationBarItem(icon: Icon(CupertinoIcons.book), label: 'Library'),
-          BottomNavigationBarItem(icon: Icon(CupertinoIcons.time), label: 'Sessions'),
-          BottomNavigationBarItem(icon: Icon(CupertinoIcons.chart_bar), label: 'Stats'),
-          BottomNavigationBarItem(icon: Icon(CupertinoIcons.settings), label: 'Settings'),
+        activeColor: CupertinoColors.systemPurple,
+        inactiveColor: CupertinoColors.systemGrey,
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.book),
+            activeIcon: Icon(CupertinoIcons.book_fill),
+            label: 'Library',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.time),
+            activeIcon: Icon(CupertinoIcons.time_solid),
+            label: 'Sessions',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.chart_bar),
+            activeIcon: Icon(CupertinoIcons.chart_bar_fill),
+            label: 'Stats',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.settings),
+            activeIcon: Icon(CupertinoIcons.settings_solid),
+            label: 'Settings',
+          ),
         ],
       ),
       tabBuilder: (context, index) {

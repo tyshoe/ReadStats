@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'add_book_page.dart';
 import 'edit_book_page.dart';
-import 'log_session_page.dart';
+import 'add_session_page.dart';
 import '../database/database_helper.dart';
 
 class LibraryPage extends StatefulWidget {
@@ -32,13 +32,13 @@ class _LibraryPageState extends State<LibraryPage> {
             onPressed: () => Navigator.pop(context),
           ),
           CupertinoDialogAction(
-            child: const Text('Delete'),
             isDestructiveAction: true,
             onPressed: () async {
               await _dbHelper.deleteBook(bookId);
               widget.refreshBooks();
               Navigator.pop(context);
             },
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -376,7 +376,7 @@ class _LibraryPageState extends State<LibraryPage> {
               child: CupertinoButton(
                 padding: const EdgeInsets.all(16),
                 borderRadius: BorderRadius.circular(30),
-                color: CupertinoColors.activeBlue,
+                color: CupertinoColors.systemPurple,
                 onPressed: _navigateToAddBookPage,
                 child:
                 const Icon(CupertinoIcons.add, color: CupertinoColors.white),

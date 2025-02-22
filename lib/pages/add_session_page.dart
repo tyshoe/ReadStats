@@ -203,8 +203,8 @@ class _LogSessionPageState extends State<LogSessionPage> {
               ),
               const SizedBox(height: 24),
               CupertinoButton.filled(
-                child: const Text('Log Session'),
                 onPressed: _saveSession,
+                child: const Text('Log Session'),
               ),
               const SizedBox(height: 16),
               if (_statusMessage.isNotEmpty)

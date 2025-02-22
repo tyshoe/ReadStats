@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsPage extends StatelessWidget {
   final Function(bool) onThemeSelected;
@@ -27,8 +28,11 @@ class SettingsPage extends StatelessWidget {
               prefix: const Text('Dark Mode'),
               child: CupertinoSwitch(
                 value: isDarkMode,
-                onChanged: (bool value) {
+                onChanged: (bool value) async {
                   onThemeSelected(value);
+                  // Save the theme preference
+                  SharedPreferences prefs = await SharedPreferences.getInstance();
+                  prefs.setBool('isDarkMode', value);
                 },
               ),
             ),
