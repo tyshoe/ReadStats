@@ -134,7 +134,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
                       context: context,
                       builder: (_) => Container(
                         height: 200,
-                        color: CupertinoColors.systemBackground,
+                        color:CupertinoColors.secondarySystemBackground.resolveFrom(context),
                         child: CupertinoDatePicker(
                           maximumDate: DateTime.now(),
                           initialDateTime: _sessionDate,

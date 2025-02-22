@@ -140,7 +140,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
                   context: context,
                   builder: (_) => Container(
                     height: 200,
-                    color: CupertinoColors.systemBackground,
+                    color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
                     child: CupertinoPicker(
                       itemExtent: 32,
                       onSelectedItemChanged: (index) {
@@ -201,7 +201,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
                       context: context,
                       builder: (_) => Container(
                         height: 200,
-                        color: CupertinoColors.systemBackground,
+                        color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
                         child: CupertinoDatePicker(
                           maximumDate: DateTime.now(),
                           initialDateTime: _sessionDate,
