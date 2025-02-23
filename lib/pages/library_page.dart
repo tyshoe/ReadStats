@@ -90,19 +90,22 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Widget _buildRatingStars(double rating) {
-    // Convert 0-10 scale to 0-5 scale by dividing by 2
-    int stars = (rating / 2).round();
+    int fullStars = rating.floor();
+    bool hasHalfStar = (rating - fullStars) >= 0.5;
 
     return Row(
       children: List.generate(5, (index) {
-        if (index < stars) {
+        if (index < fullStars) {
           return const Icon(CupertinoIcons.star_fill, color: CupertinoColors.systemYellow);
+        } else if (index == fullStars && hasHalfStar) {
+          return const Icon(CupertinoIcons.star_lefthalf_fill, color: CupertinoColors.systemYellow);
         } else {
           return const Icon(CupertinoIcons.star, color: CupertinoColors.systemGrey);
         }
       }),
     );
   }
+
 
   void _showBookPopup(BuildContext context, Map<String, dynamic> book) async {
     final stats = await _dbHelper.getBookStats(book['id']);

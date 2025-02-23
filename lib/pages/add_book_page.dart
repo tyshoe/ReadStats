@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 class AddBookPage extends StatefulWidget {
   final Function(Map<String, dynamic>) addBook;
@@ -38,7 +39,7 @@ class _AddBookPageState extends State<AddBookPage> {
       "author": author,
       "word_count": wordCount,
       "rating": _rating,
-      "is_completed": _isCompleted ? 1 : 0, // Store as integer (1 for true, 0 for false)
+      "is_completed": _isCompleted ? 1 : 0,
     });
 
     // Clear fields
@@ -107,28 +108,30 @@ class _AddBookPageState extends State<AddBookPage> {
               const Text("Rating",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text("0"),
-                  Expanded(
-                    child: CupertinoSlider(
-                      value: _rating,
-                      min: 0,
-                      max: 10,
-                      divisions: 10,
-                      onChanged: (value) {
-                        setState(() {
-                          _rating = value;
-                        });
-                      },
-                    ),
+
+              // Star Rating
+              Center(
+                child: RatingBar.builder(
+                  initialRating: _rating,
+                  minRating: 0,
+                  maxRating: 5,
+                  allowHalfRating: true,
+                  itemCount: 5,
+                  itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  itemBuilder: (context, _) => const Icon(
+                    CupertinoIcons.star_fill,
+                    color: CupertinoColors.systemYellow,
                   ),
-                  const Text("10"),
-                  const SizedBox(width: 8),
-                  Text(_rating.toStringAsFixed(1)),
-                ],
+                  onRatingUpdate: (rating) {
+                    setState(() {
+                      _rating = rating;
+                    });
+                  },
+                ),
               ),
+              const SizedBox(height: 16),
+              Center(child: Text("$_rating / 5")),
+
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
