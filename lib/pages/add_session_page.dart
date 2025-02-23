@@ -157,34 +157,96 @@ class _LogSessionPageState extends State<LogSessionPage> {
               ),
 
               const SizedBox(height: 16),
-              CupertinoTextField(
-                controller: _pagesController,
-                placeholder: 'Pages Read',
-                keyboardType: TextInputType.number,
-                prefix: const Text('Pages: '),
-              ),
+              const Text('Pages Read'),
+              CupertinoTextField(controller: _pagesController, keyboardType: TextInputType.number),
               const SizedBox(height: 16),
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: CupertinoTextField(
-                      controller: _hoursController,
-                      placeholder: 'Hours',
-                      keyboardType: TextInputType.number,
-                      prefix: const Text('Hrs: '),
-                    ),
+                  const Text(
+                    'Reading Time',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: CupertinoTextField(
-                      controller: _minutesController,
-                      placeholder: 'Minutes',
-                      keyboardType: TextInputType.number,
-                      prefix: const Text('Mins: '),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Hours'),
+                            const SizedBox(height: 4),
+                            CupertinoTextField(
+                              controller: _hoursController,
+                              placeholder: 'Hours',
+                              keyboardType: TextInputType.number,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Minutes'),
+                            const SizedBox(height: 4),
+                            CupertinoTextField(
+                              controller: _minutesController,
+                              placeholder: 'Minutes',
+                              keyboardType: TextInputType.number,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CupertinoButton(
+                    child: Text(
+                      '${_hoursController.text} hrs ${_minutesController.text} mins',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    onPressed: () => showCupertinoModalPopup(
+                      context: context,
+                      builder: (_) => Container(
+                        height: 250,
+                        color: CupertinoColors.systemBackground.resolveFrom(context),
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: CupertinoTimerPicker(
+                                itemExtent: 40, // Adjust this for faster/slower scrolling
+                                mode: CupertinoTimerPickerMode.hm, // Hours & Minutes only
+                                initialTimerDuration: Duration(
+                                  hours: int.tryParse(_hoursController.text) ?? 0,
+                                  minutes: int.tryParse(_minutesController.text) ?? 0,
+                                ),
+                                onTimerDurationChanged: (Duration duration) {
+                                  setState(() {
+                                    _hoursController.text = duration.inHours.toString();
+                                    _minutesController.text =
+                                        (duration.inMinutes % 60).toString();
+                                  });
+                                },
+                              ),
+                            ),
+                            CupertinoButton(
+                              child: const Text('Done'),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
+
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
