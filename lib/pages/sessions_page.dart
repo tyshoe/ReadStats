@@ -8,13 +8,14 @@ import '../repositories/book_repository.dart';
 class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
   final List<Map<String, dynamic>> sessions;
-  final Function() refreshSessions; // Function to refresh the list from parent
+  final Function() refreshSessions;
 
-  const SessionsPage(
-      {super.key,
-        required this.books,
-        required this.sessions,
-        required this.refreshSessions});
+  const SessionsPage({
+    super.key,
+    required this.books,
+    required this.sessions,
+    required this.refreshSessions,
+  });
 
   @override
   State<SessionsPage> createState() => _SessionsPageState();
@@ -36,13 +37,32 @@ class _SessionsPageState extends State<SessionsPage> {
     return DateFormat('MMM dd, yyyy').format(date);
   }
 
+  // Group sessions by month and year
+  Map<String, List<Map<String, dynamic>>> _groupSessionsByMonth() {
+    Map<String, List<Map<String, dynamic>>> groupedSessions = {};
+
+    for (var session in widget.sessions) {
+      String date = session['date'] ?? '';
+      if (date.isEmpty) continue;
+
+      DateTime sessionDate = DateTime.parse(date);
+      String monthYear = DateFormat('MMMM yyyy').format(sessionDate);
+
+      if (!groupedSessions.containsKey(monthYear)) {
+        groupedSessions[monthYear] = [];
+      }
+      groupedSessions[monthYear]!.add(session);
+    }
+
+    return groupedSessions;
+  }
+
   Future<Map<String, dynamic>?> _fetchBookById(int bookId) async {
     return await _bookRepo.getBookById(bookId);
   }
 
   void _navigateToEditSessionsPage(Map<String, dynamic> session) async {
     int bookId = session['book_id'];
-
     Map<String, dynamic>? book = await _fetchBookById(bookId);
 
     if (book != null) {
@@ -78,7 +98,7 @@ class _SessionsPageState extends State<SessionsPage> {
       context,
       CupertinoPageRoute(
         builder: (context) => LogSessionPage(
-          books: widget.books, // Passes the full book list
+          books: widget.books,
           refreshSessions: widget.refreshSessions,
         ),
       ),
@@ -89,67 +109,97 @@ class _SessionsPageState extends State<SessionsPage> {
   Widget build(BuildContext context) {
     final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
     final textColor = CupertinoColors.label.resolveFrom(context);
+    final groupedSessions = _groupSessionsByMonth();
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-          middle: Text('Reading Sessions'), backgroundColor: bgColor),
+        middle: const Text('Reading Sessions'),
+        backgroundColor: bgColor,
+      ),
       child: SafeArea(
         child: Stack(
           children: [
             widget.sessions.isEmpty
                 ? Center(
-                child: Text(
-                  'No sessions logged yet',
-                  style: TextStyle(color: textColor),
-                ))
+              child: Text(
+                'No sessions logged yet',
+                style: TextStyle(color: textColor),
+              ),
+            )
                 : ListView.builder(
               padding: const EdgeInsets.all(8),
-              itemCount: widget.sessions.length,
+              itemCount: groupedSessions.length,
               itemBuilder: (context, index) {
-                final session = widget.sessions[index];
-                final bookTitle = session['book_title'] ?? 'Unknown Book'; // Default if null
-                final pagesRead = session['pages_read'] ?? 0;
-                final hours = session['hours'] ?? 0;
-                final minutes = session['minutes'] ?? 0;
-                final date = session['date'] ?? ''; // Default if null
+                String monthYear = groupedSessions.keys.elementAt(index);
+                List<Map<String, dynamic>> sessions =
+                groupedSessions[monthYear]!;
 
-                return GestureDetector(
-                  onTap: () {
-                    _navigateToEditSessionsPage(session); // Navigate to the edit session page when tapped
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.secondarySystemBackground
-                          .resolveFrom(context),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: CupertinoListTile(
-                      title: Text(bookTitle), // Use the fallback string if null
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '📖 $pagesRead pages',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          Text(
-                            '⏱️ ${_formatDuration(hours, minutes)}',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          Text(
-                            date.isNotEmpty
-                                ? '📅 ${_formatDate(date)}'
-                                : '📅 No date available',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ],
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding:
+                      const EdgeInsets.symmetric(vertical: 10.0),
+                      child: Text(
+                        monthYear,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
                       ),
-                        trailing: Icon(CupertinoIcons.chevron_right,
-                            color: textColor),
                     ),
-                  ),
+                    ...sessions.map((session) {
+                      final bookTitle =
+                          session['book_title'] ?? 'Unknown Book';
+                      final pagesRead = session['pages_read'] ?? 0;
+                      final hours = session['hours'] ?? 0;
+                      final minutes = session['minutes'] ?? 0;
+                      final date = session['date'] ?? '';
+
+                      return GestureDetector(
+                        onTap: () {
+                          _navigateToEditSessionsPage(session);
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding:
+                          const EdgeInsets.symmetric(vertical: 5),
+                          decoration: BoxDecoration(
+                            color: CupertinoColors
+                                .secondarySystemBackground
+                                .resolveFrom(context),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: CupertinoListTile(
+                            title: Text(bookTitle),
+                            subtitle: Column(
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '📖 $pagesRead pages',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                                Text(
+                                  '⏱️ ${_formatDuration(hours, minutes)}',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                                Text(
+                                  date.isNotEmpty
+                                      ? '📅 ${_formatDate(date)}'
+                                      : '📅 No date available',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ],
+                            ),
+                            trailing: Icon(CupertinoIcons.chevron_right,
+                                color: textColor),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ],
                 );
               },
             ),
@@ -161,7 +211,8 @@ class _SessionsPageState extends State<SessionsPage> {
                 borderRadius: BorderRadius.circular(30),
                 color: CupertinoColors.systemPurple,
                 onPressed: _navigateToAddSessionPage,
-                child: const Icon(CupertinoIcons.add, color: CupertinoColors.white),
+                child:
+                const Icon(CupertinoIcons.add, color: CupertinoColors.white),
               ),
             ),
           ],
