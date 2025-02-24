@@ -25,6 +25,19 @@ class _SessionsPageState extends State<SessionsPage> {
   final SessionRepository _sessionRepo = SessionRepository();
   final BookRepository _bookRepo = BookRepository();
 
+  late Map<int, Map<String, dynamic>> _bookMap; // Stores book data by ID
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeBookMap();
+  }
+
+  // Fetch book details and store in a map
+  void _initializeBookMap() {
+    _bookMap = {for (var book in widget.books) book['id']: book};
+  }
+
   // Format duration (hours and minutes)
   String _formatDuration(int hours, int minutes) {
     final hourText = hours > 0 ? '${hours}h ' : '';
@@ -48,22 +61,24 @@ class _SessionsPageState extends State<SessionsPage> {
       DateTime sessionDate = DateTime.parse(date);
       String monthYear = DateFormat('MMMM yyyy').format(sessionDate);
 
+      // Merge book data with session
+      int bookId = session['book_id'];
+      Map<String, dynamic>? book = _bookMap[bookId];
+
+      var sessionWithBook = {...session, 'book': book};
+
       if (!groupedSessions.containsKey(monthYear)) {
         groupedSessions[monthYear] = [];
       }
-      groupedSessions[monthYear]!.add(session);
+      groupedSessions[monthYear]!.add(sessionWithBook);
     }
 
     return groupedSessions;
   }
 
-  Future<Map<String, dynamic>?> _fetchBookById(int bookId) async {
-    return await _bookRepo.getBookById(bookId);
-  }
-
   void _navigateToEditSessionsPage(Map<String, dynamic> session) async {
     int bookId = session['book_id'];
-    Map<String, dynamic>? book = await _fetchBookById(bookId);
+    Map<String, dynamic>? book = _bookMap[bookId];
 
     if (book != null) {
       await Navigator.push(
@@ -131,15 +146,13 @@ class _SessionsPageState extends State<SessionsPage> {
               itemCount: groupedSessions.length,
               itemBuilder: (context, index) {
                 String monthYear = groupedSessions.keys.elementAt(index);
-                List<Map<String, dynamic>> sessions =
-                groupedSessions[monthYear]!;
+                List<Map<String, dynamic>> sessions = groupedSessions[monthYear]!;
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
-                      padding:
-                      const EdgeInsets.symmetric(vertical: 10.0),
+                      padding: const EdgeInsets.symmetric(vertical: 10.0),
                       child: Text(
                         monthYear,
                         style: TextStyle(
@@ -150,8 +163,9 @@ class _SessionsPageState extends State<SessionsPage> {
                       ),
                     ),
                     ...sessions.map((session) {
-                      final bookTitle =
-                          session['book_title'] ?? 'Unknown Book';
+                      final book = session['book'];
+                      final bookTitle = book?['title'] ?? 'Unknown Book';
+                      final bookAuthor = book?['author'] ?? 'Unknown Author';
                       final pagesRead = session['pages_read'] ?? 0;
                       final hours = session['hours'] ?? 0;
                       final minutes = session['minutes'] ?? 0;
@@ -163,38 +177,43 @@ class _SessionsPageState extends State<SessionsPage> {
                         },
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 8),
-                          padding:
-                          const EdgeInsets.symmetric(vertical: 5),
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                           decoration: BoxDecoration(
-                            color: CupertinoColors
-                                .secondarySystemBackground
-                                .resolveFrom(context),
+                            color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: CupertinoListTile(
-                            title: Text(bookTitle),
-                            subtitle: Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '📖 $pagesRead pages',
-                                  style: const TextStyle(fontSize: 14),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Left Column
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(bookTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                    Text(bookAuthor, style: TextStyle(fontSize: 14, color: CupertinoColors.systemGrey)),
+                                  ],
                                 ),
-                                Text(
-                                  '⏱️ ${_formatDuration(hours, minutes)}',
-                                  style: const TextStyle(fontSize: 14),
+                              ),
+
+                              // Right Column
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('$pagesRead pages', style: const TextStyle(fontSize: 14)),
+                                    Text(_formatDuration(hours, minutes), style: const TextStyle(fontSize: 14)),
+                                    Text(
+                                      date.isNotEmpty ? _formatDate(date) : 'No date available',
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ],
                                 ),
-                                Text(
-                                  date.isNotEmpty
-                                      ? '📅 ${_formatDate(date)}'
-                                      : '📅 No date available',
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ],
-                            ),
-                            trailing: Icon(CupertinoIcons.chevron_right,
-                                color: textColor),
+                              ),
+
+                              // Edit Icon (Trailing)
+                              const Icon(CupertinoIcons.chevron_right, color: CupertinoColors.systemGrey),
+                            ],
                           ),
                         ),
                       );
@@ -211,8 +230,7 @@ class _SessionsPageState extends State<SessionsPage> {
                 borderRadius: BorderRadius.circular(30),
                 color: CupertinoColors.systemPurple,
                 onPressed: _navigateToAddSessionPage,
-                child:
-                const Icon(CupertinoIcons.add, color: CupertinoColors.white),
+                child: const Icon(CupertinoIcons.add, color: CupertinoColors.white),
               ),
             ),
           ],

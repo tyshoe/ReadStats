@@ -3,15 +3,20 @@ import '../repositories/session_repository.dart';
 import '../models/session.dart';
 
 class SessionStatsPage extends StatefulWidget {
+  const SessionStatsPage({
+    super.key,
+  });
+
   @override
-  _SessionStatsPageState createState() => _SessionStatsPageState();
+  State<SessionStatsPage> createState() => _SessionStatsPageState();
 }
 
 class _SessionStatsPageState extends State<SessionStatsPage> {
   final SessionRepository _sessionRepo = SessionRepository();
 
   Future<Map<String, dynamic>> calculateStats() async {
-    List<Session> sessions = await _sessionRepo.getSessions(); // Fetch sessions dynamically
+    List<Session> sessions =
+        await _sessionRepo.getSessions(); // Fetch sessions dynamically
 
     int totalSessions = sessions.length;
     int totalPagesRead = 0;
@@ -22,7 +27,8 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
       totalMinutes += (session.hours * 60) + session.minutes;
     }
 
-    double avgPagesPerMinute = totalMinutes > 0 ? totalPagesRead / totalMinutes : 0;
+    double avgPagesPerMinute =
+        totalMinutes > 0 ? totalPagesRead / totalMinutes : 0;
     String formattedTime = formatTime(totalMinutes);
 
     return {
@@ -75,10 +81,30 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _statCard(title: 'Total Sessions', value: stats['totalSessions'].toString(), bgColor: cardColor, textColor: textColor, subtitleColor: subtitleColor),
-                  _statCard(title: 'Total Pages Read', value: stats['totalPagesRead'].toString(), bgColor: cardColor, textColor: textColor, subtitleColor: subtitleColor),
-                  _statCard(title: 'Total Time Spent', value: stats['totalTimeSpent'], bgColor: cardColor, textColor: textColor, subtitleColor: subtitleColor),
-                  _statCard(title: 'Average Pages/Minute', value: stats['avgPagesPerMinute'].toStringAsFixed(2), bgColor: cardColor, textColor: textColor, subtitleColor: subtitleColor),
+                  _statCard(
+                      title: 'Total Sessions',
+                      value: stats['totalSessions'].toString(),
+                      bgColor: cardColor,
+                      textColor: textColor,
+                      subtitleColor: subtitleColor),
+                  _statCard(
+                      title: 'Total Pages Read',
+                      value: stats['totalPagesRead'].toString(),
+                      bgColor: cardColor,
+                      textColor: textColor,
+                      subtitleColor: subtitleColor),
+                  _statCard(
+                      title: 'Total Time Spent',
+                      value: stats['totalTimeSpent'],
+                      bgColor: cardColor,
+                      textColor: textColor,
+                      subtitleColor: subtitleColor),
+                  _statCard(
+                      title: 'Average Pages/Minute',
+                      value: stats['avgPagesPerMinute'].toStringAsFixed(2),
+                      bgColor: cardColor,
+                      textColor: textColor,
+                      subtitleColor: subtitleColor),
                 ],
               ),
             );
@@ -106,7 +132,9 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(title, style: TextStyle(fontSize: 16, color: subtitleColor)),
-          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
         ],
       ),
     );
