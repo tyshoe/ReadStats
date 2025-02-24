@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:intl/intl.dart';
 import '../database/database_helper.dart';
 
 class EditSessionPage extends StatefulWidget {
@@ -65,12 +66,14 @@ class _EditSessionPageState extends State<EditSessionPage> {
       widget.refreshSessions(); // Refresh the sessions list
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
-          Navigator.pop(context); // Go back to the previous screen after 2 seconds
+          Navigator.pop(
+              context); // Go back to the previous screen after 2 seconds
         }
       });
     } catch (e) {
       setState(() {
-        _statusMessage = 'Failed to update session. Please try again.'; // Error message
+        _statusMessage =
+            'Failed to update session. Please try again.'; // Error message
         _isSuccess = false;
       });
     }
@@ -84,7 +87,8 @@ class _EditSessionPageState extends State<EditSessionPage> {
       Navigator.pop(context); // Go back to the previous screen
     } catch (e) {
       setState(() {
-        _statusMessage = 'Failed to delete session. Please try again.'; // Error message
+        _statusMessage =
+            'Failed to delete session. Please try again.'; // Error message
         _isSuccess = false;
       });
     }
@@ -117,8 +121,14 @@ class _EditSessionPageState extends State<EditSessionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
+    final textColor = CupertinoColors.label.resolveFrom(context);
+
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(middle: Text('Edit Session')),
+      navigationBar: CupertinoNavigationBar(
+        middle: Text('Edit Reading Session'),
+        backgroundColor: bgColor,
+      ),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -131,61 +141,119 @@ class _EditSessionPageState extends State<EditSessionPage> {
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 16),
-              CupertinoTextField(
-                controller: _pagesController,
-                placeholder: 'Pages Read',
-                keyboardType: TextInputType.number,
-                prefix: const Text('Pages: '),
+              const Text(
+                'Pages Read',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
+              CupertinoTextField(
+                  controller: _pagesController,
+                  keyboardType: TextInputType.number),
               const SizedBox(height: 16),
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: CupertinoTextField(
-                      controller: _hoursController,
-                      placeholder: 'Hours',
-                      keyboardType: TextInputType.number,
-                      prefix: const Text('Hrs: '),
-                    ),
+                  const Text(
+                    'Reading Time',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: CupertinoTextField(
-                      controller: _minutesController,
-                      placeholder: 'Minutes',
-                      keyboardType: TextInputType.number,
-                      prefix: const Text('Mins: '),
-                    ),
-                  ),
+                  const SizedBox(height: 8),
                 ],
               ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Session Date',
-                      style:
-                      TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   CupertinoButton(
-                    child: Text(
-                        '${_sessionDate.month}/${_sessionDate.day}/${_sessionDate.year}'),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 16),
+                    color: CupertinoColors
+                        .systemGrey5,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${_hoursController.text} hours ${_minutesController.text} minutes',
+                          style: TextStyle(fontSize: 16, color: textColor),
+                        ),
+                        Icon(CupertinoIcons.chevron_down,
+                            color: CupertinoColors.systemGrey)
+                      ],
+                    ),
                     onPressed: () => showCupertinoModalPopup(
                       context: context,
                       builder: (_) => Container(
-                        height: 200,
+                        height: 250,
                         color: CupertinoColors.secondarySystemBackground
                             .resolveFrom(context),
-                        child: CupertinoDatePicker(
-                          maximumDate: DateTime.now(),
-                          initialDateTime: _sessionDate,
-                          mode: CupertinoDatePickerMode.date,
-                          onDateTimeChanged: (date) =>
-                              setState(() => _sessionDate = date),
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: CupertinoTimerPicker(
+                                itemExtent:
+                                40, // Adjust this for faster/slower scrolling
+                                mode: CupertinoTimerPickerMode
+                                    .hm, // Hours & Minutes only
+                                initialTimerDuration: Duration(
+                                  hours:
+                                  int.tryParse(_hoursController.text) ?? 0,
+                                  minutes:
+                                  int.tryParse(_minutesController.text) ??
+                                      0,
+                                ),
+                                onTimerDurationChanged: (Duration duration) {
+                                  setState(() {
+                                    _hoursController.text =
+                                        duration.inHours.toString();
+                                    _minutesController.text =
+                                        (duration.inMinutes % 60).toString();
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Session Date',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(
+                  height: 8),
+              CupertinoButton(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                color: CupertinoColors.systemGrey5, // Grey background for button
+                borderRadius: BorderRadius.circular(8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      DateFormat('MMMM d, y').format(_sessionDate),
+                      style: TextStyle(fontSize: 16, color: textColor),
+                    ),
+                    Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey)
+                  ],
+                ),
+                onPressed: () => showCupertinoModalPopup(
+                  context: context,
+                  builder: (_) => Container(
+                    height: 200,
+                    color: CupertinoColors.secondarySystemBackground
+                        .resolveFrom(context),
+                    child: CupertinoDatePicker(
+                      maximumDate: DateTime.now(),
+                      initialDateTime: _sessionDate,
+                      mode: CupertinoDatePickerMode.date,
+                      onDateTimeChanged: (date) =>
+                          setState(() => _sessionDate = date),
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
               // Row to align buttons side by side
@@ -203,7 +271,8 @@ class _EditSessionPageState extends State<EditSessionPage> {
                     child: CupertinoButton(
                       onPressed: _confirmDelete,
                       color: CupertinoColors.destructiveRed,
-                      child: const Text('Delete Session', style: TextStyle(color: CupertinoColors.white)),
+                      child: const Text('Delete Session',
+                          style: TextStyle(color: CupertinoColors.white)),
                     ),
                   ),
                 ],
@@ -214,7 +283,9 @@ class _EditSessionPageState extends State<EditSessionPage> {
                 Text(
                   _statusMessage,
                   style: TextStyle(
-                    color: _isSuccess ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
+                    color: _isSuccess
+                        ? CupertinoColors.systemGreen
+                        : CupertinoColors.systemRed,
                     fontSize: 16,
                   ),
                   textAlign: TextAlign.center,
