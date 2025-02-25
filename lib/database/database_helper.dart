@@ -26,7 +26,7 @@ class DatabaseHelper {
       version: 2,
       onCreate: _onCreate,
       onConfigure: (db) async {
-        await db.execute('PRAGMA foreign_keys = ON'); // Enable foreign keys
+        await db.execute('PRAGMA foreign_keys = ON');
       },
     );
   }
@@ -73,7 +73,7 @@ class DatabaseHelper {
         INNER JOIN books ON sessions.book_id = books.id
         ORDER BY sessions.date DESC
       ''');
-      print('Sessions fetched: $result'); // Debug statement
+      print('Sessions fetched: $result');
       return result;
     } catch (e) {
       print('Error fetching sessions: $e');
@@ -109,9 +109,9 @@ class DatabaseHelper {
     );
 
     if (result.isNotEmpty) {
-      return result.first; // Return the first matching book
+      return result.first;
     }
-    return null; // Return null if no book is found
+    return null;
   }
 
   Future<int> insertBook(Map<String, dynamic> book) async {
@@ -189,7 +189,6 @@ class DatabaseHelper {
     }
 
   }
-
 
   Future<Map<String, dynamic>> getCompleteBookStats(int bookId) async {
     final book = await getBookById(bookId);

@@ -52,7 +52,6 @@ class _LogSessionPageState extends State<LogSessionPage> {
       }
     }
 
-    // Initialize read time to "0 hours 0 minutes"
     _hoursController.text = "0";
     _minutesController.text = "0";
   }
@@ -84,7 +83,6 @@ class _LogSessionPageState extends State<LogSessionPage> {
       return;
     }
 
-    // Create a session using the Session model
     final session = Session(
       bookId: _selectedBook!['id'],
       pagesRead: pagesRead,
@@ -152,9 +150,9 @@ class _LogSessionPageState extends State<LogSessionPage> {
               Center(
                 child: CupertinoButton(
                   padding: const EdgeInsets.symmetric(
-                      vertical: 12, horizontal: 16), // Added horizontal padding
+                      vertical: 12, horizontal: 16),
                   color:
-                      CupertinoColors.systemGrey5, // Grey background for button
+                      CupertinoColors.systemGrey5,
                   borderRadius: BorderRadius.circular(8),
                   onPressed: _availableBooks.isEmpty
                       ? null // Disable if no available books
@@ -278,7 +276,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
                   height: 8),
               CupertinoButton(
                 padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                color: CupertinoColors.systemGrey5, // Grey background for button
+                color: CupertinoColors.systemGrey5,
                 borderRadius: BorderRadius.circular(8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

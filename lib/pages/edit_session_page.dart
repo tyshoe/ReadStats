@@ -24,13 +24,13 @@ class _EditSessionPageState extends State<EditSessionPage> {
   final TextEditingController _hoursController = TextEditingController();
   final TextEditingController _minutesController = TextEditingController();
   late DateTime _sessionDate;
-  String _statusMessage = ''; // To display success/error messages
-  bool _isSuccess = false; // To track if the operation was successful
+  String _statusMessage = '';
+  bool _isSuccess = false;
 
   @override
   void initState() {
     super.initState();
-    // Pre-fill the form with the existing session data
+
     _pagesController.text = widget.session['pages_read'].toString();
     _hoursController.text = widget.session['hours'].toString();
     _minutesController.text = widget.session['minutes'].toString();
@@ -42,7 +42,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
         _hoursController.text.isEmpty ||
         _minutesController.text.isEmpty) {
       setState(() {
-        _statusMessage = 'Please fill all fields.'; // Error message
+        _statusMessage = 'Please fill all fields.';
         _isSuccess = false;
       });
       return;
@@ -60,10 +60,10 @@ class _EditSessionPageState extends State<EditSessionPage> {
     try {
       await _dbHelper.updateSession(session);
       setState(() {
-        _statusMessage = 'Session updated successfully!'; // Success message
+        _statusMessage = 'Session updated successfully!';
         _isSuccess = true;
       });
-      widget.refreshSessions(); // Refresh the sessions list
+      widget.refreshSessions();
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           Navigator.pop(
@@ -73,28 +73,26 @@ class _EditSessionPageState extends State<EditSessionPage> {
     } catch (e) {
       setState(() {
         _statusMessage =
-            'Failed to update session. Please try again.'; // Error message
+            'Failed to update session. Please try again.';
         _isSuccess = false;
       });
     }
   }
 
-  // Function to delete session
   void _deleteSession() async {
     try {
       await _dbHelper.deleteSession(widget.session['id']);
-      widget.refreshSessions(); // Refresh the sessions list
-      Navigator.pop(context); // Go back to the previous screen
+      widget.refreshSessions();
+      Navigator.pop(context);
     } catch (e) {
       setState(() {
         _statusMessage =
-            'Failed to delete session. Please try again.'; // Error message
+            'Failed to delete session. Please try again.';
         _isSuccess = false;
       });
     }
   }
 
-  // Function to confirm deletion
   void _confirmDelete() {
     showCupertinoDialog(
       context: context,
@@ -109,8 +107,8 @@ class _EditSessionPageState extends State<EditSessionPage> {
           CupertinoDialogAction(
             isDestructiveAction: true,
             onPressed: () {
-              Navigator.pop(context); // Close the dialog
-              _deleteSession(); // Delete the session
+              Navigator.pop(context);
+              _deleteSession();
             },
             child: const Text('Delete'),
           ),
@@ -227,7 +225,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
                   height: 8),
               CupertinoButton(
                 padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                color: CupertinoColors.systemGrey5, // Grey background for button
+                color: CupertinoColors.systemGrey5,
                 borderRadius: BorderRadius.circular(8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

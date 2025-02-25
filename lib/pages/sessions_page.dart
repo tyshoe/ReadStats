@@ -2,8 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'edit_session_page.dart';
 import 'add_session_page.dart';
-import '../repositories/session_repository.dart';
-import '../repositories/book_repository.dart';
 
 class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -22,9 +20,8 @@ class SessionsPage extends StatefulWidget {
 }
 
 class _SessionsPageState extends State<SessionsPage> {
-  final SessionRepository _sessionRepo = SessionRepository();
 
-  late Map<int, Map<String, dynamic>> _bookMap; // Stores book data by ID
+  late Map<int, Map<String, dynamic>> _bookMap;
 
   @override
   void initState() {
@@ -36,8 +33,8 @@ class _SessionsPageState extends State<SessionsPage> {
   void didUpdateWidget(covariant SessionsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.books != widget.books) {
-      _initializeBookMap(); // Update the book map
-      widget.refreshSessions(); // Refresh sessions to reflect deleted book
+      _initializeBookMap();
+      widget.refreshSessions();
       print('BOOK MAP DEPENDENCY CHANGED - REFRESHING SESSIONS');
     }
   }

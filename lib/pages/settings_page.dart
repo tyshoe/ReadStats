@@ -9,7 +9,6 @@ class SettingsPage extends StatelessWidget {
   final Function() refreshBooks;
   final Function() refreshSessions;
 
-
   const SettingsPage({
     super.key,
     required this.onThemeSelected,

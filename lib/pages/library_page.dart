@@ -80,8 +80,8 @@ class _LibraryPageState extends State<LibraryPage> {
       context,
       CupertinoPageRoute(
         builder: (context) => LogSessionPage(
-          books: widget.books, // Passes the full book list
-          initialBookId: bookId, // Preselects book if provided
+          books: widget.books,
+          initialBookId: bookId,
           refreshSessions: () {
             widget.refreshSessions();
           },
@@ -150,9 +150,6 @@ class _LibraryPageState extends State<LibraryPage> {
       completionColor = CupertinoColors.systemGrey;
     }
 
-    double rating = book['rating']?.toDouble() ??
-        0.0; // Assuming rating is stored as an integer (e.g., 0-10).
-
     showCupertinoModalPopup(
       context: context,
       builder: (context) {
@@ -200,7 +197,7 @@ class _LibraryPageState extends State<LibraryPage> {
                       children: [
                         // Rating
                         _buildRatingStars(book['rating'] ??
-                            0), // Assuming rating is on 0/10 scale,
+                            0),
                         // Completion Status with icon
                         Row(
                           children: [

@@ -17,8 +17,8 @@ class _EditBookPageState extends State<EditBookPage> {
   final TextEditingController _wordCountController = TextEditingController();
   double _rating = 0;
   bool _isCompleted = false;
-  String _statusMessage = ''; // To display success/error messages
-  bool _isSuccess = false; // To track if the operation was successful
+  String _statusMessage = '';
+  bool _isSuccess = false;
 
   @override
   void initState() {
