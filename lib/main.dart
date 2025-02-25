@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:read_stats/repositories/book_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'database/database_helper.dart';
 import 'pages/library_page.dart';
@@ -11,18 +12,21 @@ void main() async {
   final dbHelper = DatabaseHelper();
   await dbHelper.database;
 
+  final bookRepository = BookRepository(dbHelper);
+
   // Load saved theme preference
   SharedPreferences prefs = await SharedPreferences.getInstance();
   bool isDarkMode = prefs.getBool('isDarkMode') ?? false;
 
-  runApp(MyApp(dbHelper: dbHelper, isDarkMode: isDarkMode));
+  runApp(MyApp(dbHelper: dbHelper, isDarkMode: isDarkMode, bookRepository: bookRepository));
 }
 
 class MyApp extends StatefulWidget {
   final DatabaseHelper dbHelper;
   final bool isDarkMode;
+  final BookRepository bookRepository;
 
-  const MyApp({super.key, required this.dbHelper, required this.isDarkMode});
+  const MyApp({super.key, required this.dbHelper, required this.isDarkMode, required this.bookRepository});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -55,6 +59,7 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _books = books;
     });
+    print('Books: $_books');
   }
 
   Future<void> _addBook(Map<String, dynamic> book) async {
@@ -83,6 +88,7 @@ class _MyAppState extends State<MyApp> {
         refreshBooks: _loadBooks,
         refreshSessions: _loadSessions,
         sessions: _sessions,
+        bookRepository: widget.bookRepository,
       ),
     );
   }
@@ -96,6 +102,7 @@ class NavigationMenu extends StatelessWidget {
   final bool isDarkMode;
   final List<Map<String, dynamic>> books;
   final List<Map<String, dynamic>> sessions;
+  final BookRepository bookRepository;
 
   const NavigationMenu({
     super.key,
@@ -104,8 +111,9 @@ class NavigationMenu extends StatelessWidget {
     required this.books,
     required this.addBook,
     required this.refreshBooks,
-    required this.sessions,
     required this.refreshSessions,
+    required this.sessions,
+    required this.bookRepository,
   });
 
   @override
@@ -140,7 +148,7 @@ class NavigationMenu extends StatelessWidget {
       tabBuilder: (context, index) {
         switch (index) {
           case 0:
-            return LibraryPage(books: books, refreshBooks: refreshBooks);
+            return LibraryPage(books: books, refreshBooks: refreshBooks, refreshSessions: refreshSessions);
           case 1:
             return SessionsPage(books: books, sessions: sessions, refreshSessions: refreshSessions);
           case 2:
@@ -150,6 +158,9 @@ class NavigationMenu extends StatelessWidget {
             return SettingsPage(
               onThemeSelected: toggleTheme,
               isDarkMode: isDarkMode,
+              bookRepository: bookRepository,
+              refreshBooks: refreshBooks,
+              refreshSessions: refreshSessions
             );
         }
       },

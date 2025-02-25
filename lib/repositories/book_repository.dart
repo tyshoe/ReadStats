@@ -2,7 +2,9 @@ import '../../models/book.dart';
 import '../../database/database_helper.dart';
 
 class BookRepository {
-  final DatabaseHelper _databaseHelper = DatabaseHelper();
+  final DatabaseHelper _databaseHelper;
+
+  BookRepository(this._databaseHelper);
 
   Future<int> addBook(Book book) async {
     return await _databaseHelper.insertBook(book.toMap());
@@ -21,6 +23,10 @@ class BookRepository {
     return await _databaseHelper.deleteBook(id);
   }
 
+  Future<int> deleteAllBooks() async {
+    return await _databaseHelper.deleteAllBooks();
+  }
+
   Future<Map<String, dynamic>?> getBookById(int bookId) async {
     return await _databaseHelper.getBookById(bookId);
   }
@@ -29,3 +35,4 @@ class BookRepository {
     return await _databaseHelper.getBookStats(bookId);
   }
 }
+

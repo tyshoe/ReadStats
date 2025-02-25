@@ -23,7 +23,6 @@ class SessionsPage extends StatefulWidget {
 
 class _SessionsPageState extends State<SessionsPage> {
   final SessionRepository _sessionRepo = SessionRepository();
-  final BookRepository _bookRepo = BookRepository();
 
   late Map<int, Map<String, dynamic>> _bookMap; // Stores book data by ID
 
@@ -33,9 +32,21 @@ class _SessionsPageState extends State<SessionsPage> {
     _initializeBookMap();
   }
 
+  @override
+  void didUpdateWidget(covariant SessionsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.books != widget.books) {
+      _initializeBookMap(); // Update the book map
+      widget.refreshSessions(); // Refresh sessions to reflect deleted book
+      print('BOOK MAP DEPENDENCY CHANGED - REFRESHING SESSIONS');
+    }
+  }
+
   // Fetch book details and store in a map
   void _initializeBookMap() {
-    _bookMap = {for (var book in widget.books) book['id']: book};
+    setState(() {
+      _bookMap = {for (var book in widget.books) book['id']: book};
+    });
   }
 
   // Format duration (hours and minutes)

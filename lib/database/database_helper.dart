@@ -143,6 +143,11 @@ class DatabaseHelper {
     );
   }
 
+  Future<int> deleteAllBooks() async {
+    final db = await database;
+    return await db.delete('books');
+  }
+
   Future<List<Map<String, dynamic>>> getSessionsByBookId(int bookId) async {
     final db = await database;
     return await db.query(

@@ -8,9 +8,10 @@ import '../database/database_helper.dart';
 class LibraryPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
   final Function() refreshBooks;
+  final Function() refreshSessions;
 
   const LibraryPage(
-      {super.key, required this.books, required this.refreshBooks});
+      {super.key, required this.books, required this.refreshBooks, required this.refreshSessions});
 
   @override
   State<LibraryPage> createState() => _LibraryPageState();
@@ -82,7 +83,7 @@ class _LibraryPageState extends State<LibraryPage> {
           books: widget.books, // Passes the full book list
           initialBookId: bookId, // Preselects book if provided
           refreshSessions: () {
-            // Placeholder for refreshing sessions later
+            widget.refreshSessions();
           },
         ),
       ),
