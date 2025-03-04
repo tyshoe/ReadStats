@@ -98,6 +98,9 @@ class _EditBookPageState extends State<EditBookPage> {
               const SizedBox(height: 8),
               CupertinoTextField(
                 controller: _wordCountController,
+                onTapOutside: (event) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                },
                 placeholder: "Enter Word Count",
                 padding: const EdgeInsets.all(12),
                 keyboardType: TextInputType.number,

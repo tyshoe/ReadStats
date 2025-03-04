@@ -145,6 +145,9 @@ class _EditSessionPageState extends State<EditSessionPage> {
               ),
               CupertinoTextField(
                   controller: _pagesController,
+                  onTapOutside: (event) {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                  },
                   keyboardType: TextInputType.number),
               const SizedBox(height: 16),
               Column(

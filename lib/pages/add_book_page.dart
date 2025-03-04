@@ -100,6 +100,9 @@ class _AddBookPageState extends State<AddBookPage> {
               const SizedBox(height: 8),
               CupertinoTextField(
                 controller: _wordCountController,
+                onTapOutside: (event) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                },
                 placeholder: "Enter Word Count",
                 padding: const EdgeInsets.all(12),
                 keyboardType: TextInputType.number,
@@ -137,7 +140,8 @@ class _AddBookPageState extends State<AddBookPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text("Completed",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   CupertinoSwitch(
                     value: _isCompleted,
                     onChanged: (value) {
@@ -161,7 +165,9 @@ class _AddBookPageState extends State<AddBookPage> {
                   child: Text(
                     _statusMessage,
                     style: TextStyle(
-                      color: _isSuccess ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
+                      color: _isSuccess
+                          ? CupertinoColors.systemGreen
+                          : CupertinoColors.systemRed,
                       fontSize: 16,
                     ),
                     textAlign: TextAlign.center,
