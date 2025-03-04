@@ -248,11 +248,11 @@ class _LibraryPageState extends State<LibraryPage> {
                   children: [
                     _statCard(
                       title: 'Pages/Minute',
-                      value: stats['avg_pages_per_minute']?.toString() ?? '0',
+                      value: stats['avg_pages_per_minute']?.toStringAsFixed(2) ?? '0',
                     ),
                     _statCard(
                       title: 'Words/Minute',
-                      value: stats['avg_words_per_minute']?.toString() ?? '0',
+                      value: stats['avg_words_per_minute']?.toStringAsFixed(2) ?? '0',
                     ),
                   ],
                 ),

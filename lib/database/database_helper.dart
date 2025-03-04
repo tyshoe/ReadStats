@@ -164,8 +164,8 @@ class DatabaseHelper {
       COUNT(id) AS session_count, 
       SUM(pages_read) AS total_pages,
       SUM(hours * 60 + minutes) AS total_time,  -- Converts time to minutes
-      ROUND(AVG(pages_read * 1.0 / (hours * 60 + minutes))) AS avg_pages_per_minute,
-      ROUND(AVG(pages_read * 1.0 / (hours * 60 + minutes) * 250)) AS avg_words_per_minute,
+      AVG(pages_read * 1.0 / (hours * 60 + minutes)) AS avg_pages_per_minute,
+      AVG(pages_read * 1.0 / (hours * 60 + minutes) * 250) AS avg_words_per_minute,
       MIN(date) AS start_date,
       MAX(date) AS finish_date,
       ROUND(
