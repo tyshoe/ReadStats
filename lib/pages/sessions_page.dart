@@ -128,6 +128,16 @@ class _SessionsPageState extends State<SessionsPage> {
     );
   }
 
+  String _getMessageToDisplay() {
+    if (widget.books.isEmpty) {
+      return 'Add a book to your library';
+    } else if (widget.sessions.isEmpty) {
+      return 'No sessions, time to get cozy and read a few pages';
+    } else {
+      return ''; // No message when there are books and sessions
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
@@ -145,8 +155,9 @@ class _SessionsPageState extends State<SessionsPage> {
             widget.sessions.isEmpty
                 ? Center(
               child: Text(
-                'No sessions logged yet',
+                _getMessageToDisplay(),
                 style: TextStyle(color: textColor),
+                textAlign: TextAlign.center,
               ),
             )
                 : ListView.builder(
@@ -230,17 +241,18 @@ class _SessionsPageState extends State<SessionsPage> {
                 );
               },
             ),
-            Positioned(
-              bottom: 20,
-              right: 20,
-              child: CupertinoButton(
-                padding: const EdgeInsets.all(16),
-                borderRadius: BorderRadius.circular(30),
-                color: CupertinoColors.systemPurple,
-                onPressed: _navigateToAddSessionPage,
-                child: const Icon(CupertinoIcons.add, color: CupertinoColors.white),
+            if (widget.books.isNotEmpty)
+              Positioned(
+                bottom: 20,
+                right: 20,
+                child: CupertinoButton(
+                  padding: const EdgeInsets.all(16),
+                  borderRadius: BorderRadius.circular(30),
+                  color: CupertinoColors.systemPurple,
+                  onPressed: _navigateToAddSessionPage,
+                  child: const Icon(CupertinoIcons.add, color: CupertinoColors.white),
+                ),
               ),
-            ),
           ],
         ),
       ),

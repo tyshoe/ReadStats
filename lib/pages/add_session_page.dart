@@ -149,14 +149,19 @@ class _LogSessionPageState extends State<LogSessionPage> {
               const SizedBox(height: 8),
               Center(
                 child: CupertinoButton(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 12, horizontal: 16),
-                  color:
-                      CupertinoColors.systemGrey5,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  color: CupertinoColors.systemGrey5,
                   borderRadius: BorderRadius.circular(8),
                   onPressed: _availableBooks.isEmpty
                       ? null // Disable if no available books
-                      : () => showCupertinoModalPopup(
+                      : () {
+                          setState(() {
+                            // Set _selectedBook to the first available book when button is pressed
+                            _selectedBook = _availableBooks[0];
+                          });
+
+                          showCupertinoModalPopup(
                             context: context,
                             builder: (_) => Container(
                               height: 200,
@@ -174,7 +179,8 @@ class _LogSessionPageState extends State<LogSessionPage> {
                                     .toList(),
                               ),
                             ),
-                          ),
+                          );
+                        },
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -188,7 +194,6 @@ class _LogSessionPageState extends State<LogSessionPage> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 16),
               const Text(
                 'Pages Read',
@@ -213,10 +218,8 @@ class _LogSessionPageState extends State<LogSessionPage> {
                 children: [
                   CupertinoButton(
                     padding: const EdgeInsets.symmetric(
-                        vertical: 12,
-                        horizontal: 16),
-                    color: CupertinoColors
-                        .systemGrey5,
+                        vertical: 12, horizontal: 16),
+                    color: CupertinoColors.systemGrey5,
                     borderRadius: BorderRadius.circular(8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -272,10 +275,10 @@ class _LogSessionPageState extends State<LogSessionPage> {
                 'Session Date',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              const SizedBox(
-                  height: 8),
+              const SizedBox(height: 8),
               CupertinoButton(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 color: CupertinoColors.systemGrey5,
                 borderRadius: BorderRadius.circular(8),
                 child: Row(
@@ -285,7 +288,8 @@ class _LogSessionPageState extends State<LogSessionPage> {
                       DateFormat('MMMM d, y').format(_sessionDate),
                       style: TextStyle(fontSize: 16, color: textColor),
                     ),
-                    Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey)
+                    Icon(CupertinoIcons.chevron_down,
+                        color: CupertinoColors.systemGrey)
                   ],
                 ),
                 onPressed: () => showCupertinoModalPopup(
