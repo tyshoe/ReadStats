@@ -449,54 +449,111 @@ class _LibraryPageState extends State<LibraryPage> {
       child: SafeArea(
         child: Stack(
           children: [
-            widget.books.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset('assets/images/carl.png',
-                            width: 100, height: 100),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Carl is hungry, add a book to your library',
+            if (widget.books.isEmpty)
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset('assets/images/carl.png',
+                        width: 100, height: 100),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Carl is hungry, add a book to your library',
+                      style: TextStyle(fontSize: 16, color: textColor),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Column(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8, bottom: 16),
+                        child: Text(
+                          '${widget.books.length}', // Format: books_shown (total_books)
                           style: TextStyle(fontSize: 16, color: textColor),
                         ),
-                      ],
+                      ),
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(8),
-                    itemCount: widget.books.length,
-                    itemBuilder: (context, index) {
-                      final book = widget.books[index];
-                      return GestureDetector(
-                        onTap: () => _showBookPopup(context, book),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(
-                            color: CupertinoColors.secondarySystemBackground
-                                .resolveFrom(context),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: CupertinoListTile(
-                            title: Text(book['title'],
-                                style: TextStyle(color: textColor)),
-                            subtitle: Text("by ${book['author']}",
-                                style: TextStyle(
-                                    color: textColor, wordSpacing: 2)),
-                            trailing: Icon(CupertinoIcons.chevron_right,
-                                color: textColor),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: widget.books.length,
+                        itemBuilder: (context, index) {
+                          final book = widget.books[index];
+                          return GestureDetector(
+                            onTap: () => _showBookPopup(context, book),
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              height: 100,
+                              decoration: BoxDecoration(
+                                color: CupertinoColors.secondarySystemBackground
+                                    .resolveFrom(context),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            book['title'],
+                                            style: TextStyle(
+                                              color: textColor,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(left: 8),
+                                          child: Icon(
+                                            CupertinoIcons.book_fill,
+                                            color: CupertinoColors.systemGrey2
+                                                .resolveFrom(context),
+                                            size: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "by ${book['author']}",
+                                      style: TextStyle(
+                                        color: textColor,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Positioned(
               bottom: 20,
               right: 20,
               child: CupertinoButton(
                 padding: const EdgeInsets.all(16),
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(16),
                 color: CupertinoColors.systemPurple,
                 onPressed: _navigateToAddBookPage,
                 child: const Icon(CupertinoIcons.add,

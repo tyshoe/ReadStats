@@ -274,7 +274,7 @@ class _SessionsPageState extends State<SessionsPage> {
                 right: 20,
                 child: CupertinoButton(
                   padding: const EdgeInsets.all(16),
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(16),
                   color: CupertinoColors.systemPurple,
                   onPressed: _navigateToAddSessionPage,
                   child: const Icon(CupertinoIcons.add,
