@@ -11,7 +11,10 @@ class LibraryPage extends StatefulWidget {
   final Function() refreshSessions;
 
   const LibraryPage(
-      {super.key, required this.books, required this.refreshBooks, required this.refreshSessions});
+      {super.key,
+      required this.books,
+      required this.refreshBooks,
+      required this.refreshSessions});
 
   @override
   State<LibraryPage> createState() => _LibraryPageState();
@@ -138,7 +141,7 @@ class _LibraryPageState extends State<LibraryPage> {
       completionStatus = 'Completed';
       completionIcon = CupertinoIcons.check_mark;
       completionColor = CupertinoColors.activeGreen;
-    } else if (book['is_completed'] == 0 && book['start_date'] != null) {
+    } else if (book['is_completed'] == 0 && stats['start_date'] != null) {
       // In progress
       completionStatus = 'In Progress';
       completionIcon = CupertinoIcons.hourglass;
@@ -171,34 +174,43 @@ class _LibraryPageState extends State<LibraryPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     // Book Title, Author, and Word Count
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          book['title'],
-                          style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          "by ${book['author']}",
-                          style: const TextStyle(fontSize: 14, wordSpacing: 2),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          "${book['word_count']?.toString() ?? '0'} words",
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            book['title'],
+                            style: const TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow
+                                .ellipsis, // Ensures long titles are truncated
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            "by ${book['author']}",
+                            style:
+                                const TextStyle(fontSize: 14, wordSpacing: 2),
+                            maxLines: 1,
+                            overflow: TextOverflow
+                                .ellipsis, // Truncate long author names
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            "${book['word_count']?.toString() ?? '0'} words",
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(
+                        width: 10), // Adds spacing between text and rating
+
                     // Rating and Completion Status to the right
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        // Rating
-                        _buildRatingStars(book['rating'] ??
-                            0),
-                        // Completion Status with icon
+                        _buildRatingStars(book['rating'] ?? 0),
                         Row(
                           children: [
                             Icon(
@@ -248,11 +260,15 @@ class _LibraryPageState extends State<LibraryPage> {
                   children: [
                     _statCard(
                       title: 'Pages/Minute',
-                      value: stats['avg_pages_per_minute']?.toStringAsFixed(2) ?? '0',
+                      value:
+                          stats['avg_pages_per_minute']?.toStringAsFixed(2) ??
+                              '0',
                     ),
                     _statCard(
                       title: 'Words/Minute',
-                      value: stats['avg_words_per_minute']?.toStringAsFixed(2) ?? '0',
+                      value:
+                          stats['avg_words_per_minute']?.toStringAsFixed(2) ??
+                              '0',
                     ),
                   ],
                 ),
@@ -332,10 +348,13 @@ class _LibraryPageState extends State<LibraryPage> {
                 fontSize: 16, color: CupertinoColors.systemGrey),
           ),
           const SizedBox(height: 12),
-          // Value in center, bold
-          Text(
-            value,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          // Value in center, bold, with text scaling
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),

@@ -20,7 +20,6 @@ class SessionsPage extends StatefulWidget {
 }
 
 class _SessionsPageState extends State<SessionsPage> {
-
   late Map<int, Map<String, dynamic>> _bookMap;
 
   @override
@@ -154,93 +153,121 @@ class _SessionsPageState extends State<SessionsPage> {
           children: [
             widget.sessions.isEmpty
                 ? Center(
-              child: Text(
-                _getMessageToDisplay(),
-                style: TextStyle(color: textColor),
-                textAlign: TextAlign.center,
-              ),
-            )
-                : ListView.builder(
-              padding: const EdgeInsets.all(8),
-              itemCount: groupedSessions.length,
-              itemBuilder: (context, index) {
-                String monthYear = groupedSessions.keys.elementAt(index);
-                List<Map<String, dynamic>> sessions = groupedSessions[monthYear]!;
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10.0),
-                      child: Text(
-                        monthYear,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
-                        ),
-                      ),
+                    child: Text(
+                      _getMessageToDisplay(),
+                      style: TextStyle(color: textColor),
+                      textAlign: TextAlign.center,
                     ),
-                    ...sessions.map((session) {
-                      final book = session['book'];
-                      final bookTitle = book?['title'] ?? 'Unknown Book';
-                      final bookAuthor = book?['author'] ?? 'Unknown Author';
-                      final pagesRead = session['pages_read'] ?? 0;
-                      final hours = session['hours'] ?? 0;
-                      final minutes = session['minutes'] ?? 0;
-                      final date = session['date'] ?? '';
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: groupedSessions.length,
+                    itemBuilder: (context, index) {
+                      String monthYear = groupedSessions.keys.elementAt(index);
+                      List<Map<String, dynamic>> sessions =
+                          groupedSessions[monthYear]!;
 
-                      return GestureDetector(
-                        onTap: () {
-                          _navigateToEditSessionsPage(session);
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              // Left Column
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(bookTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                    Text(bookAuthor, style: TextStyle(fontSize: 14, color: CupertinoColors.systemGrey)),
-                                  ],
-                                ),
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 10.0),
+                            child: Text(
+                              monthYear,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
                               ),
+                            ),
+                          ),
+                          ...sessions.map((session) {
+                            final book = session['book'];
+                            final bookTitle = book?['title'] ?? 'Unknown Book';
+                            final bookAuthor =
+                                book?['author'] ?? 'Unknown Author';
+                            final pagesRead = session['pages_read'] ?? 0;
+                            final hours = session['hours'] ?? 0;
+                            final minutes = session['minutes'] ?? 0;
+                            final date = session['date'] ?? '';
 
-                              // Right Column
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                            return GestureDetector(
+                              onTap: () {
+                                _navigateToEditSessionsPage(session);
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 10, horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: CupertinoColors
+                                      .secondarySystemBackground
+                                      .resolveFrom(context),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    Text('$pagesRead pages', style: const TextStyle(fontSize: 14)),
-                                    Text(_formatDuration(hours, minutes), style: const TextStyle(fontSize: 14)),
-                                    Text(
-                                      date.isNotEmpty ? _formatDate(date) : 'No date available',
-                                      style: const TextStyle(fontSize: 14),
+                                    // Left Column
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(bookTitle,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                overflow: TextOverflow.ellipsis,
+                                              )),
+                                          Text(bookAuthor,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color:
+                                                    CupertinoColors.systemGrey,
+                                                overflow: TextOverflow.ellipsis,
+                                              )),
+                                        ],
+                                      ),
                                     ),
+                                    const SizedBox(width: 24),
+                                    // Right Column
+                                    Expanded(
+                                      flex: 1,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text('$pagesRead pages',
+                                              style: const TextStyle(
+                                                  fontSize: 14)),
+                                          Text(_formatDuration(hours, minutes),
+                                              style: const TextStyle(
+                                                  fontSize: 14)),
+                                          Text(
+                                            date.isNotEmpty
+                                                ? _formatDate(date)
+                                                : 'No date available',
+                                            style:
+                                                const TextStyle(fontSize: 14),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // Edit Icon (Trailing)
+                                    const Icon(CupertinoIcons.chevron_right,
+                                        color: CupertinoColors.systemGrey),
                                   ],
                                 ),
                               ),
-
-                              // Edit Icon (Trailing)
-                              const Icon(CupertinoIcons.chevron_right, color: CupertinoColors.systemGrey),
-                            ],
-                          ),
-                        ),
+                            );
+                          }).toList(),
+                        ],
                       );
-                    }).toList(),
-                  ],
-                );
-              },
-            ),
+                    },
+                  ),
             if (widget.books.isNotEmpty)
               Positioned(
                 bottom: 20,
@@ -250,7 +277,8 @@ class _SessionsPageState extends State<SessionsPage> {
                   borderRadius: BorderRadius.circular(30),
                   color: CupertinoColors.systemPurple,
                   onPressed: _navigateToAddSessionPage,
-                  child: const Icon(CupertinoIcons.add, color: CupertinoColors.white),
+                  child: const Icon(CupertinoIcons.add,
+                      color: CupertinoColors.white),
                 ),
               ),
           ],
