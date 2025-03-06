@@ -171,13 +171,13 @@ class _AddBookPageState extends State<AddBookPage> {
                 ],
               ),
               const SizedBox(height: 24),
-              Expanded(
+              SizedBox(
+                width: double.infinity, // Make the button full width
                 child: CupertinoButton(
                   onPressed: _saveBook,
                   color: accentColor,
                   child: const Text("Save",
-                      style: TextStyle(
-                          fontSize: 16, color: CupertinoColors.white)),
+                      style: TextStyle(fontSize: 16, color: CupertinoColors.white)),
                 ),
               ),
               const SizedBox(height: 16),
