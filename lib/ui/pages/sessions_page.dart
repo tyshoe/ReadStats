@@ -2,17 +2,20 @@ import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'edit_session_page.dart';
 import 'add_session_page.dart';
+import '/viewmodels/SettingsViewModel.dart';
 
 class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
   final List<Map<String, dynamic>> sessions;
   final Function() refreshSessions;
+  final SettingsViewModel settingsViewModel;
 
   const SessionsPage({
     super.key,
     required this.books,
     required this.sessions,
     required this.refreshSessions,
+    required this.settingsViewModel,
   });
 
   @override
@@ -95,6 +98,7 @@ class _SessionsPageState extends State<SessionsPage> {
             session: session,
             book: book,
             refreshSessions: widget.refreshSessions,
+            settingsViewModel: widget.settingsViewModel,
           ),
         ),
       );
@@ -122,6 +126,7 @@ class _SessionsPageState extends State<SessionsPage> {
         builder: (context) => LogSessionPage(
           books: widget.books,
           refreshSessions: widget.refreshSessions,
+          settingsViewModel: widget.settingsViewModel,
         ),
       ),
     );
@@ -142,6 +147,8 @@ class _SessionsPageState extends State<SessionsPage> {
     final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
     final textColor = CupertinoColors.label.resolveFrom(context);
     final groupedSessions = _groupSessionsByMonth();
+    final accentColor = widget.settingsViewModel.accentColorNotifier
+        .value;
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
@@ -275,7 +282,7 @@ class _SessionsPageState extends State<SessionsPage> {
                 child: CupertinoButton(
                   padding: const EdgeInsets.all(16),
                   borderRadius: BorderRadius.circular(16),
-                  color: CupertinoColors.systemPurple,
+                  color: accentColor,
                   onPressed: _navigateToAddSessionPage,
                   child: const Icon(CupertinoIcons.add,
                       color: CupertinoColors.white),

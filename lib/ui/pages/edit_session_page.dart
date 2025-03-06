@@ -1,17 +1,20 @@
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import '/data/database/database_helper.dart';
+import '/viewmodels/SettingsViewModel.dart';
 
 class EditSessionPage extends StatefulWidget {
   final Map<String, dynamic> session;
   final Map<String, dynamic> book;
   final Function() refreshSessions;
+  final SettingsViewModel settingsViewModel;
 
   const EditSessionPage({
     super.key,
     required this.session,
     required this.book,
     required this.refreshSessions,
+    required this.settingsViewModel,
   });
 
   @override
@@ -66,14 +69,12 @@ class _EditSessionPageState extends State<EditSessionPage> {
       widget.refreshSessions();
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
-          Navigator.pop(
-              context); // Go back to the previous screen after 2 seconds
+          Navigator.pop(context); // Go back to the previous screen after 2 seconds
         }
       });
     } catch (e) {
       setState(() {
-        _statusMessage =
-            'Failed to update session. Please try again.';
+        _statusMessage = 'Failed to update session. Please try again.';
         _isSuccess = false;
       });
     }
@@ -86,8 +87,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
       Navigator.pop(context);
     } catch (e) {
       setState(() {
-        _statusMessage =
-            'Failed to delete session. Please try again.';
+        _statusMessage = 'Failed to delete session. Please try again.';
         _isSuccess = false;
       });
     }
@@ -121,16 +121,18 @@ class _EditSessionPageState extends State<EditSessionPage> {
   Widget build(BuildContext context) {
     final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
     final textColor = CupertinoColors.label.resolveFrom(context);
+    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        middle: Text('Add Reading Session'),
+        middle: Text('Edit Reading Session'),
         trailing: GestureDetector(
           onTap: _updateSession,
           child: Text(
             'Save',
             style: TextStyle(
-              color: CupertinoColors.activeBlue,
+              color: accentColor,
+              // Use accent color here
             ),
           ),
         ),
@@ -152,11 +154,12 @@ class _EditSessionPageState extends State<EditSessionPage> {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               CupertinoTextField(
-                  controller: _pagesController,
-                  onTapOutside: (event) {
-                    FocusManager.instance.primaryFocus?.unfocus();
-                  },
-                  keyboardType: TextInputType.number),
+                controller: _pagesController,
+                onTapOutside: (event) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                },
+                keyboardType: TextInputType.number,
+              ),
               const SizedBox(height: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,11 +175,8 @@ class _EditSessionPageState extends State<EditSessionPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CupertinoButton(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12,
-                        horizontal: 16),
-                    color: CupertinoColors
-                        .systemGrey5,
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    color: CupertinoColors.systemGrey5,
                     borderRadius: BorderRadius.circular(8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -185,37 +185,28 @@ class _EditSessionPageState extends State<EditSessionPage> {
                           '${_hoursController.text} hours ${_minutesController.text} minutes',
                           style: TextStyle(fontSize: 16, color: textColor),
                         ),
-                        Icon(CupertinoIcons.chevron_down,
-                            color: CupertinoColors.systemGrey)
+                        Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey),
                       ],
                     ),
                     onPressed: () => showCupertinoModalPopup(
                       context: context,
                       builder: (_) => Container(
                         height: 250,
-                        color: CupertinoColors.secondarySystemBackground
-                            .resolveFrom(context),
+                        color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
                         child: Column(
                           children: [
                             Expanded(
                               child: CupertinoTimerPicker(
-                                itemExtent:
-                                40, // Adjust this for faster/slower scrolling
-                                mode: CupertinoTimerPickerMode
-                                    .hm, // Hours & Minutes only
+                                itemExtent: 40, // Adjust this for faster/slower scrolling
+                                mode: CupertinoTimerPickerMode.hm, // Hours & Minutes only
                                 initialTimerDuration: Duration(
-                                  hours:
-                                  int.tryParse(_hoursController.text) ?? 0,
-                                  minutes:
-                                  int.tryParse(_minutesController.text) ??
-                                      0,
+                                  hours: int.tryParse(_hoursController.text) ?? 0,
+                                  minutes: int.tryParse(_minutesController.text) ?? 0,
                                 ),
                                 onTimerDurationChanged: (Duration duration) {
                                   setState(() {
-                                    _hoursController.text =
-                                        duration.inHours.toString();
-                                    _minutesController.text =
-                                        (duration.inMinutes % 60).toString();
+                                    _hoursController.text = duration.inHours.toString();
+                                    _minutesController.text = (duration.inMinutes % 60).toString();
                                   });
                                 },
                               ),
@@ -232,8 +223,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
                 'Session Date',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              const SizedBox(
-                  height: 8),
+              const SizedBox(height: 8),
               CupertinoButton(
                 padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 color: CupertinoColors.systemGrey5,
@@ -245,21 +235,19 @@ class _EditSessionPageState extends State<EditSessionPage> {
                       DateFormat('MMMM d, y').format(_sessionDate),
                       style: TextStyle(fontSize: 16, color: textColor),
                     ),
-                    Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey)
+                    Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey),
                   ],
                 ),
                 onPressed: () => showCupertinoModalPopup(
                   context: context,
                   builder: (_) => Container(
                     height: 200,
-                    color: CupertinoColors.secondarySystemBackground
-                        .resolveFrom(context),
+                    color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
                     child: CupertinoDatePicker(
                       maximumDate: DateTime.now(),
                       initialDateTime: _sessionDate,
                       mode: CupertinoDatePickerMode.date,
-                      onDateTimeChanged: (date) =>
-                          setState(() => _sessionDate = date),
+                      onDateTimeChanged: (date) => setState(() => _sessionDate = date),
                     ),
                   ),
                 ),
@@ -270,17 +258,21 @@ class _EditSessionPageState extends State<EditSessionPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    child: CupertinoButton.filled(
-                      onPressed: _updateSession,
-                      child: const Text('Update Session'),
+                    child: CupertinoButton(
+                      onPressed: _confirmDelete,
+                      color: CupertinoColors.destructiveRed,
+                      child: const Text(
+                        'Delete Session',
+                        style: TextStyle(color: CupertinoColors.white),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: CupertinoButton(
-                      onPressed: _confirmDelete,
-                      color: CupertinoColors.destructiveRed,
-                      child: const Text('Delete Session',
+                      onPressed: _updateSession,
+                      color: accentColor,
+                      child: const Text('Update Session',
                           style: TextStyle(color: CupertinoColors.white)),
                     ),
                   ),
@@ -292,9 +284,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
                 Text(
                   _statusMessage,
                   style: TextStyle(
-                    color: _isSuccess
-                        ? CupertinoColors.systemGreen
-                        : CupertinoColors.systemRed,
+                    color: _isSuccess ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
                     fontSize: 16,
                   ),
                   textAlign: TextAlign.center,

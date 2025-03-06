@@ -1,10 +1,16 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import '/viewmodels/SettingsViewModel.dart';
 
 class AddBookPage extends StatefulWidget {
   final Function(Map<String, dynamic>) addBook;
+  final SettingsViewModel settingsViewModel;
 
-  const AddBookPage({super.key, required this.addBook});
+  const AddBookPage({
+    super.key,
+    required this.addBook,
+    required this.settingsViewModel,
+  });
 
   @override
   State<AddBookPage> createState() => _AddBookPageState();
@@ -69,15 +75,18 @@ class _AddBookPageState extends State<AddBookPage> {
 
   @override
   Widget build(BuildContext context) {
+    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
+
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
+        automaticallyImplyLeading: true,
         middle: Text('Add Book'),
         trailing: GestureDetector(
           onTap: _saveBook,
           child: Text(
             'Save',
             style: TextStyle(
-              color: CupertinoColors.activeBlue,
+              color: accentColor, // Use accent color here
             ),
           ),
         ),
@@ -85,8 +94,7 @@ class _AddBookPageState extends State<AddBookPage> {
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: ListView(
             children: [
               const Text("Title",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -95,7 +103,6 @@ class _AddBookPageState extends State<AddBookPage> {
                 controller: _titleController,
                 placeholder: "Enter Book Title",
                 padding: const EdgeInsets.all(12),
-
               ),
               const SizedBox(height: 16),
               const Text("Author",
@@ -133,6 +140,7 @@ class _AddBookPageState extends State<AddBookPage> {
                   allowHalfRating: true,
                   itemCount: 5,
                   itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  glow: false,
                   itemBuilder: (context, _) => const Icon(
                     CupertinoIcons.star_fill,
                     color: CupertinoColors.systemYellow,
@@ -144,8 +152,6 @@ class _AddBookPageState extends State<AddBookPage> {
                   },
                 ),
               ),
-              const SizedBox(height: 16),
-              Center(child: Text("$_rating / 5")),
 
               const SizedBox(height: 16),
               Row(
@@ -165,10 +171,13 @@ class _AddBookPageState extends State<AddBookPage> {
                 ],
               ),
               const SizedBox(height: 24),
-              Center(
-                child: CupertinoButton.filled(
+              Expanded(
+                child: CupertinoButton(
                   onPressed: _saveBook,
-                  child: const Text("Save Book"),
+                  color: accentColor,
+                  child: const Text("Save",
+                      style: TextStyle(
+                          fontSize: 16, color: CupertinoColors.white)),
                 ),
               ),
               const SizedBox(height: 16),

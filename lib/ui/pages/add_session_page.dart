@@ -2,17 +2,20 @@ import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
+import '/viewmodels/SettingsViewModel.dart';
 
 class LogSessionPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
   final Function() refreshSessions;
   final int? initialBookId;
+  final SettingsViewModel settingsViewModel;
 
   const LogSessionPage({
     super.key,
     required this.books,
     required this.refreshSessions,
     this.initialBookId,
+    required this.settingsViewModel,
   });
 
   @override
@@ -131,6 +134,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
   Widget build(BuildContext context) {
     final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
     final textColor = CupertinoColors.label.resolveFrom(context);
+    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
@@ -140,7 +144,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
           child: Text(
             'Save',
             style: TextStyle(
-              color: CupertinoColors.activeBlue,
+              color: accentColor,
             ),
           ),
         ),
@@ -320,9 +324,11 @@ class _LogSessionPageState extends State<LogSessionPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              CupertinoButton.filled(
+              CupertinoButton(
                 onPressed: _saveSession,
-                child: const Text('Log Session'),
+                color: accentColor,
+                child: const Text('Log Session',
+                    style: TextStyle(color: CupertinoColors.white)),
               ),
               const SizedBox(height: 16),
               if (_statusMessage.isNotEmpty)

@@ -6,8 +6,8 @@ import 'ui/pages/library_page.dart';
 import 'ui/pages/settings_page.dart';
 import 'ui/pages/sessions_page.dart';
 import 'ui/pages/session_stats_page.dart';
-import 'ui/themes/app_theme.dart'; // Import app_theme.dart
-import 'viewmodels/SettingsViewModel.dart'; // Import SettingsViewModel
+import 'ui/themes/app_theme.dart';
+import 'viewmodels/SettingsViewModel.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,10 +53,18 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    // Initialize SettingsViewModel with the saved theme preference
-    _settingsViewModel = SettingsViewModel(isDarkMode: widget.isDarkMode);
+    // Initialize SettingsViewModel with saved preferences
+    _initializeSettingsViewModel();
     _loadBooks();
     _loadSessions();
+  }
+
+  Future<void> _initializeSettingsViewModel() async {
+    final accentColor = await SettingsViewModel.getAccentColor();
+    _settingsViewModel = SettingsViewModel(
+      isDarkMode: widget.isDarkMode,
+      accentColor: accentColor,
+    );
   }
 
   Future<void> _loadBooks() async {
@@ -96,6 +104,7 @@ class _MyAppState extends State<MyApp> {
             refreshSessions: _loadSessions,
             sessions: _sessions,
             bookRepository: widget.bookRepository,
+            settingsViewModel: _settingsViewModel,
           ),
         );
       },
@@ -112,6 +121,7 @@ class NavigationMenu extends StatelessWidget {
   final List<Map<String, dynamic>> books;
   final List<Map<String, dynamic>> sessions;
   final BookRepository bookRepository;
+  final SettingsViewModel settingsViewModel;
 
   const NavigationMenu({
     super.key,
@@ -123,55 +133,72 @@ class NavigationMenu extends StatelessWidget {
     required this.refreshSessions,
     required this.sessions,
     required this.bookRepository,
+    required this.settingsViewModel,
   });
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoTabScaffold(
-      tabBar: CupertinoTabBar(
-        activeColor: CupertinoColors.systemPurple,
-        inactiveColor: CupertinoColors.systemGrey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.book),
-            activeIcon: Icon(CupertinoIcons.book_fill),
-            label: 'Library',
+    return ValueListenableBuilder<Color>(
+      valueListenable: settingsViewModel.accentColorNotifier,
+      builder: (context, accentColor, child) {
+        return CupertinoTabScaffold(
+          tabBar: CupertinoTabBar(
+            activeColor: settingsViewModel.accentColorNotifier.value,
+            inactiveColor: CupertinoColors.systemGrey,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(CupertinoIcons.book),
+                activeIcon: Icon(CupertinoIcons.book_fill),
+                label: 'Library',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(CupertinoIcons.time),
+                activeIcon: Icon(CupertinoIcons.time_solid),
+                label: 'Sessions',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(CupertinoIcons.chart_bar),
+                activeIcon: Icon(CupertinoIcons.chart_bar_fill),
+                label: 'Stats',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(CupertinoIcons.settings),
+                activeIcon: Icon(CupertinoIcons.settings_solid),
+                label: 'Settings',
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.time),
-            activeIcon: Icon(CupertinoIcons.time_solid),
-            label: 'Sessions',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.chart_bar),
-            activeIcon: Icon(CupertinoIcons.chart_bar_fill),
-            label: 'Stats',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.settings),
-            activeIcon: Icon(CupertinoIcons.settings_solid),
-            label: 'Settings',
-          ),
-        ],
-      ),
-      tabBuilder: (context, index) {
-        switch (index) {
-          case 0:
-            return LibraryPage(books: books, refreshBooks: refreshBooks, refreshSessions: refreshSessions);
-          case 1:
-            return SessionsPage(books: books, sessions: sessions, refreshSessions: refreshSessions);
-          case 2:
-            return SessionStatsPage();
-          case 3:
-          default:
-            return SettingsPage(
-              toggleTheme: toggleTheme,
-              isDarkMode: isDarkMode,
-              bookRepository: bookRepository,
-              refreshBooks: refreshBooks,
-              refreshSessions: refreshSessions,
-            );
-        }
+          tabBuilder: (context, index) {
+            switch (index) {
+              case 0:
+                return LibraryPage(
+                  books: books,
+                  refreshBooks: refreshBooks,
+                  refreshSessions: refreshSessions,
+                  settingsViewModel: settingsViewModel,
+                );
+              case 1:
+                return SessionsPage(
+                    books: books,
+                    sessions: sessions,
+                    refreshSessions: refreshSessions,
+                    settingsViewModel: settingsViewModel,
+                );
+              case 2:
+                return SessionStatsPage();
+              case 3:
+              default:
+                return SettingsPage(
+                  toggleTheme: toggleTheme,
+                  isDarkMode: isDarkMode,
+                  bookRepository: bookRepository,
+                  refreshBooks: refreshBooks,
+                  refreshSessions: refreshSessions,
+                  settingsViewModel: settingsViewModel,
+                );
+            }
+          },
+        );
       },
     );
   }

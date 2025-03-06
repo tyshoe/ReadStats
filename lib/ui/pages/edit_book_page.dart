@@ -1,11 +1,18 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import '/viewmodels/SettingsViewModel.dart';
 
 class EditBookPage extends StatefulWidget {
   final Map<String, dynamic> book;
   final Function(Map<String, dynamic>) updateBook;
+  final SettingsViewModel settingsViewModel;
 
-  const EditBookPage({super.key, required this.book, required this.updateBook});
+  const EditBookPage({
+    super.key,
+    required this.book,
+    required this.updateBook,
+    required this.settingsViewModel,
+  });
 
   @override
   State<EditBookPage> createState() => _EditBookPageState();
@@ -68,6 +75,8 @@ class _EditBookPageState extends State<EditBookPage> {
 
   @override
   Widget build(BuildContext context) {
+    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
+
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: Text('Edit Book'),
@@ -76,7 +85,7 @@ class _EditBookPageState extends State<EditBookPage> {
           child: Text(
             'Save',
             style: TextStyle(
-              color: CupertinoColors.activeBlue,
+              color: accentColor,
             ),
           ),
         ),
@@ -127,6 +136,7 @@ class _EditBookPageState extends State<EditBookPage> {
                   allowHalfRating: true,
                   itemCount: 5,
                   itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                  glow: false,
                   itemBuilder: (context, _) => const Icon(
                     CupertinoIcons.star_fill,
                     color: CupertinoColors.systemYellow,
@@ -138,15 +148,14 @@ class _EditBookPageState extends State<EditBookPage> {
                   },
                 ),
               ),
-              const SizedBox(height: 16),
-              Center(child: Text("$_rating / 5")),
 
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text("Completed",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   CupertinoSwitch(
                     value: _isCompleted,
                     onChanged: (value) {
@@ -158,9 +167,14 @@ class _EditBookPageState extends State<EditBookPage> {
                 ],
               ),
               const SizedBox(height: 24),
-              CupertinoButton.filled(
-                onPressed: _updateBook,
-                child: const Text("Update Book"),
+              Expanded(
+                child: CupertinoButton(
+                  onPressed: _updateBook,
+                  color: accentColor,
+                  child: const Text("Save",
+                      style: TextStyle(
+                          fontSize: 16, color: CupertinoColors.white)),
+                ),
               ),
               const SizedBox(height: 16),
               // Display the status message
@@ -168,7 +182,9 @@ class _EditBookPageState extends State<EditBookPage> {
                 Text(
                   _statusMessage,
                   style: TextStyle(
-                    color: _isSuccess ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
+                    color: _isSuccess
+                        ? CupertinoColors.systemGreen
+                        : CupertinoColors.systemRed,
                     fontSize: 16,
                   ),
                   textAlign: TextAlign.center,

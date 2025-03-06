@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/data/repositories/book_repository.dart';
+import '/viewmodels/SettingsViewModel.dart';
 
 class SettingsPage extends StatelessWidget {
   final Function(bool) toggleTheme;
@@ -8,6 +9,7 @@ class SettingsPage extends StatelessWidget {
   final BookRepository bookRepository;
   final Function() refreshBooks;
   final Function() refreshSessions;
+  final SettingsViewModel settingsViewModel;
 
   const SettingsPage({
     super.key,
@@ -16,6 +18,7 @@ class SettingsPage extends StatelessWidget {
     required this.bookRepository,
     required this.refreshBooks,
     required this.refreshSessions,
+    required this.settingsViewModel,
   });
 
   @override
@@ -33,12 +36,15 @@ class SettingsPage extends StatelessWidget {
           children: [
             CupertinoFormSection.insetGrouped(
               header: const Text('Appearance'),
-              backgroundColor: bgColor,
               children: [
+                // Dark Mode Container (Rounded Top)
                 Container(
                   decoration: BoxDecoration(
                     color: CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(10),
+                      topRight: Radius.circular(10),
+                    ),
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                   child: Row(
@@ -48,6 +54,36 @@ class SettingsPage extends StatelessWidget {
                       CupertinoSwitch(
                         value: isDarkMode,
                         onChanged: toggleTheme,
+                      ),
+                    ],
+                  ),
+                ),
+                // Accent Color Container (Rounded Bottom)
+                Container(
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(10),
+                      bottomRight: Radius.circular(10),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Accent Color'),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        child: Container(
+                          width: 48,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: settingsViewModel.accentColorNotifier.value,
+                            shape: BoxShape.rectangle,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () => _showColorPicker(context),
                       ),
                     ],
                   ),
@@ -100,4 +136,62 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
+  void _showColorPicker(BuildContext context) {
+    final List<Color> colors = [
+      CupertinoColors.systemPink,
+      CupertinoColors.systemOrange,
+      CupertinoColors.systemYellow,
+      CupertinoColors.systemGreen,
+      CupertinoColors.systemTeal,
+      CupertinoColors.systemCyan,
+      CupertinoColors.systemBlue,
+      CupertinoColors.systemIndigo,
+      CupertinoColors.systemPurple,
+      CupertinoColors.systemMint,
+      CupertinoColors.systemBrown,
+      CupertinoColors.systemGrey,
+    ];
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (BuildContext ctx) {
+        return Container(
+          height: 250,
+          padding: const EdgeInsets.all(16),
+          color: CupertinoColors.systemGrey5.resolveFrom(context),
+          child: Column(
+            children: [
+              const Text('Choose Accent Color', style: TextStyle(fontSize: 18)),
+              const SizedBox(height: 16),
+              Expanded(
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 6,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  itemCount: colors.length,
+                  itemBuilder: (context, index) {
+                    return GestureDetector(
+                      onTap: () {
+                        settingsViewModel.setAccentColor(colors[index]);
+                        Navigator.pop(ctx);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: colors[index],
+                          shape: BoxShape.rectangle,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
