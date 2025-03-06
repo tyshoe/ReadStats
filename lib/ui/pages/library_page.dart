@@ -12,13 +12,13 @@ class LibraryPage extends StatefulWidget {
   final Function() refreshSessions;
   final SettingsViewModel settingsViewModel;
 
-  const LibraryPage(
-      {super.key,
-      required this.books,
-      required this.refreshBooks,
-      required this.refreshSessions,
-      required this.settingsViewModel,
-      });
+  const LibraryPage({
+    super.key,
+    required this.books,
+    required this.refreshBooks,
+    required this.refreshSessions,
+    required this.settingsViewModel,
+  });
 
   @override
   State<LibraryPage> createState() => _LibraryPageState();
@@ -30,27 +30,26 @@ class _LibraryPageState extends State<LibraryPage> {
   void _confirmDelete(int bookId) {
     showCupertinoDialog(
       context: context,
-      builder: (context) =>
-          CupertinoAlertDialog(
-            title: const Text('Delete Book'),
-            content: const Text(
-                'Are you sure you want to delete this book and all its sessions?'),
-            actions: [
-              CupertinoDialogAction(
-                child: const Text('Cancel'),
-                onPressed: () => Navigator.pop(context),
-              ),
-              CupertinoDialogAction(
-                isDestructiveAction: true,
-                onPressed: () async {
-                  await _dbHelper.deleteBook(bookId);
-                  widget.refreshBooks();
-                  Navigator.pop(context);
-                },
-                child: const Text('Delete'),
-              ),
-            ],
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Delete Book'),
+        content: const Text(
+            'Are you sure you want to delete this book and all its sessions?'),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
           ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () async {
+              await _dbHelper.deleteBook(bookId);
+              widget.refreshBooks();
+              Navigator.pop(context);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -89,15 +88,14 @@ class _LibraryPageState extends State<LibraryPage> {
     await Navigator.push(
       context,
       CupertinoPageRoute(
-        builder: (context) =>
-            LogSessionPage(
-              books: widget.books,
-              initialBookId: bookId,
-              refreshSessions: () {
-                widget.refreshSessions();
-              },
-              settingsViewModel: widget.settingsViewModel,
-            ),
+        builder: (context) => LogSessionPage(
+          books: widget.books,
+          initialBookId: bookId,
+          refreshSessions: () {
+            widget.refreshSessions();
+          },
+          settingsViewModel: widget.settingsViewModel,
+        ),
       ),
     );
   }
@@ -199,7 +197,7 @@ class _LibraryPageState extends State<LibraryPage> {
                           Text(
                             "by ${book['author']}",
                             style:
-                            const TextStyle(fontSize: 14, wordSpacing: 2),
+                                const TextStyle(fontSize: 14, wordSpacing: 2),
                             maxLines: 1,
                             overflow: TextOverflow
                                 .ellipsis, // Truncate long author names
@@ -265,19 +263,22 @@ class _LibraryPageState extends State<LibraryPage> {
                   ],
                 ),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _statCard(
-                      title: 'Pages/Minute',
-                      value:
-                      stats['avg_pages_per_minute']?.toStringAsFixed(2) ??
-                          '0',
+                    Expanded(
+                      child: _statCard(
+                        title: 'Pages/Minute',
+                        value: stats['pages_per_minute']?.toStringAsFixed(2) ??
+                            '0',
+                      ),
                     ),
-                    _statCard(
-                      title: 'Words/Minute',
-                      value:
-                      stats['avg_words_per_minute']?.toStringAsFixed(2) ??
-                          '0',
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _statCard(
+                        title: 'Words/Minute',
+                        value: stats['words_per_minute']?.toStringAsFixed(2) ??
+                            '0',
+                      ),
                     ),
                   ],
                 ),
@@ -286,7 +287,7 @@ class _LibraryPageState extends State<LibraryPage> {
                       DateTime.parse(stats['start_date'] ?? '1999-11-15')),
                   finishDate: book['is_completed'] == 1
                       ? dateFormat.format(
-                      DateTime.parse(stats['finish_date'] ?? '1999-11-15'))
+                          DateTime.parse(stats['finish_date'] ?? '1999-11-15'))
                       : 'n/a',
                   daysToComplete: book['is_completed'] == 1
                       ? stats['days_to_complete']?.toString() ?? '0'
@@ -315,9 +316,9 @@ class _LibraryPageState extends State<LibraryPage> {
                       onTap: book['is_completed'] == 1
                           ? () {} // Disable interaction by providing an empty function
                           : () {
-                        Navigator.pop(context);
-                        _navigateToAddSessionPage(book['id']);
-                      },
+                              Navigator.pop(context);
+                              _navigateToAddSessionPage(book['id']);
+                            },
                     ),
                     _popupAction(
                       icon: CupertinoIcons.trash,
@@ -345,7 +346,7 @@ class _LibraryPageState extends State<LibraryPage> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color:
-        CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
+            CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -354,7 +355,7 @@ class _LibraryPageState extends State<LibraryPage> {
           Text(
             title,
             style: const TextStyle(
-                fontSize: 16, color: CupertinoColors.systemGrey),
+                fontSize: 14, color: CupertinoColors.systemGrey),
           ),
           const SizedBox(height: 12),
           // Value in center, bold, with text scaling
@@ -362,7 +363,7 @@ class _LibraryPageState extends State<LibraryPage> {
             fit: BoxFit.scaleDown,
             child: Text(
               value,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -380,7 +381,7 @@ class _LibraryPageState extends State<LibraryPage> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color:
-        CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
+            CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -449,8 +450,7 @@ class _LibraryPageState extends State<LibraryPage> {
   Widget build(BuildContext context) {
     final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
     final textColor = CupertinoColors.label.resolveFrom(context);
-    final accentColor = widget.settingsViewModel.accentColorNotifier
-        .value;
+    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
@@ -465,8 +465,8 @@ class _LibraryPageState extends State<LibraryPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset(
-                        'assets/images/carl.png', width: 100, height: 100),
+                    Image.asset('assets/images/carl.png',
+                        width: 100, height: 100),
                     const SizedBox(height: 16),
                     Text(
                       'Carl is hungry, add a book to your library',
@@ -513,9 +513,9 @@ class _LibraryPageState extends State<LibraryPage> {
                                   children: [
                                     Row(
                                       mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                          MainAxisAlignment.spaceBetween,
                                       crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Expanded(
                                           child: Text(
@@ -530,8 +530,8 @@ class _LibraryPageState extends State<LibraryPage> {
                                           ),
                                         ),
                                         Padding(
-                                          padding: const EdgeInsets.only(
-                                              left: 8),
+                                          padding:
+                                              const EdgeInsets.only(left: 8),
                                           child: Icon(
                                             CupertinoIcons.book_fill,
                                             color: CupertinoColors.systemGrey2

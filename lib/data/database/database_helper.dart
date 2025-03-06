@@ -32,7 +32,7 @@ class DatabaseHelper {
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    await db.execute(''' 
+    await db.execute('''
       CREATE TABLE books(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT,
@@ -43,7 +43,7 @@ class DatabaseHelper {
       )
     ''');
 
-    await db.execute(''' 
+    await db.execute('''
       CREATE TABLE sessions(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         book_id INTEGER,
@@ -65,7 +65,7 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getSessionsWithBooks() async {
     try {
       final db = await database;
-      final result = await db.rawQuery(''' 
+      final result = await db.rawQuery('''
         SELECT 
           sessions.*, 
           books.title as book_title 
@@ -159,20 +159,22 @@ class DatabaseHelper {
 
   Future<Map<String, dynamic>> getBookStats(int bookId) async {
     final db = await database;
-    final result = await db.rawQuery(''' 
+    final result = await db.rawQuery('''
     SELECT 
-      COUNT(id) AS session_count, 
-      SUM(pages_read) AS total_pages,
-      SUM(hours * 60 + minutes) AS total_time,  -- Converts time to minutes
-      AVG(pages_read * 1.0 / (hours * 60 + minutes)) AS avg_pages_per_minute,
-      AVG(pages_read * 1.0 / (hours * 60 + minutes) * 250) AS avg_words_per_minute,
-      MIN(date) AS start_date,
-      MAX(date) AS finish_date,
+      COUNT(sessions.id) AS session_count, 
+      SUM(sessions.pages_read) AS total_pages,
+      SUM(sessions.hours * 60 + sessions.minutes) AS total_time,  -- Converts time to minutes
+      SUM(sessions.pages_read) * 1.0 / SUM(sessions.hours * 60 + sessions.minutes) AS pages_per_minute,
+      books.word_count * 1.0 / SUM(sessions.hours * 60 + sessions.minutes) AS words_per_minute,
+      MIN(sessions.date) AS start_date,
+      MAX(sessions.date) AS finish_date,
       ROUND(
-        JULIANDAY(MAX(date)) - JULIANDAY(MIN(date))
+        JULIANDAY(MAX(sessions.date)) - JULIANDAY(MIN(sessions.date))
       ) AS days_to_complete
-    FROM sessions
-    WHERE book_id = ?
+    FROM books
+    LEFT JOIN sessions ON books.id = sessions.book_id
+    WHERE books.id = ?
+    GROUP BY books.id
   ''', [bookId]);
 
     print(result);
@@ -183,12 +185,13 @@ class DatabaseHelper {
         'session_count': 0,
         'total_pages': 0,
         'total_time': 0,
-        'avg_pages_per_minute': 0,
-        'avg_words_per_minute': 0,
+        'pages_per_minute': 0,
+        'words_per_minute': 0,
       };
     }
-
   }
+
+
 
   Future<Map<String, dynamic>> getCompleteBookStats(int bookId) async {
     final book = await getBookById(bookId);
@@ -204,4 +207,3 @@ class DatabaseHelper {
     }
   }
 }
-
