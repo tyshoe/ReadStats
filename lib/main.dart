@@ -1,24 +1,32 @@
 import 'package:flutter/cupertino.dart';
-import 'package:read_stats/repositories/book_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'database/database_helper.dart';
-import 'pages/library_page.dart';
-import 'pages/settings_page.dart';
-import 'pages/sessions_page.dart';
-import 'pages/session_stats_page.dart';
+import 'data/database/database_helper.dart';
+import 'data/repositories/book_repository.dart';
+import 'ui/pages/library_page.dart';
+import 'ui/pages/settings_page.dart';
+import 'ui/pages/sessions_page.dart';
+import 'ui/pages/session_stats_page.dart';
+import 'ui/themes/app_theme.dart'; // Import app_theme.dart
+import 'viewmodels/SettingsViewModel.dart'; // Import SettingsViewModel
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize database and repositories
   final dbHelper = DatabaseHelper();
   await dbHelper.database;
 
   final bookRepository = BookRepository(dbHelper);
 
   // Load saved theme preference
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  bool isDarkMode = prefs.getBool('isDarkMode') ?? false;
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final bool isDarkMode = prefs.getBool('isDarkMode') ?? false;
 
-  runApp(MyApp(dbHelper: dbHelper, isDarkMode: isDarkMode, bookRepository: bookRepository));
+  runApp(MyApp(
+    dbHelper: dbHelper,
+    isDarkMode: isDarkMode,
+    bookRepository: bookRepository,
+  ));
 }
 
 class MyApp extends StatefulWidget {
@@ -26,32 +34,29 @@ class MyApp extends StatefulWidget {
   final bool isDarkMode;
   final BookRepository bookRepository;
 
-  const MyApp({super.key, required this.dbHelper, required this.isDarkMode, required this.bookRepository});
+  const MyApp({
+    super.key,
+    required this.dbHelper,
+    required this.isDarkMode,
+    required this.bookRepository,
+  });
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
-  late bool _isDarkMode;
+  late SettingsViewModel _settingsViewModel;
   List<Map<String, dynamic>> _books = [];
   List<Map<String, dynamic>> _sessions = [];
 
   @override
   void initState() {
     super.initState();
-    _isDarkMode = widget.isDarkMode; // Initialize _isDarkMode with saved value
+    // Initialize SettingsViewModel with the saved theme preference
+    _settingsViewModel = SettingsViewModel(isDarkMode: widget.isDarkMode);
     _loadBooks();
     _loadSessions();
-  }
-
-  void _toggleTheme(bool isDark) async {
-    setState(() {
-      _isDarkMode = isDark;
-    });
-    // Save theme preference
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setBool('isDarkMode', isDark);
   }
 
   Future<void> _loadBooks() async {
@@ -76,20 +81,24 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoApp(
-      theme: CupertinoThemeData(
-        brightness: _isDarkMode ? Brightness.dark : Brightness.light,
-      ),
-      home: NavigationMenu(
-        toggleTheme: _toggleTheme,
-        isDarkMode: _isDarkMode,
-        books: _books,
-        addBook: _addBook,
-        refreshBooks: _loadBooks,
-        refreshSessions: _loadSessions,
-        sessions: _sessions,
-        bookRepository: widget.bookRepository,
-      ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: _settingsViewModel.isDarkModeNotifier,
+      builder: (context, isDarkMode, child) {
+        return CupertinoApp(
+          // Use the theme from app_theme.dart
+          theme: isDarkMode ? AppTheme.darkTheme : AppTheme.lightTheme,
+          home: NavigationMenu(
+            toggleTheme: _settingsViewModel.toggleTheme,
+            isDarkMode: isDarkMode,
+            books: _books,
+            addBook: _addBook,
+            refreshBooks: _loadBooks,
+            refreshSessions: _loadSessions,
+            sessions: _sessions,
+            bookRepository: widget.bookRepository,
+          ),
+        );
+      },
     );
   }
 }
@@ -122,7 +131,7 @@ class NavigationMenu extends StatelessWidget {
       tabBar: CupertinoTabBar(
         activeColor: CupertinoColors.systemPurple,
         inactiveColor: CupertinoColors.systemGrey,
-        items: [
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(CupertinoIcons.book),
             activeIcon: Icon(CupertinoIcons.book_fill),
@@ -156,11 +165,11 @@ class NavigationMenu extends StatelessWidget {
           case 3:
           default:
             return SettingsPage(
-              onThemeSelected: toggleTheme,
+              toggleTheme: toggleTheme,
               isDarkMode: isDarkMode,
               bookRepository: bookRepository,
               refreshBooks: refreshBooks,
-              refreshSessions: refreshSessions
+              refreshSessions: refreshSessions,
             );
         }
       },

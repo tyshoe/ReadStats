@@ -1,5 +1,5 @@
-import '../../models/book.dart';
-import '../../database/database_helper.dart';
+import '/data/models/book.dart';
+import '/data/database/database_helper.dart';
 
 class BookRepository {
   final DatabaseHelper _databaseHelper;

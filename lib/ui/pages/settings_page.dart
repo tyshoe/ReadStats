@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../repositories/book_repository.dart';
+import '/data/repositories/book_repository.dart';
 
 class SettingsPage extends StatelessWidget {
-  final Function(bool) onThemeSelected;
+  final Function(bool) toggleTheme;
   final bool isDarkMode;
   final BookRepository bookRepository;
   final Function() refreshBooks;
@@ -11,7 +11,7 @@ class SettingsPage extends StatelessWidget {
 
   const SettingsPage({
     super.key,
-    required this.onThemeSelected,
+    required this.toggleTheme,
     required this.isDarkMode,
     required this.bookRepository,
     required this.refreshBooks,
@@ -47,11 +47,7 @@ class SettingsPage extends StatelessWidget {
                       const Text('Dark Mode'),
                       CupertinoSwitch(
                         value: isDarkMode,
-                        onChanged: (bool value) async {
-                          onThemeSelected(value);
-                          SharedPreferences prefs = await SharedPreferences.getInstance();
-                          prefs.setBool('isDarkMode', value);
-                        },
+                        onChanged: toggleTheme,
                       ),
                     ],
                   ),

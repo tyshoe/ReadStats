@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import '../repositories/session_repository.dart';
-import '../models/session.dart';
+import '/data/repositories/session_repository.dart';
+import '/data/models/session.dart';
 
 class SessionStatsPage extends StatefulWidget {
   const SessionStatsPage({

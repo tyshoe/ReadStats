@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
-import '../models/session.dart';
-import '../repositories/session_repository.dart';
+import '/data/models/session.dart';
+import '/data/repositories/session_repository.dart';
 
 class LogSessionPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;

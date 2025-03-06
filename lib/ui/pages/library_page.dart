@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'add_book_page.dart';
 import 'edit_book_page.dart';
 import 'add_session_page.dart';
-import '../database/database_helper.dart';
+import '/data/database/database_helper.dart';
 
 class LibraryPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
