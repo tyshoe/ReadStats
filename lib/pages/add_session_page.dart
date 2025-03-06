@@ -135,7 +135,15 @@ class _LogSessionPageState extends State<LogSessionPage> {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: Text('Add Reading Session'),
-        backgroundColor: bgColor,
+        trailing: GestureDetector(
+          onTap: _saveSession,
+          child: Text(
+            'Save',
+            style: TextStyle(
+              color: CupertinoColors.activeBlue,
+            ),
+          ),
+        ),
       ),
       child: SafeArea(
         child: Padding(

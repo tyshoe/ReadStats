@@ -69,7 +69,18 @@ class _EditBookPageState extends State<EditBookPage> {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(middle: Text('Edit Book')),
+      navigationBar: CupertinoNavigationBar(
+        middle: Text('Edit Book'),
+        trailing: GestureDetector(
+          onTap: _updateBook,
+          child: Text(
+            'Save',
+            style: TextStyle(
+              color: CupertinoColors.activeBlue,
+            ),
+          ),
+        ),
+      ),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),

@@ -70,7 +70,18 @@ class _AddBookPageState extends State<AddBookPage> {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(middle: Text('Add Book')),
+      navigationBar: CupertinoNavigationBar(
+        middle: Text('Add Book'),
+        trailing: GestureDetector(
+          onTap: _saveBook,
+          child: Text(
+            'Save',
+            style: TextStyle(
+              color: CupertinoColors.activeBlue,
+            ),
+          ),
+        ),
+      ),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -84,6 +95,7 @@ class _AddBookPageState extends State<AddBookPage> {
                 controller: _titleController,
                 placeholder: "Enter Book Title",
                 padding: const EdgeInsets.all(12),
+
               ),
               const SizedBox(height: 16),
               const Text("Author",

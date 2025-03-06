@@ -124,8 +124,16 @@ class _EditSessionPageState extends State<EditSessionPage> {
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        middle: Text('Edit Reading Session'),
-        backgroundColor: bgColor,
+        middle: Text('Add Reading Session'),
+        trailing: GestureDetector(
+          onTap: _updateSession,
+          child: Text(
+            'Save',
+            style: TextStyle(
+              color: CupertinoColors.activeBlue,
+            ),
+          ),
+        ),
       ),
       child: SafeArea(
         child: Padding(
