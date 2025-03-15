@@ -1,8 +1,9 @@
 import 'package:flutter/cupertino.dart';
+import 'book_row.dart';
 import 'package:intl/intl.dart';
-import 'add_book_page.dart';
-import 'edit_book_page.dart';
-import 'add_session_page.dart';
+import '../add_book_page.dart';
+import '../edit_book_page.dart';
+import '../add_session_page.dart';
 import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
@@ -496,63 +497,10 @@ class _LibraryPageState extends State<LibraryPage> {
                         itemCount: widget.books.length,
                         itemBuilder: (context, index) {
                           final book = widget.books[index];
-                          return GestureDetector(
+                          return BookRow(
+                            book: book,
+                            textColor: textColor,
                             onTap: () => _showBookPopup(context, book),
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              height: 100,
-                              decoration: BoxDecoration(
-                                color: CupertinoColors.secondarySystemBackground
-                                    .resolveFrom(context),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            book['title'],
-                                            style: TextStyle(
-                                              color: textColor,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(left: 8),
-                                          child: Icon(
-                                            CupertinoIcons.book_fill,
-                                            color: CupertinoColors.systemGrey2
-                                                .resolveFrom(context),
-                                            size: 16,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      "by ${book['author']}",
-                                      style: TextStyle(
-                                        color: textColor,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
                           );
                         },
                       ),

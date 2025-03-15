@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'data/database/database_helper.dart';
 import 'data/repositories/book_repository.dart';
-import 'ui/pages/library_page.dart';
+import 'ui/pages/library_page/library_page.dart';
 import 'ui/pages/settings_page.dart';
 import 'ui/pages/sessions_page.dart';
 import 'ui/pages/session_stats_page.dart';
