@@ -34,5 +34,9 @@ class BookRepository {
   Future<Map<String, dynamic>> getBookStats(int bookId) async {
     return await _databaseHelper.getBookStats(bookId);
   }
+
+  Future<Map<String, dynamic>> getAllBookStats() async {
+    return await _databaseHelper.getAllBookStats();
+  }
 }
 

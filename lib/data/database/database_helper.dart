@@ -192,6 +192,44 @@ class DatabaseHelper {
   }
 
 
+  Future<Map<String, dynamic>> getAllBookStats() async {
+    final db = await database;
+    final result = await db.rawQuery('''
+   WITH BookCompletionTimes AS (
+  SELECT 
+    books.id AS book_id,
+    CAST(ROUND((JULIANDAY(MAX(sessions.date)) - JULIANDAY(MIN(sessions.date))) * 24 * 60) AS INTEGER) AS minutes_to_complete
+  FROM books
+  JOIN sessions ON books.id = sessions.book_id
+  WHERE books.is_completed = 1
+  GROUP BY books.id
+)
+SELECT 
+  MAX(books.rating) AS highest_rating,
+  MIN(books.rating) AS lowest_rating,
+  AVG(books.rating) AS average_rating,
+  MAX(BookCompletionTimes.minutes_to_complete) AS slowest_read_time,
+  MIN(BookCompletionTimes.minutes_to_complete) AS fastest_read_time,
+  COUNT(DISTINCT books.id) AS books_completed
+FROM books
+LEFT JOIN BookCompletionTimes ON books.id = BookCompletionTimes.book_id
+WHERE books.is_completed = 1;
+  ''');
+
+    if (result.isNotEmpty) {
+      return result.first;
+    } else {
+      return {
+        'highest_rating': null,
+        'lowest_rating': null,
+        'average_rating': null,
+        'longest_read_time': null,
+        'shortest_read_time': null,
+        'books_completed': 0,
+      };
+    }
+  }
+
 
   Future<Map<String, dynamic>> getCompleteBookStats(int bookId) async {
     final book = await getBookById(bookId);

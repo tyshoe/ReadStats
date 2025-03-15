@@ -179,13 +179,13 @@ class NavigationMenu extends StatelessWidget {
                 );
               case 1:
                 return SessionsPage(
-                    books: books,
-                    sessions: sessions,
-                    refreshSessions: refreshSessions,
-                    settingsViewModel: settingsViewModel,
+                  books: books,
+                  sessions: sessions,
+                  refreshSessions: refreshSessions,
+                  settingsViewModel: settingsViewModel,
                 );
               case 2:
-                return SessionStatsPage();
+                return SessionStatsPage(bookRepository: bookRepository);
               case 3:
               default:
                 return SettingsPage(
