@@ -46,10 +46,8 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
       'highestRating': bookStats['highest_rating'] ?? 'N/A',
       'lowestRating': bookStats['lowest_rating'] ?? 'N/A',
       'averageRating': bookStats['average_rating'] ?? 'N/A',
-      'slowestReadTime':
-          convertMinutesToTimeString(bookStats['slowest_read_time']) ?? 'N/A',
-      'fastestReadTime':
-          convertMinutesToTimeString(bookStats['fastest_read_time']) ?? 'N/A',
+      'slowestReadTime': convertMinutesToTimeString(bookStats['slowest_read_time'] ?? 0),
+      'fastestReadTime': convertMinutesToTimeString(bookStats['fastest_read_time'] ?? 0),
       'booksCompleted': bookStats['books_completed'] ?? 0,
     };
   }

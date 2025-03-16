@@ -223,8 +223,8 @@ WHERE books.is_completed = 1;
         'highest_rating': null,
         'lowest_rating': null,
         'average_rating': null,
-        'longest_read_time': null,
-        'shortest_read_time': null,
+        'slowest_read_time': null,
+        'fastest_read_time': null,
         'books_completed': 0,
       };
     }
