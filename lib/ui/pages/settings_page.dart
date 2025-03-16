@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import '../themes/app_theme.dart';
 import '/data/repositories/book_repository.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
@@ -22,7 +23,7 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
+    final bgColor = isDarkMode ? AppTheme.darkBackground : AppTheme.lightBackground;
     final textColor = CupertinoColors.label.resolveFrom(context);
 
     return CupertinoPageScaffold(
@@ -49,6 +50,7 @@ class SettingsPage extends StatelessWidget {
                   ),
                   padding:
                       const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  // color: CupertinoColors.systemTeal,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -98,6 +100,7 @@ class SettingsPage extends StatelessWidget {
             ),
             CupertinoFormSection.insetGrouped(
               header: const Text('Manage Your Data'),
+              backgroundColor: bgColor,
               children: [
                 CupertinoButton(
                   color: CupertinoColors.systemRed,
