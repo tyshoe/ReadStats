@@ -154,6 +154,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               CupertinoTextField(
+                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 controller: _pagesController,
                 onTapOutside: (event) {
                   FocusManager.instance.primaryFocus?.unfocus();
@@ -272,7 +273,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
                     child: CupertinoButton(
                       onPressed: _updateSession,
                       color: accentColor,
-                      child: const Text('Update Session',
+                      child: const Text('Save',
                           style: TextStyle(color: CupertinoColors.white)),
                     ),
                   ),

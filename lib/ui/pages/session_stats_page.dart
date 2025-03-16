@@ -46,8 +46,10 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
       'highestRating': bookStats['highest_rating'] ?? 'N/A',
       'lowestRating': bookStats['lowest_rating'] ?? 'N/A',
       'averageRating': bookStats['average_rating'] ?? 'N/A',
-      'slowestReadTime': convertMinutesToTimeString(bookStats['slowest_read_time']) ?? 'N/A',
-      'fastestReadTime': convertMinutesToTimeString(bookStats['fastest_read_time']) ?? 'N/A',
+      'slowestReadTime':
+          convertMinutesToTimeString(bookStats['slowest_read_time']) ?? 'N/A',
+      'fastestReadTime':
+          convertMinutesToTimeString(bookStats['fastest_read_time']) ?? 'N/A',
       'booksCompleted': bookStats['books_completed'] ?? 0,
     };
   }
@@ -73,7 +75,7 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
     final cardColor = CupertinoColors.systemGrey6.resolveFrom(context);
 
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
+      navigationBar: CupertinoNavigationBar(
         middle: Text('Statistics'),
       ),
       child: SafeArea(
@@ -90,7 +92,7 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
             final stats = snapshot.data ?? {};
 
             return Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(8.0),
               child: SingleChildScrollView(
                 // Add this to make content scrollable
                 child: Column(
@@ -193,7 +195,7 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

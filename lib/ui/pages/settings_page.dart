@@ -28,7 +28,6 @@ class SettingsPage extends StatelessWidget {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: const Text('Settings'),
-        backgroundColor: bgColor,
       ),
       child: SafeArea(
         child: ListView(
@@ -39,13 +38,16 @@ class SettingsPage extends StatelessWidget {
                 // Dark Mode Container (Rounded Top)
                 Container(
                   decoration: BoxDecoration(
-                    color: CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
+                    color: CupertinoColors.systemGrey5
+                        .resolveFrom(context)
+                        .withOpacity(0.8),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(10),
                       topRight: Radius.circular(10),
                     ),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -53,6 +55,7 @@ class SettingsPage extends StatelessWidget {
                       CupertinoSwitch(
                         value: isDarkMode,
                         onChanged: toggleTheme,
+                        applyTheme: false,
                       ),
                     ],
                   ),
@@ -60,13 +63,16 @@ class SettingsPage extends StatelessWidget {
                 // Accent Color Container (Rounded Bottom)
                 Container(
                   decoration: BoxDecoration(
-                    color: CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
+                    color: CupertinoColors.systemGrey5
+                        .resolveFrom(context)
+                        .withOpacity(0.8),
                     borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(10),
                       bottomRight: Radius.circular(10),
                     ),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -91,11 +97,11 @@ class SettingsPage extends StatelessWidget {
             ),
             CupertinoFormSection.insetGrouped(
               header: const Text('Manage Your Data'),
-              backgroundColor: bgColor,
               children: [
                 CupertinoButton(
                   color: CupertinoColors.systemRed,
-                  child: Text('Delete All Books', style: TextStyle(color: CupertinoColors.white)),
+                  child: Text('Delete All Books',
+                      style: TextStyle(color: CupertinoColors.white)),
                   onPressed: () => _confirmDeleteBooks(context),
                 ),
               ],
@@ -124,7 +130,7 @@ class SettingsPage extends StatelessWidget {
               onPressed: () async {
                 Navigator.pop(ctx);
                 await bookRepository.deleteAllBooks();
-                refreshBooks();  // Refresh the book list
+                refreshBooks(); // Refresh the book list
                 refreshSessions(); // Refresh the session list
               },
               child: const Text('Delete'),

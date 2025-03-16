@@ -212,6 +212,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               CupertinoTextField(
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   controller: _pagesController,
                   onTapOutside: (event) {
                     FocusManager.instance.primaryFocus?.unfocus();
@@ -327,7 +328,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
               CupertinoButton(
                 onPressed: _saveSession,
                 color: accentColor,
-                child: const Text('Log Session',
+                child: const Text('Save',
                     style: TextStyle(color: CupertinoColors.white)),
               ),
               const SizedBox(height: 16),

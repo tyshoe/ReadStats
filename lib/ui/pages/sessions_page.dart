@@ -147,13 +147,11 @@ class _SessionsPageState extends State<SessionsPage> {
     final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
     final textColor = CupertinoColors.label.resolveFrom(context);
     final groupedSessions = _groupSessionsByMonth();
-    final accentColor = widget.settingsViewModel.accentColorNotifier
-        .value;
+    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: const Text('Reading Sessions'),
-        backgroundColor: bgColor,
       ),
       child: SafeArea(
         child: Stack(
@@ -224,7 +222,6 @@ class _SessionsPageState extends State<SessionsPage> {
                                         children: [
                                           Text(bookTitle,
                                               style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
                                                 fontSize: 16,
                                                 overflow: TextOverflow.ellipsis,
                                               )),
@@ -248,16 +245,22 @@ class _SessionsPageState extends State<SessionsPage> {
                                         children: [
                                           Text('$pagesRead pages',
                                               style: const TextStyle(
+                                                  color: CupertinoColors
+                                                      .systemGrey,
                                                   fontSize: 14)),
                                           Text(_formatDuration(hours, minutes),
                                               style: const TextStyle(
+                                                  color: CupertinoColors
+                                                      .systemGrey,
                                                   fontSize: 14)),
                                           Text(
                                             date.isNotEmpty
                                                 ? _formatDate(date)
                                                 : 'No date available',
-                                            style:
-                                                const TextStyle(fontSize: 14),
+                                            style: const TextStyle(
+                                                color:
+                                                    CupertinoColors.systemGrey,
+                                                fontSize: 14),
                                           ),
                                         ],
                                       ),

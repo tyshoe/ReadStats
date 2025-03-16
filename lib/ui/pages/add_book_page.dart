@@ -130,8 +130,6 @@ class _AddBookPageState extends State<AddBookPage> {
               const Text("Rating",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-
-              // Star Rating
               Center(
                 child: RatingBar.builder(
                   initialRating: _rating,
@@ -152,23 +150,31 @@ class _AddBookPageState extends State<AddBookPage> {
                   },
                 ),
               ),
-
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text("Completed",
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  CupertinoSwitch(
-                    value: _isCompleted,
-                    onChanged: (value) {
-                      setState(() {
-                        _isCompleted = value;
-                      });
-                    },
+              const Text("Status",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              CupertinoSlidingSegmentedControl<int>(
+                // padding: const EdgeInsets.all(12),
+                groupValue:
+                    _isCompleted ? 1 : 0, // Map boolean to segment index
+                onValueChanged: (int? value) {
+                  if (value != null) {
+                    setState(() {
+                      _isCompleted = value == 1; // Map index back to boolean
+                    });
+                  }
+                },
+                children: const {
+                  0: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text("Not Completed"),
                   ),
-                ],
+                  1: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text("Completed"),
+                  ),
+                },
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -177,7 +183,8 @@ class _AddBookPageState extends State<AddBookPage> {
                   onPressed: _saveBook,
                   color: accentColor,
                   child: const Text("Save",
-                      style: TextStyle(fontSize: 16, color: CupertinoColors.white)),
+                      style: TextStyle(
+                          fontSize: 16, color: CupertinoColors.white)),
                 ),
               ),
               const SizedBox(height: 16),

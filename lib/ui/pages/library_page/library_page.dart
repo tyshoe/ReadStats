@@ -456,7 +456,6 @@ class _LibraryPageState extends State<LibraryPage> {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: Text('Library', style: TextStyle(color: textColor)),
-        backgroundColor: bgColor,
       ),
       child: SafeArea(
         child: Stack(

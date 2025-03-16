@@ -38,7 +38,6 @@ class BookRow extends StatelessWidget {
                       book['title'],
                       style: TextStyle(
                         color: textColor,
-                        fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                       maxLines: 2,
@@ -59,7 +58,7 @@ class BookRow extends StatelessWidget {
               Text(
                 "by ${book['author']}",
                 style: TextStyle(
-                  color: textColor,
+                  color: CupertinoColors.systemGrey,
                   fontSize: 14,
                 ),
               ),

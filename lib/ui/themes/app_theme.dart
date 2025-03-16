@@ -5,7 +5,7 @@ class AppTheme {
     brightness: Brightness.light,
     primaryColor: CupertinoColors.systemGrey,
     scaffoldBackgroundColor: CupertinoColors.systemBackground,
-    barBackgroundColor: CupertinoColors.systemBackground,
+    barBackgroundColor: CupertinoColors.systemGrey5,
     textTheme: CupertinoTextThemeData(
       textStyle: TextStyle(color: CupertinoColors.label),
       primaryColor: CupertinoColors.systemGrey,
@@ -15,8 +15,9 @@ class AppTheme {
   static final CupertinoThemeData darkTheme = CupertinoThemeData(
     brightness: Brightness.dark,
     primaryColor: CupertinoColors.systemGrey,
-    scaffoldBackgroundColor: CupertinoColors.black,
-    barBackgroundColor: CupertinoColors.black,
+    scaffoldBackgroundColor: Color(0xFF121212),
+    barBackgroundColor: Color(0xFF0C0C0C),
+    applyThemeToAll: true,
     textTheme: CupertinoTextThemeData(
       textStyle: TextStyle(color: CupertinoColors.label),
       primaryColor: CupertinoColors.systemGrey,
