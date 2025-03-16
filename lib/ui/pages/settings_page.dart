@@ -34,6 +34,7 @@ class SettingsPage extends StatelessWidget {
           children: [
             CupertinoFormSection.insetGrouped(
               header: const Text('Appearance'),
+              backgroundColor: bgColor,
               children: [
                 // Dark Mode Container (Rounded Top)
                 Container(

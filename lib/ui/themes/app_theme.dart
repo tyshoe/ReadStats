@@ -6,6 +6,7 @@ class AppTheme {
     primaryColor: CupertinoColors.systemGrey,
     scaffoldBackgroundColor: CupertinoColors.systemBackground,
     barBackgroundColor: CupertinoColors.systemGrey5,
+    applyThemeToAll: true,
     textTheme: CupertinoTextThemeData(
       textStyle: TextStyle(color: CupertinoColors.label),
       primaryColor: CupertinoColors.systemGrey,
