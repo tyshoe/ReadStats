@@ -32,7 +32,7 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
 
     double avgPagesPerMinute =
         totalMinutes > 0 ? totalPagesRead / totalMinutes : 0;
-    String formattedTime = convertMinutesToTimeString(totalMinutes);
+    String totalTimeSpent = convertMinutesToTimeString(totalMinutes);
 
     // Fetch book stats
     Map<String, dynamic> bookStats =
@@ -41,11 +41,11 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
     return {
       'totalSessions': totalSessions,
       'totalPagesRead': totalPagesRead,
-      'totalTimeSpent': formattedTime,
+      'totalTimeSpent': totalTimeSpent,
       'avgPagesPerMinute': avgPagesPerMinute,
-      'highestRating': bookStats['highest_rating'] ?? 'N/A',
-      'lowestRating': bookStats['lowest_rating'] ?? 'N/A',
-      'averageRating': bookStats['average_rating'] ?? 'N/A',
+      'highestRating': bookStats['highest_rating'] ?? 0,
+      'lowestRating': bookStats['lowest_rating'] ?? 0,
+      'averageRating': bookStats['average_rating'] ?? 0,
       'slowestReadTime': convertMinutesToTimeString(bookStats['slowest_read_time'] ?? 0),
       'fastestReadTime': convertMinutesToTimeString(bookStats['fastest_read_time'] ?? 0),
       'booksCompleted': bookStats['books_completed'] ?? 0,
@@ -144,7 +144,7 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
                         subtitleColor: subtitleColor),
                     _statCard(
                         title: 'Average Rating',
-                        value: stats['averageRating'].toStringAsFixed(2),
+                        value: stats['averageRating'].toStringAsPrecision(2),
                         bgColor: cardColor,
                         textColor: textColor,
                         subtitleColor: subtitleColor),

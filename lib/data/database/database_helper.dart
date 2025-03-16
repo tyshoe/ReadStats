@@ -191,45 +191,47 @@ class DatabaseHelper {
     }
   }
 
-
   Future<Map<String, dynamic>> getAllBookStats() async {
     final db = await database;
     final result = await db.rawQuery('''
-   WITH BookCompletionTimes AS (
-  SELECT 
-    books.id AS book_id,
-    CAST(ROUND((JULIANDAY(MAX(sessions.date)) - JULIANDAY(MIN(sessions.date))) * 24 * 60) AS INTEGER) AS minutes_to_complete
-  FROM books
-  JOIN sessions ON books.id = sessions.book_id
-  WHERE books.is_completed = 1
-  GROUP BY books.id
-)
-SELECT 
-  MAX(books.rating) AS highest_rating,
-  MIN(books.rating) AS lowest_rating,
-  AVG(books.rating) AS average_rating,
-  MAX(BookCompletionTimes.minutes_to_complete) AS slowest_read_time,
-  MIN(BookCompletionTimes.minutes_to_complete) AS fastest_read_time,
-  COUNT(DISTINCT books.id) AS books_completed
-FROM books
-LEFT JOIN BookCompletionTimes ON books.id = BookCompletionTimes.book_id
-WHERE books.is_completed = 1;
-  ''');
+    WITH BookCompletionTimes AS (
+    SELECT 
+      books.id AS book_id,
+      CAST(ROUND((JULIANDAY(MAX(sessions.date)) - JULIANDAY(MIN(sessions.date))) * 24 * 60) AS INTEGER) AS minutes_to_complete
+    FROM books
+    JOIN sessions ON books.id = sessions.book_id
+    WHERE 
+      books.is_completed = 1
+    GROUP BY 
+      books.id
+    )
+    SELECT 
+      COALESCE(MAX(books.rating), 0) AS highest_rating,
+      COALESCE(MIN(books.rating), 0) AS lowest_rating,
+      COALESCE(AVG(books.rating), 0) AS average_rating,
+      COALESCE(MAX(BookCompletionTimes.minutes_to_complete), 0) AS slowest_read_time,
+      COALESCE(MIN(BookCompletionTimes.minutes_to_complete), 0) AS fastest_read_time,
+      COALESCE(COUNT(DISTINCT books.id), 0) AS books_completed
+    FROM books
+    LEFT JOIN BookCompletionTimes ON books.id = BookCompletionTimes.book_id
+    WHERE 
+        books.is_completed = 1;
+    ''');
 
+    print(result);
     if (result.isNotEmpty) {
       return result.first;
     } else {
       return {
-        'highest_rating': null,
-        'lowest_rating': null,
-        'average_rating': null,
-        'slowest_read_time': null,
-        'fastest_read_time': null,
+        'highest_rating': 0,
+        'lowest_rating': 0,
+        'average_rating': 0,
+        'slowest_read_time': 0,
+        'fastest_read_time': 0,
         'books_completed': 0,
       };
     }
   }
-
 
   Future<Map<String, dynamic>> getCompleteBookStats(int bookId) async {
     final book = await getBookById(bookId);
