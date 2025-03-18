@@ -26,6 +26,7 @@ class _EditBookPageState extends State<EditBookPage> {
   bool _isCompleted = false;
   String _statusMessage = '';
   bool _isSuccess = false;
+  int _selectedBookType = 0;
 
   @override
   void initState() {
@@ -36,6 +37,7 @@ class _EditBookPageState extends State<EditBookPage> {
     _wordCountController.text = widget.book['word_count'].toString();
     _rating = widget.book['rating'];
     _isCompleted = widget.book['is_completed'] == 1;
+    _selectedBookType = widget.book['book_type_id'] - 1;
   }
 
   void _updateBook() {
@@ -59,6 +61,17 @@ class _EditBookPageState extends State<EditBookPage> {
       "word_count": wordCount,
       "rating": _rating,
       "is_completed": _isCompleted ? 1 : 0,
+      "book_type_id": _selectedBookType + 1,
+    });
+
+    print({
+      "id": widget.book['id'],
+      "title": title,
+      "author": author,
+      "word_count": wordCount,
+      "rating": _rating,
+      "is_completed": _isCompleted ? 1 : 0,
+      "book_type_id": _selectedBookType + 1,
     });
 
     setState(() {
@@ -172,6 +185,38 @@ class _EditBookPageState extends State<EditBookPage> {
                   1: Padding(
                     padding: EdgeInsets.all(12),
                     child: Text("Completed"),
+                  ),
+                },
+              ),
+              const SizedBox(height: 16),
+              const Text("Book Type",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              CupertinoSlidingSegmentedControl<int>(
+                groupValue: _selectedBookType,
+                onValueChanged: (int? value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedBookType = value;
+                    });
+                  }
+                },
+                children: const {
+                  0: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text("Paperback"),
+                  ),
+                  1: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text("Hardback"),
+                  ),
+                  2: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text("Ebook"),
+                  ),
+                  3: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text("Audiobook"),
                   ),
                 },
               ),

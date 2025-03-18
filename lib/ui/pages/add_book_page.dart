@@ -24,6 +24,7 @@ class _AddBookPageState extends State<AddBookPage> {
   bool _isCompleted = false;
   String _statusMessage = '';
   bool _isSuccess = false;
+  int _selectedBookType = 0;
 
   void _saveBook() {
     String title = _titleController.text;
@@ -46,6 +47,7 @@ class _AddBookPageState extends State<AddBookPage> {
       "word_count": wordCount,
       "rating": _rating,
       "is_completed": _isCompleted ? 1 : 0,
+      "book_type_id": _selectedBookType + 1,
     });
 
     // Clear fields
@@ -55,6 +57,7 @@ class _AddBookPageState extends State<AddBookPage> {
     setState(() {
       _rating = 0;
       _isCompleted = false;
+      _selectedBookType = 0;
       _statusMessage = 'Book added successfully!';
       _isSuccess = true;
     });
@@ -155,13 +158,11 @@ class _AddBookPageState extends State<AddBookPage> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               CupertinoSlidingSegmentedControl<int>(
-                // padding: const EdgeInsets.all(12),
-                groupValue:
-                    _isCompleted ? 1 : 0, // Map boolean to segment index
+                groupValue: _isCompleted ? 1 : 0,
                 onValueChanged: (int? value) {
                   if (value != null) {
                     setState(() {
-                      _isCompleted = value == 1; // Map index back to boolean
+                      _isCompleted = value == 1;
                     });
                   }
                 },
@@ -173,6 +174,38 @@ class _AddBookPageState extends State<AddBookPage> {
                   1: Padding(
                     padding: EdgeInsets.all(12),
                     child: Text("Completed"),
+                  ),
+                },
+              ),
+              const SizedBox(height: 16),
+              const Text("Book Type",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              CupertinoSlidingSegmentedControl<int>(
+                groupValue: _selectedBookType,
+                onValueChanged: (int? value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedBookType = value;
+                    });
+                  }
+                },
+                children: const {
+                  0: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text("Paperback"),
+                  ),
+                  1: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text("Hardback"),
+                  ),
+                  2: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text("Ebook"),
+                  ),
+                  3: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text("Audiobook"),
                   ),
                 },
               ),

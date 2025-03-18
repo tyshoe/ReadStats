@@ -5,6 +5,7 @@ class Book {
   int wordCount;
   double rating;
   bool isCompleted;
+  int bookTypeId;
 
   Book({
     this.id,
@@ -13,6 +14,7 @@ class Book {
     required this.wordCount,
     required this.rating,
     required this.isCompleted,
+    required this.bookTypeId,
   });
 
   // Convert a Book object into a Map for database operations
@@ -24,6 +26,7 @@ class Book {
       'word_count': wordCount,
       'rating': rating,
       'is_completed': isCompleted ? 1 : 0, // SQLite doesn't support bool, use 1 & 0
+      'book_type_id': bookTypeId,
     };
   }
 
@@ -36,6 +39,7 @@ class Book {
       wordCount: map['word_count'],
       rating: map['rating'].toDouble(),
       isCompleted: map['is_completed'] == 1, // Convert 1 & 0 back to bool
+      bookTypeId: map['book_type_id'],
     );
   }
 }

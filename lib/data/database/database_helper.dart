@@ -5,6 +5,8 @@ class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
+  static const int _databaseVersion = 3;
+
   factory DatabaseHelper() {
     return _instance;
   }
@@ -21,39 +23,116 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'books.db');
 
-    return await openDatabase(
+    final db = await openDatabase(
       path,
-      version: 2,
+      version: _databaseVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
     );
+
+    // Print the database version after opening
+    final version = await db.getVersion();
+    print('Database opened. Current version: $version');
+
+    return db;
   }
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE books(
+        CREATE TABLE book_types(
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           name TEXT NOT NULL
+        )
+      ''');
+
+    await db.execute('''
+    CREATE TABLE books(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT,
+      author TEXT,
+      word_count INTEGER DEFAULT 0,
+      rating REAL,
+      is_completed INTEGER,
+      book_type_id INTEGER,
+      FOREIGN KEY(book_type_id) REFERENCES book_types(id)
+    )
+  ''');
+
+    await db.execute('''
+    CREATE TABLE sessions(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id INTEGER,
+      pages_read INTEGER,
+      hours INTEGER,
+      minutes INTEGER,
+      date TEXT,
+      FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
+    )
+  ''');
+
+    await db.insert('book_types', {'name': 'Paperback'});
+    await db.insert('book_types', {'name': 'Hardback'});
+    await db.insert('book_types', {'name': 'EBook'});
+    await db.insert('book_types', {'name': 'Audiobook'});
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 3) {
+      // Add the new 'book_type_id' column (default to 1)
+      await db.execute('ALTER TABLE books ADD COLUMN book_type_id INTEGER DEFAULT 1');
+
+      // Create a new 'book_types' table if it doesn't exist
+      await db.execute('''
+      CREATE TABLE IF NOT EXISTS book_types (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL
+      )
+    ''');
+
+      // Insert values
+      await db.insert('book_types', {'name': 'Paperback'});
+      await db.insert('book_types', {'name': 'Hardback'});
+      await db.insert('book_types', {'name': 'EBook'});
+      await db.insert('book_types', {'name': 'Audiobook'});
+
+      // Recreate the 'books' table with the foreign key constraint and copy data over
+      await db.execute('''
+      CREATE TABLE books_new (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT,
         author TEXT,
         word_count INTEGER DEFAULT 0,
         rating REAL,
-        is_completed INTEGER
+        is_completed INTEGER,
+        book_type_id INTEGER DEFAULT 1,
+        FOREIGN KEY(book_type_id) REFERENCES book_types(id)
       )
     ''');
 
-    await db.execute('''
-      CREATE TABLE sessions(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        book_id INTEGER,
-        pages_read INTEGER,
-        hours INTEGER,
-        minutes INTEGER,
-        date TEXT,
-        FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
-      )
+      // Copy data from the old 'books' table to 'books_new'
+      await db.execute('''
+      INSERT INTO books_new (id, title, author, word_count, rating, is_completed, book_type_id)
+      SELECT id, title, author, word_count, rating, is_completed, book_type_id FROM books
     ''');
+
+      // Drop the old 'books' table
+      await db.execute('DROP TABLE books');
+
+      // Rename 'books_new' to 'books'
+      await db.execute('ALTER TABLE books_new RENAME TO books');
+
+      print("Database upgraded from version $oldVersion to $newVersion");
+    }
+  }
+
+
+  Future<void> printDatabaseVersion() async {
+    final db = await database;
+    final version = await db.getVersion();
+    print('Current database version: $version');
   }
 
   Future<int> insertSession(Map<String, dynamic> session) async {

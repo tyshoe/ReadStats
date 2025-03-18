@@ -15,6 +15,25 @@ class BookRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Determine the icon based on the book type
+    IconData bookTypeIcon;
+    switch (book['book_type_id']) {
+      case 1:
+        bookTypeIcon = CupertinoIcons.book;
+        break;
+      case 2:
+        bookTypeIcon = CupertinoIcons.book_fill;
+        break;
+      case 3:
+        bookTypeIcon = CupertinoIcons.device_desktop;
+        break;
+      case 4:
+        bookTypeIcon = CupertinoIcons.headphones;
+        break;
+      default:
+        bookTypeIcon = CupertinoIcons.book_fill;
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -47,7 +66,7 @@ class BookRow extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: Icon(
-                      CupertinoIcons.book_fill,
+                      bookTypeIcon,
                       color: CupertinoColors.systemGrey2.resolveFrom(context),
                       size: 16,
                     ),
