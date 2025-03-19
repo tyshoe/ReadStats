@@ -1,25 +1,26 @@
 import 'package:flutter/cupertino.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
+import '/data/repositories/session_repository.dart';
 import '/data/models/session.dart';
 
-class SessionStatsPage extends StatefulWidget {
+class StatisticsPage extends StatefulWidget {
   final BookRepository bookRepository;
-  const SessionStatsPage({
+  final SessionRepository sessionRepository;
+  const StatisticsPage({
     super.key,
     required this.bookRepository,
+    required this.sessionRepository,
   });
 
   @override
-  State<SessionStatsPage> createState() => _SessionStatsPageState();
+  State<StatisticsPage> createState() => _SessionStatsPageState();
 }
 
-class _SessionStatsPageState extends State<SessionStatsPage> {
-  final SessionRepository _sessionRepo = SessionRepository();
-
+class _SessionStatsPageState extends State<StatisticsPage> {
   Future<Map<String, dynamic>> calculateStats() async {
     // Fetch session stats
-    List<Session> sessions = await _sessionRepo.getSessions();
+    List<Session> sessions = await widget.sessionRepository.getSessions();
 
     int totalSessions = sessions.length;
     int totalPagesRead = 0;
@@ -46,8 +47,10 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
       'highestRating': bookStats['highest_rating'] ?? 0,
       'lowestRating': bookStats['lowest_rating'] ?? 0,
       'averageRating': bookStats['average_rating'] ?? 0,
-      'slowestReadTime': convertMinutesToTimeString(bookStats['slowest_read_time'] ?? 0),
-      'fastestReadTime': convertMinutesToTimeString(bookStats['fastest_read_time'] ?? 0),
+      'slowestReadTime':
+          convertMinutesToTimeString(bookStats['slowest_read_time'] ?? 0),
+      'fastestReadTime':
+          convertMinutesToTimeString(bookStats['fastest_read_time'] ?? 0),
       'booksCompleted': bookStats['books_completed'] ?? 0,
     };
   }
@@ -125,6 +128,7 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
                         bgColor: cardColor,
                         textColor: textColor,
                         subtitleColor: subtitleColor),
+                    const SizedBox(height: 16),
                     const Text(
                       'Ratings',
                       style:
@@ -148,6 +152,7 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
                         bgColor: cardColor,
                         textColor: textColor,
                         subtitleColor: subtitleColor),
+                    const SizedBox(height: 16),
                     const Text(
                       'Reading Time',
                       style:
@@ -189,7 +194,7 @@ class _SessionStatsPageState extends State<SessionStatsPage> {
     required Color subtitleColor,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: bgColor,

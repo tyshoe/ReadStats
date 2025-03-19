@@ -2,10 +2,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'data/database/database_helper.dart';
 import 'data/repositories/book_repository.dart';
+import 'data/repositories/session_repository.dart';
 import 'ui/pages/library_page/library_page.dart';
 import 'ui/pages/settings_page.dart';
 import 'ui/pages/sessions_page.dart';
-import 'ui/pages/session_stats_page.dart';
+import 'ui/pages/statistics_page.dart';
 import 'ui/themes/app_theme.dart';
 import 'viewmodels/SettingsViewModel.dart';
 
@@ -17,6 +18,7 @@ void main() async {
   await dbHelper.database;
 
   final bookRepository = BookRepository(dbHelper);
+  final sessionRepository = SessionRepository(dbHelper);
 
   // Load saved theme preference
   final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -26,6 +28,7 @@ void main() async {
     dbHelper: dbHelper,
     isDarkMode: isDarkMode,
     bookRepository: bookRepository,
+    sessionRepository: sessionRepository,
   ));
 }
 
@@ -33,12 +36,14 @@ class MyApp extends StatefulWidget {
   final DatabaseHelper dbHelper;
   final bool isDarkMode;
   final BookRepository bookRepository;
+  final SessionRepository sessionRepository;
 
   const MyApp({
     super.key,
     required this.dbHelper,
     required this.isDarkMode,
     required this.bookRepository,
+    required this.sessionRepository,
   });
 
   @override
@@ -104,6 +109,7 @@ class _MyAppState extends State<MyApp> {
             refreshSessions: _loadSessions,
             sessions: _sessions,
             bookRepository: widget.bookRepository,
+            sessionRepository: widget.sessionRepository,
             settingsViewModel: _settingsViewModel,
           ),
         );
@@ -121,6 +127,7 @@ class NavigationMenu extends StatelessWidget {
   final List<Map<String, dynamic>> books;
   final List<Map<String, dynamic>> sessions;
   final BookRepository bookRepository;
+  final SessionRepository sessionRepository;
   final SettingsViewModel settingsViewModel;
 
   const NavigationMenu({
@@ -133,6 +140,7 @@ class NavigationMenu extends StatelessWidget {
     required this.refreshSessions,
     required this.sessions,
     required this.bookRepository,
+    required this.sessionRepository,
     required this.settingsViewModel,
   });
 
@@ -176,6 +184,7 @@ class NavigationMenu extends StatelessWidget {
                   refreshBooks: refreshBooks,
                   refreshSessions: refreshSessions,
                   settingsViewModel: settingsViewModel,
+                  sessionRepository: sessionRepository,
                 );
               case 1:
                 return SessionsPage(
@@ -183,15 +192,20 @@ class NavigationMenu extends StatelessWidget {
                   sessions: sessions,
                   refreshSessions: refreshSessions,
                   settingsViewModel: settingsViewModel,
+                  sessionRepository: sessionRepository,
                 );
               case 2:
-                return SessionStatsPage(bookRepository: bookRepository);
+                return StatisticsPage(
+                  bookRepository: bookRepository,
+                  sessionRepository: sessionRepository,
+                );
               case 3:
               default:
                 return SettingsPage(
                   toggleTheme: toggleTheme,
                   isDarkMode: isDarkMode,
                   bookRepository: bookRepository,
+                  sessionRepository: sessionRepository,
                   refreshBooks: refreshBooks,
                   refreshSessions: refreshSessions,
                   settingsViewModel: settingsViewModel,

@@ -79,11 +79,9 @@ class _EditBookPageState extends State<EditBookPage> {
       _isSuccess = true;
     });
 
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    });
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   @override

@@ -2,7 +2,9 @@ import '../models/session.dart';
 import '../database/database_helper.dart';
 
 class SessionRepository {
-  final DatabaseHelper _databaseHelper = DatabaseHelper();
+  final DatabaseHelper _databaseHelper;
+
+  SessionRepository(this._databaseHelper);
 
   Future<int> addSession(Session session) async {
     return await _databaseHelper.insertSession(session.toMap());
@@ -10,6 +12,7 @@ class SessionRepository {
 
   Future<List<Session>> getSessions() async {
     final sessionsMap = await _databaseHelper.getSessionsWithBooks();
+    print(sessionsMap);
     return sessionsMap.map((map) => Session.fromMap(map)).toList();
   }
 

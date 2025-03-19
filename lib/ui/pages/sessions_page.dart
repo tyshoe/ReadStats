@@ -3,12 +3,14 @@ import 'package:intl/intl.dart';
 import 'edit_session_page.dart';
 import 'add_session_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
+import '/data/repositories/session_repository.dart';
 
 class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
   final List<Map<String, dynamic>> sessions;
   final Function() refreshSessions;
   final SettingsViewModel settingsViewModel;
+  final SessionRepository sessionRepository;
 
   const SessionsPage({
     super.key,
@@ -16,6 +18,7 @@ class SessionsPage extends StatefulWidget {
     required this.sessions,
     required this.refreshSessions,
     required this.settingsViewModel,
+    required this.sessionRepository,
   });
 
   @override
@@ -99,6 +102,7 @@ class _SessionsPageState extends State<SessionsPage> {
             book: book,
             refreshSessions: widget.refreshSessions,
             settingsViewModel: widget.settingsViewModel,
+            sessionRepository: widget.sessionRepository,
           ),
         ),
       );
@@ -127,6 +131,7 @@ class _SessionsPageState extends State<SessionsPage> {
           books: widget.books,
           refreshSessions: widget.refreshSessions,
           settingsViewModel: widget.settingsViewModel,
+          sessionRepository: widget.sessionRepository,
         ),
       ),
     );

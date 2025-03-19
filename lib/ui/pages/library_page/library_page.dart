@@ -6,12 +6,14 @@ import '../edit_book_page.dart';
 import '../add_session_page.dart';
 import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
+import '/data/repositories/session_repository.dart';
 
 class LibraryPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
   final Function() refreshBooks;
   final Function() refreshSessions;
   final SettingsViewModel settingsViewModel;
+  final SessionRepository sessionRepository;
 
   const LibraryPage({
     super.key,
@@ -19,6 +21,7 @@ class LibraryPage extends StatefulWidget {
     required this.refreshBooks,
     required this.refreshSessions,
     required this.settingsViewModel,
+    required this.sessionRepository,
   });
 
   @override
@@ -39,6 +42,7 @@ class _LibraryPageState extends State<LibraryPage> {
           CupertinoDialogAction(
             child: const Text('Cancel'),
             onPressed: () => Navigator.pop(context),
+            isDefaultAction: true,
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
@@ -96,6 +100,7 @@ class _LibraryPageState extends State<LibraryPage> {
             widget.refreshSessions();
           },
           settingsViewModel: widget.settingsViewModel,
+          sessionRepository: widget.sessionRepository,
         ),
       ),
     );

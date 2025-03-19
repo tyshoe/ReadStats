@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
-import '/data/database/database_helper.dart';
+import '/data/models/session.dart';
+import '/data/repositories/session_repository.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
 class EditSessionPage extends StatefulWidget {
@@ -8,6 +9,7 @@ class EditSessionPage extends StatefulWidget {
   final Map<String, dynamic> book;
   final Function() refreshSessions;
   final SettingsViewModel settingsViewModel;
+  final SessionRepository sessionRepository;
 
   const EditSessionPage({
     super.key,
@@ -15,6 +17,7 @@ class EditSessionPage extends StatefulWidget {
     required this.book,
     required this.refreshSessions,
     required this.settingsViewModel,
+    required this.sessionRepository,
   });
 
   @override
@@ -22,7 +25,6 @@ class EditSessionPage extends StatefulWidget {
 }
 
 class _EditSessionPageState extends State<EditSessionPage> {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
   final TextEditingController _pagesController = TextEditingController();
   final TextEditingController _hoursController = TextEditingController();
   final TextEditingController _minutesController = TextEditingController();
@@ -51,27 +53,25 @@ class _EditSessionPageState extends State<EditSessionPage> {
       return;
     }
 
-    final session = {
-      'id': widget.session['id'],
-      'book_id': widget.book['id'],
-      'pages_read': int.parse(_pagesController.text),
-      'hours': int.parse(_hoursController.text),
-      'minutes': int.parse(_minutesController.text),
-      'date': _sessionDate.toIso8601String(),
-    };
+    final session = Session(
+      id: widget.session['id'],
+      bookId: widget.book['id'],
+      pagesRead: int.parse(_pagesController.text),
+      hours: int.parse(_hoursController.text),
+      minutes: int.parse(_minutesController.text),
+      date: _sessionDate.toIso8601String(),
+    );
 
     try {
-      await _dbHelper.updateSession(session);
+      await widget.sessionRepository.updateSession(session);
       setState(() {
         _statusMessage = 'Session updated successfully!';
         _isSuccess = true;
       });
       widget.refreshSessions();
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          Navigator.pop(context); // Go back to the previous screen after 2 seconds
-        }
-      });
+      if (mounted) {
+        Navigator.pop(context); // Go back to the previous screen immediately
+      }
     } catch (e) {
       setState(() {
         _statusMessage = 'Failed to update session. Please try again.';
@@ -82,7 +82,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
 
   void _deleteSession() async {
     try {
-      await _dbHelper.deleteSession(widget.session['id']);
+      await widget.sessionRepository.deleteSession(widget.session['id']);
       widget.refreshSessions();
       Navigator.pop(context);
     } catch (e) {

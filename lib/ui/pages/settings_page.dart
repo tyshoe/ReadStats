@@ -1,21 +1,30 @@
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:csv/csv.dart';
+import 'package:share_plus/share_plus.dart';
 import '../themes/app_theme.dart';
 import '/data/repositories/book_repository.dart';
+import '/data/repositories/session_repository.dart';
 import '/viewmodels/SettingsViewModel.dart';
+import '/data/models/book.dart';
+import '/data/models/session.dart';
 
 class SettingsPage extends StatelessWidget {
   final Function(bool) toggleTheme;
   final bool isDarkMode;
   final BookRepository bookRepository;
+  final SessionRepository sessionRepository;
   final Function() refreshBooks;
   final Function() refreshSessions;
   final SettingsViewModel settingsViewModel;
-
   const SettingsPage({
     super.key,
     required this.toggleTheme,
     required this.isDarkMode,
     required this.bookRepository,
+    required this.sessionRepository,
     required this.refreshBooks,
     required this.refreshSessions,
     required this.settingsViewModel,
@@ -23,7 +32,8 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = isDarkMode ? AppTheme.darkBackground : AppTheme.lightBackground;
+    final bgColor =
+        isDarkMode ? AppTheme.darkBackground : AppTheme.lightBackground;
     final textColor = CupertinoColors.label.resolveFrom(context);
 
     return CupertinoPageScaffold(
@@ -102,18 +112,126 @@ class SettingsPage extends StatelessWidget {
               header: const Text('Manage Your Data'),
               backgroundColor: bgColor,
               children: [
-                CupertinoButton(
-                  color: CupertinoColors.systemRed,
-                  child: Text('Delete All Books',
-                      style: TextStyle(color: CupertinoColors.white)),
-                  onPressed: () => _confirmDeleteBooks(context),
+                GestureDetector(
+                  onTap: () async {
+                    await exportDataToCSV();
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey5
+                          .resolveFrom(context)
+                          .withOpacity(0.8),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(10),
+                        topRight: Radius.circular(10),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 20, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Export data as CSV'),
+                      ],
+                    ),
+                  ),
                 ),
+                GestureDetector(
+                  onTap: () => _confirmDeleteBooks(context),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey5
+                          .resolveFrom(context)
+                          .withOpacity(0.8),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(10),
+                        bottomRight: Radius.circular(10),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 20, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Delete All Books'),
+                      ],
+                    ),
+                  ),
+                )
               ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> exportDataToCSV() async {
+    try {
+      // Call the export functions and store file paths
+      String booksFilePath =
+          await exportBooksToCSV(await bookRepository.getBooks());
+      String sessionsFilePath =
+          await exportSessionsToCSV(await sessionRepository.getSessions());
+
+      print('Books data exported to: $booksFilePath');
+      print('Sessions data exported to: $sessionsFilePath');
+
+      await Share.shareXFiles([XFile(booksFilePath), XFile(sessionsFilePath)]);
+
+      print('Both books and sessions data exported successfully!');
+    } catch (e) {
+      print('An error occurred while exporting data: $e');
+    }
+  }
+
+// Function to export books data to CSV and return the file path
+  Future<String> exportBooksToCSV(List<Book> booksData) async {
+    String formattedDate = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final directory = await getApplicationDocumentsDirectory();
+    final filePath = '${directory.path}/books_data_$formattedDate.csv';
+
+    List<List<String>> rows = [
+      ['Title', 'Author', 'Word Count', 'Rating', 'Completion Status'],
+      ...booksData.map((book) => [
+            book.title,
+            book.author,
+            book.wordCount.toString(),
+            book.rating.toString(),
+            book.isCompleted ? 'Completed' : 'Not Completed',
+          ])
+    ];
+
+    String csv = const ListToCsvConverter().convert(rows);
+    final file = File(filePath);
+    await file.writeAsString(csv);
+
+    return filePath;
+  }
+
+// Function to export sessions data to CSV and return the file path
+  Future<String> exportSessionsToCSV(List<Session> sessionsData) async {
+    String formattedDate = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final directory = await getApplicationDocumentsDirectory();
+    final filePath = '${directory.path}/sessions_data_$formattedDate.csv';
+
+    List<List<String>> rows = [
+      ['SessionId', 'Book Id', 'Pages Read', 'Hours', 'Minutes', 'Date'],
+      ...sessionsData.map((session) => [
+            session.id.toString(),
+            session.bookId.toString(),
+            session.pagesRead.toString(),
+            session.hours.toString(),
+            session.minutes.toString(),
+            session.date.toString(),
+          ])
+    ];
+
+    String csv = const ListToCsvConverter().convert(rows);
+    final file = File(filePath);
+    await file.writeAsString(csv);
+
+    return filePath;
   }
 
   void _confirmDeleteBooks(BuildContext context) {
@@ -128,6 +246,7 @@ class SettingsPage extends StatelessWidget {
             CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel'),
+              isDefaultAction: true,
             ),
             CupertinoDialogAction(
               isDestructiveAction: true,

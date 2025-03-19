@@ -15,6 +15,9 @@ dependencies:
   shared_preferences: ^2.2.2
   intl: ^0.18.1
   flutter_rating_bar: ^4.0.1
+  path_provider: ^2.1.5
+  csv : ^6.0.0
+  share_plus: ^10.1.4
 
 dev_dependencies:
   flutter_test:

@@ -9,6 +9,7 @@ class LogSessionPage extends StatefulWidget {
   final Function() refreshSessions;
   final int? initialBookId;
   final SettingsViewModel settingsViewModel;
+  final SessionRepository sessionRepository;
 
   const LogSessionPage({
     super.key,
@@ -16,6 +17,7 @@ class LogSessionPage extends StatefulWidget {
     required this.refreshSessions,
     this.initialBookId,
     required this.settingsViewModel,
+    required this.sessionRepository,
   });
 
   @override
@@ -23,7 +25,6 @@ class LogSessionPage extends StatefulWidget {
 }
 
 class _LogSessionPageState extends State<LogSessionPage> {
-  final SessionRepository _sessionRepo = SessionRepository();
   Map<String, dynamic>? _selectedBook;
   final TextEditingController _pagesController = TextEditingController();
   final TextEditingController _hoursController = TextEditingController();
@@ -95,7 +96,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
     );
 
     try {
-      await _sessionRepo.addSession(session);
+      await widget.sessionRepository.addSession(session);
       widget.refreshSessions();
 
       setState(() {
