@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:csv/csv.dart';
 import 'package:share_plus/share_plus.dart';
 import '../themes/app_theme.dart';
@@ -137,6 +138,46 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ),
                 GestureDetector(
+                  onTap: () async {
+                    await _importBooksFromCSV();
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey5
+                          .resolveFrom(context)
+                          .withOpacity(0.8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 20, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Import Books from CSV'),
+                      ],
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () async {
+                    await _importSessionsFromCSV();
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey5
+                          .resolveFrom(context)
+                          .withOpacity(0.8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 20, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Import Sessions from CSV'),
+                      ],
+                    ),
+                  ),
+                ),
+                GestureDetector(
                   onTap: () => _confirmDeleteBooks(context),
                   child: Container(
                     decoration: BoxDecoration(
@@ -166,6 +207,98 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
+  Future<void> _importBooksFromCSV() async {
+    await _importCSV('books', _importBooks);
+  }
+
+  Future<void> _importSessionsFromCSV() async {
+    await _importCSV('sessions', _importSessions);
+  }
+
+  Future<void> _importCSV(String type,
+      Future<void> Function(List<List<dynamic>>) importFunction) async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        // allowedExtensions: ['csv'],
+      );
+
+      if (result != null) {
+        String filePath = result.files.single.path!;
+        final file = File(filePath);
+        String csvString = await file.readAsString();
+
+        List<List<dynamic>> csvData =
+            const CsvToListConverter().convert(csvString);
+
+        if (csvData.isNotEmpty) {
+          if (type == 'books') {
+            await importFunction(csvData.skip(1).toList());
+          } else if (type == 'sessions') {
+            await importFunction(csvData.skip(1).toList());
+          }
+        }
+      }
+    } catch (e) {
+      print('Error importing CSV: $e');
+    }
+  }
+
+  Future<void> _importBooks(List<List<dynamic>> rows) async {
+    for (var row in rows) {
+      print('Row data: $row');
+
+      if (row.length >= 7) {
+        try {
+          int id = row[0] ?? 0;
+          String title = row[1].toString();
+          String author = row[2].toString();
+          int wordCount = int.tryParse(row[3].toString()) ?? 0;
+          double rating = double.tryParse(row[4].toString()) ?? 0.0;
+          bool isCompleted = row[5] == 1;
+          int bookTypeId = int.tryParse(row[6].toString()) ?? 0;
+
+          Book book = Book(
+            id: id,
+            title: title,
+            author: author,
+            wordCount: wordCount,
+            rating: rating,
+            isCompleted: isCompleted,
+            bookTypeId: bookTypeId,
+          );
+          print('book data is: $book');
+
+          await bookRepository.addBook(book);
+        } catch (e) {
+          print('Error processing row: $row. Error: $e');
+        }
+      }
+    }
+
+    // Refresh the books after import
+    refreshBooks();
+  }
+
+  Future<void> _importSessions(List<List<dynamic>> rows) async {
+    for (var row in rows) {
+      if (row.length >= 6) {
+        Session session = Session(
+          id: int.tryParse(row[0].toString()) ?? 0,
+          bookId: int.tryParse(row[1].toString()) ?? 0,
+          pagesRead: int.tryParse(row[2].toString()) ?? 0,
+          hours: int.tryParse(row[3].toString()) ?? 0,
+          minutes: int.tryParse(row[4].toString()) ?? 0,
+          date: DateTime.tryParse(row[5].toString())?.toIso8601String().split('T')[0] ??
+              DateTime.now().toIso8601String().split('T')[0],
+        );
+        await sessionRepository.addSession(session);
+      }
+    }
+    refreshSessions();
+    print('Sessions imported successfully.');
+  }
+
   Future<void> exportDataToCSV() async {
     try {
       // Call the export functions and store file paths
@@ -192,13 +325,23 @@ class SettingsPage extends StatelessWidget {
     final filePath = '${directory.path}/books_data_$formattedDate.csv';
 
     List<List<String>> rows = [
-      ['Title', 'Author', 'Word Count', 'Rating', 'Completion Status'],
+      [
+        'id',
+        'title',
+        'author',
+        'word_count',
+        'rating',
+        'is_complete',
+        'book_type_id'
+      ],
       ...booksData.map((book) => [
+            book.id.toString(),
             book.title,
             book.author,
             book.wordCount.toString(),
             book.rating.toString(),
-            book.isCompleted ? 'Completed' : 'Not Completed',
+            book.isCompleted.toString(),
+            book.bookTypeId.toString(),
           ])
     ];
 
@@ -216,7 +359,7 @@ class SettingsPage extends StatelessWidget {
     final filePath = '${directory.path}/sessions_data_$formattedDate.csv';
 
     List<List<String>> rows = [
-      ['SessionId', 'Book Id', 'Pages Read', 'Hours', 'Minutes', 'Date'],
+      ['session_id', 'book_id', 'pages_read', 'hours', 'minutes', 'date'],
       ...sessionsData.map((session) => [
             session.id.toString(),
             session.bookId.toString(),
