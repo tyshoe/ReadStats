@@ -66,10 +66,12 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _initializeSettingsViewModel() async {
     final accentColor = await SettingsViewModel.getAccentColor();
+    final defaultBookType = await SettingsViewModel.getDefaultBookType();
+    print(defaultBookType);
     _settingsViewModel = SettingsViewModel(
-      isDarkMode: widget.isDarkMode,
-      accentColor: accentColor,
-    );
+        isDarkMode: widget.isDarkMode,
+        accentColor: accentColor,
+        defaultBookType: defaultBookType);
   }
 
   Future<void> _loadBooks() async {

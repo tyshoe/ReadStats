@@ -110,6 +110,45 @@ class SettingsPage extends StatelessWidget {
               ],
             ),
             CupertinoFormSection.insetGrouped(
+              header: const Text('Preferences'),
+              backgroundColor: bgColor,
+              children: [
+                GestureDetector(
+                  onTap: () => _showBookTypePicker(context),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey5
+                          .resolveFrom(context)
+                          .withOpacity(0.8),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(10),
+                        topRight: Radius.circular(10),
+                        bottomLeft: Radius.circular(10),
+                        bottomRight: Radius.circular(10),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 20, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Default Book Type'),
+                        ValueListenableBuilder<int>(
+                          valueListenable:
+                          settingsViewModel.defaultBookTypeNotifier,
+                          builder: (context, defaultBookType, child) {
+                            return Text(
+                              bookTypeNames[defaultBookType] ?? "Unknown",
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            CupertinoFormSection.insetGrouped(
               header: const Text('Manage Your Data'),
               backgroundColor: bgColor,
               children: [
@@ -198,12 +237,89 @@ class SettingsPage extends StatelessWidget {
                       ],
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ],
         ),
       ),
+    );
+  }
+
+  static const Map<int, String> bookTypeNames = {
+    1: "Paperback",
+    2: "Hardback",
+    3: "eBook",
+    4: "Audiobook",
+  };
+
+  void _showBookTypePicker(BuildContext context) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) {
+        return GestureDetector(
+          onTap: () => Navigator.pop(context), // Dismiss when tapping outside
+          child: Center(
+            child: CupertinoPopupSurface(
+              isSurfacePainted: true,
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.95,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Select Default Book Type",
+                      style: TextStyle(fontSize: 18),
+                    ),
+                    const SizedBox(height: 16),
+                    ValueListenableBuilder<int>(
+                      valueListenable:
+                          settingsViewModel.defaultBookTypeNotifier,
+                      builder: (context, defaultBookType, child) {
+                        return CupertinoSlidingSegmentedControl<int>(
+                          children: {
+                            1: Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Text(
+                                  bookTypeNames[1] ?? "Unknown",
+                                  style: TextStyle(fontSize: 12),
+                                )),
+                            2: Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Text(
+                                  bookTypeNames[2] ?? "Unknown",
+                                  style: TextStyle(fontSize: 12),
+                                )),
+                            3: Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Text(
+                                  bookTypeNames[3] ?? "Unknown",
+                                  style: TextStyle(fontSize: 12),
+                                )),
+                            4: Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Text(
+                                  bookTypeNames[4] ?? "Unknown",
+                                  style: TextStyle(fontSize: 12),
+                                )),
+                          },
+                          groupValue: defaultBookType,
+                          onValueChanged: (value) {
+                            if (value != null) {
+                              settingsViewModel.setDefaultBookType(value);
+                            }
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -289,7 +405,9 @@ class SettingsPage extends StatelessWidget {
           pagesRead: int.tryParse(row[2].toString()) ?? 0,
           hours: int.tryParse(row[3].toString()) ?? 0,
           minutes: int.tryParse(row[4].toString()) ?? 0,
-          date: DateTime.tryParse(row[5].toString())?.toIso8601String().split('T')[0] ??
+          date: DateTime.tryParse(row[5].toString())
+                  ?.toIso8601String()
+                  .split('T')[0] ??
               DateTime.now().toIso8601String().split('T')[0],
         );
         await sessionRepository.addSession(session);

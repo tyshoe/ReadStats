@@ -192,21 +192,29 @@ class _AddBookPageState extends State<AddBookPage> {
                 },
                 children: const {
                   0: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text("Paperback"),
-                  ),
+                      padding: EdgeInsets.symmetric(vertical:12),
+                      child: Text(
+                        "Paperback",
+                        style: TextStyle(fontSize: 12),
+                      )),
                   1: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text("Hardback"),
-                  ),
+                      padding: EdgeInsets.symmetric(vertical:12),
+                      child: Text(
+                        "Hardback",
+                        style: TextStyle(fontSize: 12),
+                      )),
                   2: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text("Ebook"),
-                  ),
+                      padding: EdgeInsets.symmetric(vertical:12),
+                      child: Text(
+                        "Ebook",
+                        style: TextStyle(fontSize: 12),
+                      )),
                   3: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text("Audiobook"),
-                  ),
+                      padding: EdgeInsets.symmetric(vertical:12),
+                      child: Text(
+                        "Audiobook",
+                        style: TextStyle(fontSize: 12),
+                      )),
                 },
               ),
               const SizedBox(height: 24),

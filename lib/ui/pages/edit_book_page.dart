@@ -167,7 +167,7 @@ class _EditBookPageState extends State<EditBookPage> {
               CupertinoSlidingSegmentedControl<int>(
                 // padding: const EdgeInsets.all(12),
                 groupValue:
-                _isCompleted ? 1 : 0, // Map boolean to segment index
+                    _isCompleted ? 1 : 0, // Map boolean to segment index
                 onValueChanged: (int? value) {
                   if (value != null) {
                     setState(() {
@@ -201,21 +201,29 @@ class _EditBookPageState extends State<EditBookPage> {
                 },
                 children: const {
                   0: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text("Paperback"),
-                  ),
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        "Paperback",
+                        style: TextStyle(fontSize: 12),
+                      )),
                   1: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text("Hardback"),
-                  ),
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        "Hardback",
+                        style: TextStyle(fontSize: 12),
+                      )),
                   2: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text("Ebook"),
-                  ),
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        "Ebook",
+                        style: TextStyle(fontSize: 12),
+                      )),
                   3: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text("Audiobook"),
-                  ),
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        "Audiobook",
+                        style: TextStyle(fontSize: 12),
+                      )),
                 },
               ),
               const SizedBox(height: 24),
@@ -225,7 +233,8 @@ class _EditBookPageState extends State<EditBookPage> {
                   onPressed: _updateBook,
                   color: accentColor,
                   child: const Text("Save",
-                      style: TextStyle(fontSize: 16, color: CupertinoColors.white)),
+                      style: TextStyle(
+                          fontSize: 16, color: CupertinoColors.white)),
                 ),
               ),
               const SizedBox(height: 16),
