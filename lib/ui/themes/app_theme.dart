@@ -27,4 +27,8 @@ class AppTheme {
       primaryColor: CupertinoColors.systemGrey,
     ),
   );
+
+  static CupertinoThemeData systemTheme(Brightness brightness) {
+    return brightness == Brightness.dark ? darkTheme : lightTheme;
+  }
 }

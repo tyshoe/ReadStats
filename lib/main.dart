@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 import 'data/database/database_helper.dart';
 import 'data/repositories/book_repository.dart';
 import 'data/repositories/session_repository.dart';
@@ -21,12 +21,11 @@ void main() async {
   final sessionRepository = SessionRepository(dbHelper);
 
   // Load saved theme preference
-  final SharedPreferences prefs = await SharedPreferences.getInstance();
-  final bool isDarkMode = prefs.getBool('isDarkMode') ?? false;
+  final themeMode = await SettingsViewModel.loadSavedThemeMode();
 
   runApp(MyApp(
     dbHelper: dbHelper,
-    isDarkMode: isDarkMode,
+    themeMode: themeMode,
     bookRepository: bookRepository,
     sessionRepository: sessionRepository,
   ));
@@ -34,14 +33,14 @@ void main() async {
 
 class MyApp extends StatefulWidget {
   final DatabaseHelper dbHelper;
-  final bool isDarkMode;
+  final ThemeMode themeMode;
   final BookRepository bookRepository;
   final SessionRepository sessionRepository;
 
   const MyApp({
     super.key,
     required this.dbHelper,
-    required this.isDarkMode,
+    required this.themeMode,
     required this.bookRepository,
     required this.sessionRepository,
   });
@@ -58,7 +57,6 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    // Initialize SettingsViewModel with saved preferences
     _initializeSettingsViewModel();
     _loadBooks();
     _loadSessions();
@@ -69,9 +67,10 @@ class _MyAppState extends State<MyApp> {
     final defaultBookType = await SettingsViewModel.getDefaultBookType();
     print(defaultBookType);
     _settingsViewModel = SettingsViewModel(
-        isDarkMode: widget.isDarkMode,
-        accentColor: accentColor,
-        defaultBookType: defaultBookType);
+      themeMode: widget.themeMode,
+      accentColor: accentColor,
+      defaultBookType: defaultBookType,
+    );
   }
 
   Future<void> _loadBooks() async {
@@ -96,15 +95,18 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: _settingsViewModel.isDarkModeNotifier,
-      builder: (context, isDarkMode, child) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: _settingsViewModel.themeModeNotifier,
+      builder: (context, themeMode, child) {
         return CupertinoApp(
-          // Use the theme from app_theme.dart
-          theme: isDarkMode ? AppTheme.darkTheme : AppTheme.lightTheme,
+          theme: themeMode == ThemeMode.system
+              ? AppTheme.systemTheme(MediaQuery.of(context).platformBrightness)
+              : themeMode == ThemeMode.dark
+              ? AppTheme.darkTheme
+              : AppTheme.lightTheme,
           home: NavigationMenu(
             toggleTheme: _settingsViewModel.toggleTheme,
-            isDarkMode: isDarkMode,
+            themeMode: themeMode,
             books: _books,
             addBook: _addBook,
             refreshBooks: _loadBooks,
@@ -121,11 +123,11 @@ class _MyAppState extends State<MyApp> {
 }
 
 class NavigationMenu extends StatelessWidget {
-  final Function(bool) toggleTheme;
+  final Function(ThemeMode) toggleTheme;
+  final ThemeMode themeMode;
   final Function(Map<String, dynamic>) addBook;
   final Function() refreshBooks;
   final Function() refreshSessions;
-  final bool isDarkMode;
   final List<Map<String, dynamic>> books;
   final List<Map<String, dynamic>> sessions;
   final BookRepository bookRepository;
@@ -135,7 +137,7 @@ class NavigationMenu extends StatelessWidget {
   const NavigationMenu({
     super.key,
     required this.toggleTheme,
-    required this.isDarkMode,
+    required this.themeMode,
     required this.books,
     required this.addBook,
     required this.refreshBooks,
@@ -153,7 +155,7 @@ class NavigationMenu extends StatelessWidget {
       builder: (context, accentColor, child) {
         return CupertinoTabScaffold(
           tabBar: CupertinoTabBar(
-            activeColor: settingsViewModel.accentColorNotifier.value,
+            activeColor: accentColor,
             inactiveColor: CupertinoColors.systemGrey,
             items: const [
               BottomNavigationBarItem(
@@ -205,7 +207,7 @@ class NavigationMenu extends StatelessWidget {
               default:
                 return SettingsPage(
                   toggleTheme: toggleTheme,
-                  isDarkMode: isDarkMode,
+                  themeMode: themeMode,
                   bookRepository: bookRepository,
                   sessionRepository: sessionRepository,
                   refreshBooks: refreshBooks,

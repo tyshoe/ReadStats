@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -13,17 +14,18 @@ import '/data/models/book.dart';
 import '/data/models/session.dart';
 
 class SettingsPage extends StatelessWidget {
-  final Function(bool) toggleTheme;
-  final bool isDarkMode;
+  final Function(ThemeMode) toggleTheme;
+  final ThemeMode themeMode;
   final BookRepository bookRepository;
   final SessionRepository sessionRepository;
   final Function() refreshBooks;
   final Function() refreshSessions;
   final SettingsViewModel settingsViewModel;
+
   const SettingsPage({
     super.key,
     required this.toggleTheme,
-    required this.isDarkMode,
+    required this.themeMode,
     required this.bookRepository,
     required this.sessionRepository,
     required this.refreshBooks,
@@ -33,8 +35,11 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor =
-        isDarkMode ? AppTheme.darkBackground : AppTheme.lightBackground;
+    final bgColor = (themeMode == ThemeMode.dark ||
+            (themeMode == ThemeMode.system &&
+                MediaQuery.of(context).platformBrightness == Brightness.dark))
+        ? AppTheme.darkBackground
+        : AppTheme.lightBackground;
     final textColor = CupertinoColors.label.resolveFrom(context);
 
     return CupertinoPageScaffold(
@@ -48,33 +53,33 @@ class SettingsPage extends StatelessWidget {
               header: const Text('Appearance'),
               backgroundColor: bgColor,
               children: [
-                // Dark Mode Container (Rounded Top)
-                Container(
-                  decoration: BoxDecoration(
-                    color: CupertinoColors.systemGrey5
-                        .resolveFrom(context)
-                        .withOpacity(0.8),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(10),
-                      topRight: Radius.circular(10),
+                // Dark Mode Section
+                GestureDetector(
+                  onTap: () => _showThemeSelection(context),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey5
+                          .resolveFrom(context)
+                          .withOpacity(0.8),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(10),
+                        topRight: Radius.circular(10),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 20, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Theme'),
+                        Text(
+                          _getThemeModeString(themeMode),
+                        ),
+                      ],
                     ),
                   ),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                  // color: CupertinoColors.systemTeal,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Dark Mode'),
-                      CupertinoSwitch(
-                        value: isDarkMode,
-                        onChanged: toggleTheme,
-                        applyTheme: false,
-                      ),
-                    ],
-                  ),
                 ),
-                // Accent Color Container (Rounded Bottom)
+                // Accent Color Container
                 Container(
                   decoration: BoxDecoration(
                     color: CupertinoColors.systemGrey5
@@ -135,7 +140,7 @@ class SettingsPage extends StatelessWidget {
                         const Text('Default Book Type'),
                         ValueListenableBuilder<int>(
                           valueListenable:
-                          settingsViewModel.defaultBookTypeNotifier,
+                              settingsViewModel.defaultBookTypeNotifier,
                           builder: (context, defaultBookType, child) {
                             return Text(
                               bookTypeNames[defaultBookType] ?? "Unknown",
@@ -244,6 +249,118 @@ class SettingsPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _showThemeSelection(BuildContext context) {
+    final textColor = CupertinoColors.label.resolveFrom(context);
+    final currentThemeMode = settingsViewModel.themeModeNotifier.value;
+    final accentColor = settingsViewModel.accentColorNotifier.value;
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => GestureDetector(
+        onTap: () => Navigator.pop(context), // Dismiss when tapping outside
+        child: Center(
+          child: CupertinoPopupSurface(
+            isSurfacePainted: true,
+            child: Container(
+              width: MediaQuery.of(context).size.width *
+                  0.9, // Adjust width as needed
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start, // Align left
+                children: [
+                  const Text(
+                    'Select Theme',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: 16),
+                  CupertinoButton(
+                    onPressed: () {
+                      toggleTheme(ThemeMode.system);
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentThemeMode == ThemeMode.system)
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8), // Space between icon and text
+                        Text(
+                          'System',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentThemeMode == ThemeMode.system
+                                ? accentColor
+                                : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoButton(
+                    onPressed: () {
+                      toggleTheme(ThemeMode.light);
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentThemeMode == ThemeMode.light)
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Light',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentThemeMode == ThemeMode.light
+                                ? accentColor
+                                : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoButton(
+                    onPressed: () {
+                      toggleTheme(ThemeMode.dark);
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentThemeMode == ThemeMode.dark)
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Dark',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentThemeMode == ThemeMode.dark
+                                ? accentColor
+                                : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _getThemeModeString(ThemeMode themeMode) {
+    switch (themeMode) {
+      case ThemeMode.light:
+        return 'Light';
+      case ThemeMode.dark:
+        return 'Dark';
+      case ThemeMode.system:
+      default:
+        return 'System';
+    }
   }
 
   static const Map<int, String> bookTypeNames = {
