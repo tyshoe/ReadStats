@@ -43,6 +43,8 @@ class _EditSessionPageState extends State<EditSessionPage> {
   }
 
   void _updateSession() async {
+
+
     if (_pagesController.text.isEmpty ||
         _hoursController.text.isEmpty ||
         _minutesController.text.isEmpty) {
@@ -50,6 +52,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
         _statusMessage = 'Please fill all fields.';
         _isSuccess = false;
       });
+      _clearStatusMessage();
       return;
     }
 
@@ -77,7 +80,19 @@ class _EditSessionPageState extends State<EditSessionPage> {
         _statusMessage = 'Failed to update session. Please try again.';
         _isSuccess = false;
       });
+      _clearStatusMessage();
     }
+  }
+
+  void _clearStatusMessage() {
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _statusMessage = '';
+          _isSuccess = false;
+        });
+      }
+    });
   }
 
   void _deleteSession() async {
@@ -117,6 +132,37 @@ class _EditSessionPageState extends State<EditSessionPage> {
     );
   }
 
+  void _clearField(TextEditingController textEditController) {
+    setState(() {
+      textEditController.clear();
+    });
+  }
+
+  String formatSessionTime(String hours, String minutes) {
+    if (hours == '0' && minutes == '0') {
+      return 'Select time';
+    }
+
+    String hourText = '';
+    String minuteText = '';
+
+    if (hours != '0') {
+      hourText = '$hours hour${hours == '1' ? '' : 's'}';
+    }
+
+    if (minutes != '0') {
+      minuteText = '$minutes minute${minutes == '1' ? '' : 's'}';
+    }
+
+    // If both hour and minute are present, combine them
+    if (hourText.isNotEmpty && minuteText.isNotEmpty) {
+      return '$hourText $minuteText';
+    }
+
+    // Return either hour or minute depending on what is available
+    return hourText.isNotEmpty ? hourText : minuteText;
+  }
+
   @override
   Widget build(BuildContext context) {
     final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
@@ -132,7 +178,6 @@ class _EditSessionPageState extends State<EditSessionPage> {
             'Save',
             style: TextStyle(
               color: accentColor,
-              // Use accent color here
             ),
           ),
         ),
@@ -143,31 +188,43 @@ class _EditSessionPageState extends State<EditSessionPage> {
           child: ListView(
             children: [
               const Text('Book',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  style: TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
               Text(
                 widget.book['title'],
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 16),
               const Text(
-                'Pages Read',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                'Pages',
+                style: TextStyle(fontSize: 16),
               ),
+              const SizedBox(height: 8),
               CupertinoTextField(
                 padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 controller: _pagesController,
+                placeholder: "Number of Pages",
                 onTapOutside: (event) {
                   FocusManager.instance.primaryFocus?.unfocus();
                 },
                 keyboardType: TextInputType.number,
+                suffix: _pagesController.text.isNotEmpty
+                    ? Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: GestureDetector(
+                    onTap: () => _clearField(_pagesController),
+                    child: Icon(CupertinoIcons.clear, color: CupertinoColors.systemGrey),
+                  ),
+                )
+                    : null,
               ),
               const SizedBox(height: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Reading Time',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    'Time',
+                    style: TextStyle(fontSize: 16),
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -183,7 +240,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${_hoursController.text} hours ${_minutesController.text} minutes',
+                          formatSessionTime(_hoursController.text, _minutesController.text),
                           style: TextStyle(fontSize: 16, color: textColor),
                         ),
                         Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey),
@@ -199,7 +256,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
                             Expanded(
                               child: CupertinoTimerPicker(
                                 itemExtent: 40, // Adjust this for faster/slower scrolling
-                                mode: CupertinoTimerPickerMode.hm, // Hours & Minutes only
+                                mode: CupertinoTimerPickerMode.hm,
                                 initialTimerDuration: Duration(
                                   hours: int.tryParse(_hoursController.text) ?? 0,
                                   minutes: int.tryParse(_minutesController.text) ?? 0,
@@ -221,8 +278,8 @@ class _EditSessionPageState extends State<EditSessionPage> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Session Date',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                'Date',
+                style: TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 8),
               CupertinoButton(
@@ -259,17 +316,19 @@ class _EditSessionPageState extends State<EditSessionPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
+                    flex: 1,
                     child: CupertinoButton(
                       onPressed: _confirmDelete,
                       color: CupertinoColors.destructiveRed,
                       child: const Text(
-                        'Delete Session',
+                        'Delete',
                         style: TextStyle(color: CupertinoColors.white),
                       ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
+                    flex: 2,
                     child: CupertinoButton(
                       onPressed: _updateSession,
                       color: accentColor,

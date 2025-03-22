@@ -26,6 +26,14 @@ class _AddBookPageState extends State<AddBookPage> {
   bool _isSuccess = false;
   int _selectedBookType = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Set the default book type based on the value in settingsViewModel
+    _selectedBookType =
+        widget.settingsViewModel.defaultBookTypeNotifier.value - 1;
+  }
+
   void _saveBook() {
     String title = _titleController.text;
     String author = _authorController.text;
@@ -65,6 +73,12 @@ class _AddBookPageState extends State<AddBookPage> {
     _clearStatusMessage();
   }
 
+  void _clearField(TextEditingController textEditController) {
+    setState(() {
+      textEditController.clear();
+    });
+  }
+
   void _clearStatusMessage() {
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
@@ -100,38 +114,72 @@ class _AddBookPageState extends State<AddBookPage> {
           child: ListView(
             children: [
               const Text("Title",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
               CupertinoTextField(
                 controller: _titleController,
-                placeholder: "Enter Book Title",
+                placeholder: "Title",
                 padding: const EdgeInsets.all(12),
+                maxLines: null,
+                suffix: _titleController.text.isNotEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: GestureDetector(
+                          onTap: () => _clearField(_titleController),
+                          child: Icon(CupertinoIcons.clear,
+                              color: CupertinoColors.systemGrey),
+                        ),
+                      )
+                    : null,
               ),
               const SizedBox(height: 16),
               const Text("Author",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
               CupertinoTextField(
                 controller: _authorController,
-                placeholder: "Enter Author Name",
+                placeholder: "Author",
                 padding: const EdgeInsets.all(12),
+                maxLines: null,
+                suffix: _authorController.text.isNotEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: GestureDetector(
+                          onTap: () => _clearField(_authorController),
+                          child: Icon(CupertinoIcons.clear,
+                              color: CupertinoColors.systemGrey),
+                        ),
+                      )
+                    : null,
               ),
               const SizedBox(height: 16),
-              const Text("Total Word Count",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text("Total Words",
+                  style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
               CupertinoTextField(
                 controller: _wordCountController,
                 onTapOutside: (event) {
                   FocusManager.instance.primaryFocus?.unfocus();
                 },
-                placeholder: "Enter Word Count",
+                placeholder: "Number of Words",
                 padding: const EdgeInsets.all(12),
                 keyboardType: TextInputType.number,
+                suffix: _wordCountController.text.isNotEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: GestureDetector(
+                          onTap: () => _clearField(_wordCountController),
+                          child: Icon(CupertinoIcons.clear,
+                              color: CupertinoColors.systemGrey),
+                        ),
+                      )
+                    : null,
               ),
               const SizedBox(height: 16),
               const Text("Rating",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(
+                    fontSize: 16,
+                  )),
               const SizedBox(height: 8),
               Center(
                 child: RatingBar.builder(
@@ -155,7 +203,7 @@ class _AddBookPageState extends State<AddBookPage> {
               ),
               const SizedBox(height: 16),
               const Text("Status",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
               CupertinoSlidingSegmentedControl<int>(
                 groupValue: _isCompleted ? 1 : 0,
@@ -178,8 +226,8 @@ class _AddBookPageState extends State<AddBookPage> {
                 },
               ),
               const SizedBox(height: 16),
-              const Text("Book Type",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text("Format",
+                  style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
               CupertinoSlidingSegmentedControl<int>(
                 groupValue: _selectedBookType,
@@ -192,25 +240,25 @@ class _AddBookPageState extends State<AddBookPage> {
                 },
                 children: const {
                   0: Padding(
-                      padding: EdgeInsets.symmetric(vertical:12),
+                      padding: EdgeInsets.symmetric(vertical: 12),
                       child: Text(
                         "Paperback",
                         style: TextStyle(fontSize: 12),
                       )),
                   1: Padding(
-                      padding: EdgeInsets.symmetric(vertical:12),
+                      padding: EdgeInsets.symmetric(vertical: 12),
                       child: Text(
                         "Hardback",
                         style: TextStyle(fontSize: 12),
                       )),
                   2: Padding(
-                      padding: EdgeInsets.symmetric(vertical:12),
+                      padding: EdgeInsets.symmetric(vertical: 12),
                       child: Text(
-                        "Ebook",
+                        "eBook",
                         style: TextStyle(fontSize: 12),
                       )),
                   3: Padding(
-                      padding: EdgeInsets.symmetric(vertical:12),
+                      padding: EdgeInsets.symmetric(vertical: 12),
                       child: Text(
                         "Audiobook",
                         style: TextStyle(fontSize: 12),

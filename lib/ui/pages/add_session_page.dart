@@ -69,6 +69,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
         _statusMessage = 'Please fill all fields.';
         _isSuccess = false;
       });
+      _clearStatusMessage(); // Clear message after a delay
       return;
     }
 
@@ -84,6 +85,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
         _statusMessage = 'Invalid input. Enter valid numbers.';
         _isSuccess = false;
       });
+      _clearStatusMessage(); // Clear message after a delay
       return;
     }
 
@@ -105,20 +107,25 @@ class _LogSessionPageState extends State<LogSessionPage> {
       });
 
       _resetInputs();
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            _statusMessage = '';
-            _isSuccess = false;
-          });
-        }
-      });
+      _clearStatusMessage(); // Clear message after a delay
     } catch (e) {
       setState(() {
         _statusMessage = 'Failed to log session. Please try again.';
         _isSuccess = false;
       });
+      _clearStatusMessage(); // Clear message after a delay
     }
+  }
+
+  void _clearStatusMessage() {
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _statusMessage = '';
+          _isSuccess = false;
+        });
+      }
+    });
   }
 
   void _resetInputs() {
@@ -129,6 +136,37 @@ class _LogSessionPageState extends State<LogSessionPage> {
       _minutesController.text = "0";
       _sessionDate = DateTime.now();
     });
+  }
+
+  void _clearField(TextEditingController textEditController) {
+    setState(() {
+      textEditController.clear();
+    });
+  }
+
+  String formatSessionTime(String hours, String minutes) {
+    if (hours == '0' && minutes == '0') {
+      return 'Select time';
+    }
+
+    String hourText = '';
+    String minuteText = '';
+
+    if (hours != '0') {
+      hourText = '$hours hour${hours == '1' ? '' : 's'}';
+    }
+
+    if (minutes != '0') {
+      minuteText = '$minutes minute${minutes == '1' ? '' : 's'}';
+    }
+
+    // If both hour and minute are present, combine them
+    if (hourText.isNotEmpty && minuteText.isNotEmpty) {
+      return '$hourText $minuteText';
+    }
+
+    // Return either hour or minute depending on what is available
+    return hourText.isNotEmpty ? hourText : minuteText;
   }
 
   @override
@@ -157,7 +195,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
             children: [
               const Text(
                 'Book',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle( fontSize: 16),
               ),
               const SizedBox(height: 8),
               Center(
@@ -209,23 +247,35 @@ class _LogSessionPageState extends State<LogSessionPage> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Pages Read',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                'Pages',
+                style: TextStyle(fontSize: 16),
               ),
+              const SizedBox(height: 8),
               CupertinoTextField(
                   padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   controller: _pagesController,
+                  placeholder: "Number of Pages",
                   onTapOutside: (event) {
                     FocusManager.instance.primaryFocus?.unfocus();
                   },
-                  keyboardType: TextInputType.number),
+                  keyboardType: TextInputType.number,
+                  suffix: _pagesController.text.isNotEmpty
+                      ? Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: GestureDetector(
+                      onTap: () => _clearField(_pagesController),
+                      child: Icon(CupertinoIcons.clear, color: CupertinoColors.systemGrey),
+                    ),
+                  )
+                      : null,
+                ),
               const SizedBox(height: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Reading Time',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    'Time',
+                    style: TextStyle(fontSize: 16),
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -242,7 +292,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${_hoursController.text} hours ${_minutesController.text} minutes',
+                          formatSessionTime(_hoursController.text, _minutesController.text),
                           style: TextStyle(fontSize: 16, color: textColor),
                         ),
                         Icon(CupertinoIcons.chevron_down,
@@ -289,8 +339,8 @@ class _LogSessionPageState extends State<LogSessionPage> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Session Date',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                'Date',
+                style: TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 8),
               CupertinoButton(

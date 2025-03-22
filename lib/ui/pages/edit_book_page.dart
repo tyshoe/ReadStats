@@ -84,6 +84,12 @@ class _EditBookPageState extends State<EditBookPage> {
     }
   }
 
+  void _clearField(TextEditingController textEditController) {
+    setState(() {
+      textEditController.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
@@ -107,37 +113,69 @@ class _EditBookPageState extends State<EditBookPage> {
           child: ListView(
             children: [
               const Text("Title",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
               CupertinoTextField(
                 controller: _titleController,
-                placeholder: "Enter Book Title",
+                placeholder: "Title",
                 padding: const EdgeInsets.all(12),
+                maxLines: null,
+                suffix: _titleController.text.isNotEmpty
+                    ? Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: GestureDetector(
+                    onTap: () => _clearField(_titleController),
+                    child: Icon(CupertinoIcons.clear, color: CupertinoColors.systemGrey),
+                  ),
+                )
+                    : null,
               ),
               const SizedBox(height: 16),
               const Text("Author",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
               CupertinoTextField(
                 controller: _authorController,
-                placeholder: "Enter Author Name",
+                placeholder: "Author",
                 padding: const EdgeInsets.all(12),
+                maxLines: null,
+                suffix: _authorController.text.isNotEmpty
+                    ? Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: GestureDetector(
+                    onTap: () => _clearField(_authorController),
+                    child: Icon(CupertinoIcons.clear, color: CupertinoColors.systemGrey),
+                  ),
+                )
+                    : null,
               ),
               const SizedBox(height: 16),
-              const Text("Total Word Count",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text("Total Words",
+                  style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
               CupertinoTextField(
                 controller: _wordCountController,
                 onTapOutside: (event) {
                   FocusManager.instance.primaryFocus?.unfocus();
                 },
-                placeholder: "Enter Word Count",
+                placeholder: "Number of Words",
                 padding: const EdgeInsets.all(12),
                 keyboardType: TextInputType.number,
+                suffix: _wordCountController.text.isNotEmpty
+                    ? Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: GestureDetector(
+                    onTap: () => _clearField(_wordCountController),
+                    child: Icon(CupertinoIcons.clear, color: CupertinoColors.systemGrey),
+                  ),
+                )
+                    : null,
               ),
               const SizedBox(height: 16),
-
+              const Text("Rating",
+                  style: TextStyle(
+                    fontSize: 16,
+                  )),
               // Star Rating
               Center(
                 child: RatingBar.builder(
@@ -162,7 +200,7 @@ class _EditBookPageState extends State<EditBookPage> {
 
               const SizedBox(height: 16),
               const Text("Status",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
               CupertinoSlidingSegmentedControl<int>(
                 // padding: const EdgeInsets.all(12),
@@ -187,8 +225,8 @@ class _EditBookPageState extends State<EditBookPage> {
                 },
               ),
               const SizedBox(height: 16),
-              const Text("Book Type",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text("Format",
+                  style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
               CupertinoSlidingSegmentedControl<int>(
                 groupValue: _selectedBookType,
@@ -215,7 +253,7 @@ class _EditBookPageState extends State<EditBookPage> {
                   2: Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
                       child: Text(
-                        "Ebook",
+                        "eBook",
                         style: TextStyle(fontSize: 12),
                       )),
                   3: Padding(
