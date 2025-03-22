@@ -12,8 +12,18 @@ class SessionRepository {
 
   Future<List<Session>> getSessions() async {
     final sessionsMap = await _databaseHelper.getSessionsWithBooks();
-    print(sessionsMap);
+    print('Session Repo, getSession: $sessionsMap');
     return sessionsMap.map((map) => Session.fromMap(map)).toList();
+  }
+
+  Future<List<Session>> getSessionsByYear(int year) async {
+    final sessionsMap = await _databaseHelper.getSessionsWithBooksByYear(year);
+    print('Session Repo, getSessionByYear: $sessionsMap');
+    return sessionsMap.map((map) => Session.fromMap(map)).toList();
+  }
+
+  Future<List<int>> getValidYears() async {
+    return await _databaseHelper.getValidYears();
   }
 
   Future<int> updateSession(Session session) async {

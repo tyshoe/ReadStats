@@ -202,6 +202,7 @@ class NavigationMenu extends StatelessWidget {
                 return StatisticsPage(
                   bookRepository: bookRepository,
                   sessionRepository: sessionRepository,
+                  settingsViewModel: settingsViewModel,
                 );
               case 3:
               default:

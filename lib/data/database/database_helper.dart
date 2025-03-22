@@ -68,7 +68,7 @@ class DatabaseHelper {
       pages_read INTEGER,
       hours INTEGER,
       minutes INTEGER,
-      date TEXT,
+      date DATETIME,
       FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
     )
   ''');
@@ -82,7 +82,8 @@ class DatabaseHelper {
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 3) {
       // Add the new 'book_type_id' column (default to 1)
-      await db.execute('ALTER TABLE books ADD COLUMN book_type_id INTEGER DEFAULT 1');
+      await db.execute(
+          'ALTER TABLE books ADD COLUMN book_type_id INTEGER DEFAULT 1');
 
       // Create a new 'book_types' table if it doesn't exist
       await db.execute('''
@@ -128,7 +129,6 @@ class DatabaseHelper {
     }
   }
 
-
   Future<void> printDatabaseVersion() async {
     final db = await database;
     final version = await db.getVersion();
@@ -156,6 +156,48 @@ class DatabaseHelper {
       return result;
     } catch (e) {
       print('Error fetching sessions: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getSessionsWithBooksByYear(
+      int year) async {
+    try {
+      final db = await database;
+      // Adjust the query to filter sessions by year
+      final result = await db.rawQuery('''
+      SELECT 
+        sessions.*, 
+        books.title as book_title 
+      FROM sessions 
+      INNER JOIN books ON sessions.book_id = books.id
+      WHERE strftime('%Y', date) = ?
+      ORDER BY sessions.date DESC
+    ''', [year.toString()]); // Pass the year as a parameter to the query
+
+      print('Sessions fetched: $result');
+      return result;
+    } catch (e) {
+      print('Error fetching sessions: $e');
+      return [];
+    }
+  }
+
+  Future<List<int>> getValidYears() async {
+    final db = await database;
+    try {
+      final result = await db.rawQuery('''
+        SELECT DISTINCT strftime('%Y', date) AS year
+        FROM sessions
+        ORDER BY year DESC
+      ''');
+
+      // Convert result to List<int> to return the valid years
+      return result.map((row) {
+        return int.tryParse(row['year'].toString()) ?? 0;
+      }).toList();
+    } catch (e) {
+      print('Error fetching valid years: $e');
       return [];
     }
   }
