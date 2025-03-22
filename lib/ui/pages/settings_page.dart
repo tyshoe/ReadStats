@@ -137,7 +137,7 @@ class SettingsPage extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Default Book Type'),
+                        const Text('Default Book Format'),
                         ValueListenableBuilder<int>(
                           valueListenable:
                               settingsViewModel.defaultBookTypeNotifier,
@@ -272,7 +272,7 @@ class SettingsPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start, // Align left
                 children: [
                   const Text(
-                    'Select Theme',
+                    'Theme',
                     style: TextStyle(fontSize: 18),
                   ),
                   const SizedBox(height: 16),
@@ -371,72 +371,61 @@ class SettingsPage extends StatelessWidget {
   };
 
   void _showBookTypePicker(BuildContext context) {
+    final textColor = CupertinoColors.label.resolveFrom(context);
+    final accentColor = settingsViewModel.accentColorNotifier.value;
+    final int selectedBookType = settingsViewModel.defaultBookTypeNotifier.value;
+
     showCupertinoModalPopup(
       context: context,
-      builder: (context) {
-        return GestureDetector(
-          onTap: () => Navigator.pop(context), // Dismiss when tapping outside
-          child: Center(
-            child: CupertinoPopupSurface(
-              isSurfacePainted: true,
-              child: Container(
-                width: MediaQuery.of(context).size.width * 0.95,
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      "Select Default Book Type",
-                      style: TextStyle(fontSize: 18),
-                    ),
-                    const SizedBox(height: 16),
-                    ValueListenableBuilder<int>(
-                      valueListenable:
-                          settingsViewModel.defaultBookTypeNotifier,
-                      builder: (context, defaultBookType, child) {
-                        return CupertinoSlidingSegmentedControl<int>(
-                          children: {
-                            1: Padding(
-                                padding: EdgeInsets.all(12),
-                                child: Text(
-                                  bookTypeNames[1] ?? "Unknown",
-                                  style: TextStyle(fontSize: 12),
-                                )),
-                            2: Padding(
-                                padding: EdgeInsets.all(12),
-                                child: Text(
-                                  bookTypeNames[2] ?? "Unknown",
-                                  style: TextStyle(fontSize: 12),
-                                )),
-                            3: Padding(
-                                padding: EdgeInsets.all(12),
-                                child: Text(
-                                  bookTypeNames[3] ?? "Unknown",
-                                  style: TextStyle(fontSize: 12),
-                                )),
-                            4: Padding(
-                                padding: EdgeInsets.all(12),
-                                child: Text(
-                                  bookTypeNames[4] ?? "Unknown",
-                                  style: TextStyle(fontSize: 12),
-                                )),
-                          },
-                          groupValue: defaultBookType,
-                          onValueChanged: (value) {
-                            if (value != null) {
-                              settingsViewModel.setDefaultBookType(value);
-                            }
-                          },
-                        );
+      builder: (context) => GestureDetector(
+        onTap: () => Navigator.pop(context), // Dismiss when tapping outside
+        child: Center(
+          child: CupertinoPopupSurface(
+            isSurfacePainted: true,
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start, // Align left
+                children: [
+                  const Text(
+                    'Default Book Format',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: 16),
+                  ...bookTypeNames.entries.map((entry) {
+                    final int typeId = entry.key;
+                    final String typeName = entry.value ?? "Unknown";
+                    final bool isSelected = typeId == selectedBookType;
+
+                    return CupertinoButton(
+                      onPressed: () {
+                        settingsViewModel.setDefaultBookType(typeId);
+                        Navigator.pop(context);
                       },
-                    ),
-                  ],
-                ),
+                      child: Row(
+                        children: [
+                          if (isSelected)
+                            Icon(CupertinoIcons.check_mark, color: accentColor),
+                          const SizedBox(width: 8),
+                          Text(
+                            typeName,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: isSelected ? accentColor : textColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ],
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
