@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
@@ -20,11 +21,14 @@ class _AddBookPageState extends State<AddBookPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _authorController = TextEditingController();
   final TextEditingController _wordCountController = TextEditingController();
+  final DateTime _dateToday = DateTime.now();
   double _rating = 0;
   bool _isCompleted = false;
   String _statusMessage = '';
   bool _isSuccess = false;
   int _selectedBookType = 0;
+  DateTime? _dateStarted;
+  DateTime? _dateFinished;
 
   @override
   void initState() {
@@ -56,6 +60,8 @@ class _AddBookPageState extends State<AddBookPage> {
       "rating": _rating,
       "is_completed": _isCompleted ? 1 : 0,
       "book_type_id": _selectedBookType + 1,
+      "date_started": _dateStarted?.toIso8601String(),
+      "date_finished": _dateFinished?.toIso8601String(),
     });
 
     // Clear fields
@@ -68,6 +74,8 @@ class _AddBookPageState extends State<AddBookPage> {
       _selectedBookType = 0;
       _statusMessage = 'Book added successfully!';
       _isSuccess = true;
+      _dateStarted = null;
+      _dateFinished = null;
     });
 
     _clearStatusMessage();
@@ -93,6 +101,7 @@ class _AddBookPageState extends State<AddBookPage> {
   @override
   Widget build(BuildContext context) {
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
+    final textColor = CupertinoColors.label.resolveFrom(context);
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
@@ -176,56 +185,6 @@ class _AddBookPageState extends State<AddBookPage> {
                     : null,
               ),
               const SizedBox(height: 16),
-              const Text("Rating",
-                  style: TextStyle(
-                    fontSize: 16,
-                  )),
-              const SizedBox(height: 8),
-              Center(
-                child: RatingBar.builder(
-                  initialRating: _rating,
-                  minRating: 0,
-                  maxRating: 5,
-                  allowHalfRating: true,
-                  itemCount: 5,
-                  itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                  glow: false,
-                  itemBuilder: (context, _) => const Icon(
-                    CupertinoIcons.star_fill,
-                    color: CupertinoColors.systemYellow,
-                  ),
-                  onRatingUpdate: (rating) {
-                    setState(() {
-                      _rating = rating;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text("Status",
-                  style: TextStyle(fontSize: 16)),
-              const SizedBox(height: 8),
-              CupertinoSlidingSegmentedControl<int>(
-                groupValue: _isCompleted ? 1 : 0,
-                onValueChanged: (int? value) {
-                  if (value != null) {
-                    setState(() {
-                      _isCompleted = value == 1;
-                    });
-                  }
-                },
-                children: const {
-                  0: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text("Not Completed"),
-                  ),
-                  1: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text("Completed"),
-                  ),
-                },
-              ),
-              const SizedBox(height: 16),
               const Text("Format",
                   style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
@@ -265,6 +224,166 @@ class _AddBookPageState extends State<AddBookPage> {
                       )),
                 },
               ),
+              const SizedBox(height: 16),
+              const Text("Status",
+                  style: TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
+              CupertinoSlidingSegmentedControl<int>(
+                groupValue: _isCompleted ? 1 : 0,
+                onValueChanged: (int? value) {
+                  if (value != null) {
+                    setState(() {
+                      _isCompleted = value == 1;
+                    });
+                  }
+                },
+                children: const {
+                  0: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text("Not Completed"),
+                  ),
+                  1: Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text("Completed"),
+                  ),
+                },
+              ),
+              if (_isCompleted) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  "Rating",
+                  style: TextStyle(
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: RatingBar.builder(
+                    initialRating: _rating,
+                    minRating: 0,
+                    maxRating: 5,
+                    allowHalfRating: true,
+                    itemCount: 5,
+                    itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    glow: false,
+                    itemBuilder: (context, _) => const Icon(
+                      CupertinoIcons.star_fill,
+                      color: CupertinoColors.systemYellow,
+                    ),
+                    onRatingUpdate: (rating) {
+                      setState(() {
+                        _rating = rating;
+                      });
+                    },
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              const Text(
+                'Date',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start, // Aligns the children to the left
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Start Date Column
+                      Expanded(
+                        flex: 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Start Date',
+                              style: TextStyle(fontSize: 14, color: CupertinoColors.systemGrey),
+                            ),
+                            const SizedBox(height: 8),
+                            CupertinoButton(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                              color: CupertinoColors.systemGrey5,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    _dateStarted == null
+                                        ? 'Select Start Date'
+                                        : DateFormat('MMMM d, y').format(_dateStarted!),
+                                    style: TextStyle(fontSize: 16, color: textColor),
+                                  ),
+                                  Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey)
+                                ],
+                              ),
+                              onPressed: () => showCupertinoModalPopup(
+                                context: context,
+                                builder: (_) => Container(
+                                  height: 200,
+                                  color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
+                                  child: CupertinoDatePicker(
+                                    maximumDate: _dateToday,
+                                    initialDateTime: _dateToday,
+                                    mode: CupertinoDatePickerMode.date,
+                                    onDateTimeChanged: (date) => setState(() => _dateStarted = date),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Finish Date Column
+                      Expanded(
+                        flex: 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Finish Date',
+                              style: TextStyle(fontSize: 14, color: CupertinoColors.systemGrey),
+                            ),
+                            const SizedBox(height: 8),
+                            CupertinoButton(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                              color: CupertinoColors.systemGrey5,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    _dateFinished == null
+                                        ? 'Select Start Date'
+                                        : DateFormat('MMMM d, y').format(_dateFinished!),
+                                    style: TextStyle(fontSize: 16, color: textColor),
+                                  ),
+                                  Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey)
+                                ],
+                              ),
+                              onPressed: () => showCupertinoModalPopup(
+                                context: context,
+                                builder: (_) => Container(
+                                  height: 200,
+                                  color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
+                                  child: CupertinoDatePicker(
+                                    maximumDate: _dateToday,
+                                    initialDateTime: _dateToday,
+                                    mode: CupertinoDatePickerMode.date,
+                                    onDateTimeChanged: (date) => setState(() => _dateFinished = date),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity, // Make the button full width

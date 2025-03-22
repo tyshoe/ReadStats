@@ -35,8 +35,12 @@ class BookRepository {
     return await _databaseHelper.getBookStats(bookId);
   }
 
-  Future<Map<String, dynamic>> getAllBookStats(int selectedYear) async {
-      return await _databaseHelper.getAllBookStats();
+  Future<Map<String, dynamic>> getAllBookStats(int yearFilter) async {
+      return await _databaseHelper.getAllBookStats(yearFilter);
+  }
+
+  Future<List<int>> getBookYears() async {
+    return await _databaseHelper.getBookYears();
   }
 }
 

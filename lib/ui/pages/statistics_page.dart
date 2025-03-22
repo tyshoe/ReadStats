@@ -32,13 +32,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
     // Fetch session stats filtered by the selected year
     List<Session> sessions;
 
-    if (selectedYear != 0) {
-      // If selectedYear is not 0, fetch sessions for the specific year
-      sessions = await widget.sessionRepository.getSessionsByYear(selectedYear);
-    } else {
-      // If selectedYear is 0, fetch all sessions without year filtering
-      sessions = await widget.sessionRepository.getSessions();
-    }
+    sessions = await widget.sessionRepository.getSessions(yearFilter: selectedYear);
 
     int totalSessions = sessions.length;
     int totalPagesRead = 0;
@@ -102,7 +96,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
           children: [
             // Year selection row - Static at the top
             FutureBuilder<List<int>>(
-              future: widget.sessionRepository.getValidYears(),
+              future: getCombinedYears(),
               builder: (context, yearSnapshot) {
                 List<int> years = yearSnapshot.data!;
                 return SizedBox(
@@ -294,5 +288,21 @@ class _StatisticsPageState extends State<StatisticsPage> {
         ],
       ),
     );
+  }
+
+  Future<List<int>> getCombinedYears() async {
+    // Fetch the valid session years and book years
+    final sessionYears = await widget.sessionRepository.getSessionYears();
+    final bookYears = await widget.bookRepository.getBookYears();
+
+    print('SessionYears: $sessionYears, bookYears: $bookYears');
+
+    // Combine both lists and remove duplicates
+    final combinedYears = {...sessionYears, ...bookYears}.toList();
+
+    // Sort the combined list in descending order
+    combinedYears.sort((a, b) => b.compareTo(a));
+
+    return combinedYears;
   }
 }

@@ -153,16 +153,16 @@ class _LibraryPageState extends State<LibraryPage> {
     if (book['is_completed'] == 1) {
       completionStatus = 'Completed';
       completionIcon = CupertinoIcons.check_mark;
-      completionColor = CupertinoColors.activeGreen;
-    } else if (book['is_completed'] == 0 && stats['start_date'] != null) {
+      completionColor = CupertinoColors.systemGrey;
+    } else if (book['is_completed'] == 0 && stats['date_started'] != null) {
       // In progress
       completionStatus = 'In Progress';
-      completionIcon = CupertinoIcons.hourglass;
-      completionColor = CupertinoColors.systemBlue;
+      completionIcon = CupertinoIcons.arrow_2_circlepath;
+      completionColor = CupertinoColors.systemGrey;
     } else {
       // Not started
       completionStatus = 'Not Started';
-      completionIcon = CupertinoIcons.circle;
+      completionIcon = CupertinoIcons.clock;
       completionColor = CupertinoColors.systemGrey;
     }
 
@@ -223,7 +223,6 @@ class _LibraryPageState extends State<LibraryPage> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        _buildRatingStars(book['rating'] ?? 0),
                         Row(
                           children: [
                             Icon(
@@ -238,6 +237,10 @@ class _LibraryPageState extends State<LibraryPage> {
                             ),
                           ],
                         ),
+                        if (book['is_completed'] == 1) ...[
+                          const SizedBox(height: 5),
+                          _buildRatingStars(book['rating'] ?? 0),
+                        ],
                       ],
                     ),
                   ],
@@ -290,17 +293,14 @@ class _LibraryPageState extends State<LibraryPage> {
                 ),
                 _dateStatsCard(
                   startDate: dateFormat.format(
-                      DateTime.parse(stats['start_date'] ?? '1999-11-15')),
-                  finishDate: book['is_completed'] == 1
-                      ? dateFormat.format(
-                          DateTime.parse(stats['finish_date'] ?? '1999-11-15'))
-                      : 'n/a',
-                  daysToComplete: book['is_completed'] == 1
-                      ? stats['days_to_complete']?.toString() ?? '0'
+                      DateTime.parse(stats['date_started'] ?? '1999-11-15')),
+                  finishDate: dateFormat.format(
+                      DateTime.parse(stats['date_finished'] ?? '1999-11-15')),
+                  daysToComplete: book['date_started'] != null && book['date_finished'] != null
+                      ? (DateTime.parse(book['date_finished']).difference(DateTime.parse(book['date_started'])).inDays).toString()
                       : 'n/a',
                 ),
                 const SizedBox(height: 16),
-
                 // Actions
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,

@@ -373,7 +373,8 @@ class SettingsPage extends StatelessWidget {
   void _showBookTypePicker(BuildContext context) {
     final textColor = CupertinoColors.label.resolveFrom(context);
     final accentColor = settingsViewModel.accentColorNotifier.value;
-    final int selectedBookType = settingsViewModel.defaultBookTypeNotifier.value;
+    final int selectedBookType =
+        settingsViewModel.defaultBookTypeNotifier.value;
 
     showCupertinoModalPopup(
       context: context,
@@ -470,15 +471,35 @@ class SettingsPage extends StatelessWidget {
     for (var row in rows) {
       print('Row data: $row');
 
-      if (row.length >= 7) {
+      if (row.length >= 10) {
+        // Ensure there are enough columns
         try {
           int id = row[0] ?? 0;
           String title = row[1].toString();
           String author = row[2].toString();
           int wordCount = int.tryParse(row[3].toString()) ?? 0;
           double rating = double.tryParse(row[4].toString()) ?? 0.0;
-          bool isCompleted = row[5] == 1;
+          bool isCompleted = row[5] == 1 ||
+              row[5] == 'true'; // Handle different boolean formats
           int bookTypeId = int.tryParse(row[6].toString()) ?? 0;
+
+          // Safely parse date fields using the provided logic
+          String dateAdded = DateTime.tryParse(row[7].toString())
+                  ?.toIso8601String()
+                  .split('T')[0] ??
+              DateTime.now().toIso8601String().split('T')[0];
+
+          String? dateStarted = row[8]?.toString().isNotEmpty == true
+              ? DateTime.tryParse(row[8].toString())
+                  ?.toIso8601String()
+                  .split('T')[0]
+              : null;
+
+          String? dateFinished = row[9]?.toString().isNotEmpty == true
+              ? DateTime.tryParse(row[9].toString())
+                  ?.toIso8601String()
+                  .split('T')[0]
+              : null;
 
           Book book = Book(
             id: id,
@@ -488,8 +509,11 @@ class SettingsPage extends StatelessWidget {
             rating: rating,
             isCompleted: isCompleted,
             bookTypeId: bookTypeId,
+            dateAdded: dateAdded,
+            dateStarted: dateStarted,
+            dateFinished: dateFinished,
           );
-          print('book data is: $book');
+          print('Book data is: $book');
 
           await bookRepository.addBook(book);
         } catch (e) {
@@ -542,7 +566,7 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
-// Function to export books data to CSV and return the file path
+  // Function to export books data to CSV and return the file path
   Future<String> exportBooksToCSV(List<Book> booksData) async {
     String formattedDate = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
     final directory = await getApplicationDocumentsDirectory();
@@ -556,7 +580,10 @@ class SettingsPage extends StatelessWidget {
         'word_count',
         'rating',
         'is_complete',
-        'book_type_id'
+        'book_type_id',
+        'date_added',
+        'date_started',
+        'date_finished'
       ],
       ...booksData.map((book) => [
             book.id.toString(),
@@ -566,6 +593,9 @@ class SettingsPage extends StatelessWidget {
             book.rating.toString(),
             book.isCompleted.toString(),
             book.bookTypeId.toString(),
+            book.dateAdded.toString(),
+            book.dateStarted.toString(),
+            book.dateFinished.toString(),
           ])
     ];
 
@@ -576,7 +606,7 @@ class SettingsPage extends StatelessWidget {
     return filePath;
   }
 
-// Function to export sessions data to CSV and return the file path
+  // Function to export sessions data to CSV and return the file path
   Future<String> exportSessionsToCSV(List<Session> sessionsData) async {
     String formattedDate = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
     final directory = await getApplicationDocumentsDirectory();

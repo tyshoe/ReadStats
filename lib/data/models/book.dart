@@ -6,6 +6,9 @@ class Book {
   double rating;
   bool isCompleted;
   int bookTypeId;
+  final String dateAdded;
+  final String? dateStarted;
+  final String? dateFinished;
 
   Book({
     this.id,
@@ -15,6 +18,9 @@ class Book {
     required this.rating,
     required this.isCompleted,
     required this.bookTypeId,
+    required this.dateAdded,
+    this.dateStarted,
+    this.dateFinished,
   });
 
   // Convert a Book object into a Map for database operations
@@ -27,6 +33,9 @@ class Book {
       'rating': rating,
       'is_completed': isCompleted ? 1 : 0, // SQLite doesn't support bool, use 1 & 0
       'book_type_id': bookTypeId,
+      'date_added': dateAdded,
+      'date_started': dateStarted,
+      'date_finished': dateFinished,
     };
   }
 
@@ -40,6 +49,9 @@ class Book {
       rating: map['rating'].toDouble(),
       isCompleted: map['is_completed'] == 1, // Convert 1 & 0 back to bool
       bookTypeId: map['book_type_id'],
+      dateAdded: map['date_added'],
+      dateStarted: map['date_started'],
+      dateFinished: map['date_finished'],
     );
   }
 }

@@ -5,7 +5,7 @@ class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
-  static const int _databaseVersion = 3;
+  static const int _databaseVersion = 1;
 
   factory DatabaseHelper() {
     return _instance;
@@ -49,29 +49,32 @@ class DatabaseHelper {
       ''');
 
     await db.execute('''
-    CREATE TABLE books(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT,
-      author TEXT,
-      word_count INTEGER DEFAULT 0,
-      rating REAL,
-      is_completed INTEGER,
-      book_type_id INTEGER,
-      FOREIGN KEY(book_type_id) REFERENCES book_types(id)
-    )
-  ''');
+      CREATE TABLE books(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT,
+        author TEXT,
+        word_count INTEGER DEFAULT 0,
+        rating REAL,
+        is_completed INTEGER,
+        book_type_id INTEGER,
+        date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
+        date_started DATETIME,
+        date_finished DATETIME,
+        FOREIGN KEY(book_type_id) REFERENCES book_types(id)
+      )
+    ''');
 
     await db.execute('''
-    CREATE TABLE sessions(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      book_id INTEGER,
-      pages_read INTEGER,
-      hours INTEGER,
-      minutes INTEGER,
-      date DATETIME,
-      FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
-    )
-  ''');
+      CREATE TABLE sessions(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        book_id INTEGER,
+        pages_read INTEGER,
+        hours INTEGER,
+        minutes INTEGER,
+        date DATETIME,
+        FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
+      )
+    ''');
 
     await db.insert('book_types', {'name': 'Paperback'});
     await db.insert('book_types', {'name': 'Hardback'});
@@ -80,53 +83,7 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 3) {
-      // Add the new 'book_type_id' column (default to 1)
-      await db.execute(
-          'ALTER TABLE books ADD COLUMN book_type_id INTEGER DEFAULT 1');
-
-      // Create a new 'book_types' table if it doesn't exist
-      await db.execute('''
-      CREATE TABLE IF NOT EXISTS book_types (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL
-      )
-    ''');
-
-      // Insert values
-      await db.insert('book_types', {'name': 'Paperback'});
-      await db.insert('book_types', {'name': 'Hardback'});
-      await db.insert('book_types', {'name': 'EBook'});
-      await db.insert('book_types', {'name': 'Audiobook'});
-
-      // Recreate the 'books' table with the foreign key constraint and copy data over
-      await db.execute('''
-      CREATE TABLE books_new (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        author TEXT,
-        word_count INTEGER DEFAULT 0,
-        rating REAL,
-        is_completed INTEGER,
-        book_type_id INTEGER DEFAULT 1,
-        FOREIGN KEY(book_type_id) REFERENCES book_types(id)
-      )
-    ''');
-
-      // Copy data from the old 'books' table to 'books_new'
-      await db.execute('''
-      INSERT INTO books_new (id, title, author, word_count, rating, is_completed, book_type_id)
-      SELECT id, title, author, word_count, rating, is_completed, book_type_id FROM books
-    ''');
-
-      // Drop the old 'books' table
-      await db.execute('DROP TABLE books');
-
-      // Rename 'books_new' to 'books'
-      await db.execute('ALTER TABLE books_new RENAME TO books');
-
-      print("Database upgraded from version $oldVersion to $newVersion");
-    }
+    print("Database upgrade called from version $oldVersion to $newVersion");
   }
 
   Future<void> printDatabaseVersion() async {
@@ -141,39 +98,33 @@ class DatabaseHelper {
     return id;
   }
 
-  Future<List<Map<String, dynamic>>> getSessionsWithBooks() async {
+  Future<List<Map<String, dynamic>>> getSessionsWithBooks({int yearFilter = 0}) async {
     try {
       final db = await database;
-      final result = await db.rawQuery('''
-        SELECT 
-          sessions.*, 
-          books.title as book_title 
-        FROM sessions 
-        INNER JOIN books ON sessions.book_id = books.id
-        ORDER BY sessions.date DESC
-      ''');
-      print('Sessions fetched: $result');
-      return result;
-    } catch (e) {
-      print('Error fetching sessions: $e');
-      return [];
-    }
-  }
 
-  Future<List<Map<String, dynamic>>> getSessionsWithBooksByYear(
-      int year) async {
-    try {
-      final db = await database;
-      // Adjust the query to filter sessions by year
-      final result = await db.rawQuery('''
+      // If yearFilter is not 0, filter by year using the date field in sessions.
+      String query = '''
       SELECT 
         sessions.*, 
         books.title as book_title 
       FROM sessions 
       INNER JOIN books ON sessions.book_id = books.id
-      WHERE strftime('%Y', date) = ?
-      ORDER BY sessions.date DESC
-    ''', [year.toString()]); // Pass the year as a parameter to the query
+    ''';
+
+      if (yearFilter != 0) {
+        // Apply the year filter to the query.
+        query += ''' 
+        WHERE strftime('%Y', sessions.date) = ? 
+      ''';
+      }
+
+      // Append ordering of the results.
+      query += 'ORDER BY sessions.date DESC';
+
+      // Prepare the arguments.
+      List<dynamic> arguments = yearFilter != 0 ? [yearFilter.toString()] : [];
+
+      final result = await db.rawQuery(query, arguments);
 
       print('Sessions fetched: $result');
       return result;
@@ -183,7 +134,7 @@ class DatabaseHelper {
     }
   }
 
-  Future<List<int>> getValidYears() async {
+  Future<List<int>> getSessionYears() async {
     final db = await database;
     try {
       final result = await db.rawQuery('''
@@ -198,6 +149,26 @@ class DatabaseHelper {
       }).toList();
     } catch (e) {
       print('Error fetching valid years: $e');
+      return [];
+    }
+  }
+
+  Future<List<int>> getBookYears() async {
+    final db = await database;
+    try {
+      final result = await db.rawQuery('''
+      SELECT DISTINCT strftime('%Y', date_finished) AS year
+      FROM books
+      WHERE date_finished IS NOT NULL
+      ORDER BY year DESC
+    ''');
+
+      // Convert the result to List<int> to return valid years
+      return result.map((row) {
+        return int.tryParse(row['year'].toString()) ?? 0;
+      }).toList();
+    } catch (e) {
+      print('Error fetching valid book years: $e');
       return [];
     }
   }
@@ -237,6 +208,8 @@ class DatabaseHelper {
 
   Future<int> insertBook(Map<String, dynamic> book) async {
     final db = await database;
+    print('Attempt add book: $book');
+    print('Type of dateStarted: ${book['date_started']?.runtimeType}');
     return await db.insert('books', book);
   }
 
@@ -287,8 +260,9 @@ class DatabaseHelper {
       SUM(sessions.hours * 60 + sessions.minutes) AS total_time,  -- Converts time to minutes
       SUM(sessions.pages_read) * 1.0 / SUM(sessions.hours * 60 + sessions.minutes) AS pages_per_minute,
       books.word_count * 1.0 / SUM(sessions.hours * 60 + sessions.minutes) AS words_per_minute,
-      MIN(sessions.date) AS start_date,
-      MAX(sessions.date) AS finish_date,
+      books.date_added,
+      books.date_started,
+      books.date_finished,
       ROUND(
         JULIANDAY(MAX(sessions.date)) - JULIANDAY(MIN(sessions.date))
       ) AS days_to_complete
@@ -308,23 +282,34 @@ class DatabaseHelper {
         'total_time': 0,
         'pages_per_minute': 0,
         'words_per_minute': 0,
+        'date_added': null,
+        'date_started': null,
+        'date_finished': null,
       };
     }
   }
 
-  Future<Map<String, dynamic>> getAllBookStats() async {
+  Future<Map<String, dynamic>> getAllBookStats(int selectedYear) async {
     final db = await database;
+
+    // If the selectedYear is not 0, filter by date_finished
+    String yearFilter = '';
+    if (selectedYear != 0) {
+      yearFilter = "AND strftime('%Y', books.date_finished) = '$selectedYear'";  // Filter based on selected year
+    }
+
     final result = await db.rawQuery('''
     WITH BookCompletionTimes AS (
-    SELECT 
-      books.id AS book_id,
-      CAST(ROUND((JULIANDAY(MAX(sessions.date)) - JULIANDAY(MIN(sessions.date))) * 24 * 60) AS INTEGER) AS minutes_to_complete
-    FROM books
-    JOIN sessions ON books.id = sessions.book_id
-    WHERE 
-      books.is_completed = 1
-    GROUP BY 
-      books.id
+      SELECT 
+        books.id AS book_id,
+        CAST(ROUND((JULIANDAY(MAX(sessions.date)) - JULIANDAY(MIN(sessions.date))) * 24 * 60) AS INTEGER) AS minutes_to_complete
+      FROM books
+      JOIN sessions ON books.id = sessions.book_id
+      WHERE 
+        books.is_completed = 1
+        $yearFilter  -- Apply the year filter if selected
+      GROUP BY 
+        books.id
     )
     SELECT 
       COALESCE(MAX(books.rating), 0) AS highest_rating,
@@ -336,8 +321,9 @@ class DatabaseHelper {
     FROM books
     LEFT JOIN BookCompletionTimes ON books.id = BookCompletionTimes.book_id
     WHERE 
-        books.is_completed = 1;
-    ''');
+      books.is_completed = 1
+      $yearFilter  -- Apply the year filter if selected
+  ''');
 
     print(result);
     if (result.isNotEmpty) {
@@ -353,6 +339,7 @@ class DatabaseHelper {
       };
     }
   }
+
 
   Future<Map<String, dynamic>> getCompleteBookStats(int bookId) async {
     final book = await getBookById(bookId);
