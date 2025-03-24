@@ -294,31 +294,30 @@ class DatabaseHelper {
     // If the selectedYear is not 0, filter by date_finished
     String yearFilter = '';
     if (selectedYear != 0) {
-      yearFilter = "AND strftime('%Y', books.date_finished) = '$selectedYear'";  // Filter based on selected year
+      yearFilter = "AND strftime('%Y', books.date_finished) = '$selectedYear'";
     }
 
     final result = await db.rawQuery('''
-    WITH BookCompletionTimes AS (
+    WITH BookReadTimes AS (
       SELECT 
         books.id AS book_id,
-        CAST(ROUND((JULIANDAY(MAX(sessions.date)) - JULIANDAY(MIN(sessions.date))) * 24 * 60) AS INTEGER) AS minutes_to_complete
+        COALESCE(SUM(sessions.duration_minutes), 0) AS total_read_time
       FROM books
       JOIN sessions ON books.id = sessions.book_id
       WHERE 
         books.is_completed = 1
         $yearFilter  -- Apply the year filter if selected
-      GROUP BY 
-        books.id
+      GROUP BY books.id
     )
     SELECT 
       COALESCE(MAX(books.rating), 0) AS highest_rating,
       COALESCE(MIN(books.rating), 0) AS lowest_rating,
       COALESCE(AVG(books.rating), 0) AS average_rating,
-      COALESCE(MAX(BookCompletionTimes.minutes_to_complete), 0) AS slowest_read_time,
-      COALESCE(MIN(BookCompletionTimes.minutes_to_complete), 0) AS fastest_read_time,
+      COALESCE(MAX(BookReadTimes.total_read_time), 0) AS slowest_read_time,
+      COALESCE(MIN(BookReadTimes.total_read_time), 0) AS fastest_read_time,
       COALESCE(COUNT(DISTINCT books.id), 0) AS books_completed
     FROM books
-    LEFT JOIN BookCompletionTimes ON books.id = BookCompletionTimes.book_id
+    LEFT JOIN BookReadTimes ON books.id = BookReadTimes.book_id
     WHERE 
       books.is_completed = 1
       $yearFilter  -- Apply the year filter if selected
