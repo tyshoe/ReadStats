@@ -528,14 +528,13 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _importSessions(List<List<dynamic>> rows) async {
     for (var row in rows) {
-      if (row.length >= 6) {
+      if (row.length >= 5) {
         Session session = Session(
           id: int.tryParse(row[0].toString()) ?? 0,
           bookId: int.tryParse(row[1].toString()) ?? 0,
           pagesRead: int.tryParse(row[2].toString()) ?? 0,
-          hours: int.tryParse(row[3].toString()) ?? 0,
-          minutes: int.tryParse(row[4].toString()) ?? 0,
-          date: DateTime.tryParse(row[5].toString())
+          durationMinutes: int.tryParse(row[3].toString()) ?? 0,
+          date: DateTime.tryParse(row[4].toString())
                   ?.toIso8601String()
                   .split('T')[0] ??
               DateTime.now().toIso8601String().split('T')[0],
@@ -613,13 +612,12 @@ class SettingsPage extends StatelessWidget {
     final filePath = '${directory.path}/sessions_data_$formattedDate.csv';
 
     List<List<String>> rows = [
-      ['session_id', 'book_id', 'pages_read', 'hours', 'minutes', 'date'],
+      ['session_id', 'book_id', 'pages_read', 'duration_minutes', 'date'],
       ...sessionsData.map((session) => [
             session.id.toString(),
             session.bookId.toString(),
             session.pagesRead.toString(),
-            session.hours.toString(),
-            session.minutes.toString(),
+            session.durationMinutes.toString(),
             session.date.toString(),
           ])
     ];

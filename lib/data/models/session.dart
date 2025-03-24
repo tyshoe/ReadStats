@@ -2,16 +2,14 @@ class Session {
   final int? id;
   final int bookId;
   final int pagesRead;
-  final int hours;
-  final int minutes;
+  final int durationMinutes;
   final String date;
 
   Session({
     this.id,
     required this.bookId,
     required this.pagesRead,
-    required this.hours,
-    required this.minutes,
+    required this.durationMinutes,
     required this.date,
   });
 
@@ -21,8 +19,7 @@ class Session {
       'id': id,
       'book_id': bookId,
       'pages_read': pagesRead,
-      'hours': hours,
-      'minutes': minutes,
+      'duration_minutes': durationMinutes,
       'date': date,
     };
   }
@@ -33,8 +30,7 @@ class Session {
       id: map['id'],
       bookId: map['book_id'],
       pagesRead: map['pages_read'],
-      hours: map['hours'],
-      minutes: map['minutes'],
+      durationMinutes: map['duration_minutes'],
       date: map['date'],
     );
   }

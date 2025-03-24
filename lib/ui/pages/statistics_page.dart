@@ -40,7 +40,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
 
     for (var session in sessions) {
       totalPagesRead += session.pagesRead;
-      totalMinutes += (session.hours * 60) + session.minutes;
+      totalMinutes += session.durationMinutes;
     }
 
     double avgPagesPerMinute =

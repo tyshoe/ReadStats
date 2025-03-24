@@ -61,39 +61,40 @@ class _LogSessionPageState extends State<LogSessionPage> {
   }
 
   void _saveSession() async {
-    if (_selectedBook == null ||
-        _pagesController.text.isEmpty ||
-        _hoursController.text.isEmpty ||
-        _minutesController.text.isEmpty) {
-      setState(() {
-        _statusMessage = 'Please fill all fields.';
-        _isSuccess = false;
-      });
-      _clearStatusMessage(); // Clear message after a delay
+    // Validate book selection
+    if (_selectedBook == null) {
+      _showStatusMessage('Please select a book.', false);
       return;
     }
 
+    // Validate numeric inputs
     final int? pagesRead = int.tryParse(_pagesController.text);
     final int? hours = int.tryParse(_hoursController.text);
     final int? minutes = int.tryParse(_minutesController.text);
 
-    if (pagesRead == null ||
-        hours == null ||
-        minutes == null ||
-        (hours == 0 && minutes == 0)) {
+    if (pagesRead == null || hours == null || minutes == null) {
       setState(() {
-        _statusMessage = 'Invalid input. Enter valid numbers.';
+        _statusMessage = 'Please enter valid numbers.';
         _isSuccess = false;
       });
-      _clearStatusMessage(); // Clear message after a delay
+      _clearStatusMessage();
+      return;
+    }
+
+    final int durationMinutes = (hours * 60) + minutes;
+    if (pagesRead <= 0 || durationMinutes <= 0) {
+      setState(() {
+        _statusMessage = 'Pages and time must be greater than zero.';
+        _isSuccess = false;
+      });
+      _clearStatusMessage();
       return;
     }
 
     final session = Session(
       bookId: _selectedBook!['id'],
       pagesRead: pagesRead,
-      hours: hours,
-      minutes: minutes,
+      durationMinutes: durationMinutes,
       date: _sessionDate.toIso8601String(),
     );
 
@@ -101,20 +102,20 @@ class _LogSessionPageState extends State<LogSessionPage> {
       await widget.sessionRepository.addSession(session);
       widget.refreshSessions();
 
-      setState(() {
-        _statusMessage = 'Session logged successfully!';
-        _isSuccess = true;
-      });
-
+      _showStatusMessage('Session added successfully!', true);
       _resetInputs();
-      _clearStatusMessage(); // Clear message after a delay
     } catch (e) {
-      setState(() {
-        _statusMessage = 'Failed to log session. Please try again.';
-        _isSuccess = false;
-      });
-      _clearStatusMessage(); // Clear message after a delay
+      _showStatusMessage('Failed to add session. Please try again.', false);
     }
+  }
+
+// Helper function to handle status messages
+  void _showStatusMessage(String message, bool isSuccess) {
+    setState(() {
+      _statusMessage = message;
+      _isSuccess = isSuccess;
+    });
+    _clearStatusMessage();
   }
 
   void _clearStatusMessage() {
@@ -195,7 +196,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
             children: [
               const Text(
                 'Book',
-                style: TextStyle( fontSize: 16),
+                style: TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 8),
               Center(
@@ -252,23 +253,24 @@ class _LogSessionPageState extends State<LogSessionPage> {
               ),
               const SizedBox(height: 8),
               CupertinoTextField(
-                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  controller: _pagesController,
-                  placeholder: "Number of Pages",
-                  onTapOutside: (event) {
-                    FocusManager.instance.primaryFocus?.unfocus();
-                  },
-                  keyboardType: TextInputType.number,
-                  suffix: _pagesController.text.isNotEmpty
-                      ? Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: GestureDetector(
-                      onTap: () => _clearField(_pagesController),
-                      child: Icon(CupertinoIcons.clear, color: CupertinoColors.systemGrey),
-                    ),
-                  )
-                      : null,
-                ),
+                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                controller: _pagesController,
+                placeholder: "Number of Pages",
+                onTapOutside: (event) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                },
+                keyboardType: TextInputType.number,
+                suffix: _pagesController.text.isNotEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: GestureDetector(
+                          onTap: () => _clearField(_pagesController),
+                          child: Icon(CupertinoIcons.clear,
+                              color: CupertinoColors.systemGrey),
+                        ),
+                      )
+                    : null,
+              ),
               const SizedBox(height: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,7 +294,8 @@ class _LogSessionPageState extends State<LogSessionPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          formatSessionTime(_hoursController.text, _minutesController.text),
+                          formatSessionTime(
+                              _hoursController.text, _minutesController.text),
                           style: TextStyle(fontSize: 16, color: textColor),
                         ),
                         Icon(CupertinoIcons.chevron_down,

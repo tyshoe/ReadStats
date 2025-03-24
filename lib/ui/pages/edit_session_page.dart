@@ -43,13 +43,24 @@ class _EditSessionPageState extends State<EditSessionPage> {
   }
 
   void _updateSession() async {
+    // Validate input fields
+    final int? pagesRead = int.tryParse(_pagesController.text);
+    final int? hours = int.tryParse(_hoursController.text);
+    final int? minutes = int.tryParse(_minutesController.text);
 
-
-    if (_pagesController.text.isEmpty ||
-        _hoursController.text.isEmpty ||
-        _minutesController.text.isEmpty) {
+    if (pagesRead == null || hours == null || minutes == null) {
       setState(() {
-        _statusMessage = 'Please fill all fields.';
+        _statusMessage = 'Please enter valid numbers.';
+        _isSuccess = false;
+      });
+      _clearStatusMessage();
+      return;
+    }
+
+    final int durationMinutes = (hours * 60) + minutes;
+    if (pagesRead <= 0 || durationMinutes <= 0) {
+      setState(() {
+        _statusMessage = 'Pages and time must be greater than zero.';
         _isSuccess = false;
       });
       _clearStatusMessage();
@@ -59,9 +70,8 @@ class _EditSessionPageState extends State<EditSessionPage> {
     final session = Session(
       id: widget.session['id'],
       bookId: widget.book['id'],
-      pagesRead: int.parse(_pagesController.text),
-      hours: int.parse(_hoursController.text),
-      minutes: int.parse(_minutesController.text),
+      pagesRead: pagesRead,
+      durationMinutes: durationMinutes,
       date: _sessionDate.toIso8601String(),
     );
 
@@ -83,6 +93,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
       _clearStatusMessage();
     }
   }
+
 
   void _clearStatusMessage() {
     Future.delayed(const Duration(seconds: 2), () {

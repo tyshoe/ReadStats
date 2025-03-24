@@ -51,13 +51,15 @@ class _SessionsPageState extends State<SessionsPage> {
     });
   }
 
-  // Format duration (hours and minutes)
-  String _formatDuration(int hours, int minutes) {
-    final hourText = hours > 0 ? '${hours}h ' : '';
-    return '$hourText${minutes}m';
+  String _formatDuration(int minutes) {
+    final int hours = minutes ~/ 60;
+    final int remainingMinutes = minutes % 60;
+
+    final String hourText = hours > 0 ? '${hours}h ' : '';
+    final String minuteText = '${remainingMinutes}m';
+    return '$hourText$minuteText'.trim(); // Trim to remove extra spaces
   }
 
-  // Format date
   String _formatDate(String isoDate) {
     final date = DateTime.parse(isoDate);
     return DateFormat('MMM dd, yyyy').format(date);
@@ -197,8 +199,7 @@ class _SessionsPageState extends State<SessionsPage> {
                             final bookAuthor =
                                 book?['author'] ?? 'Unknown Author';
                             final pagesRead = session['pages_read'] ?? 0;
-                            final hours = session['hours'] ?? 0;
-                            final minutes = session['minutes'] ?? 0;
+                            final minutes = session['duration_minutes'] ?? 0;
                             final date = session['date'] ?? '';
 
                             return GestureDetector(
@@ -253,7 +254,7 @@ class _SessionsPageState extends State<SessionsPage> {
                                                   color: CupertinoColors
                                                       .systemGrey,
                                                   fontSize: 14)),
-                                          Text(_formatDuration(hours, minutes),
+                                          Text(_formatDuration(minutes),
                                               style: const TextStyle(
                                                   color: CupertinoColors
                                                       .systemGrey,

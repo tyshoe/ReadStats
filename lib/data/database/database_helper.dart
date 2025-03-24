@@ -69,8 +69,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         book_id INTEGER,
         pages_read INTEGER,
-        hours INTEGER,
-        minutes INTEGER,
+        duration_minutes INTEGER,
         date DATETIME,
         FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
       )
@@ -257,9 +256,9 @@ class DatabaseHelper {
     SELECT 
       COUNT(sessions.id) AS session_count, 
       SUM(sessions.pages_read) AS total_pages,
-      SUM(sessions.hours * 60 + sessions.minutes) AS total_time,  -- Converts time to minutes
-      SUM(sessions.pages_read) * 1.0 / SUM(sessions.hours * 60 + sessions.minutes) AS pages_per_minute,
-      books.word_count * 1.0 / SUM(sessions.hours * 60 + sessions.minutes) AS words_per_minute,
+      SUM(sessions.duration_minutes) AS total_time,  -- Converts time to duration_minutes
+      SUM(sessions.pages_read) * 1.0 / SUM(sessions.duration_minutes) AS pages_per_minute,
+      books.word_count * 1.0 / SUM(sessions.duration_minutes) AS words_per_minute,
       books.date_added,
       books.date_started,
       books.date_finished,
