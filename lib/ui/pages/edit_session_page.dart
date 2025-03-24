@@ -36,9 +36,19 @@ class _EditSessionPageState extends State<EditSessionPage> {
   void initState() {
     super.initState();
 
+    // Assuming duration_minutes is in the session data
+    int durationMinutes = widget.session['duration_minutes'] ?? 0; // Default to 0 if null
+
+    // Extract hours and minutes
+    int hours = durationMinutes ~/ 60; // Get the hours by dividing by 60
+    int minutes = durationMinutes % 60; // Get the remaining minutes after dividing by 60
+
+    // Populate the controllers with the extracted values
     _pagesController.text = widget.session['pages_read'].toString();
-    _hoursController.text = widget.session['hours'].toString();
-    _minutesController.text = widget.session['minutes'].toString();
+    _hoursController.text = hours.toString();
+    _minutesController.text = minutes.toString();
+
+    // Parse and set the session date
     _sessionDate = DateTime.parse(widget.session['date']);
   }
 
