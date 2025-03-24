@@ -5,12 +5,14 @@ class BookRow extends StatelessWidget {
   final Map<String, dynamic> book;
   final Color textColor;
   final VoidCallback onTap;
+  final bool isCompactView;
 
   const BookRow({
     super.key,
     required this.book,
     required this.textColor,
     required this.onTap,
+    required this.isCompactView,
   });
 
   @override
@@ -34,11 +36,23 @@ class BookRow extends StatelessWidget {
         bookTypeIcon = CupertinoIcons.book_fill;
     }
 
+    // Convert date strings to formatted dates
+    String formatDate(String? date) {
+      if (date == null || date.isEmpty) return "N/A";
+      try {
+        return DateFormat('MMM d, yyyy').format(DateTime.parse(date));
+      } catch (e) {
+        return "Invalid Date";
+      }
+    }
+
+    double containerHeight = isCompactView ? 60 : 100; // Adjust height
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        height: 100,
+        height: containerHeight,
         decoration: BoxDecoration(
           color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
           borderRadius: BorderRadius.circular(8),
@@ -81,6 +95,26 @@ class BookRow extends StatelessWidget {
                   fontSize: 14,
                 ),
               ),
+
+              // Show additional details if not in compact view
+              if (!isCompactView) ...[
+                const SizedBox(height: 4),
+                Text(
+                  "${formatDate(book['date_started'])} - ${formatDate(book['date_finished'])}",
+                  style: TextStyle(
+                    color: CupertinoColors.systemGrey,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "${book['rating']?.toStringAsFixed(1) ?? '0'}",
+                  style: TextStyle(
+                    color: CupertinoColors.systemGrey,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
             ],
           ),
         ),

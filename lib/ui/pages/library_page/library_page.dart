@@ -32,6 +32,13 @@ class LibraryPage extends StatefulWidget {
 
 class _LibraryPageState extends State<LibraryPage> {
   final DatabaseHelper _dbHelper = DatabaseHelper();
+  bool _isCompactRowView = true;
+
+  void _toggleView() {
+    setState(() {
+      _isCompactRowView = !_isCompactRowView;
+    });
+  }
 
   void _navigateToAddBookPage() async {
     await Navigator.push(
@@ -127,6 +134,14 @@ class _LibraryPageState extends State<LibraryPage> {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: Text('Library', style: TextStyle(color: textColor)),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: _toggleView,
+          child: Icon(
+            _isCompactRowView ? CupertinoIcons.list_bullet : CupertinoIcons.bars,
+            color: textColor,
+          ),
+        ),
       ),
       child: SafeArea(
         child: Stack(
@@ -136,8 +151,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset('assets/images/carl.png',
-                        width: 100, height: 100),
+                    Image.asset('assets/images/carl.png', width: 100, height: 100),
                     const SizedBox(height: 16),
                     Text(
                       'Carl is hungry, add a book to your library',
@@ -162,15 +176,23 @@ class _LibraryPageState extends State<LibraryPage> {
                       ),
                     ),
                     Expanded(
-                      child: Scrollbar(
+                      child: CupertinoScrollbar(
                         thickness: 2,
                         child: ListView.builder(
                           itemCount: widget.books.length,
                           itemBuilder: (context, index) {
                             final book = widget.books[index];
-                            return BookRow(
+                            return _isCompactRowView
+                                ? BookRow(
                               book: book,
                               textColor: textColor,
+                              isCompactView: _isCompactRowView,
+                              onTap: () => _showBookPopup(context, book),
+                            )
+                                : BookRow(
+                              book: book,
+                              textColor: textColor,
+                              isCompactView: _isCompactRowView,
                               onTap: () => _showBookPopup(context, book),
                             );
                           },
@@ -188,8 +210,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 borderRadius: BorderRadius.circular(16),
                 color: accentColor,
                 onPressed: _navigateToAddBookPage,
-                child: const Icon(CupertinoIcons.add,
-                    color: CupertinoColors.white),
+                child: const Icon(CupertinoIcons.add, color: CupertinoColors.white),
               ),
             ),
           ],
