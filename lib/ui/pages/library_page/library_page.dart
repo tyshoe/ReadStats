@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'book_row.dart';
 import 'package:intl/intl.dart';
 import '../add_book_page.dart';
@@ -34,27 +35,28 @@ class _LibraryPageState extends State<LibraryPage> {
   void _confirmDelete(int bookId) {
     showCupertinoDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Delete Book'),
-        content: const Text(
-            'Are you sure you want to delete this book and all its sessions?'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context),
-            isDefaultAction: true,
+      builder: (context) =>
+          CupertinoAlertDialog(
+            title: const Text('Delete Book'),
+            content: const Text(
+                'Are you sure you want to delete this book and all its sessions?'),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.pop(context),
+                isDefaultAction: true,
+              ),
+              CupertinoDialogAction(
+                isDestructiveAction: true,
+                onPressed: () async {
+                  await _dbHelper.deleteBook(bookId);
+                  widget.refreshBooks();
+                  Navigator.pop(context);
+                },
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () async {
-              await _dbHelper.deleteBook(bookId);
-              widget.refreshBooks();
-              Navigator.pop(context);
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -62,13 +64,14 @@ class _LibraryPageState extends State<LibraryPage> {
     await Navigator.push(
       context,
       CupertinoPageRoute(
-        builder: (context) => AddBookPage(
-          addBook: (book) async {
-            await _dbHelper.insertBook(book);
-            widget.refreshBooks();
-          },
-          settingsViewModel: widget.settingsViewModel,
-        ),
+        builder: (context) =>
+            AddBookPage(
+              addBook: (book) async {
+                await _dbHelper.insertBook(book);
+                widget.refreshBooks();
+              },
+              settingsViewModel: widget.settingsViewModel,
+            ),
       ),
     );
   }
@@ -77,14 +80,15 @@ class _LibraryPageState extends State<LibraryPage> {
     await Navigator.push(
       context,
       CupertinoPageRoute(
-        builder: (context) => EditBookPage(
-          book: book,
-          updateBook: (updatedBook) async {
-            await _dbHelper.updateBook(updatedBook);
-            widget.refreshBooks();
-          },
-          settingsViewModel: widget.settingsViewModel,
-        ),
+        builder: (context) =>
+            EditBookPage(
+              book: book,
+              updateBook: (updatedBook) async {
+                await _dbHelper.updateBook(updatedBook);
+                widget.refreshBooks();
+              },
+              settingsViewModel: widget.settingsViewModel,
+            ),
       ),
     );
   }
@@ -93,15 +97,16 @@ class _LibraryPageState extends State<LibraryPage> {
     await Navigator.push(
       context,
       CupertinoPageRoute(
-        builder: (context) => LogSessionPage(
-          books: widget.books,
-          initialBookId: bookId,
-          refreshSessions: () {
-            widget.refreshSessions();
-          },
-          settingsViewModel: widget.settingsViewModel,
-          sessionRepository: widget.sessionRepository,
-        ),
+        builder: (context) =>
+            LogSessionPage(
+              books: widget.books,
+              initialBookId: bookId,
+              refreshSessions: () {
+                widget.refreshSessions();
+              },
+              settingsViewModel: widget.settingsViewModel,
+              sessionRepository: widget.sessionRepository,
+            ),
       ),
     );
   }
@@ -203,7 +208,7 @@ class _LibraryPageState extends State<LibraryPage> {
                           Text(
                             "by ${book['author']}",
                             style:
-                                const TextStyle(fontSize: 14, wordSpacing: 2),
+                            const TextStyle(fontSize: 14, wordSpacing: 2),
                             maxLines: 1,
                             overflow: TextOverflow
                                 .ellipsis, // Truncate long author names
@@ -296,8 +301,12 @@ class _LibraryPageState extends State<LibraryPage> {
                       DateTime.parse(stats['date_started'] ?? '1999-11-15')),
                   finishDate: dateFormat.format(
                       DateTime.parse(stats['date_finished'] ?? '1999-11-15')),
-                  daysToComplete: book['date_started'] != null && book['date_finished'] != null
-                      ? (DateTime.parse(book['date_finished']).difference(DateTime.parse(book['date_started'])).inDays).toString()
+                  daysToComplete: book['date_started'] != null &&
+                      book['date_finished'] != null
+                      ? (DateTime
+                      .parse(book['date_finished'])
+                      .difference(DateTime.parse(book['date_started']))
+                      .inDays).toString()
                       : 'n/a',
                 ),
                 const SizedBox(height: 16),
@@ -322,9 +331,9 @@ class _LibraryPageState extends State<LibraryPage> {
                       onTap: book['is_completed'] == 1
                           ? () {} // Disable interaction by providing an empty function
                           : () {
-                              Navigator.pop(context);
-                              _navigateToAddSessionPage(book['id']);
-                            },
+                        Navigator.pop(context);
+                        _navigateToAddSessionPage(book['id']);
+                      },
                     ),
                     _popupAction(
                       icon: CupertinoIcons.trash,
@@ -352,7 +361,7 @@ class _LibraryPageState extends State<LibraryPage> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color:
-            CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
+        CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -387,7 +396,7 @@ class _LibraryPageState extends State<LibraryPage> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color:
-            CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
+        CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -470,8 +479,8 @@ class _LibraryPageState extends State<LibraryPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset('assets/images/carl.png',
-                        width: 100, height: 100),
+                    Image.asset(
+                        'assets/images/carl.png', width: 100, height: 100),
                     const SizedBox(height: 16),
                     Text(
                       'Carl is hungry, add a book to your library',
@@ -491,22 +500,24 @@ class _LibraryPageState extends State<LibraryPage> {
                         padding: const EdgeInsets.only(top: 8, bottom: 16),
                         child: Text(
                           '${widget.books.length}',
-                          // Format: books_shown (total_books)
                           style: TextStyle(fontSize: 16, color: textColor),
                         ),
                       ),
                     ),
                     Expanded(
-                      child: ListView.builder(
-                        itemCount: widget.books.length,
-                        itemBuilder: (context, index) {
-                          final book = widget.books[index];
-                          return BookRow(
-                            book: book,
-                            textColor: textColor,
-                            onTap: () => _showBookPopup(context, book),
-                          );
-                        },
+                      child: Scrollbar(
+                        thickness: 2,
+                        child: ListView.builder(
+                          itemCount: widget.books.length,
+                          itemBuilder: (context, index) {
+                            final book = widget.books[index];
+                            return BookRow(
+                              book: book,
+                              textColor: textColor,
+                              onTap: () => _showBookPopup(context, book),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ],
@@ -520,8 +531,8 @@ class _LibraryPageState extends State<LibraryPage> {
                 borderRadius: BorderRadius.circular(16),
                 color: accentColor,
                 onPressed: _navigateToAddBookPage,
-                child: const Icon(CupertinoIcons.add,
-                    color: CupertinoColors.white),
+                child: const Icon(
+                    CupertinoIcons.add, color: CupertinoColors.white),
               ),
             ),
           ],
