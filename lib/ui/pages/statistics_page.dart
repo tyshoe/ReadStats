@@ -58,11 +58,15 @@ class _StatisticsPageState extends State<StatisticsPage> {
       'highestRating': bookStats['highest_rating'] ?? 0,
       'lowestRating': bookStats['lowest_rating'] ?? 0,
       'averageRating': bookStats['average_rating'] ?? 0,
+      'highestPages': bookStats['highest_pages'] ?? 0,
+      'lowestPages': bookStats['lowest_pages'] ?? 0,
+      'averagePages': bookStats['average_pages'] ?? 0,
       'slowestReadTime':
       convertMinutesToTimeString(bookStats['slowest_read_time'] ?? 0),
       'fastestReadTime':
       convertMinutesToTimeString(bookStats['fastest_read_time'] ?? 0),
       'booksCompleted': bookStats['books_completed'] ?? 0,
+
     };
   }
 
@@ -257,14 +261,20 @@ class _StatisticsPageState extends State<StatisticsPage> {
                               textColor: textColor,
                               subtitleColor: subtitleColor),
                           _statCard(
+                              title: 'Average Pages',
+                              value: stats['averagePages'].toStringAsFixed(2),
+                              bgColor: cardColor,
+                              textColor: textColor,
+                              subtitleColor: subtitleColor),
+                          _statCard(
                               title: 'Longest Book',
-                              value: 0.toString(),
+                              value: stats['highestPages'].toString(),
                               bgColor: cardColor,
                               textColor: textColor,
                               subtitleColor: subtitleColor),
                           _statCard(
                               title: 'Shortest Book',
-                              value: 0.toString(),
+                              value: stats['lowestPages'].toString(),
                               bgColor: cardColor,
                               textColor: textColor,
                               subtitleColor: subtitleColor),

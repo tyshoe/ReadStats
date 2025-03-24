@@ -314,6 +314,9 @@ class DatabaseHelper {
       COALESCE(MAX(books.rating), 0) AS highest_rating,
       COALESCE(MIN(books.rating), 0) AS lowest_rating,
       COALESCE(AVG(books.rating), 0) AS average_rating,
+      COALESCE(MAX(books.page_count), 0) AS highest_pages,
+      COALESCE(MIN(books.page_count), 0) AS lowest_pages,
+      COALESCE(AVG(books.page_count), 0) AS average_pages,
       COALESCE(MAX(BookReadTimes.total_read_time), 0) AS slowest_read_time,
       COALESCE(MIN(BookReadTimes.total_read_time), 0) AS fastest_read_time,
       COALESCE(COUNT(DISTINCT books.id), 0) AS books_completed
