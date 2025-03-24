@@ -3,6 +3,7 @@ class Book {
   String title;
   String author;
   int wordCount;
+  int pageCount;
   double rating;
   bool isCompleted;
   int bookTypeId;
@@ -15,6 +16,7 @@ class Book {
     required this.title,
     required this.author,
     required this.wordCount,
+    required this.pageCount,
     required this.rating,
     required this.isCompleted,
     required this.bookTypeId,
@@ -30,6 +32,7 @@ class Book {
       'title': title,
       'author': author,
       'word_count': wordCount,
+      'page_count': pageCount,
       'rating': rating,
       'is_completed': isCompleted ? 1 : 0, // SQLite doesn't support bool, use 1 & 0
       'book_type_id': bookTypeId,
@@ -46,6 +49,7 @@ class Book {
       title: map['title'],
       author: map['author'],
       wordCount: map['word_count'],
+      pageCount: map['page_count'],
       rating: map['rating'].toDouble(),
       isCompleted: map['is_completed'] == 1, // Convert 1 & 0 back to bool
       bookTypeId: map['book_type_id'],

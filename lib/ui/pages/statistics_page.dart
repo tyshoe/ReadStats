@@ -188,18 +188,6 @@ class _StatisticsPageState extends State<StatisticsPage> {
                               textColor: textColor,
                               subtitleColor: subtitleColor),
                           _statCard(
-                              title: 'Total Pages Read',
-                              value: stats['totalPagesRead'].toString(),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          _statCard(
-                              title: 'Average Pages/Minute',
-                              value: stats['avgPagesPerMinute'].toStringAsFixed(2),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          _statCard(
                               title: 'Books Finished',
                               value: stats['booksCompleted'].toString(),
                               bgColor: cardColor,
@@ -248,6 +236,35 @@ class _StatisticsPageState extends State<StatisticsPage> {
                           _statCard(
                               title: 'Fastest Read',
                               value: stats['fastestReadTime'].toString(),
+                              bgColor: cardColor,
+                              textColor: textColor,
+                              subtitleColor: subtitleColor),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Pages',
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                          _statCard(
+                              title: 'Total Pages Read',
+                              value: stats['totalPagesRead'].toString(),
+                              bgColor: cardColor,
+                              textColor: textColor,
+                              subtitleColor: subtitleColor),
+                          _statCard(
+                              title: 'Average Pages/Minute',
+                              value: stats['avgPagesPerMinute'].toStringAsFixed(2),
+                              bgColor: cardColor,
+                              textColor: textColor,
+                              subtitleColor: subtitleColor),
+                          _statCard(
+                              title: 'Longest Book',
+                              value: 0.toString(),
+                              bgColor: cardColor,
+                              textColor: textColor,
+                              subtitleColor: subtitleColor),
+                          _statCard(
+                              title: 'Shortest Book',
+                              value: 0.toString(),
                               bgColor: cardColor,
                               textColor: textColor,
                               subtitleColor: subtitleColor),

@@ -21,6 +21,7 @@ class _AddBookPageState extends State<AddBookPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _authorController = TextEditingController();
   final TextEditingController _wordCountController = TextEditingController();
+  final TextEditingController _pageCountController = TextEditingController();
   final DateTime _dateToday = DateTime.now();
   double _rating = 0;
   bool _isCompleted = false;
@@ -42,6 +43,7 @@ class _AddBookPageState extends State<AddBookPage> {
     String title = _titleController.text;
     String author = _authorController.text;
     int wordCount = int.tryParse(_wordCountController.text) ?? 0;
+    int pageCount = int.tryParse(_pageCountController.text) ?? 0;
 
     if (title.isEmpty || author.isEmpty) {
       setState(() {
@@ -57,6 +59,7 @@ class _AddBookPageState extends State<AddBookPage> {
       "title": title,
       "author": author,
       "word_count": wordCount,
+      "page_count": pageCount,
       "rating": _rating,
       "is_completed": _isCompleted ? 1 : 0,
       "book_type_id": _selectedBookType + 1,
@@ -68,6 +71,7 @@ class _AddBookPageState extends State<AddBookPage> {
     _titleController.clear();
     _authorController.clear();
     _wordCountController.clear();
+    _pageCountController.clear();
     setState(() {
       _rating = 0;
       _isCompleted = false;
@@ -182,6 +186,29 @@ class _AddBookPageState extends State<AddBookPage> {
                               color: CupertinoColors.systemGrey),
                         ),
                       )
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              const Text("Total Pages",
+                  style: TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
+              CupertinoTextField(
+                controller: _pageCountController,
+                onTapOutside: (event) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                },
+                placeholder: "Number of Pages",
+                padding: const EdgeInsets.all(12),
+                keyboardType: TextInputType.number,
+                suffix: _pageCountController.text.isNotEmpty
+                    ? Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: GestureDetector(
+                    onTap: () => _clearField(_pageCountController),
+                    child: Icon(CupertinoIcons.clear,
+                        color: CupertinoColors.systemGrey),
+                  ),
+                )
                     : null,
               ),
               const SizedBox(height: 16),

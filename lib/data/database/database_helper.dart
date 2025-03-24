@@ -54,6 +54,7 @@ class DatabaseHelper {
         title TEXT,
         author TEXT,
         word_count INTEGER DEFAULT 0,
+        page_count INTEGER DEFAULT 0,
         rating REAL,
         is_completed INTEGER,
         book_type_id INTEGER,

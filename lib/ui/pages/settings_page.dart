@@ -471,32 +471,33 @@ class SettingsPage extends StatelessWidget {
     for (var row in rows) {
       print('Row data: $row');
 
-      if (row.length >= 10) {
+      if (row.length >= 11) {
         // Ensure there are enough columns
         try {
           int id = row[0] ?? 0;
           String title = row[1].toString();
           String author = row[2].toString();
           int wordCount = int.tryParse(row[3].toString()) ?? 0;
-          double rating = double.tryParse(row[4].toString()) ?? 0.0;
-          bool isCompleted = row[5] == 1 ||
-              row[5] == 'true'; // Handle different boolean formats
-          int bookTypeId = int.tryParse(row[6].toString()) ?? 0;
+          int pageCount = int.tryParse(row[4].toString()) ?? 0;
+          double rating = double.tryParse(row[5].toString()) ?? 0.0;
+          bool isCompleted = row[6] == 1 ||
+              row[6] == 'true'; // Handle different boolean formats
+          int bookTypeId = int.tryParse(row[7].toString()) ?? 0;
 
           // Safely parse date fields using the provided logic
-          String dateAdded = DateTime.tryParse(row[7].toString())
+          String dateAdded = DateTime.tryParse(row[8].toString())
                   ?.toIso8601String()
                   .split('T')[0] ??
               DateTime.now().toIso8601String().split('T')[0];
 
-          String? dateStarted = row[8]?.toString().isNotEmpty == true
-              ? DateTime.tryParse(row[8].toString())
+          String? dateStarted = row[9]?.toString().isNotEmpty == true
+              ? DateTime.tryParse(row[9].toString())
                   ?.toIso8601String()
                   .split('T')[0]
               : null;
 
-          String? dateFinished = row[9]?.toString().isNotEmpty == true
-              ? DateTime.tryParse(row[9].toString())
+          String? dateFinished = row[10]?.toString().isNotEmpty == true
+              ? DateTime.tryParse(row[10].toString())
                   ?.toIso8601String()
                   .split('T')[0]
               : null;
@@ -506,6 +507,7 @@ class SettingsPage extends StatelessWidget {
             title: title,
             author: author,
             wordCount: wordCount,
+            pageCount: pageCount,
             rating: rating,
             isCompleted: isCompleted,
             bookTypeId: bookTypeId,
@@ -577,6 +579,7 @@ class SettingsPage extends StatelessWidget {
         'title',
         'author',
         'word_count',
+        'page_count',
         'rating',
         'is_complete',
         'book_type_id',
@@ -589,6 +592,7 @@ class SettingsPage extends StatelessWidget {
             book.title,
             book.author,
             book.wordCount.toString(),
+            book.pageCount.toString(),
             book.rating.toString(),
             book.isCompleted.toString(),
             book.bookTypeId.toString(),
