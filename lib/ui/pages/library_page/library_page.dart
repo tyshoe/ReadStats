@@ -79,7 +79,7 @@ class _LibraryPageState extends State<LibraryPage> {
       _isSearching = !_isSearching;
       if (!_isSearching) {
         _searchController.clear();
-        _filteredBooks = widget.books;
+        _filteredBooks = _sortAndFilterBooks(List<Map<String, dynamic>>.from(widget.books), _selectedSortOption, _isAscending, _selectedFormat);
       }
     });
   }
@@ -349,10 +349,7 @@ class _LibraryPageState extends State<LibraryPage> {
                       alignment: Alignment.centerRight,
                       child: Padding(
                         padding: EdgeInsets.only(top: 8, bottom: 16),
-                        child: Text(
-                          _isSearching
-                              ? '${_filteredBooks.length}/${widget.books.length}'
-                              : '${widget.books.length}',
+                        child: Text('${_filteredBooks.length}/${widget.books.length}',
                           style: TextStyle(fontSize: 16, color: textColor),
                         ),
                       ),
