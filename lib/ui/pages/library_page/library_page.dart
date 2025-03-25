@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'book_card.dart';
 import 'book_row.dart';
+import 'filter_sort_modal.dart';
 import 'package:intl/intl.dart';
 import '../add_book_page.dart';
 import '../edit_book_page.dart';
@@ -36,12 +37,28 @@ class _LibraryPageState extends State<LibraryPage> {
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _filteredBooks = [];
+  String _selectedSortOption = 'Date added';
+  bool _isAscending = false;
 
   @override
   void initState() {
     super.initState();
     _filteredBooks = widget.books;
+    _filteredBooks = _sortBooks(List<Map<String, dynamic>>.from(_filteredBooks), _selectedSortOption, _isAscending);
     _searchController.addListener(_filterBooks);
+  }
+
+  @override
+  void didUpdateWidget(covariant LibraryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Check if the books have been updated
+    if (widget.books != oldWidget.books) {
+      setState(() {
+        _filteredBooks = widget.books;
+        _filteredBooks = _sortBooks(List<Map<String, dynamic>>.from(_filteredBooks), _selectedSortOption, _isAscending);
+      });
+    }
   }
 
   @override
@@ -134,9 +151,9 @@ class _LibraryPageState extends State<LibraryPage> {
             'Are you sure you want to delete this book and all its sessions?'),
         actions: [
           CupertinoDialogAction(
-            child: const Text('Cancel'),
             onPressed: () => Navigator.pop(context),
             isDefaultAction: true,
+            child: const Text('Cancel'),
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
@@ -162,6 +179,64 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
+  // Sorting method
+  List<Map<String, dynamic>> _sortBooks(List<Map<String, dynamic>> books, String selectedSortOption, bool isAscending) {
+    books.sort((a, b) {
+      int comparison = 0;
+
+      if (selectedSortOption == 'Title') {
+        comparison = a['title'].compareTo(b['title']);
+      } else if (selectedSortOption == 'Author') {
+        comparison = a['author'].compareTo(b['author']);
+      } else if (selectedSortOption == 'Rating') {
+        comparison = (a['rating'] as double).compareTo(b['rating'] as double);
+      } else if (selectedSortOption == 'Pages') {
+        comparison = (a['pages'] as int).compareTo(b['pages'] as int);
+      } else if (selectedSortOption == 'Date started') {
+        // Handle null values by comparing with DateTime(0) (early date) if null
+        DateTime dateStartedA = a['date_started'] != null ? DateTime.parse(a['date_started']) : DateTime(0);
+        DateTime dateStartedB = b['date_started'] != null ? DateTime.parse(b['date_started']) : DateTime(0);
+        comparison = dateStartedA.compareTo(dateStartedB);
+      } else if (selectedSortOption == 'Date finished') {
+        // Handle null values by comparing with DateTime(0) (early date) if null
+        DateTime dateFinishedA = a['date_finished'] != null ? DateTime.parse(a['date_finished']) : DateTime(0);
+        DateTime dateFinishedB = b['date_finished'] != null ? DateTime.parse(b['date_finished']) : DateTime(0);
+        comparison = dateFinishedA.compareTo(dateFinishedB);
+      } else if (selectedSortOption == 'Date added') {
+        // Handle null values by comparing with DateTime(0) (early date) if null
+        DateTime dateAddedA = a['date_added'] != null ? DateTime.parse(a['date_added']) : DateTime(0);
+        DateTime dateAddedB = b['date_added'] != null ? DateTime.parse(b['date_added']) : DateTime(0);
+        comparison = dateAddedA.compareTo(dateAddedB);
+      }
+
+      return isAscending ? comparison : -comparison;
+    });
+    return books;
+  }
+
+
+  // Show the filter/sort modal
+  void _showSortFilterModal() {
+    SortFilterPopup.showSortFilterPopup(
+      context,
+          (String selectedOption) {
+        setState(() {
+          _selectedSortOption = selectedOption;
+          _filteredBooks = _sortBooks(List<Map<String, dynamic>>.from(_filteredBooks), _selectedSortOption, _isAscending);
+        });
+      },
+          (bool isAscending) {
+        setState(() {
+          _isAscending = isAscending;
+          _filteredBooks = _sortBooks(List<Map<String, dynamic>>.from(_filteredBooks), _selectedSortOption, _isAscending);
+        });
+      },
+      _selectedSortOption,
+      _isAscending,
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final textColor = CupertinoColors.label.resolveFrom(context);
@@ -171,15 +246,15 @@ class _LibraryPageState extends State<LibraryPage> {
       navigationBar: CupertinoNavigationBar(
         middle: _isSearching
             ? CupertinoTextField(
-                controller: _searchController,
-                placeholder: 'Search books...',
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                style: TextStyle(color: textColor),
-                decoration: BoxDecoration(
-                  color: CupertinoColors.systemGrey5,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              )
+          controller: _searchController,
+          placeholder: 'Search books...',
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          style: TextStyle(color: textColor),
+          decoration: BoxDecoration(
+            color: CupertinoColors.systemGrey5,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        )
             : Text('Library', style: TextStyle(color: textColor)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -188,9 +263,7 @@ class _LibraryPageState extends State<LibraryPage> {
               padding: EdgeInsets.zero,
               onPressed: _toggleSearch,
               child: Icon(
-                _isSearching
-                    ? CupertinoIcons.clear_circled
-                    : CupertinoIcons.search,
+                _isSearching ? CupertinoIcons.clear_circled : CupertinoIcons.search,
                 color: textColor,
               ),
             ),
@@ -204,6 +277,11 @@ class _LibraryPageState extends State<LibraryPage> {
                 color: textColor,
               ),
             ),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: _showSortFilterModal, // Open the filter/sort modal
+              child: Icon(Icons.filter_list, color: textColor),
+            ),
           ],
         ),
       ),
@@ -215,8 +293,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset('assets/images/carl.png',
-                        width: 100, height: 100),
+                    Image.asset('assets/images/carl.png', width: 100, height: 100),
                     SizedBox(height: 16),
                     Text(
                       'Carl is hungry, add a book to your library',
@@ -236,8 +313,8 @@ class _LibraryPageState extends State<LibraryPage> {
                         padding: EdgeInsets.only(top: 8, bottom: 16),
                         child: Text(
                           _isSearching
-                              ? '${_filteredBooks.length}/${widget.books.length}' // Show filtered count when searching
-                              : '${widget.books.length}', // Show total count when not searching
+                              ? '${_filteredBooks.length}/${widget.books.length}'
+                              : '${widget.books.length}',
                           style: TextStyle(fontSize: 16, color: textColor),
                         ),
                       ),
