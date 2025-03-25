@@ -33,10 +33,47 @@ class LibraryPage extends StatefulWidget {
 class _LibraryPageState extends State<LibraryPage> {
   final DatabaseHelper _dbHelper = DatabaseHelper();
   bool _isCompactRowView = true;
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _filteredBooks = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredBooks = widget.books;
+    _searchController.addListener(_filterBooks);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _toggleView() {
     setState(() {
       _isCompactRowView = !_isCompactRowView;
+    });
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearching = !_isSearching;
+      if (!_isSearching) {
+        _searchController.clear();
+        _filteredBooks = widget.books;
+      }
+    });
+  }
+
+  void _filterBooks() {
+    setState(() {
+      String query = _searchController.text.toLowerCase();
+      _filteredBooks = widget.books.where((book) {
+        String title = book['title'].toLowerCase();
+        String author = book['author'].toLowerCase();
+        return title.contains(query) || author.contains(query);
+      }).toList();
     });
   }
 
@@ -127,32 +164,60 @@ class _LibraryPageState extends State<LibraryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
     final textColor = CupertinoColors.label.resolveFrom(context);
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        middle: Text('Library', style: TextStyle(color: textColor)),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: _toggleView,
-          child: Icon(
-            _isCompactRowView ? CupertinoIcons.list_bullet : CupertinoIcons.bars,
-            color: textColor,
-          ),
+        middle: _isSearching
+            ? CupertinoTextField(
+                controller: _searchController,
+                placeholder: 'Search books...',
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                style: TextStyle(color: textColor),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemGrey5,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              )
+            : Text('Library', style: TextStyle(color: textColor)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: _toggleSearch,
+              child: Icon(
+                _isSearching
+                    ? CupertinoIcons.clear_circled
+                    : CupertinoIcons.search,
+                color: textColor,
+              ),
+            ),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: _toggleView,
+              child: Icon(
+                _isCompactRowView
+                    ? CupertinoIcons.list_bullet
+                    : CupertinoIcons.bars,
+                color: textColor,
+              ),
+            ),
+          ],
         ),
       ),
       child: SafeArea(
         child: Stack(
           children: [
-            if (widget.books.isEmpty)
+            if (_filteredBooks.isEmpty)
               Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset('assets/images/carl.png', width: 100, height: 100),
-                    const SizedBox(height: 16),
+                    Image.asset('assets/images/carl.png',
+                        width: 100, height: 100),
+                    SizedBox(height: 16),
                     Text(
                       'Carl is hungry, add a book to your library',
                       style: TextStyle(fontSize: 16, color: textColor),
@@ -162,15 +227,17 @@ class _LibraryPageState extends State<LibraryPage> {
               )
             else
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: EdgeInsets.symmetric(horizontal: 8),
                 child: Column(
                   children: [
                     Align(
                       alignment: Alignment.centerRight,
                       child: Padding(
-                        padding: const EdgeInsets.only(top: 8, bottom: 16),
+                        padding: EdgeInsets.only(top: 8, bottom: 16),
                         child: Text(
-                          '${widget.books.length}',
+                          _isSearching
+                              ? '${_filteredBooks.length}/${widget.books.length}' // Show filtered count when searching
+                              : '${widget.books.length}', // Show total count when not searching
                           style: TextStyle(fontSize: 16, color: textColor),
                         ),
                       ),
@@ -179,17 +246,10 @@ class _LibraryPageState extends State<LibraryPage> {
                       child: CupertinoScrollbar(
                         thickness: 2,
                         child: ListView.builder(
-                          itemCount: widget.books.length,
+                          itemCount: _filteredBooks.length,
                           itemBuilder: (context, index) {
-                            final book = widget.books[index];
-                            return _isCompactRowView
-                                ? BookRow(
-                              book: book,
-                              textColor: textColor,
-                              isCompactView: _isCompactRowView,
-                              onTap: () => _showBookPopup(context, book),
-                            )
-                                : BookRow(
+                            final book = _filteredBooks[index];
+                            return BookRow(
                               book: book,
                               textColor: textColor,
                               isCompactView: _isCompactRowView,
@@ -206,11 +266,11 @@ class _LibraryPageState extends State<LibraryPage> {
               bottom: 20,
               right: 20,
               child: CupertinoButton(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(16),
                 borderRadius: BorderRadius.circular(16),
                 color: accentColor,
                 onPressed: _navigateToAddBookPage,
-                child: const Icon(CupertinoIcons.add, color: CupertinoColors.white),
+                child: Icon(CupertinoIcons.add, color: CupertinoColors.white),
               ),
             ),
           ],
