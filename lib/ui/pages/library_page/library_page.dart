@@ -39,13 +39,14 @@ class _LibraryPageState extends State<LibraryPage> {
   List<Map<String, dynamic>> _filteredBooks = [];
   String _selectedSortOption = 'Date added';
   bool _isAscending = false;
+  String _selectedFormat = 'All';
 
   @override
   void initState() {
     super.initState();
     _filteredBooks = widget.books;
-    _filteredBooks = _sortBooks(List<Map<String, dynamic>>.from(_filteredBooks), _selectedSortOption, _isAscending);
-    _searchController.addListener(_filterBooks);
+    _filteredBooks = _sortAndFilterBooks(List<Map<String, dynamic>>.from(widget.books), _selectedSortOption, _isAscending, _selectedFormat);
+    _searchController.addListener(_searchBooks);
   }
 
   @override
@@ -56,7 +57,7 @@ class _LibraryPageState extends State<LibraryPage> {
     if (widget.books != oldWidget.books) {
       setState(() {
         _filteredBooks = widget.books;
-        _filteredBooks = _sortBooks(List<Map<String, dynamic>>.from(_filteredBooks), _selectedSortOption, _isAscending);
+        _filteredBooks = _sortAndFilterBooks(List<Map<String, dynamic>>.from(widget.books), _selectedSortOption, _isAscending, _selectedFormat);
       });
     }
   }
@@ -83,7 +84,7 @@ class _LibraryPageState extends State<LibraryPage> {
     });
   }
 
-  void _filterBooks() {
+  void _searchBooks() {
     setState(() {
       String query = _searchController.text.toLowerCase();
       _filteredBooks = widget.books.where((book) {
@@ -179,6 +180,34 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
+  List<Map<String, dynamic>> _sortAndFilterBooks(List<Map<String, dynamic>> books, String selectedSortOption, bool isAscending, String selectedFormat) {
+    List<Map<String, dynamic>> filteredBooks = _filterBooks(books, selectedFormat);
+    return _sortBooks(filteredBooks, selectedSortOption, isAscending);
+  }
+
+  List<Map<String, dynamic>> _filterBooks(List<Map<String, dynamic>> books, String selectedFormat) {
+    int selectedFormatId = 0; // Default to 0 (All formats)
+    if (selectedFormat != 'All') {
+      selectedFormatId = bookTypeNames.entries.firstWhere((entry) => entry.value == selectedFormat).key;
+    }
+
+    return books.where((book) {
+      if (selectedFormatId == 0) {
+        return true; // Return all books if no specific format is selected
+      } else {
+        return book['book_type_id'] == selectedFormatId; // Filter books by selected format
+      }
+    }).toList();
+  }
+
+  static const Map<int, String> bookTypeNames = {
+    1: "Paperback",
+    2: "Hardback",
+    3: "eBook",
+    4: "Audiobook",
+  };
+
+
   // Sorting method
   List<Map<String, dynamic>> _sortBooks(List<Map<String, dynamic>> books, String selectedSortOption, bool isAscending) {
     books.sort((a, b) {
@@ -222,18 +251,27 @@ class _LibraryPageState extends State<LibraryPage> {
           (String selectedOption) {
         setState(() {
           _selectedSortOption = selectedOption;
-          _filteredBooks = _sortBooks(List<Map<String, dynamic>>.from(_filteredBooks), _selectedSortOption, _isAscending);
+          _filteredBooks = _sortAndFilterBooks(List<Map<String, dynamic>>.from(widget.books), _selectedSortOption, _isAscending, _selectedFormat);
         });
       },
           (bool isAscending) {
         setState(() {
           _isAscending = isAscending;
-          _filteredBooks = _sortBooks(List<Map<String, dynamic>>.from(_filteredBooks), _selectedSortOption, _isAscending);
+          _filteredBooks = _sortAndFilterBooks(List<Map<String, dynamic>>.from(widget.books), _selectedSortOption, _isAscending, _selectedFormat);
         });
       },
       _selectedSortOption,
       _isAscending,
+      onFormatChange,
+      _selectedFormat,
     );
+  }
+
+  void onFormatChange(String newFormat) {
+    setState(() {
+      _selectedFormat = newFormat;
+      _filteredBooks = _sortAndFilterBooks(List<Map<String, dynamic>>.from(widget.books), _selectedSortOption, _isAscending, _selectedFormat);
+    });
   }
 
 
