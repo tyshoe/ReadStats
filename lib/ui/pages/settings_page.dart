@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -397,7 +398,7 @@ class SettingsPage extends StatelessWidget {
                   const SizedBox(height: 16),
                   ...bookTypeNames.entries.map((entry) {
                     final int typeId = entry.key;
-                    final String typeName = entry.value ?? "Unknown";
+                    final String typeName = entry.value;
                     final bool isSelected = typeId == selectedBookType;
 
                     return CupertinoButton(
@@ -463,13 +464,17 @@ class SettingsPage extends StatelessWidget {
         }
       }
     } catch (e) {
-      print('Error importing CSV: $e');
+      if (kDebugMode) {
+        print('Error importing CSV: $e');
+      }
     }
   }
 
   Future<void> _importBooks(List<List<dynamic>> rows) async {
     for (var row in rows) {
-      print('Row data: $row');
+      if (kDebugMode) {
+        print('Row data: $row');
+      }
 
       if (row.length >= 11) {
         // Ensure there are enough columns
@@ -515,11 +520,15 @@ class SettingsPage extends StatelessWidget {
             dateStarted: dateStarted,
             dateFinished: dateFinished,
           );
-          print('Book data is: $book');
+          if (kDebugMode) {
+            print('Book data is: $book');
+          }
 
           await bookRepository.addBook(book);
         } catch (e) {
-          print('Error processing row: $row. Error: $e');
+          if (kDebugMode) {
+            print('Error processing row: $row. Error: $e');
+          }
         }
       }
     }
@@ -545,7 +554,9 @@ class SettingsPage extends StatelessWidget {
       }
     }
     refreshSessions();
-    print('Sessions imported successfully.');
+    if (kDebugMode) {
+      print('Sessions imported successfully.');
+    }
   }
 
   Future<void> exportDataToCSV() async {
@@ -556,14 +567,22 @@ class SettingsPage extends StatelessWidget {
       String sessionsFilePath =
           await exportSessionsToCSV(await sessionRepository.getSessions());
 
-      print('Books data exported to: $booksFilePath');
-      print('Sessions data exported to: $sessionsFilePath');
+      if (kDebugMode) {
+        print('Books data exported to: $booksFilePath');
+      }
+      if (kDebugMode) {
+        print('Sessions data exported to: $sessionsFilePath');
+      }
 
       await Share.shareXFiles([XFile(booksFilePath), XFile(sessionsFilePath)]);
 
-      print('Both books and sessions data exported successfully!');
+      if (kDebugMode) {
+        print('Both books and sessions data exported successfully!');
+      }
     } catch (e) {
-      print('An error occurred while exporting data: $e');
+      if (kDebugMode) {
+        print('An error occurred while exporting data: $e');
+      }
     }
   }
 
@@ -644,8 +663,8 @@ class SettingsPage extends StatelessWidget {
           actions: [
             CupertinoDialogAction(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
               isDefaultAction: true,
+              child: const Text('Cancel'),
             ),
             CupertinoDialogAction(
               isDestructiveAction: true,

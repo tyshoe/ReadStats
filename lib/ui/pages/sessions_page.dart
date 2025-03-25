@@ -40,7 +40,6 @@ class _SessionsPageState extends State<SessionsPage> {
     if (oldWidget.books != widget.books) {
       _initializeBookMap();
       widget.refreshSessions();
-      print('BOOK MAP DEPENDENCY CHANGED - REFRESHING SESSIONS');
     }
   }
 

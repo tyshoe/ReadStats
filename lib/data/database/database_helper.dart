@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -35,7 +36,9 @@ class DatabaseHelper {
 
     // Print the database version after opening
     final version = await db.getVersion();
-    print('Database opened. Current version: $version');
+    if (kDebugMode) {
+      print('Database opened. Current version: $version');
+    }
 
     return db;
   }
@@ -83,13 +86,17 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    print("Database upgrade called from version $oldVersion to $newVersion");
+    if (kDebugMode) {
+      print("Database upgrade called from version $oldVersion to $newVersion");
+    }
   }
 
   Future<void> printDatabaseVersion() async {
     final db = await database;
     final version = await db.getVersion();
-    print('Current database version: $version');
+    if (kDebugMode) {
+      print('Current database version: $version');
+    }
   }
 
   Future<int> insertSession(Map<String, dynamic> session) async {
@@ -126,10 +133,14 @@ class DatabaseHelper {
 
       final result = await db.rawQuery(query, arguments);
 
-      print('Sessions fetched: $result');
+      if (kDebugMode) {
+        print('Sessions fetched: $result');
+      }
       return result;
     } catch (e) {
-      print('Error fetching sessions: $e');
+      if (kDebugMode) {
+        print('Error fetching sessions: $e');
+      }
       return [];
     }
   }
@@ -148,7 +159,9 @@ class DatabaseHelper {
         return int.tryParse(row['year'].toString()) ?? 0;
       }).toList();
     } catch (e) {
-      print('Error fetching valid years: $e');
+      if (kDebugMode) {
+        print('Error fetching valid years: $e');
+      }
       return [];
     }
   }
@@ -168,7 +181,9 @@ class DatabaseHelper {
         return int.tryParse(row['year'].toString()) ?? 0;
       }).toList();
     } catch (e) {
-      print('Error fetching valid book years: $e');
+      if (kDebugMode) {
+        print('Error fetching valid book years: $e');
+      }
       return [];
     }
   }
@@ -208,8 +223,9 @@ class DatabaseHelper {
 
   Future<int> insertBook(Map<String, dynamic> book) async {
     final db = await database;
-    print('Attempt add book: $book');
-    print('Type of dateStarted: ${book['date_started']?.runtimeType}');
+    if (kDebugMode) {
+      print('Attempt add book: $book');
+    }
     return await db.insert('books', book);
   }
 
@@ -272,7 +288,9 @@ class DatabaseHelper {
     GROUP BY books.id
   ''', [bookId]);
 
-    print(result);
+    if (kDebugMode) {
+      print(result);
+    }
     if (result.isNotEmpty) {
       return result.first;
     } else {
@@ -327,7 +345,9 @@ class DatabaseHelper {
       $yearFilter  -- Apply the year filter if selected
   ''');
 
-    print(result);
+    if (kDebugMode) {
+      print(result);
+    }
     if (result.isNotEmpty) {
       return result.first;
     } else {

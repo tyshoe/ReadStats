@@ -80,17 +80,6 @@ class _EditBookPageState extends State<EditBookPage> {
       "date_finished": _dateFinished?.toIso8601String(),
     });
 
-    print({
-      "id": widget.book['id'],
-      "title": title,
-      "author": author,
-      "word_count": wordCount,
-      "page_count": pageCount,
-      "rating": _rating,
-      "is_completed": _isCompleted ? 1 : 0,
-      "book_type_id": _selectedBookType + 1,
-    });
-
     setState(() {
       _statusMessage = 'Book updated successfully!';
       _isSuccess = true;

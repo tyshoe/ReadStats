@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/models/session.dart';
@@ -116,7 +117,6 @@ class _StatisticsPageState extends State<StatisticsPage> {
                         onTap: () {
                           setState(() {
                             selectedYear = year;
-                            print('Selected year: $selectedYear');
                           });
                         },
                         child: Padding(
@@ -322,7 +322,9 @@ class _StatisticsPageState extends State<StatisticsPage> {
     final sessionYears = await widget.sessionRepository.getSessionYears();
     final bookYears = await widget.bookRepository.getBookYears();
 
-    print('SessionYears: $sessionYears, bookYears: $bookYears');
+    if (kDebugMode) {
+      print('SessionYears: $sessionYears, bookYears: $bookYears');
+    }
 
     // Combine both lists and remove duplicates
     final combinedYears = {...sessionYears, ...bookYears}.toList();

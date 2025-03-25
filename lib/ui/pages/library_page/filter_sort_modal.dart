@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 
 class SortFilterPopup {
   static void showSortFilterPopup(
@@ -143,7 +142,7 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          currentSelectedSortOption ?? 'Select a Sort Option',
+                          currentSelectedSortOption,
                           style: TextStyle(
                               fontSize: 16,
                               color:
@@ -227,7 +226,7 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          currentSelectedFormat ?? 'Select a Format',
+                          currentSelectedFormat,
                           style: TextStyle(
                               fontSize: 16,
                               color:

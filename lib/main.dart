@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'data/database/database_helper.dart';
 import 'data/repositories/book_repository.dart';
@@ -65,7 +66,9 @@ class _MyAppState extends State<MyApp> {
   Future<void> _initializeSettingsViewModel() async {
     final accentColor = await SettingsViewModel.getAccentColor();
     final defaultBookType = await SettingsViewModel.getDefaultBookType();
-    print(defaultBookType);
+    if (kDebugMode) {
+      print(defaultBookType);
+    }
     _settingsViewModel = SettingsViewModel(
       themeMode: widget.themeMode,
       accentColor: accentColor,
@@ -78,7 +81,9 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _books = books;
     });
-    print('Books: $_books');
+    if (kDebugMode) {
+      print('Books: $_books');
+    }
   }
 
   Future<void> _addBook(Map<String, dynamic> book) async {
