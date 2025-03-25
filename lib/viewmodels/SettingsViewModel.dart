@@ -6,14 +6,23 @@ class SettingsViewModel {
   final ValueNotifier<ThemeMode> themeModeNotifier;
   final ValueNotifier<Color> accentColorNotifier;
   final ValueNotifier<int> defaultBookTypeNotifier;
+  final ValueNotifier<String> librarySortOptionNotifier;
+  final ValueNotifier<bool> isLibrarySortAscendingNotifier;
+  final ValueNotifier<String> libraryBookFormatFilter;
 
   SettingsViewModel({
     required ThemeMode themeMode,
     required Color accentColor,
     required int defaultBookType,
+    required String sortOption,
+    required bool isAscending,
+    required String bookFormat,
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
-        defaultBookTypeNotifier = ValueNotifier(defaultBookType);
+        defaultBookTypeNotifier = ValueNotifier(defaultBookType),
+        librarySortOptionNotifier = ValueNotifier(sortOption),
+        isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
+        libraryBookFormatFilter = ValueNotifier(bookFormat);
 
   // Method to toggle theme mode (light, dark, system)
   Future<void> toggleTheme(ThemeMode themeMode) async {
@@ -63,5 +72,44 @@ class SettingsViewModel {
   static Future<int> getDefaultBookType() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getInt('defaultBookType') ?? 1;
+  }
+
+  // Save sort option
+  Future<void> setLibrarySortOption(String sortOption) async {
+    librarySortOptionNotifier.value = sortOption;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('librarySortOption', sortOption);
+  }
+
+  // Load saved sort option
+  static Future<String> getLibrarySortOption() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('librarySortOption') ?? 'Title';
+  }
+
+  // Save ascending/descending order
+  Future<void> setLibrarySortAscending(bool isAscending) async {
+    isLibrarySortAscendingNotifier.value = isAscending;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool('isLibrarySortAscending', isAscending);
+  }
+
+  // Load saved order preference
+  static Future<bool> getLibrarySortAscending() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('isLibrarySortAscending') ?? true;
+  }
+
+  // Save book format filter
+  Future<void> setLibraryBookFormatFilter(String bookFormat) async {
+    libraryBookFormatFilter.value = bookFormat;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('libraryBookFormatFilter', bookFormat);
+  }
+
+  // Load saved book format filter
+  static Future<String> getLibraryBookFormatFilter() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('libraryBookFormatFilter') ?? 'All';
   }
 }

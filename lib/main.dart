@@ -66,13 +66,25 @@ class _MyAppState extends State<MyApp> {
   Future<void> _initializeSettingsViewModel() async {
     final accentColor = await SettingsViewModel.getAccentColor();
     final defaultBookType = await SettingsViewModel.getDefaultBookType();
+    final sortOption = await SettingsViewModel.getLibrarySortOption();
+    final isAscending = await SettingsViewModel.getLibrarySortAscending();
+    final bookFormat = await SettingsViewModel.getLibraryBookFormatFilter();
+
     if (kDebugMode) {
-      print(defaultBookType);
+      print(
+          "Loading Prefrences: {Default Book Type: $defaultBookType,"
+              " Library Sort Option: $sortOption,"
+              " Library Sort Ascending: $isAscending,"
+              " Library Book Format Filter: $bookFormat}");
     }
+
     _settingsViewModel = SettingsViewModel(
       themeMode: widget.themeMode,
       accentColor: accentColor,
       defaultBookType: defaultBookType,
+      sortOption: sortOption,
+      isAscending: isAscending,
+      bookFormat: bookFormat,
     );
   }
 
@@ -107,8 +119,8 @@ class _MyAppState extends State<MyApp> {
           theme: themeMode == ThemeMode.system
               ? AppTheme.systemTheme(MediaQuery.of(context).platformBrightness)
               : themeMode == ThemeMode.dark
-              ? AppTheme.darkTheme
-              : AppTheme.lightTheme,
+                  ? AppTheme.darkTheme
+                  : AppTheme.lightTheme,
           home: NavigationMenu(
             toggleTheme: _settingsViewModel.toggleTheme,
             themeMode: themeMode,

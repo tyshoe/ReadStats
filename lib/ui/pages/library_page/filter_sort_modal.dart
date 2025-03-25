@@ -7,8 +7,8 @@ class SortFilterPopup {
     Function(bool) onOrderChange,
     String selectedSortOption,
     bool isAscending,
-    Function(String) onFormatChange, // Added format change callback
-    String selectedFormat, // Added selected format parameter
+    Function(String) onFormatChange,
+    String selectedFormat,
   ) {
     showCupertinoModalPopup(
       context: context,
@@ -18,8 +18,8 @@ class SortFilterPopup {
           isAscending: isAscending,
           onSortChange: onSortChange,
           onOrderChange: onOrderChange,
-          onFormatChange: onFormatChange, // Pass to the popup
-          selectedFormat: selectedFormat, // Pass to the popup
+          onFormatChange: onFormatChange,
+          selectedFormat: selectedFormat,
         );
       },
     );
@@ -31,8 +31,8 @@ class _SortFilterPopup extends StatefulWidget {
   final bool isAscending;
   final Function(String) onSortChange;
   final Function(bool) onOrderChange;
-  final Function(String) onFormatChange; // Added for format change
-  final String selectedFormat; // Added for selected format
+  final Function(String) onFormatChange;
+  final String selectedFormat;
 
   const _SortFilterPopup({
     Key? key,
@@ -40,9 +40,10 @@ class _SortFilterPopup extends StatefulWidget {
     required this.isAscending,
     required this.onSortChange,
     required this.onOrderChange,
-    required this.onFormatChange, // Added to constructor
-    required this.selectedFormat, // Added to constructor
+    required this.onFormatChange,
+    required this.selectedFormat,
   }) : super(key: key);
+
 
   @override
   _SortFilterPopupState createState() => _SortFilterPopupState();
@@ -51,7 +52,7 @@ class _SortFilterPopup extends StatefulWidget {
 class _SortFilterPopupState extends State<_SortFilterPopup> {
   late String currentSelectedSortOption;
   late bool currentIsAscending;
-  late String currentSelectedFormat; // Track selected format
+  late String currentSelectedFormat;
 
   // Book formats to be filtered
   final List<String> bookFormats = ['All', 'Paperback', 'Hardback', 'eBook', 'Audiobook'];

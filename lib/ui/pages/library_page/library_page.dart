@@ -44,6 +44,9 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   void initState() {
     super.initState();
+    _selectedSortOption = widget.settingsViewModel.librarySortOptionNotifier.value;
+    _isAscending = widget.settingsViewModel.isLibrarySortAscendingNotifier.value;
+    _selectedFormat = widget.settingsViewModel.libraryBookFormatFilter.value;
     _filteredBooks = widget.books;
     _filteredBooks = _sortAndFilterBooks(List<Map<String, dynamic>>.from(widget.books), _selectedSortOption, _isAscending, _selectedFormat);
     _searchController.addListener(_searchBooks);
@@ -182,6 +185,9 @@ class _LibraryPageState extends State<LibraryPage> {
 
   List<Map<String, dynamic>> _sortAndFilterBooks(List<Map<String, dynamic>> books, String selectedSortOption, bool isAscending, String selectedFormat) {
     List<Map<String, dynamic>> filteredBooks = _filterBooks(books, selectedFormat);
+    widget.settingsViewModel.setLibrarySortOption(selectedSortOption);
+    widget.settingsViewModel.setLibrarySortAscending(isAscending);
+    widget.settingsViewModel.setLibraryBookFormatFilter(selectedFormat);
     return _sortBooks(filteredBooks, selectedSortOption, isAscending);
   }
 
@@ -263,7 +269,7 @@ class _LibraryPageState extends State<LibraryPage> {
       _selectedSortOption,
       _isAscending,
       onFormatChange,
-      _selectedFormat,
+      _selectedFormat
     );
   }
 
