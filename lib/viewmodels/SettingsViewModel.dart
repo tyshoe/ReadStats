@@ -8,7 +8,8 @@ class SettingsViewModel {
   final ValueNotifier<int> defaultBookTypeNotifier;
   final ValueNotifier<String> librarySortOptionNotifier;
   final ValueNotifier<bool> isLibrarySortAscendingNotifier;
-  final ValueNotifier<String> libraryBookFormatFilter;
+  final ValueNotifier<String> libraryBookFormatFilterNotifier;
+  final ValueNotifier<String> libraryBookViewNotifier;
 
   SettingsViewModel({
     required ThemeMode themeMode,
@@ -17,12 +18,14 @@ class SettingsViewModel {
     required String sortOption,
     required bool isAscending,
     required String bookFormat,
+    required String bookView,
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
         librarySortOptionNotifier = ValueNotifier(sortOption),
         isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
-        libraryBookFormatFilter = ValueNotifier(bookFormat);
+        libraryBookFormatFilterNotifier = ValueNotifier(bookFormat),
+        libraryBookViewNotifier = ValueNotifier(bookView);
 
   // Method to toggle theme mode (light, dark, system)
   Future<void> toggleTheme(ThemeMode themeMode) async {
@@ -102,7 +105,7 @@ class SettingsViewModel {
 
   // Save book format filter
   Future<void> setLibraryBookFormatFilter(String bookFormat) async {
-    libraryBookFormatFilter.value = bookFormat;
+    libraryBookFormatFilterNotifier.value = bookFormat;
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString('libraryBookFormatFilter', bookFormat);
   }
@@ -111,5 +114,18 @@ class SettingsViewModel {
   static Future<String> getLibraryBookFormatFilter() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('libraryBookFormatFilter') ?? 'All';
+  }
+
+  // Save book format filter
+  Future<void> setLibraryBookView(String bookFormat) async {
+    libraryBookFormatFilterNotifier.value = bookFormat;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('libraryBookView', bookFormat);
+  }
+
+  // Load saved book format filter
+  static Future<String> getLibraryBookView() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('libraryBookView') ?? 'row_expanded';
   }
 }

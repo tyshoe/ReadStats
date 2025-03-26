@@ -33,7 +33,7 @@ class LibraryPage extends StatefulWidget {
 
 class _LibraryPageState extends State<LibraryPage> {
   final DatabaseHelper _dbHelper = DatabaseHelper();
-  bool _isCompactRowView = true;
+  String _libraryBookView = 'row_expanded';
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _filteredBooks = [];
@@ -44,11 +44,19 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   void initState() {
     super.initState();
-    _selectedSortOption = widget.settingsViewModel.librarySortOptionNotifier.value;
-    _isAscending = widget.settingsViewModel.isLibrarySortAscendingNotifier.value;
-    _selectedFormat = widget.settingsViewModel.libraryBookFormatFilter.value;
+    _selectedSortOption =
+        widget.settingsViewModel.librarySortOptionNotifier.value;
+    _isAscending =
+        widget.settingsViewModel.isLibrarySortAscendingNotifier.value;
+    _selectedFormat = widget.settingsViewModel.libraryBookFormatFilterNotifier.value;
+    _libraryBookView =
+        widget.settingsViewModel.libraryBookViewNotifier.value;
     _filteredBooks = widget.books;
-    _filteredBooks = _sortAndFilterBooks(List<Map<String, dynamic>>.from(widget.books), _selectedSortOption, _isAscending, _selectedFormat);
+    _filteredBooks = _sortAndFilterBooks(
+        List<Map<String, dynamic>>.from(widget.books),
+        _selectedSortOption,
+        _isAscending,
+        _selectedFormat);
     _searchController.addListener(_searchBooks);
   }
 
@@ -60,7 +68,11 @@ class _LibraryPageState extends State<LibraryPage> {
     if (widget.books != oldWidget.books) {
       setState(() {
         _filteredBooks = widget.books;
-        _filteredBooks = _sortAndFilterBooks(List<Map<String, dynamic>>.from(widget.books), _selectedSortOption, _isAscending, _selectedFormat);
+        _filteredBooks = _sortAndFilterBooks(
+            List<Map<String, dynamic>>.from(widget.books),
+            _selectedSortOption,
+            _isAscending,
+            _selectedFormat);
       });
     }
   }
@@ -71,10 +83,11 @@ class _LibraryPageState extends State<LibraryPage> {
     super.dispose();
   }
 
-  void _toggleView() {
+  void _toggleView(String newView) {
     setState(() {
-      _isCompactRowView = !_isCompactRowView;
+      _libraryBookView = newView;
     });
+    widget.settingsViewModel.setLibraryBookView(_libraryBookView);
   }
 
   void _toggleSearch() {
@@ -82,7 +95,11 @@ class _LibraryPageState extends State<LibraryPage> {
       _isSearching = !_isSearching;
       if (!_isSearching) {
         _searchController.clear();
-        _filteredBooks = _sortAndFilterBooks(List<Map<String, dynamic>>.from(widget.books), _selectedSortOption, _isAscending, _selectedFormat);
+        _filteredBooks = _sortAndFilterBooks(
+            List<Map<String, dynamic>>.from(widget.books),
+            _selectedSortOption,
+            _isAscending,
+            _selectedFormat);
       }
     });
   }
@@ -183,25 +200,34 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  List<Map<String, dynamic>> _sortAndFilterBooks(List<Map<String, dynamic>> books, String selectedSortOption, bool isAscending, String selectedFormat) {
-    List<Map<String, dynamic>> filteredBooks = _filterBooks(books, selectedFormat);
+  List<Map<String, dynamic>> _sortAndFilterBooks(
+      List<Map<String, dynamic>> books,
+      String selectedSortOption,
+      bool isAscending,
+      String selectedFormat) {
+    List<Map<String, dynamic>> filteredBooks =
+        _filterBooks(books, selectedFormat);
     widget.settingsViewModel.setLibrarySortOption(selectedSortOption);
     widget.settingsViewModel.setLibrarySortAscending(isAscending);
     widget.settingsViewModel.setLibraryBookFormatFilter(selectedFormat);
     return _sortBooks(filteredBooks, selectedSortOption, isAscending);
   }
 
-  List<Map<String, dynamic>> _filterBooks(List<Map<String, dynamic>> books, String selectedFormat) {
+  List<Map<String, dynamic>> _filterBooks(
+      List<Map<String, dynamic>> books, String selectedFormat) {
     int selectedFormatId = 0; // Default to 0 (All formats)
     if (selectedFormat != 'All') {
-      selectedFormatId = bookTypeNames.entries.firstWhere((entry) => entry.value == selectedFormat).key;
+      selectedFormatId = bookTypeNames.entries
+          .firstWhere((entry) => entry.value == selectedFormat)
+          .key;
     }
 
     return books.where((book) {
       if (selectedFormatId == 0) {
         return true; // Return all books if no specific format is selected
       } else {
-        return book['book_type_id'] == selectedFormatId; // Filter books by selected format
+        return book['book_type_id'] ==
+            selectedFormatId; // Filter books by selected format
       }
     }).toList();
   }
@@ -213,9 +239,9 @@ class _LibraryPageState extends State<LibraryPage> {
     4: "Audiobook",
   };
 
-
   // Sorting method
-  List<Map<String, dynamic>> _sortBooks(List<Map<String, dynamic>> books, String selectedSortOption, bool isAscending) {
+  List<Map<String, dynamic>> _sortBooks(List<Map<String, dynamic>> books,
+      String selectedSortOption, bool isAscending) {
     books.sort((a, b) {
       int comparison = 0;
 
@@ -229,18 +255,30 @@ class _LibraryPageState extends State<LibraryPage> {
         comparison = (a['pages'] as int).compareTo(b['pages'] as int);
       } else if (selectedSortOption == 'Date started') {
         // Handle null values by comparing with DateTime(0) (early date) if null
-        DateTime dateStartedA = a['date_started'] != null ? DateTime.parse(a['date_started']) : DateTime(0);
-        DateTime dateStartedB = b['date_started'] != null ? DateTime.parse(b['date_started']) : DateTime(0);
+        DateTime dateStartedA = a['date_started'] != null
+            ? DateTime.parse(a['date_started'])
+            : DateTime(0);
+        DateTime dateStartedB = b['date_started'] != null
+            ? DateTime.parse(b['date_started'])
+            : DateTime(0);
         comparison = dateStartedA.compareTo(dateStartedB);
       } else if (selectedSortOption == 'Date finished') {
         // Handle null values by comparing with DateTime(0) (early date) if null
-        DateTime dateFinishedA = a['date_finished'] != null ? DateTime.parse(a['date_finished']) : DateTime(0);
-        DateTime dateFinishedB = b['date_finished'] != null ? DateTime.parse(b['date_finished']) : DateTime(0);
+        DateTime dateFinishedA = a['date_finished'] != null
+            ? DateTime.parse(a['date_finished'])
+            : DateTime(0);
+        DateTime dateFinishedB = b['date_finished'] != null
+            ? DateTime.parse(b['date_finished'])
+            : DateTime(0);
         comparison = dateFinishedA.compareTo(dateFinishedB);
       } else if (selectedSortOption == 'Date added') {
         // Handle null values by comparing with DateTime(0) (early date) if null
-        DateTime dateAddedA = a['date_added'] != null ? DateTime.parse(a['date_added']) : DateTime(0);
-        DateTime dateAddedB = b['date_added'] != null ? DateTime.parse(b['date_added']) : DateTime(0);
+        DateTime dateAddedA = a['date_added'] != null
+            ? DateTime.parse(a['date_added'])
+            : DateTime(0);
+        DateTime dateAddedB = b['date_added'] != null
+            ? DateTime.parse(b['date_added'])
+            : DateTime(0);
         comparison = dateAddedA.compareTo(dateAddedB);
       }
 
@@ -249,37 +287,39 @@ class _LibraryPageState extends State<LibraryPage> {
     return books;
   }
 
-
   // Show the filter/sort modal
   void _showSortFilterModal() {
-    SortFilterPopup.showSortFilterPopup(
-      context,
-          (String selectedOption) {
-        setState(() {
-          _selectedSortOption = selectedOption;
-          _filteredBooks = _sortAndFilterBooks(List<Map<String, dynamic>>.from(widget.books), _selectedSortOption, _isAscending, _selectedFormat);
-        });
-      },
-          (bool isAscending) {
-        setState(() {
-          _isAscending = isAscending;
-          _filteredBooks = _sortAndFilterBooks(List<Map<String, dynamic>>.from(widget.books), _selectedSortOption, _isAscending, _selectedFormat);
-        });
-      },
-      _selectedSortOption,
-      _isAscending,
-      onFormatChange,
-      _selectedFormat
-    );
+    SortFilterPopup.showSortFilterPopup(context, (String selectedOption) {
+      setState(() {
+        _selectedSortOption = selectedOption;
+        _filteredBooks = _sortAndFilterBooks(
+            List<Map<String, dynamic>>.from(widget.books),
+            _selectedSortOption,
+            _isAscending,
+            _selectedFormat);
+      });
+    }, (bool isAscending) {
+      setState(() {
+        _isAscending = isAscending;
+        _filteredBooks = _sortAndFilterBooks(
+            List<Map<String, dynamic>>.from(widget.books),
+            _selectedSortOption,
+            _isAscending,
+            _selectedFormat);
+      });
+    }, _selectedSortOption, _isAscending, onFormatChange, _selectedFormat);
   }
 
   void onFormatChange(String newFormat) {
     setState(() {
       _selectedFormat = newFormat;
-      _filteredBooks = _sortAndFilterBooks(List<Map<String, dynamic>>.from(widget.books), _selectedSortOption, _isAscending, _selectedFormat);
+      _filteredBooks = _sortAndFilterBooks(
+          List<Map<String, dynamic>>.from(widget.books),
+          _selectedSortOption,
+          _isAscending,
+          _selectedFormat);
     });
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -290,15 +330,15 @@ class _LibraryPageState extends State<LibraryPage> {
       navigationBar: CupertinoNavigationBar(
         middle: _isSearching
             ? CupertinoTextField(
-          controller: _searchController,
-          placeholder: 'Search books...',
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          style: TextStyle(color: textColor),
-          decoration: BoxDecoration(
-            color: CupertinoColors.systemGrey5,
-            borderRadius: BorderRadius.circular(8),
-          ),
-        )
+                controller: _searchController,
+                placeholder: 'Search books...',
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                style: TextStyle(color: textColor),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemGrey5,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              )
             : Text('Library', style: TextStyle(color: textColor)),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -307,17 +347,9 @@ class _LibraryPageState extends State<LibraryPage> {
               padding: EdgeInsets.zero,
               onPressed: _toggleSearch,
               child: Icon(
-                _isSearching ? CupertinoIcons.clear_circled : CupertinoIcons.search,
-                color: textColor,
-              ),
-            ),
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: _toggleView,
-              child: Icon(
-                _isCompactRowView
-                    ? CupertinoIcons.list_bullet
-                    : CupertinoIcons.bars,
+                _isSearching
+                    ? CupertinoIcons.clear_circled
+                    : CupertinoIcons.search,
                 color: textColor,
               ),
             ),
@@ -337,7 +369,8 @@ class _LibraryPageState extends State<LibraryPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset('assets/images/carl.png', width: 100, height: 100),
+                    Image.asset('assets/images/carl.png',
+                        width: 100, height: 100),
                     SizedBox(height: 16),
                     Text(
                       'Carl is hungry, add a book to your library',
@@ -351,14 +384,39 @@ class _LibraryPageState extends State<LibraryPage> {
                 padding: EdgeInsets.symmetric(horizontal: 8),
                 child: Column(
                   children: [
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 8, bottom: 16),
-                        child: Text('${_filteredBooks.length}/${widget.books.length}',
-                          style: TextStyle(fontSize: 16, color: textColor),
+                    // Row for Segmented Control and Text
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: CupertinoSlidingSegmentedControl<String>(
+                            groupValue: _libraryBookView,  // Store the current view as a string (either "row_compact" or "row_expanded")
+                            onValueChanged: (String? value) {
+                              if (value != null) {
+                                _toggleView(value);  // Pass the new value to the toggle function
+                              }
+                            },
+                            children: {
+                              "row_expanded": Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Icon(CupertinoIcons.list_bullet, color: textColor), // Icon for row_compact
+                              ),
+                              "row_compact": Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Icon(CupertinoIcons.bars, color: textColor), // Icon for row_expanded
+                              ),
+                            },
+                          ),
                         ),
-                      ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 16),  // Adjust this value to move the text further down
+                            child: Text(
+                              '${_filteredBooks.length}/${widget.books.length}',
+                              style: TextStyle(fontSize: 16, color: textColor),
+                            ),
+                        ),
+                      ],
                     ),
                     Expanded(
                       child: CupertinoScrollbar(
@@ -370,7 +428,7 @@ class _LibraryPageState extends State<LibraryPage> {
                             return BookRow(
                               book: book,
                               textColor: textColor,
-                              isCompactView: _isCompactRowView,
+                              isCompactView: _libraryBookView == "row_compact",
                               onTap: () => _showBookPopup(context, book),
                             );
                           },

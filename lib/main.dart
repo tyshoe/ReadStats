@@ -69,13 +69,15 @@ class _MyAppState extends State<MyApp> {
     final sortOption = await SettingsViewModel.getLibrarySortOption();
     final isAscending = await SettingsViewModel.getLibrarySortAscending();
     final bookFormat = await SettingsViewModel.getLibraryBookFormatFilter();
+    final bookView = await SettingsViewModel.getLibraryBookView();
 
     if (kDebugMode) {
       print(
           "Loading Prefrences: {Default Book Type: $defaultBookType,"
               " Library Sort Option: $sortOption,"
               " Library Sort Ascending: $isAscending,"
-              " Library Book Format Filter: $bookFormat}");
+              " Library Book Format Filter: $bookFormat}"
+              " Library Book View: $bookView}");
     }
 
     _settingsViewModel = SettingsViewModel(
@@ -85,6 +87,7 @@ class _MyAppState extends State<MyApp> {
       sortOption: sortOption,
       isAscending: isAscending,
       bookFormat: bookFormat,
+      bookView: bookView,
     );
   }
 
