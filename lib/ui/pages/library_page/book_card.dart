@@ -16,6 +16,62 @@ class BookPopup {
     final stats = await dbHelper.getBookStats(book['id']);
     final DateFormat dateFormat = DateFormat('M/d/yy');
 
+    final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
+    final textColor = CupertinoColors.label.resolveFrom(context);
+    final subtitleColor = CupertinoColors.secondaryLabel.resolveFrom(context);
+    final cardColor =
+        CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8);
+
+    String defaultDate = '1999-11-15';
+
+    DateTime? startDateTime = book['date_started'] != null
+        ? DateTime.parse(book['date_started'])
+        : null;
+
+    DateTime? finishDateTime = book['date_finished'] != null
+        ? DateTime.parse(book['date_finished'])
+        : null;
+
+    String? startDate =
+        startDateTime != null ? dateFormat.format(startDateTime) : null;
+    String? finishDate =
+        finishDateTime != null ? dateFormat.format(finishDateTime) : null;
+
+    String daysToCompleteString = "";
+
+    if (startDateTime != null && finishDateTime != null) {
+      int days = finishDateTime.difference(startDateTime).inDays;
+      int adjustedDays = days == 0 ? 1 : days;
+      daysToCompleteString =
+          "($adjustedDays ${adjustedDays == 1 ? 'day' : 'days'})";
+    }
+
+    String dateRangeString = "";
+
+    if (startDate != null && finishDate != null) {
+      dateRangeString = "$startDate - $finishDate $daysToCompleteString";
+    } else if (startDate != null) {
+      dateRangeString = "Started $startDate";
+    } else if (finishDate != null) {
+      dateRangeString = "Finished $finishDate";
+    }
+
+    // Get the page and word count from the book object
+    int pageCount = book['page_count'] ?? 0;
+    int wordCount = book['word_count'] ?? 0;
+
+    // Format page count
+    String pageCountString = pageCount == 0
+        ? ""
+        : "${pageCount.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (match) => '${match[1]},')} "
+            "${pageCount == 1 ? 'page' : 'pages'}";
+
+    // Format word count with comma separator
+    String wordCountString = wordCount == 0
+        ? ""
+        : "${wordCount.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (match) => '${match[1]},')} "
+            "${wordCount == 1 ? 'word' : 'words'}";
+
     String formatTime(int totalTimeInMinutes) {
       int days = totalTimeInMinutes ~/ (24 * 60);
       int hours = (totalTimeInMinutes % (24 * 60)) ~/ 60;
@@ -52,6 +108,42 @@ class BookPopup {
       completionColor = CupertinoColors.systemGrey;
     }
 
+    IconData bookTypeIcon;
+    switch (book['book_type_id']) {
+      case 1:
+        bookTypeIcon = CupertinoIcons.book;
+        break;
+      case 2:
+        bookTypeIcon = CupertinoIcons.book_fill;
+        break;
+      case 3:
+        bookTypeIcon = CupertinoIcons.device_desktop;
+        break;
+      case 4:
+        bookTypeIcon = CupertinoIcons.headphones;
+        break;
+      default:
+        bookTypeIcon = CupertinoIcons.book_fill;
+    }
+
+    String bookTypeString;
+    switch (book['book_type_id']) {
+      case 1:
+        bookTypeString = 'Paperback';
+        break;
+      case 2:
+        bookTypeString = 'Hardback';
+        break;
+      case 3:
+        bookTypeString = 'eBook';
+        break;
+      case 4:
+        bookTypeString = 'Audiobook';
+        break;
+      default:
+        bookTypeString = 'Paperback';
+    }
+
     showCupertinoModalPopup(
       context: context,
       builder: (context) {
@@ -68,159 +160,158 @@ class BookPopup {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Book Title and Stats
+                // Book title
+                Row(children: [
+                  Expanded(
+                    child: Text(
+                      book['title'],
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
+                      maxLines: 2,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 3),
+                Row(children: [
+                  Expanded(
+                    child: Text(
+                      "by ${book['author']}",
+                      style: const TextStyle(fontSize: 14, wordSpacing: 2),
+                      maxLines: 2,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(
+                      bookTypeIcon,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        bookTypeString,
+                        style: const TextStyle(fontSize: 14, wordSpacing: 2),
+                        maxLines: 2,
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  height: 1.0, // Height of the divider
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.systemGrey, // Color of the divider
+                    borderRadius: BorderRadius.circular(
+                        1.0), // Optional: Add rounded corners
+                  ),
+                ),
+                const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Book Title, Author, and Word Count
+                    // Book Completion Statuses
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            book['title'],
-                            style: const TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.bold),
-                            maxLines: 1,
-                            overflow: TextOverflow
-                                .ellipsis, // Ensures long titles are truncated
+                          Row(
+                            children: [
+                              Icon(
+                                completionIcon,
+                                color: completionColor,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                completionStatus,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 3),
-                          Text(
-                            "by ${book['author']}",
-                            style:
-                                const TextStyle(fontSize: 14, wordSpacing: 2),
-                            maxLines: 1,
-                            overflow: TextOverflow
-                                .ellipsis, // Truncate long author names
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            "${book['word_count']?.toString() ?? '0'} words",
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-
-                    // Rating and Completion Status to the right
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              completionIcon,
-                              color: completionColor,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 5),
+                          if (book['is_completed'] == 1) ...[
+                            const SizedBox(height: 5),
+                            _buildRatingStars(book['rating'] ?? 0),
+                          ],
+                          if (dateRangeString != '') ...[
+                            const SizedBox(height: 5),
                             Text(
-                              completionStatus,
+                              dateRangeString,
                               style: const TextStyle(fontSize: 14),
                             ),
                           ],
-                        ),
-                        if (book['is_completed'] == 1) ...[
-                          const SizedBox(height: 5),
-                          _buildRatingStars(book['rating'] ?? 0),
                         ],
-                      ],
+                      ),
+                    ),
+
+                    // const SizedBox(width: 10),
+
+                    // Pages and words
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (pageCountString != '') ...[
+                            Text(
+                              pageCountString,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                          if (wordCountString != '') ...[
+                            Text(
+                              wordCountString,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                // Stats (Sessions, Pages, Read Time, etc.)
-                Row(
-                  children: [
-                    Expanded(
-                      child: _statCard(
-                        title: 'Sessions',
-                        value: stats['session_count']?.toString() ?? '0',
-                        context: context,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _statCard(
-                        title: 'Pages Read',
-                        value: stats['total_pages']?.toString() ?? '0',
-                        context: context,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _statCard(
-                        title: 'Read Time',
-                        value: formatTime(stats['total_time'] ?? 0),
-                        context: context,
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Expanded(
-                      child: _statCard(
-                        title: 'Pages/Minute',
-                        value: stats['pages_per_minute']?.toStringAsFixed(2) ??
-                            '0',
-                        context: context,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _statCard(
-                        title: 'Words/Minute',
-                        value: stats['words_per_minute']?.toStringAsFixed(2) ??
-                            '0',
-                        context: context,
-                      ),
-                    ),
-                  ],
-                ),
-                _dateStatsCard(
-                  startDate: dateFormat.format(
-                      DateTime.parse(stats['date_started'] ?? '1999-11-15')),
-                  finishDate: dateFormat.format(
-                      DateTime.parse(stats['date_finished'] ?? '1999-11-15')),
-                  daysToComplete: book['date_started'] != null &&
-                          book['date_finished'] != null
-                      ? (DateTime.parse(book['date_finished'])
-                              .difference(DateTime.parse(book['date_started']))
-                              .inDays)
-                          .toString()
-                      : 'n/a',
-                  context: context,
-                ),
+
+                _statCard(
+                    title: 'Sessions',
+                    value: stats['session_count']?.toString() ?? '0',
+                    bgColor: cardColor,
+                    textColor: textColor,
+                    subtitleColor: subtitleColor),
+                _statCard(
+                    title: 'Pages Read',
+                    value: stats['total_pages']?.toString() ?? '0',
+                    bgColor: cardColor,
+                    textColor: textColor,
+                    subtitleColor: subtitleColor),
+                _statCard(
+                    title: 'Read Time',
+                    value: formatTime(stats['total_time'] ?? 0),
+                    bgColor: cardColor,
+                    textColor: textColor,
+                    subtitleColor: subtitleColor),
+                _statCard(
+                    title: 'Pages/Minute',
+                    value: stats['pages_per_minute']?.toStringAsFixed(2) ?? '0',
+                    bgColor: cardColor,
+                    textColor: textColor,
+                    subtitleColor: subtitleColor),
+                _statCard(
+                    title: 'Words/Minute',
+                    value: stats['words_per_minute']?.toStringAsFixed(2) ?? '0',
+                    bgColor: cardColor,
+                    textColor: textColor,
+                    subtitleColor: subtitleColor),
                 const SizedBox(height: 16),
-                // Actions
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _popupAction(
-                      icon: CupertinoIcons.pencil,
-                      label: 'Edit',
-                      onTap: () {
-                        Navigator.pop(context);
-                        navigateToEditBookPage(book);
-                      },
-                    ),
-                    _popupAction(
-                      icon: CupertinoIcons.book,
-                      label: 'Add Session',
-                      color: book['is_completed'] == 1
-                          ? CupertinoColors.systemGrey
-                          : CupertinoColors.activeBlue,
-                      onTap: book['is_completed'] == 1
-                          ? () {} // Disable interaction by providing an empty function
-                          : () {
-                              Navigator.pop(context);
-                              navigateToAddSessionPage(book['id']);
-                            },
-                    ),
                     _popupAction(
                       icon: CupertinoIcons.trash,
                       label: 'Delete',
@@ -229,6 +320,28 @@ class BookPopup {
                         Navigator.pop(context);
                         confirmDelete(book['id']);
                       },
+                    ),
+                    _popupAction(
+                      icon: CupertinoIcons.square_pencil,
+                      label: 'Edit',
+                      color: textColor,
+                      onTap: () {
+                        Navigator.pop(context);
+                        navigateToEditBookPage(book);
+                      },
+                    ),
+                    _popupAction(
+                      icon: CupertinoIcons.time,
+                      label: 'Add',
+                      color: book['is_completed'] == 1
+                          ? CupertinoColors.systemGrey.withOpacity(0.5)
+                          : textColor,
+                      onTap: book['is_completed'] == 1
+                          ? () {} // Disable interaction by providing an empty function
+                          : () {
+                              Navigator.pop(context);
+                              navigateToAddSessionPage(book['id']);
+                            },
                     ),
                   ],
                 ),
@@ -242,88 +355,26 @@ class BookPopup {
   }
 
   static Widget _statCard({
-    required BuildContext context,
     required String title,
     required String value,
+    required Color bgColor,
+    required Color textColor,
+    required Color subtitleColor,
   }) {
     return Container(
+      margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color:
-            CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-                fontSize: 14, color: CupertinoColors.systemGrey),
-          ),
-          const SizedBox(height: 12),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static Widget _dateStatsCard({
-    required BuildContext context,
-    required String startDate,
-    required String finishDate,
-    required String daysToComplete,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color:
-            CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
-        borderRadius: BorderRadius.circular(12),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            children: [
-              Text(
-                'Start Date',
-                style: const TextStyle(
-                    fontSize: 16, color: CupertinoColors.systemGrey),
-              ),
-              const SizedBox(height: 6),
-              Text(startDate, style: const TextStyle(fontSize: 16)),
-            ],
-          ),
-          Column(
-            children: [
-              Text(
-                'Finish Date',
-                style: const TextStyle(
-                    fontSize: 16, color: CupertinoColors.systemGrey),
-              ),
-              const SizedBox(height: 6),
-              Text(finishDate, style: const TextStyle(fontSize: 16)),
-            ],
-          ),
-          Column(
-            children: [
-              Text(
-                'Days to Complete',
-                style: const TextStyle(
-                    fontSize: 16, color: CupertinoColors.systemGrey),
-              ),
-              const SizedBox(height: 6),
-              Text(daysToComplete, style: const TextStyle(fontSize: 16)),
-            ],
-          ),
+          Text(title, style: TextStyle(fontSize: 16, color: subtitleColor)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
         ],
       ),
     );
@@ -333,7 +384,7 @@ class BookPopup {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
-    Color color = CupertinoColors.activeBlue,
+    required Color color,
   }) {
     return GestureDetector(
       onTap: onTap,
