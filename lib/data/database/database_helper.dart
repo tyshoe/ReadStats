@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import '../models/book.dart';
+import '../models/session.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -142,6 +144,42 @@ class DatabaseHelper {
         print('Error fetching sessions: $e');
       }
       return [];
+    }
+  }
+
+  Future<void> addBooksBatch(List<Book> books) async {
+    final db = await database;
+    Batch batch = db.batch();
+
+    for (var book in books) {
+      batch.insert(
+        'books',
+        book.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.ignore, // Avoid duplicate ID errors
+      );
+    }
+
+    await batch.commit(noResult: true);
+    if (kDebugMode) {
+      print('Batch book insert complete. ${books.length} books added.');
+    }
+  }
+
+  Future<void> addSessionsBatch(List<Session> sessions) async {
+    final db = await database;
+    Batch batch = db.batch();
+
+    for (var session in sessions) {
+      batch.insert(
+        'sessions',
+        session.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.ignore, // Avoid duplicate ID errors
+      );
+    }
+
+    await batch.commit(noResult: true);
+    if (kDebugMode) {
+      print('Batch session insert complete. ${sessions.length} sessions added.');
     }
   }
 

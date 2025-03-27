@@ -12,6 +12,10 @@ class SessionRepository {
     return await _databaseHelper.insertSession(session.toMap());
   }
 
+  Future<void> addSessionsBatch(List<Session> sessions) async {
+    await _databaseHelper.addSessionsBatch(sessions);
+  }
+
   Future<List<Session>> getSessions({int yearFilter = 0}) async {
     final sessionsMap = await _databaseHelper.getSessionsWithBooks(yearFilter: yearFilter);
     if (kDebugMode) {

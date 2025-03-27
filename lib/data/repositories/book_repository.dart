@@ -10,6 +10,10 @@ class BookRepository {
     return await _databaseHelper.insertBook(book.toMap());
   }
 
+  Future<void> addBooksBatch(List<Book> books) async {
+    await _databaseHelper.addBooksBatch(books);
+  }
+
   Future<List<Book>> getBooks() async {
     final booksData = await _databaseHelper.getBooks();
     return booksData.map((book) => Book.fromMap(book)).toList();

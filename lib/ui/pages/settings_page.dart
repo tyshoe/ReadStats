@@ -13,6 +13,7 @@ import '/data/repositories/session_repository.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/data/models/book.dart';
 import '/data/models/session.dart';
+import 'dart:developer';
 
 class SettingsPage extends StatelessWidget {
   final Function(ThemeMode) toggleTheme;
@@ -471,93 +472,76 @@ class SettingsPage extends StatelessWidget {
   }
 
   Future<void> _importBooks(List<List<dynamic>> rows) async {
+    List<Book> booksToInsert = [];
+
     for (var row in rows) {
-      if (kDebugMode) {
-        print('Row data: $row');
-      }
+      if (row.length < 11) continue; // Skip invalid rows
 
-      if (row.length >= 11) {
-        // Ensure there are enough columns
-        try {
-          int id = row[0] ?? 0;
-          String title = row[1].toString();
-          String author = row[2].toString();
-          int wordCount = int.tryParse(row[3].toString()) ?? 0;
-          int pageCount = int.tryParse(row[4].toString()) ?? 0;
-          double rating = double.tryParse(row[5].toString()) ?? 0.0;
-          bool isCompleted = row[6] == 1 ||
-              row[6] == 'true'; // Handle different boolean formats
-          int bookTypeId = int.tryParse(row[7].toString()) ?? 0;
+      try {
+        Book book = Book(
+          id: row[0] ?? 0,
+          title: row[1].toString(),
+          author: row[2].toString(),
+          wordCount: int.tryParse(row[3].toString()) ?? 0,
+          pageCount: int.tryParse(row[4].toString()) ?? 0,
+          rating: double.tryParse(row[5].toString()) ?? 0.0,
+          isCompleted: row[6] == 1 || row[6] == 'true',
+          bookTypeId: int.tryParse(row[7].toString()) ?? 0,
+          dateAdded: DateTime.tryParse(row[8].toString())?.toIso8601String().split('T')[0] ??
+              DateTime.now().toIso8601String().split('T')[0],
+          dateStarted: row[9]?.toString().isNotEmpty == true
+              ? DateTime.tryParse(row[9].toString())?.toIso8601String().split('T')[0]
+              : null,
+          dateFinished: row[10]?.toString().isNotEmpty == true
+              ? DateTime.tryParse(row[10].toString())?.toIso8601String().split('T')[0]
+              : null,
+        );
 
-          // Safely parse date fields using the provided logic
-          String dateAdded = DateTime.tryParse(row[8].toString())
-                  ?.toIso8601String()
-                  .split('T')[0] ??
-              DateTime.now().toIso8601String().split('T')[0];
-
-          String? dateStarted = row[9]?.toString().isNotEmpty == true
-              ? DateTime.tryParse(row[9].toString())
-                  ?.toIso8601String()
-                  .split('T')[0]
-              : null;
-
-          String? dateFinished = row[10]?.toString().isNotEmpty == true
-              ? DateTime.tryParse(row[10].toString())
-                  ?.toIso8601String()
-                  .split('T')[0]
-              : null;
-
-          Book book = Book(
-            id: id,
-            title: title,
-            author: author,
-            wordCount: wordCount,
-            pageCount: pageCount,
-            rating: rating,
-            isCompleted: isCompleted,
-            bookTypeId: bookTypeId,
-            dateAdded: dateAdded,
-            dateStarted: dateStarted,
-            dateFinished: dateFinished,
-          );
-          if (kDebugMode) {
-            print('Book data is: $book');
-          }
-
-          await bookRepository.addBook(book);
-        } catch (e) {
-          if (kDebugMode) {
-            print('Error processing row: $row. Error: $e');
-          }
-        }
+        booksToInsert.add(book);
+      } catch (e) {
+        if (kDebugMode) print('Error processing row: $row. Error: $e');
       }
     }
 
-    // Refresh the books after import
+    if (booksToInsert.isNotEmpty) {
+      await bookRepository.addBooksBatch(booksToInsert); // Use batch insert
+    }
+
     refreshBooks();
   }
 
   Future<void> _importSessions(List<List<dynamic>> rows) async {
+    if (rows.isEmpty) return;
+
+    List<Session> sessions = [];
+
     for (var row in rows) {
       if (row.length >= 5) {
-        Session session = Session(
-          id: int.tryParse(row[0].toString()) ?? 0,
-          bookId: int.tryParse(row[1].toString()) ?? 0,
-          pagesRead: int.tryParse(row[2].toString()) ?? 0,
-          durationMinutes: int.tryParse(row[3].toString()) ?? 0,
-          date: DateTime.tryParse(row[4].toString())
-                  ?.toIso8601String()
-                  .split('T')[0] ??
-              DateTime.now().toIso8601String().split('T')[0],
+        sessions.add(
+          Session(
+            id: int.tryParse(row[0].toString()) ?? 0,
+            bookId: int.tryParse(row[1].toString()) ?? 0,
+            pagesRead: int.tryParse(row[2].toString()) ?? 0,
+            durationMinutes: int.tryParse(row[3].toString()) ?? 0,
+            date: DateTime.tryParse(row[4].toString())
+                ?.toIso8601String()
+                .split('T')[0] ??
+                DateTime.now().toIso8601String().split('T')[0],
+          ),
         );
-        await sessionRepository.addSession(session);
       }
     }
+
+    if (sessions.isNotEmpty) {
+      await sessionRepository.addSessionsBatch(sessions); // Use batch insert
+    }
+
     refreshSessions();
     if (kDebugMode) {
-      print('Sessions imported successfully.');
+      print('${sessions.length} sessions imported successfully.');
     }
   }
+
 
   Future<void> exportDataToCSV() async {
     try {
