@@ -252,7 +252,7 @@ class _LibraryPageState extends State<LibraryPage> {
       } else if (selectedSortOption == 'Rating') {
         comparison = (a['rating'] as double).compareTo(b['rating'] as double);
       } else if (selectedSortOption == 'Pages') {
-        comparison = (a['pages'] as int).compareTo(b['pages'] as int);
+        comparison = (a['page_count'] as int).compareTo(b['page_count'] as int);
       } else if (selectedSortOption == 'Date started') {
         // Handle null values by comparing with DateTime(0) (early date) if null
         DateTime dateStartedA = a['date_started'] != null
