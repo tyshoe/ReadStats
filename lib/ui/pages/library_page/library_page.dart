@@ -48,9 +48,9 @@ class _LibraryPageState extends State<LibraryPage> {
         widget.settingsViewModel.librarySortOptionNotifier.value;
     _isAscending =
         widget.settingsViewModel.isLibrarySortAscendingNotifier.value;
-    _selectedFormat = widget.settingsViewModel.libraryBookFormatFilterNotifier.value;
-    _libraryBookView =
-        widget.settingsViewModel.libraryBookViewNotifier.value;
+    _selectedFormat =
+        widget.settingsViewModel.libraryBookFormatFilterNotifier.value;
+    _libraryBookView = widget.settingsViewModel.libraryBookViewNotifier.value;
     _filteredBooks = widget.books;
     _filteredBooks = _sortAndFilterBooks(
         List<Map<String, dynamic>>.from(widget.books),
@@ -330,6 +330,9 @@ class _LibraryPageState extends State<LibraryPage> {
       navigationBar: CupertinoNavigationBar(
         middle: _isSearching
             ? CupertinoTextField(
+                onTapOutside: (event) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                },
                 controller: _searchController,
                 placeholder: 'Search books...',
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -391,30 +394,38 @@ class _LibraryPageState extends State<LibraryPage> {
                         Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: CupertinoSlidingSegmentedControl<String>(
-                            groupValue: _libraryBookView,  // Store the current view as a string (either "row_compact" or "row_expanded")
+                            groupValue:
+                                _libraryBookView, // Store the current view as a string (either "row_compact" or "row_expanded")
                             onValueChanged: (String? value) {
                               if (value != null) {
-                                _toggleView(value);  // Pass the new value to the toggle function
+                                _toggleView(
+                                    value); // Pass the new value to the toggle function
                               }
                             },
                             children: {
                               "row_expanded": Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                                child: Icon(CupertinoIcons.list_bullet, color: textColor), // Icon for row_compact
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                child: Icon(CupertinoIcons.list_bullet,
+                                    color: textColor), // Icon for row_compact
                               ),
                               "row_compact": Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
-                                child: Icon(CupertinoIcons.bars, color: textColor), // Icon for row_expanded
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                child: Icon(CupertinoIcons.bars,
+                                    color: textColor), // Icon for row_expanded
                               ),
                             },
                           ),
                         ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 16),  // Adjust this value to move the text further down
-                            child: Text(
-                              '${_filteredBooks.length}/${widget.books.length}',
-                              style: TextStyle(fontSize: 16, color: textColor),
-                            ),
+                        Padding(
+                          padding: const EdgeInsets.only(
+                              top:
+                                  16), // Adjust this value to move the text further down
+                          child: Text(
+                            '${_filteredBooks.length}/${widget.books.length}',
+                            style: TextStyle(fontSize: 16, color: textColor),
+                          ),
                         ),
                       ],
                     ),
