@@ -70,6 +70,7 @@ class _MyAppState extends State<MyApp> {
     final isAscending = await SettingsViewModel.getLibrarySortAscending();
     final bookFormat = await SettingsViewModel.getLibraryBookFormatFilter();
     final bookView = await SettingsViewModel.getLibraryBookView();
+    final tabNameVisibility = await SettingsViewModel.getTabNameVisibility();
 
     if (kDebugMode) {
       print(
@@ -88,6 +89,7 @@ class _MyAppState extends State<MyApp> {
       isAscending: isAscending,
       bookFormat: bookFormat,
       bookView: bookView,
+      tabNameVisibility: tabNameVisibility,
     );
   }
 
@@ -122,8 +124,8 @@ class _MyAppState extends State<MyApp> {
           theme: themeMode == ThemeMode.system
               ? AppTheme.systemTheme(MediaQuery.of(context).platformBrightness)
               : themeMode == ThemeMode.dark
-                  ? AppTheme.darkTheme
-                  : AppTheme.lightTheme,
+              ? AppTheme.darkTheme
+              : AppTheme.lightTheme,
           home: NavigationMenu(
             toggleTheme: _settingsViewModel.toggleTheme,
             themeMode: themeMode,
@@ -142,7 +144,7 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-class NavigationMenu extends StatelessWidget {
+class NavigationMenu extends StatefulWidget {
   final Function(ThemeMode) toggleTheme;
   final ThemeMode themeMode;
   final Function(Map<String, dynamic>) addBook;
@@ -169,76 +171,120 @@ class NavigationMenu extends StatelessWidget {
   });
 
   @override
+  State<NavigationMenu> createState() => _NavigationMenuState();
+}
+
+class _NavigationMenuState extends State<NavigationMenu> {
+  int _activeTabIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<Color>(
-      valueListenable: settingsViewModel.accentColorNotifier,
+      valueListenable: widget.settingsViewModel.accentColorNotifier,
       builder: (context, accentColor, child) {
-        return CupertinoTabScaffold(
-          tabBar: CupertinoTabBar(
-            activeColor: accentColor,
-            inactiveColor: CupertinoColors.systemGrey,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(CupertinoIcons.book),
-                activeIcon: Icon(CupertinoIcons.book_fill),
-                label: 'Library',
+        return ValueListenableBuilder<String>(
+          valueListenable: widget.settingsViewModel.tabNameVisibilityNotifier,
+          builder: (context, tabVisibility, child) {
+            return CupertinoTabScaffold(
+              tabBar: CupertinoTabBar(
+                currentIndex: _activeTabIndex,
+                activeColor: accentColor,
+                inactiveColor: CupertinoColors.systemGrey,
+                onTap: (index) {
+                  setState(() {
+                    _activeTabIndex = index;
+                  });
+                },
+                items: [
+                  BottomNavigationBarItem(
+                    icon: Icon(CupertinoIcons.book),
+                    activeIcon: Icon(CupertinoIcons.book_fill),
+                    label: _getTabLabel('Library', tabVisibility),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(CupertinoIcons.time),
+                    activeIcon: Icon(CupertinoIcons.time_solid),
+                    label: _getTabLabel('Sessions', tabVisibility),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(CupertinoIcons.chart_bar),
+                    activeIcon: Icon(CupertinoIcons.chart_bar_fill),
+                    label: _getTabLabel('Stats', tabVisibility),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(CupertinoIcons.settings),
+                    activeIcon: Icon(CupertinoIcons.settings_solid),
+                    label: _getTabLabel('Settings', tabVisibility),
+                  ),
+                ],
               ),
-              BottomNavigationBarItem(
-                icon: Icon(CupertinoIcons.time),
-                activeIcon: Icon(CupertinoIcons.time_solid),
-                label: 'Sessions',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(CupertinoIcons.chart_bar),
-                activeIcon: Icon(CupertinoIcons.chart_bar_fill),
-                label: 'Stats',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(CupertinoIcons.settings),
-                activeIcon: Icon(CupertinoIcons.settings_solid),
-                label: 'Settings',
-              ),
-            ],
-          ),
-          tabBuilder: (context, index) {
-            switch (index) {
-              case 0:
-                return LibraryPage(
-                  books: books,
-                  refreshBooks: refreshBooks,
-                  refreshSessions: refreshSessions,
-                  settingsViewModel: settingsViewModel,
-                  sessionRepository: sessionRepository,
-                );
-              case 1:
-                return SessionsPage(
-                  books: books,
-                  sessions: sessions,
-                  refreshSessions: refreshSessions,
-                  settingsViewModel: settingsViewModel,
-                  sessionRepository: sessionRepository,
-                );
-              case 2:
-                return StatisticsPage(
-                  bookRepository: bookRepository,
-                  sessionRepository: sessionRepository,
-                  settingsViewModel: settingsViewModel,
-                );
-              case 3:
-              default:
-                return SettingsPage(
-                  toggleTheme: toggleTheme,
-                  themeMode: themeMode,
-                  bookRepository: bookRepository,
-                  sessionRepository: sessionRepository,
-                  refreshBooks: refreshBooks,
-                  refreshSessions: refreshSessions,
-                  settingsViewModel: settingsViewModel,
-                );
-            }
+              tabBuilder: (context, index) {
+                switch (index) {
+                  case 0:
+                    return LibraryPage(
+                      books: widget.books,
+                      refreshBooks: widget.refreshBooks,
+                      refreshSessions: widget.refreshSessions,
+                      settingsViewModel: widget.settingsViewModel,
+                      sessionRepository: widget.sessionRepository,
+                    );
+                  case 1:
+                    return SessionsPage(
+                      books: widget.books,
+                      sessions: widget.sessions,
+                      refreshSessions: widget.refreshSessions,
+                      settingsViewModel: widget.settingsViewModel,
+                      sessionRepository: widget.sessionRepository,
+                    );
+                  case 2:
+                    return StatisticsPage(
+                      bookRepository: widget.bookRepository,
+                      sessionRepository: widget.sessionRepository,
+                      settingsViewModel: widget.settingsViewModel,
+                    );
+                  case 3:
+                  default:
+                    return SettingsPage(
+                      toggleTheme: widget.toggleTheme,
+                      themeMode: widget.themeMode,
+                      bookRepository: widget.bookRepository,
+                      sessionRepository: widget.sessionRepository,
+                      refreshBooks: widget.refreshBooks,
+                      refreshSessions: widget.refreshSessions,
+                      settingsViewModel: widget.settingsViewModel,
+                    );
+                }
+              },
+            );
           },
         );
       },
     );
+  }
+
+  String _getTabLabel(String tabName, String tabVisibility) {
+    if (tabVisibility == 'Always') {
+      return tabName; // Always show the label
+    } else if (tabVisibility == 'Selected' && _isTabActive(tabName)) {
+      return tabName; // Show label if tab is active
+    } else {
+      return ''; // Hide the label for other cases
+    }
+  }
+
+  bool _isTabActive(String tabName) {
+    // Check if the tabName matches the active tab index
+    switch (tabName) {
+      case 'Library':
+        return _activeTabIndex == 0;
+      case 'Sessions':
+        return _activeTabIndex == 1;
+      case 'Stats':
+        return _activeTabIndex == 2;
+      case 'Settings':
+        return _activeTabIndex == 3;
+      default:
+        return false;
+    }
   }
 }

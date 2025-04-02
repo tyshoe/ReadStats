@@ -10,6 +10,7 @@ class SettingsViewModel {
   final ValueNotifier<bool> isLibrarySortAscendingNotifier;
   final ValueNotifier<String> libraryBookFormatFilterNotifier;
   final ValueNotifier<String> libraryBookViewNotifier;
+  final ValueNotifier<String> tabNameVisibilityNotifier;
 
   SettingsViewModel({
     required ThemeMode themeMode,
@@ -19,13 +20,15 @@ class SettingsViewModel {
     required bool isAscending,
     required String bookFormat,
     required String bookView,
+    required String tabNameVisibility,
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
         librarySortOptionNotifier = ValueNotifier(sortOption),
         isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
         libraryBookFormatFilterNotifier = ValueNotifier(bookFormat),
-        libraryBookViewNotifier = ValueNotifier(bookView);
+        libraryBookViewNotifier = ValueNotifier(bookView),
+        tabNameVisibilityNotifier = ValueNotifier(tabNameVisibility);
 
   // Method to toggle theme mode (light, dark, system)
   Future<void> toggleTheme(ThemeMode themeMode) async {
@@ -127,5 +130,18 @@ class SettingsViewModel {
   static Future<String> getLibraryBookView() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('libraryBookView') ?? 'row_expanded';
+  }
+
+  // Save tab name visibility (using string values)
+  Future<void> setTabNameVisibility(String visibility) async {
+    tabNameVisibilityNotifier.value = visibility;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('tabNameVisibility', visibility);
+  }
+
+  // Load saved tab name visibility
+  static Future<String> getTabNameVisibility() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('tabNameVisibility') ?? 'Always'; // Default to 'Always'
   }
 }

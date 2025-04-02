@@ -38,8 +38,8 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bgColor = (themeMode == ThemeMode.dark ||
-            (themeMode == ThemeMode.system &&
-                MediaQuery.of(context).platformBrightness == Brightness.dark))
+        (themeMode == ThemeMode.system &&
+            MediaQuery.of(context).platformBrightness == Brightness.dark))
         ? AppTheme.darkBackground
         : AppTheme.lightBackground;
     final textColor = CupertinoColors.label.resolveFrom(context);
@@ -87,13 +87,9 @@ class SettingsPage extends StatelessWidget {
                     color: CupertinoColors.systemGrey5
                         .resolveFrom(context)
                         .withOpacity(0.8),
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(10),
-                      bottomRight: Radius.circular(10),
-                    ),
                   ),
                   padding:
-                      const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -112,6 +108,33 @@ class SettingsPage extends StatelessWidget {
                         onPressed: () => _showColorPicker(context),
                       ),
                     ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => _showTabNameSelection(context),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey5
+                          .resolveFrom(context)
+                          .withOpacity(0.8),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(10),
+                        bottomRight: Radius.circular(10),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Tab Names'),
+                        ValueListenableBuilder<String>(
+                          valueListenable: settingsViewModel.tabNameVisibilityNotifier,
+                          builder: (context, tabNameVisibility, child) {
+                            return Text(_getTabNameVisibilityString(tabNameVisibility));
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -142,7 +165,7 @@ class SettingsPage extends StatelessWidget {
                         const Text('Default Book Format'),
                         ValueListenableBuilder<int>(
                           valueListenable:
-                              settingsViewModel.defaultBookTypeNotifier,
+                          settingsViewModel.defaultBookTypeNotifier,
                           builder: (context, defaultBookType, child) {
                             return Text(
                               bookTypeNames[defaultBookType] ?? "Unknown",
@@ -248,6 +271,116 @@ class SettingsPage extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  String _getTabNameVisibilityString(String visibility) {
+    switch (visibility) {
+      case 'Selected':
+        return 'Selected';
+      case 'Never':
+        return 'Never';
+      default:
+        return 'Always';
+    }
+  }
+
+  void _showTabNameSelection(BuildContext context) {
+    final textColor = CupertinoColors.label.resolveFrom(context);
+    final currentTabNameVisibility = settingsViewModel.tabNameVisibilityNotifier.value;
+    final accentColor = settingsViewModel.accentColorNotifier.value;
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => GestureDetector(
+        onTap: () => Navigator.pop(context), // Dismiss when tapping outside
+        child: Center(
+          child: CupertinoPopupSurface(
+            isSurfacePainted: true,
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9, // Adjust width as needed
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start, // Align left
+                children: [
+                  const Text(
+                    'Tab Name Visibility',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: 16),
+                  CupertinoButton(
+                    onPressed: () {
+                      settingsViewModel.setTabNameVisibility('Always');
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentTabNameVisibility == 'Always')
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Always',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentTabNameVisibility == 'Always'
+                                ? accentColor
+                                : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoButton(
+                    onPressed: () {
+                      settingsViewModel.setTabNameVisibility('Selected');
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentTabNameVisibility == 'Selected')
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Selected',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentTabNameVisibility == 'Selected'
+                                ? accentColor
+                                : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoButton(
+                    onPressed: () {
+                      settingsViewModel.setTabNameVisibility('Never');
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentTabNameVisibility == 'Never')
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Never',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentTabNameVisibility == 'Never'
+                                ? accentColor
+                                : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -454,7 +587,7 @@ class SettingsPage extends StatelessWidget {
         String csvString = await file.readAsString();
 
         List<List<dynamic>> csvData =
-            const CsvToListConverter().convert(csvString);
+        const CsvToListConverter().convert(csvString);
 
         if (csvData.isNotEmpty) {
           if (type == 'books') {
@@ -547,9 +680,9 @@ class SettingsPage extends StatelessWidget {
     try {
       // Call the export functions and store file paths
       String booksFilePath =
-          await exportBooksToCSV(await bookRepository.getBooks());
+      await exportBooksToCSV(await bookRepository.getBooks());
       String sessionsFilePath =
-          await exportSessionsToCSV(await sessionRepository.getSessions());
+      await exportSessionsToCSV(await sessionRepository.getSessions());
 
       if (kDebugMode) {
         print('Books data exported to: $booksFilePath');
@@ -591,18 +724,18 @@ class SettingsPage extends StatelessWidget {
         'date_finished'
       ],
       ...booksData.map((book) => [
-            book.id.toString(),
-            book.title,
-            book.author,
-            book.wordCount.toString(),
-            book.pageCount.toString(),
-            book.rating.toString(),
-            book.isCompleted.toString(),
-            book.bookTypeId.toString(),
-            book.dateAdded.toString(),
-            book.dateStarted.toString(),
-            book.dateFinished.toString(),
-          ])
+        book.id.toString(),
+        book.title,
+        book.author,
+        book.wordCount.toString(),
+        book.pageCount.toString(),
+        book.rating.toString(),
+        book.isCompleted.toString(),
+        book.bookTypeId.toString(),
+        book.dateAdded.toString(),
+        book.dateStarted.toString(),
+        book.dateFinished.toString(),
+      ])
     ];
 
     String csv = const ListToCsvConverter().convert(rows);
@@ -621,12 +754,12 @@ class SettingsPage extends StatelessWidget {
     List<List<String>> rows = [
       ['session_id', 'book_id', 'pages_read', 'duration_minutes', 'date'],
       ...sessionsData.map((session) => [
-            session.id.toString(),
-            session.bookId.toString(),
-            session.pagesRead.toString(),
-            session.durationMinutes.toString(),
-            session.date.toString(),
-          ])
+        session.id.toString(),
+        session.bookId.toString(),
+        session.pagesRead.toString(),
+        session.durationMinutes.toString(),
+        session.date.toString(),
+      ])
     ];
 
     String csv = const ListToCsvConverter().convert(rows);
