@@ -136,13 +136,13 @@ class _AddBookPageState extends State<AddBookPage> {
                 maxLines: null,
                 suffix: _titleController.text.isNotEmpty
                     ? Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: GestureDetector(
-                          onTap: () => _clearField(_titleController),
-                          child: Icon(CupertinoIcons.clear,
-                              color: CupertinoColors.systemGrey),
-                        ),
-                      )
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: GestureDetector(
+                    onTap: () => _clearField(_titleController),
+                    child: Icon(CupertinoIcons.clear,
+                        color: CupertinoColors.systemGrey),
+                  ),
+                )
                     : null,
               ),
               const SizedBox(height: 16),
@@ -156,13 +156,13 @@ class _AddBookPageState extends State<AddBookPage> {
                 maxLines: null,
                 suffix: _authorController.text.isNotEmpty
                     ? Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: GestureDetector(
-                          onTap: () => _clearField(_authorController),
-                          child: Icon(CupertinoIcons.clear,
-                              color: CupertinoColors.systemGrey),
-                        ),
-                      )
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: GestureDetector(
+                    onTap: () => _clearField(_authorController),
+                    child: Icon(CupertinoIcons.clear,
+                        color: CupertinoColors.systemGrey),
+                  ),
+                )
                     : null,
               ),
               const SizedBox(height: 16),
@@ -179,13 +179,13 @@ class _AddBookPageState extends State<AddBookPage> {
                 keyboardType: TextInputType.number,
                 suffix: _wordCountController.text.isNotEmpty
                     ? Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: GestureDetector(
-                          onTap: () => _clearField(_wordCountController),
-                          child: Icon(CupertinoIcons.clear,
-                              color: CupertinoColors.systemGrey),
-                        ),
-                      )
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: GestureDetector(
+                    onTap: () => _clearField(_wordCountController),
+                    child: Icon(CupertinoIcons.clear,
+                        color: CupertinoColors.systemGrey),
+                  ),
+                )
                     : null,
               ),
               const SizedBox(height: 16),
@@ -341,22 +341,63 @@ class _AddBookPageState extends State<AddBookPage> {
                                         : DateFormat('MMMM d, y').format(_dateStarted!),
                                     style: TextStyle(fontSize: 16, color: textColor),
                                   ),
-                                  Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey)
+                                  Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey),
                                 ],
                               ),
-                              onPressed: () => showCupertinoModalPopup(
-                                context: context,
-                                builder: (_) => Container(
-                                  height: 200,
-                                  color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
-                                  child: CupertinoDatePicker(
-                                    maximumDate: _dateToday,
-                                    initialDateTime: _dateToday,
-                                    mode: CupertinoDatePickerMode.date,
-                                    onDateTimeChanged: (date) => setState(() => _dateStarted = date),
+                              onPressed: () {
+                                DateTime tempDate = _dateStarted ?? _dateToday; // Store temp date
+                                showCupertinoModalPopup(
+                                  context: context,
+                                  builder: (_) => Container(
+                                    height: 250,
+                                    color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
+                                    child: Column(
+                                      children: [
+                                        // Clear & Done buttons
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            CupertinoButton(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              child: Text(
+                                                'Clear',
+                                                style: TextStyle(color: textColor),
+                                              ),
+                                              onPressed: () {
+                                                setState(() => _dateStarted = null);
+                                                Navigator.pop(context); // Close modal
+                                              },
+                                            ),
+                                            CupertinoButton(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              child: Text(
+                                                'Done',
+                                                style: TextStyle(color: accentColor),
+                                              ),
+                                              onPressed: () {
+                                                setState(() => _dateStarted = tempDate); // Apply selected date
+                                                Navigator.pop(context); // Close modal
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                        Expanded(
+                                          child: CupertinoDatePicker(
+                                            maximumDate: _dateToday,
+                                            initialDateTime: tempDate,
+                                            mode: CupertinoDatePickerMode.date,
+                                            onDateTimeChanged: (date) {
+                                              tempDate = date;
+                                              setState(() => _dateStarted = date);
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(height: 32),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -382,26 +423,67 @@ class _AddBookPageState extends State<AddBookPage> {
                                 children: [
                                   Text(
                                     _dateFinished == null
-                                        ? 'Select Start Date'
+                                        ? 'Select Finish Date'
                                         : DateFormat('MMMM d, y').format(_dateFinished!),
                                     style: TextStyle(fontSize: 16, color: textColor),
                                   ),
-                                  Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey)
+                                  Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey),
                                 ],
                               ),
-                              onPressed: () => showCupertinoModalPopup(
-                                context: context,
-                                builder: (_) => Container(
-                                  height: 200,
-                                  color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
-                                  child: CupertinoDatePicker(
-                                    maximumDate: _dateToday,
-                                    initialDateTime: _dateToday,
-                                    mode: CupertinoDatePickerMode.date,
-                                    onDateTimeChanged: (date) => setState(() => _dateFinished = date),
+                              onPressed: () {
+                                DateTime tempDate = _dateFinished ?? _dateToday; // Store temp date
+                                showCupertinoModalPopup(
+                                  context: context,
+                                  builder: (_) => Container(
+                                    height: 250,
+                                    color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
+                                    child: Column(
+                                      children: [
+                                        // Clear & Done buttons
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            CupertinoButton(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              child: Text(
+                                                'Clear',
+                                                style: TextStyle(color: textColor),
+                                              ),
+                                              onPressed: () {
+                                                setState(() => _dateFinished = null);
+                                                Navigator.pop(context); // Close modal
+                                              },
+                                            ),
+                                            CupertinoButton(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              child: Text(
+                                                'Done',
+                                                style: TextStyle(color: accentColor),
+                                              ),
+                                              onPressed: () {
+                                                setState(() => _dateFinished = tempDate); // Apply selected date
+                                                Navigator.pop(context); // Close modal
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                        Expanded(
+                                          child: CupertinoDatePicker(
+                                            maximumDate: _dateToday,
+                                            initialDateTime: tempDate,
+                                            mode: CupertinoDatePickerMode.date,
+                                            onDateTimeChanged: (date) {
+                                              tempDate = date;
+                                              setState(() => _dateFinished = date);
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(height: 32),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ),
+                                );
+                              },
                             ),
                           ],
                         ),

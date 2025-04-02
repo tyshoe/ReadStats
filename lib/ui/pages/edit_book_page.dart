@@ -248,7 +248,7 @@ class _EditBookPageState extends State<EditBookPage> {
               CupertinoSlidingSegmentedControl<int>(
                 // padding: const EdgeInsets.all(12),
                 groupValue:
-                    _isCompleted ? 1 : 0, // Map boolean to segment index
+                _isCompleted ? 1 : 0, // Map boolean to segment index
                 onValueChanged: (int? value) {
                   if (value != null) {
                     setState(() {
@@ -333,22 +333,63 @@ class _EditBookPageState extends State<EditBookPage> {
                                         : DateFormat('MMMM d, y').format(_dateStarted!),
                                     style: TextStyle(fontSize: 16, color: textColor),
                                   ),
-                                  Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey)
+                                  Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey),
                                 ],
                               ),
-                              onPressed: () => showCupertinoModalPopup(
-                                context: context,
-                                builder: (_) => Container(
-                                  height: 200,
-                                  color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
-                                  child: CupertinoDatePicker(
-                                    maximumDate: _dateToday,
-                                    initialDateTime: _dateToday,
-                                    mode: CupertinoDatePickerMode.date,
-                                    onDateTimeChanged: (date) => setState(() => _dateStarted = date),
+                              onPressed: () {
+                                DateTime tempDate = _dateStarted ?? _dateToday; // Store temp date
+                                showCupertinoModalPopup(
+                                  context: context,
+                                  builder: (_) => Container(
+                                    height: 250,
+                                    color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
+                                    child: Column(
+                                      children: [
+                                        // Clear & Done buttons
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            CupertinoButton(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              child: Text(
+                                                'Clear',
+                                                style: TextStyle(color: textColor),
+                                              ),
+                                              onPressed: () {
+                                                setState(() => _dateStarted = null);
+                                                Navigator.pop(context); // Close modal
+                                              },
+                                            ),
+                                            CupertinoButton(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              child: Text(
+                                                'Done',
+                                                style: TextStyle(color: accentColor),
+                                              ),
+                                              onPressed: () {
+                                                setState(() => _dateStarted = tempDate);
+                                                Navigator.pop(context);
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                        Expanded(
+                                          child: CupertinoDatePicker(
+                                            maximumDate: _dateToday,
+                                            initialDateTime: tempDate,
+                                            mode: CupertinoDatePickerMode.date,
+                                            onDateTimeChanged: (date) {
+                                              tempDate = date;
+                                              setState(() => _dateStarted = date);
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(height: 32),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -374,26 +415,67 @@ class _EditBookPageState extends State<EditBookPage> {
                                 children: [
                                   Text(
                                     _dateFinished == null
-                                        ? 'Select Start Date'
+                                        ? 'Select Finish Date'
                                         : DateFormat('MMMM d, y').format(_dateFinished!),
                                     style: TextStyle(fontSize: 16, color: textColor),
                                   ),
-                                  Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey)
+                                  Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey),
                                 ],
                               ),
-                              onPressed: () => showCupertinoModalPopup(
-                                context: context,
-                                builder: (_) => Container(
-                                  height: 200,
-                                  color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
-                                  child: CupertinoDatePicker(
-                                    maximumDate: _dateToday,
-                                    initialDateTime: _dateToday,
-                                    mode: CupertinoDatePickerMode.date,
-                                    onDateTimeChanged: (date) => setState(() => _dateFinished = date),
+                              onPressed: () {
+                                DateTime tempDate = _dateFinished ?? _dateToday; // Store temp date
+                                showCupertinoModalPopup(
+                                  context: context,
+                                  builder: (_) => Container(
+                                    height: 250,
+                                    color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
+                                    child: Column(
+                                      children: [
+                                        // Clear & Done buttons
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            CupertinoButton(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              child: Text(
+                                                'Clear',
+                                                style: TextStyle(color: textColor),
+                                              ),
+                                              onPressed: () {
+                                                setState(() => _dateFinished = null);
+                                                Navigator.pop(context); // Close modal
+                                              },
+                                            ),
+                                            CupertinoButton(
+                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              child: Text(
+                                                'Done',
+                                                style: TextStyle(color: accentColor),
+                                              ),
+                                              onPressed: () {
+                                                setState(() => _dateFinished = tempDate);
+                                                Navigator.pop(context);
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                        Expanded(
+                                          child: CupertinoDatePicker(
+                                            maximumDate: _dateToday,
+                                            initialDateTime: tempDate,
+                                            mode: CupertinoDatePickerMode.date,
+                                            onDateTimeChanged: (date) {
+                                              tempDate = date;
+                                              setState(() => _dateFinished = date);
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(height: 32),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ),
+                                );
+                              },
                             ),
                           ],
                         ),
