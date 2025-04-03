@@ -6,6 +6,7 @@ class SettingsViewModel {
   final ValueNotifier<ThemeMode> themeModeNotifier;
   final ValueNotifier<Color> accentColorNotifier;
   final ValueNotifier<int> defaultBookTypeNotifier;
+  final ValueNotifier<int> defaultRatingStyleNotifier;
   final ValueNotifier<String> librarySortOptionNotifier;
   final ValueNotifier<bool> isLibrarySortAscendingNotifier;
   final ValueNotifier<String> libraryBookFormatFilterNotifier;
@@ -16,6 +17,7 @@ class SettingsViewModel {
     required ThemeMode themeMode,
     required Color accentColor,
     required int defaultBookType,
+    required int defaultRatingStyle,
     required String sortOption,
     required bool isAscending,
     required String bookFormat,
@@ -24,6 +26,7 @@ class SettingsViewModel {
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
+        defaultRatingStyleNotifier = ValueNotifier(defaultRatingStyle),
         librarySortOptionNotifier = ValueNotifier(sortOption),
         isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
         libraryBookFormatFilterNotifier = ValueNotifier(bookFormat),
@@ -143,5 +146,16 @@ class SettingsViewModel {
   static Future<String> getTabNameVisibility() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('tabNameVisibility') ?? 'Always'; // Default to 'Always'
+  }
+
+  Future<void> setDefaultRatingStyle(int ratingStyle) async {
+    defaultRatingStyleNotifier.value = ratingStyle;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('defaultRatingStyle', ratingStyle);
+  }
+
+  static Future<int> getDefaultRatingStyle() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('defaultRatingStyle') ?? 0;
   }
 }

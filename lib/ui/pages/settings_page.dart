@@ -153,8 +153,6 @@ class SettingsPage extends StatelessWidget {
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(10),
                         topRight: Radius.circular(10),
-                        bottomLeft: Radius.circular(10),
-                        bottomRight: Radius.circular(10),
                       ),
                     ),
                     padding: const EdgeInsets.symmetric(
@@ -169,6 +167,33 @@ class SettingsPage extends StatelessWidget {
                           builder: (context, defaultBookType, child) {
                             return Text(
                               bookTypeNames[defaultBookType] ?? "Unknown",
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => _showRatingStylePicker(context),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(10),
+                        bottomRight: Radius.circular(10),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Rating Style'),
+                        ValueListenableBuilder<int>(
+                          valueListenable: settingsViewModel.defaultRatingStyleNotifier,
+                          builder: (context, defaultRatingStyle, child) {
+                            return Text(
+                              ratingStyleNames[defaultRatingStyle] ?? "Unknown",
                             );
                           },
                         ),
@@ -275,6 +300,85 @@ class SettingsPage extends StatelessWidget {
       ),
     );
   }
+
+  static Map<int, String> ratingStyleNames = {
+    0: "Stars",
+    1: "Numbers",
+  };
+
+  void _showRatingStylePicker(BuildContext context) {
+    final textColor = CupertinoColors.label.resolveFrom(context);
+    final currentRatingStyle = settingsViewModel.defaultRatingStyleNotifier.value;
+    final accentColor = settingsViewModel.accentColorNotifier.value;
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => GestureDetector(
+        onTap: () => Navigator.pop(context), // Dismiss when tapping outside
+        child: Center(
+          child: CupertinoPopupSurface(
+            isSurfacePainted: true,
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9, // Adjust width as needed
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start, // Align left
+                children: [
+                  const Text(
+                    'Rating Style',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: 16),
+                  CupertinoButton(
+                    onPressed: () {
+                      settingsViewModel.setDefaultRatingStyle(0); // Stars
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentRatingStyle == 0)
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Stars',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentRatingStyle == 0 ? accentColor : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoButton(
+                    onPressed: () {
+                      settingsViewModel.setDefaultRatingStyle(1); // Numbers
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentRatingStyle == 1)
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Numbers',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentRatingStyle == 1 ? accentColor : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 
   String _getTabNameVisibilityString(String visibility) {
     switch (visibility) {

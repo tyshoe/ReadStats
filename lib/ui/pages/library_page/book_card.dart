@@ -1,13 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart';
-import '/data/database/database_helper.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import '/data/database/database_helper.dart';
 
 class BookPopup {
   static void showBookPopup(
     BuildContext context,
     Map<String, dynamic> book,
+    int ratingStyle,
     Function navigateToEditBookPage,
     Function navigateToAddSessionPage,
     Function confirmDelete,
@@ -239,7 +240,7 @@ class BookPopup {
                           ),
                           if (book['is_completed'] == 1) ...[
                             const SizedBox(height: 5),
-                            _buildRatingStars(book['rating'] ?? 0),
+                            _buildRatingDisplay(ratingStyle, book['rating'] ?? 0),
                           ],
                           if (dateRangeString != '') ...[
                             const SizedBox(height: 5),
@@ -402,22 +403,29 @@ class BookPopup {
   }
 
   static Widget _buildRatingStars(double rating) {
-    int fullStars = rating.floor();
-    bool hasHalfStar = (rating - fullStars) >= 0.5;
-
-    return Row(
-      children: List.generate(5, (index) {
-        if (index < fullStars) {
-          return const Icon(CupertinoIcons.star_fill,
-              color: CupertinoColors.systemYellow);
-        } else if (index == fullStars && hasHalfStar) {
-          return const Icon(CupertinoIcons.star_lefthalf_fill,
-              color: CupertinoColors.systemYellow);
-        } else {
-          return const Icon(CupertinoIcons.star,
-              color: CupertinoColors.systemGrey);
-        }
-      }),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: RatingBarIndicator(
+        rating: rating, // Directly use the rating value
+        itemCount: 5,
+        itemSize: 24.0,
+        physics: const NeverScrollableScrollPhysics(), // Prevent interaction
+        itemBuilder: (context, _) => const Icon(
+          CupertinoIcons.star_fill,
+          color: CupertinoColors.systemYellow,
+        ),
+      ),
     );
+  }
+
+  static Widget _buildRatingDisplay(int ratingStyle, double rating) {
+    if (ratingStyle == 0) {
+      return _buildRatingStars(rating);
+    } else {
+      return Text(
+        rating.toStringAsFixed(1),
+        style: const TextStyle(fontSize: 14),
+      );
+    }
   }
 }

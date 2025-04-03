@@ -30,6 +30,7 @@ class _AddBookPageState extends State<AddBookPage> {
   int _selectedBookType = 0;
   DateTime? _dateStarted;
   DateTime? _dateFinished;
+  late final bool _useStarRating;
 
   @override
   void initState() {
@@ -37,6 +38,7 @@ class _AddBookPageState extends State<AddBookPage> {
     // Set the default book type based on the value in settingsViewModel
     _selectedBookType =
         widget.settingsViewModel.defaultBookTypeNotifier.value - 1;
+    _useStarRating = widget.settingsViewModel.defaultRatingStyleNotifier.value == 0;
   }
 
   void _saveBook() {
@@ -284,26 +286,39 @@ class _AddBookPageState extends State<AddBookPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Center(
-                  child: RatingBar.builder(
-                    initialRating: _rating,
-                    minRating: 0,
-                    maxRating: 5,
-                    allowHalfRating: true,
-                    itemCount: 5,
-                    itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    glow: false,
-                    itemBuilder: (context, _) => const Icon(
-                      CupertinoIcons.star_fill,
-                      color: CupertinoColors.systemYellow,
+                if (_useStarRating)
+                  Center(
+                    child: RatingBar.builder(
+                      initialRating: _rating,
+                      minRating: 0,
+                      maxRating: 5,
+                      allowHalfRating: true,
+                      itemCount: 5,
+                      itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      glow: false,
+                      itemBuilder: (context, _) => const Icon(
+                        CupertinoIcons.star_fill,
+                        color: CupertinoColors.systemYellow,
+                      ),
+                      onRatingUpdate: (rating) {
+                        setState(() {
+                          _rating = rating;
+                        });
+                      },
                     ),
-                    onRatingUpdate: (rating) {
-                      setState(() {
-                        _rating = rating;
-                      });
+                  )
+                else
+                  CupertinoTextField(
+                    placeholder: "Rating (0 - 5)",
+                    padding: const EdgeInsets.all(12),
+                    keyboardType: TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (value) {
+                      final parsed = double.tryParse(value);
+                      if (parsed != null && parsed >= 0 && parsed <= 10) {
+                        _rating = parsed;
+                      }
                     },
                   ),
-                ),
               ],
               const SizedBox(height: 16),
               const Text(

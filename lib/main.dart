@@ -66,6 +66,7 @@ class _MyAppState extends State<MyApp> {
   Future<void> _initializeSettingsViewModel() async {
     final accentColor = await SettingsViewModel.getAccentColor();
     final defaultBookType = await SettingsViewModel.getDefaultBookType();
+    final defaultRatingStyle = await SettingsViewModel.getDefaultRatingStyle();
     final sortOption = await SettingsViewModel.getLibrarySortOption();
     final isAscending = await SettingsViewModel.getLibrarySortAscending();
     final bookFormat = await SettingsViewModel.getLibraryBookFormatFilter();
@@ -85,6 +86,7 @@ class _MyAppState extends State<MyApp> {
       themeMode: widget.themeMode,
       accentColor: accentColor,
       defaultBookType: defaultBookType,
+      defaultRatingStyle: defaultRatingStyle,
       sortOption: sortOption,
       isAscending: isAscending,
       bookFormat: bookFormat,

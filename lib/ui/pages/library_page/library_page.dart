@@ -194,6 +194,7 @@ class _LibraryPageState extends State<LibraryPage> {
     BookPopup.showBookPopup(
       context,
       book,
+      widget.settingsViewModel.defaultRatingStyleNotifier.value,
       _navigateToEditBookPage,
       _navigateToAddSessionPage,
       _confirmDelete,
@@ -440,6 +441,7 @@ class _LibraryPageState extends State<LibraryPage> {
                               book: book,
                               textColor: textColor,
                               isCompactView: _libraryBookView == "row_compact",
+                              showStars: widget.settingsViewModel.defaultRatingStyleNotifier.value == 0, //convert to bool (0 is stars)
                               onTap: () => _showBookPopup(context, book),
                             );
                           },

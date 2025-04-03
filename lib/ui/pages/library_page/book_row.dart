@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:intl/intl.dart';
 
 class BookRow extends StatelessWidget {
@@ -6,6 +7,7 @@ class BookRow extends StatelessWidget {
   final Color textColor;
   final VoidCallback onTap;
   final bool isCompactView;
+  final bool showStars;
 
   const BookRow({
     super.key,
@@ -13,6 +15,7 @@ class BookRow extends StatelessWidget {
     required this.textColor,
     required this.onTap,
     required this.isCompactView,
+    required this.showStars,
   });
 
   @override
@@ -99,16 +102,33 @@ class BookRow extends StatelessWidget {
               // Show additional details if not in compact view
               if (!isCompactView) ...[
                 const SizedBox(height: 4),
-                Text(
-                  "${formatDate(book['date_started'])} - ${formatDate(book['date_finished'])}",
-                  style: TextStyle(
-                    color: CupertinoColors.systemGrey,
-                    fontSize: 14,
+                // Display either star rating or numeric rating based on showStars
+                if (showStars)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: RatingBarIndicator(
+                      rating: book['rating']?.toDouble() ?? 0.0,
+                      itemCount: 5,
+                      itemSize: 20.0,
+                      itemPadding: const EdgeInsets.symmetric(horizontal: 2.0),
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemBuilder: (context, _) => const Icon(
+                        CupertinoIcons.star_fill,
+                        color: CupertinoColors.systemYellow,
+                      ),
+                    ),
+                  )
+                else
+                  Text(
+                    "${book['rating']?.toStringAsFixed(1) ?? '0'}",
+                    style: TextStyle(
+                      color: CupertinoColors.systemGrey,
+                      fontSize: 14,
+                    ),
                   ),
-                ),
                 const SizedBox(height: 4),
                 Text(
-                  "${book['rating']?.toStringAsFixed(1) ?? '0'}",
+                  "${formatDate(book['date_started'])} - ${formatDate(book['date_finished'])}",
                   style: TextStyle(
                     color: CupertinoColors.systemGrey,
                     fontSize: 14,
