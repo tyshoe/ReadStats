@@ -41,7 +41,7 @@ class BookRow extends StatelessWidget {
         bookTypeIcon = CupertinoIcons.book_fill;
     }
 
-    // Convert date strings to formatted dates
+    // Helper function to format date
     String formatDate(String? date) {
       if (date == null || date.isEmpty) return "N/A";
       try {
@@ -49,6 +49,33 @@ class BookRow extends StatelessWidget {
       } catch (e) {
         return "Invalid Date";
       }
+    }
+
+    // Helper function to calculate days to complete
+    String calculateDaysToComplete(String? startDate, String? finishDate) {
+      if (startDate != null && finishDate != null) {
+        DateTime startDateTime = DateTime.parse(startDate);
+        DateTime finishDateTime = DateTime.parse(finishDate);
+        int days = finishDateTime.difference(startDateTime).inDays;
+        int adjustedDays = days == 0 ? 1 : days;
+        return "($adjustedDays ${adjustedDays == 1 ? 'day' : 'days'})";
+      }
+      return "";
+    }
+
+    // Get start and finish dates
+    String? startDate = book['date_started'];
+    String? finishDate = book['date_finished'];
+
+    String daysToCompleteString = calculateDaysToComplete(startDate, finishDate);
+
+    String dateRangeString = "";
+    if (startDate != null && finishDate != null) {
+      dateRangeString = "${formatDate(startDate)} - ${formatDate(finishDate)} $daysToCompleteString";
+    } else if (startDate != null) {
+      dateRangeString = "Started ${formatDate(startDate)}";
+    } else if (finishDate != null) {
+      dateRangeString = "Finished ${formatDate(finishDate)}";
     }
 
     double containerHeight = isCompactView ? 60 : 100; // Adjust height
@@ -130,7 +157,7 @@ class BookRow extends StatelessWidget {
                   ),
                 const SizedBox(height: 4),
                 Text(
-                  "${formatDate(book['date_started'])} - ${formatDate(book['date_finished'])}",
+                  dateRangeString,
                   style: TextStyle(
                     color: CupertinoColors.systemGrey,
                     fontSize: 14,
