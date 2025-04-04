@@ -72,6 +72,7 @@ class _MyAppState extends State<MyApp> {
     final bookFormat = await SettingsViewModel.getLibraryBookFormatFilter();
     final bookView = await SettingsViewModel.getLibraryBookView();
     final tabNameVisibility = await SettingsViewModel.getTabNameVisibility();
+    final defaultTab = await SettingsViewModel.getDefaultTab();
 
     if (kDebugMode) {
       print(
@@ -92,6 +93,7 @@ class _MyAppState extends State<MyApp> {
       bookFormat: bookFormat,
       bookView: bookView,
       tabNameVisibility: tabNameVisibility,
+      defaultTab: defaultTab,
     );
   }
 
@@ -177,7 +179,13 @@ class NavigationMenu extends StatefulWidget {
 }
 
 class _NavigationMenuState extends State<NavigationMenu> {
-  int _activeTabIndex = 0;
+  late int _activeTabIndex;
+
+  @override
+  void initState(){
+    super.initState();
+    _activeTabIndex = widget.settingsViewModel.defaultTabNotifier.value;
+  }
 
   @override
   Widget build(BuildContext context) {

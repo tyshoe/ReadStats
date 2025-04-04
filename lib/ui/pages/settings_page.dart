@@ -179,10 +179,6 @@ class SettingsPage extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       color: CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(10),
-                        bottomRight: Radius.circular(10),
-                      ),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                     child: Row(
@@ -195,6 +191,33 @@ class SettingsPage extends StatelessWidget {
                             return Text(
                               ratingStyleNames[defaultRatingStyle] ?? "Unknown",
                             );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => _showDefaultTabSelection(context),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey5
+                          .resolveFrom(context)
+                          .withOpacity(0.8),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(10),
+                        bottomRight: Radius.circular(10),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Default Tab'),
+                        ValueListenableBuilder<int>(
+                          valueListenable: settingsViewModel.defaultTabNotifier,
+                          builder: (context, selectedTabIndex, child) {
+                            return Text(_getTabName(selectedTabIndex)); // Corrected function call
                           },
                         ),
                       ],
@@ -300,6 +323,134 @@ class SettingsPage extends StatelessWidget {
       ),
     );
   }
+
+  String _getTabName(int index) {
+    switch (index) {
+      case 0:
+        return 'Library';
+      case 1:
+        return 'Sessions';
+      case 2:
+        return 'Stats';
+      case 3:
+      default:
+        return 'Settings';
+    }
+  }
+
+  void _showDefaultTabSelection(BuildContext context) {
+    final textColor = CupertinoColors.label.resolveFrom(context);
+    final currentTabIndex = settingsViewModel.defaultTabNotifier.value;
+    final accentColor = settingsViewModel.accentColorNotifier.value;
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => GestureDetector(
+        onTap: () => Navigator.pop(context), // Dismiss when tapping outside
+        child: Center(
+          child: CupertinoPopupSurface(
+            isSurfacePainted: true,
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9, // Adjust width as needed
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start, // Align left
+                children: [
+                  const Text(
+                    'Default Tab',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: 16),
+                  CupertinoButton(
+                    onPressed: () {
+                      settingsViewModel.setDefaultTab(0);
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentTabIndex == 0)
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Library',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentTabIndex == 0 ? accentColor : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoButton(
+                    onPressed: () {
+                      settingsViewModel.setDefaultTab(1);
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentTabIndex == 1)
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Sessions',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentTabIndex == 1 ? accentColor : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoButton(
+                    onPressed: () {
+                      settingsViewModel.setDefaultTab(2);
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentTabIndex == 2)
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Stats',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentTabIndex == 2 ? accentColor : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoButton(
+                    onPressed: () {
+                      settingsViewModel.setDefaultTab(3);
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentTabIndex == 3)
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Settings',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentTabIndex == 3 ? accentColor : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 
   static Map<int, String> ratingStyleNames = {
     0: "Stars",
