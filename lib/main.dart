@@ -73,6 +73,7 @@ class _MyAppState extends State<MyApp> {
     final bookView = await SettingsViewModel.getLibraryBookView();
     final tabNameVisibility = await SettingsViewModel.getTabNameVisibility();
     final defaultTab = await SettingsViewModel.getDefaultTab();
+    final defaultDateFormat = await SettingsViewModel.getDefaultDateFormat();
 
     if (kDebugMode) {
       print(
@@ -94,6 +95,7 @@ class _MyAppState extends State<MyApp> {
       bookView: bookView,
       tabNameVisibility: tabNameVisibility,
       defaultTab: defaultTab,
+      defaultDateFormat: defaultDateFormat
     );
   }
 

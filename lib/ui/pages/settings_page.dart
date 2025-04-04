@@ -111,6 +111,38 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ),
                 GestureDetector(
+                  onTap: () => _showDateFormatSelection(context),  // Function to show the date format selection
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey5
+                          .resolveFrom(context)
+                          .withOpacity(0.8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Date Format'),  // Label for the date format option
+                        ValueListenableBuilder<String>(
+                          valueListenable: settingsViewModel.defaultDateFormatNotifier,  // Use the correct notifier
+                          builder: (context, selectedDateFormat, child) {
+                            // Get current date
+                            DateTime currentDate = DateTime.now();
+
+                            // Format the current date based on the selected format
+                            String formattedDate = _getFormattedDate(currentDate, selectedDateFormat);
+
+                            return Text(
+                              formattedDate,  // Display the formatted date
+                              style: TextStyle(fontSize: 16),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                GestureDetector(
                   onTap: () => _showTabNameSelection(context),
                   child: Container(
                     decoration: BoxDecoration(
@@ -450,6 +482,131 @@ class SettingsPage extends StatelessWidget {
       ),
     );
   }
+
+  String _getFormattedDate(DateTime date, String format) {
+    try {
+      // Using DateFormat to format the date
+      return DateFormat(format).format(date);
+    } catch (e) {
+      // In case of an invalid format, return a fallback
+      return DateFormat('yyyy-MM-dd').format(date);
+    }
+  }
+
+  void _showDateFormatSelection(BuildContext context) {
+    final textColor = CupertinoColors.label.resolveFrom(context);
+    final currentDateFormat = settingsViewModel.defaultDateFormatNotifier.value;
+    final accentColor = settingsViewModel.accentColorNotifier.value;
+    final DateTime currentDate = DateTime.now();
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => GestureDetector(
+        onTap: () => Navigator.pop(context), // Dismiss when tapping outside
+        child: Center(
+          child: CupertinoPopupSurface(
+            isSurfacePainted: true,
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9, // Adjust width as needed
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start, // Align left
+                children: [
+                  const Text(
+                    'Date Format',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: 16),
+                  CupertinoButton(
+                    onPressed: () {
+                      settingsViewModel.setDefaultDateFormat('MMM dd, yyyy');
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentDateFormat == 'MMM dd, yyyy')
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getFormattedDate(currentDate, 'MMM dd, yyyy'),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentDateFormat == 'MMM dd, yyyy' ? accentColor : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoButton(
+                    onPressed: () {
+                      settingsViewModel.setDefaultDateFormat('MM/dd/yyyy');
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentDateFormat == 'MM/dd/yyyy')
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getFormattedDate(currentDate, 'MM/dd/yyyy'),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentDateFormat == 'MM/dd/yyyy' ? accentColor : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoButton(
+                    onPressed: () {
+                      settingsViewModel.setDefaultDateFormat('dd/MM/yyyy');
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentDateFormat == 'dd/MM/yyyy')
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getFormattedDate(currentDate, 'dd/MM/yyyy'),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentDateFormat == 'dd/MM/yyyy' ? accentColor : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoButton(
+                    onPressed: () {
+                      settingsViewModel.setDefaultDateFormat('yyyy/MM/dd');
+                      Navigator.pop(context);
+                    },
+                    child: Row(
+                      children: [
+                        if (currentDateFormat == 'yyyy/MM/dd')
+                          Icon(CupertinoIcons.check_mark, color: accentColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getFormattedDate(currentDate, 'yyyy/MM/dd'),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: currentDateFormat == 'yyyy/MM/dd' ? accentColor : textColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 
 
   static Map<int, String> ratingStyleNames = {

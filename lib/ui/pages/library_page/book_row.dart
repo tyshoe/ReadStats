@@ -8,6 +8,7 @@ class BookRow extends StatelessWidget {
   final VoidCallback onTap;
   final bool isCompactView;
   final bool showStars;
+  final String dateFormatString;
 
   const BookRow({
     super.key,
@@ -16,6 +17,7 @@ class BookRow extends StatelessWidget {
     required this.onTap,
     required this.isCompactView,
     required this.showStars,
+    required this.dateFormatString,
   });
 
   @override
@@ -43,7 +45,7 @@ class BookRow extends StatelessWidget {
     String formatDate(String? date) {
       if (date == null || date.isEmpty) return "N/A";
       try {
-        return DateFormat('MMM d, yyyy').format(DateTime.parse(date));
+        return DateFormat(dateFormatString).format(DateTime.parse(date));
       } catch (e) {
         return "Invalid Date";
       }

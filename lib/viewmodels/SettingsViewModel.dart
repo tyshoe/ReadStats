@@ -13,6 +13,7 @@ class SettingsViewModel {
   final ValueNotifier<String> libraryBookViewNotifier;
   final ValueNotifier<String> tabNameVisibilityNotifier;
   final ValueNotifier<int> defaultTabNotifier;
+  final ValueNotifier<String> defaultDateFormatNotifier;
 
   SettingsViewModel({
     required ThemeMode themeMode,
@@ -25,6 +26,7 @@ class SettingsViewModel {
     required String bookView,
     required String tabNameVisibility,
     required int defaultTab,
+    required String defaultDateFormat,
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
@@ -34,7 +36,8 @@ class SettingsViewModel {
         libraryBookFormatFilterNotifier = ValueNotifier(bookFormat),
         libraryBookViewNotifier = ValueNotifier(bookView),
         tabNameVisibilityNotifier = ValueNotifier(tabNameVisibility),
-        defaultTabNotifier = ValueNotifier(defaultTab);
+        defaultTabNotifier = ValueNotifier(defaultTab),
+        defaultDateFormatNotifier = ValueNotifier(defaultDateFormat);
 
   // Method to toggle theme mode (light, dark, system)
   Future<void> toggleTheme(ThemeMode themeMode) async {
@@ -171,5 +174,16 @@ class SettingsViewModel {
   static Future<int> getDefaultTab() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getInt('defaultTab') ?? 0;
+  }
+
+  Future<void> setDefaultDateFormat(String visibility) async {
+    defaultDateFormatNotifier.value = visibility;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('defaultDateFormat', visibility);
+  }
+
+  static Future<String> getDefaultDateFormat() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('defaultDateFormat') ?? 'MMM dd, yyyy';
   }
 }

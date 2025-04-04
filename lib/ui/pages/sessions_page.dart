@@ -27,11 +27,30 @@ class SessionsPage extends StatefulWidget {
 
 class _SessionsPageState extends State<SessionsPage> {
   late Map<int, Map<String, dynamic>> _bookMap;
+  late String _dateFormatString;
+  late final VoidCallback _formatListener;
 
   @override
   void initState() {
     super.initState();
     _initializeBookMap();
+    _dateFormatString = widget.settingsViewModel.defaultDateFormatNotifier.value;
+
+    // Add listener for date format changes
+    _formatListener = () {
+      if (mounted) {
+        setState(() {
+          _dateFormatString = widget.settingsViewModel.defaultDateFormatNotifier.value;
+        });
+      }
+    };
+    widget.settingsViewModel.defaultDateFormatNotifier.addListener(_formatListener);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    widget.settingsViewModel.defaultDateFormatNotifier.removeListener(_formatListener);
   }
 
   @override
@@ -61,7 +80,7 @@ class _SessionsPageState extends State<SessionsPage> {
 
   String _formatDate(String isoDate) {
     final date = DateTime.parse(isoDate);
-    return DateFormat('MMM dd, yyyy').format(date);
+    return DateFormat(_dateFormatString).format(date);
   }
 
   // Group sessions by month and year

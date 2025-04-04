@@ -195,6 +195,7 @@ class _LibraryPageState extends State<LibraryPage> {
       context,
       book,
       widget.settingsViewModel.defaultRatingStyleNotifier.value,
+      widget.settingsViewModel.defaultDateFormatNotifier.value,
       _navigateToEditBookPage,
       _navigateToAddSessionPage,
       _confirmDelete,
@@ -441,7 +442,8 @@ class _LibraryPageState extends State<LibraryPage> {
                               book: book,
                               textColor: textColor,
                               isCompactView: _libraryBookView == "row_compact",
-                              showStars: widget.settingsViewModel.defaultRatingStyleNotifier.value == 0, //convert to bool (0 is stars)
+                              showStars: widget.settingsViewModel.defaultRatingStyleNotifier.value == 0,
+                              dateFormatString: widget.settingsViewModel.defaultDateFormatNotifier.value,
                               onTap: () => _showBookPopup(context, book),
                             );
                           },

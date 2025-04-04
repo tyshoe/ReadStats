@@ -9,13 +9,14 @@ class BookPopup {
     BuildContext context,
     Map<String, dynamic> book,
     int ratingStyle,
+    String dateFormatString,
     Function navigateToEditBookPage,
     Function navigateToAddSessionPage,
     Function confirmDelete,
   ) async {
     final DatabaseHelper dbHelper = DatabaseHelper();
     final stats = await dbHelper.getBookStats(book['id']);
-    final DateFormat dateFormat = DateFormat('M/d/yy');
+    final DateFormat dateFormat = DateFormat(dateFormatString);
 
     final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
     final textColor = CupertinoColors.label.resolveFrom(context);
