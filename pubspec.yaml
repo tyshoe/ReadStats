@@ -19,6 +19,7 @@ dependencies:
   csv : ^6.0.0
   share_plus: ^10.1.4
   file_picker: ^9.2.1
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:

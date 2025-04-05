@@ -74,29 +74,29 @@ class _MyAppState extends State<MyApp> {
     final tabNameVisibility = await SettingsViewModel.getTabNameVisibility();
     final defaultTab = await SettingsViewModel.getDefaultTab();
     final defaultDateFormat = await SettingsViewModel.getDefaultDateFormat();
+    final selectedFont = await SettingsViewModel.getSelectedFont();
 
     if (kDebugMode) {
-      print(
-          "Loading Prefrences: {Default Book Type: $defaultBookType,"
-              " Library Sort Option: $sortOption,"
-              " Library Sort Ascending: $isAscending,"
-              " Library Book Format Filter: $bookFormat}"
-              " Library Book View: $bookView}");
+      print("Loading Prefrences: {Default Book Type: $defaultBookType,"
+          " Library Sort Option: $sortOption,"
+          " Library Sort Ascending: $isAscending,"
+          " Library Book Format Filter: $bookFormat}"
+          " Library Book View: $bookView}");
     }
 
     _settingsViewModel = SettingsViewModel(
-      themeMode: widget.themeMode,
-      accentColor: accentColor,
-      defaultBookType: defaultBookType,
-      defaultRatingStyle: defaultRatingStyle,
-      sortOption: sortOption,
-      isAscending: isAscending,
-      bookFormat: bookFormat,
-      bookView: bookView,
-      tabNameVisibility: tabNameVisibility,
-      defaultTab: defaultTab,
-      defaultDateFormat: defaultDateFormat
-    );
+        themeMode: widget.themeMode,
+        accentColor: accentColor,
+        defaultBookType: defaultBookType,
+        defaultRatingStyle: defaultRatingStyle,
+        sortOption: sortOption,
+        isAscending: isAscending,
+        bookFormat: bookFormat,
+        bookView: bookView,
+        tabNameVisibility: tabNameVisibility,
+        defaultTab: defaultTab,
+        defaultDateFormat: defaultDateFormat,
+        selectedFont: selectedFont);
   }
 
   Future<void> _loadBooks() async {
@@ -126,25 +126,33 @@ class _MyAppState extends State<MyApp> {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: _settingsViewModel.themeModeNotifier,
       builder: (context, themeMode, child) {
-        return CupertinoApp(
-          theme: themeMode == ThemeMode.system
-              ? AppTheme.systemTheme(MediaQuery.of(context).platformBrightness)
-              : themeMode == ThemeMode.dark
-              ? AppTheme.darkTheme
-              : AppTheme.lightTheme,
-          home: NavigationMenu(
-            toggleTheme: _settingsViewModel.toggleTheme,
-            themeMode: themeMode,
-            books: _books,
-            addBook: _addBook,
-            refreshBooks: _loadBooks,
-            refreshSessions: _loadSessions,
-            sessions: _sessions,
-            bookRepository: widget.bookRepository,
-            sessionRepository: widget.sessionRepository,
-            settingsViewModel: _settingsViewModel,
-          ),
-        );
+      return ValueListenableBuilder<String>(
+        valueListenable: _settingsViewModel.selectedFontNotifier,
+        builder: (context, font, child) {
+          return CupertinoApp(
+            theme: themeMode == ThemeMode.system
+                ? AppTheme.systemTheme(
+                    MediaQuery.of(context).platformBrightness,
+                    _settingsViewModel, // Pass the ViewModel here
+                  )
+                : themeMode == ThemeMode.dark
+                    ? AppTheme.darkTheme(_settingsViewModel) // Pass to dark theme
+                    : AppTheme.lightTheme(_settingsViewModel), // Pass to l
+            home: NavigationMenu(
+              toggleTheme: _settingsViewModel.toggleTheme,
+              themeMode: themeMode,
+              books: _books,
+              addBook: _addBook,
+              refreshBooks: _loadBooks,
+              refreshSessions: _loadSessions,
+              sessions: _sessions,
+              bookRepository: widget.bookRepository,
+              sessionRepository: widget.sessionRepository,
+              settingsViewModel: _settingsViewModel,
+            ),
+          );
+        },
+      );
       },
     );
   }
@@ -184,7 +192,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
   late int _activeTabIndex;
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
     _activeTabIndex = widget.settingsViewModel.defaultTabNotifier.value;
   }

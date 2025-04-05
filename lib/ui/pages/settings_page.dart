@@ -14,6 +14,7 @@ import '/viewmodels/SettingsViewModel.dart';
 import '/data/models/book.dart';
 import '/data/models/session.dart';
 import 'dart:developer';
+import 'font_page.dart';
 
 class SettingsPage extends StatelessWidget {
   final Function(ThemeMode) toggleTheme;
@@ -108,6 +109,39 @@ class SettingsPage extends StatelessWidget {
                         onPressed: () => _showColorPicker(context),
                       ),
                     ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      CupertinoPageRoute(
+                        builder: (context) => FontSelectionPage(settingsViewModel: settingsViewModel),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey5
+                          .resolveFrom(context)
+                          .withOpacity(0.8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Font'),  // Label for the date format option
+                        ValueListenableBuilder<String>(
+                          valueListenable: settingsViewModel.selectedFontNotifier,  // Use the correct notifier
+                          builder: (context, selectedFont, child) {
+                            return Text(
+                              selectedFont,  // Display the formatted date
+                              style: TextStyle(fontSize: 16),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 GestureDetector(

@@ -14,6 +14,7 @@ class SettingsViewModel {
   final ValueNotifier<String> tabNameVisibilityNotifier;
   final ValueNotifier<int> defaultTabNotifier;
   final ValueNotifier<String> defaultDateFormatNotifier;
+  final ValueNotifier<String> selectedFontNotifier; // Added for font selection
 
   SettingsViewModel({
     required ThemeMode themeMode,
@@ -27,6 +28,7 @@ class SettingsViewModel {
     required String tabNameVisibility,
     required int defaultTab,
     required String defaultDateFormat,
+    required String selectedFont, // Added for font selection
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
@@ -37,7 +39,8 @@ class SettingsViewModel {
         libraryBookViewNotifier = ValueNotifier(bookView),
         tabNameVisibilityNotifier = ValueNotifier(tabNameVisibility),
         defaultTabNotifier = ValueNotifier(defaultTab),
-        defaultDateFormatNotifier = ValueNotifier(defaultDateFormat);
+        defaultDateFormatNotifier = ValueNotifier(defaultDateFormat),
+        selectedFontNotifier = ValueNotifier(selectedFont);
 
   // Method to toggle theme mode (light, dark, system)
   Future<void> toggleTheme(ThemeMode themeMode) async {
@@ -185,5 +188,18 @@ class SettingsViewModel {
   static Future<String> getDefaultDateFormat() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('defaultDateFormat') ?? 'MMM dd, yyyy';
+  }
+
+  // Set the selected font
+  Future<void> setSelectedFont(String font) async {
+    selectedFontNotifier.value = font;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('selectedFont', font);
+  }
+
+  // Get the selected font
+  static Future<String> getSelectedFont() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('selectedFont') ?? 'Roboto'; // Default to 'Roboto'
   }
 }
