@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'book_card.dart';
-import 'book_row.dart';
-import 'filter_sort_modal.dart';
+import 'widgets/book_card.dart';
+import 'widgets/book_row.dart';
+import 'widgets/filter_sort_modal.dart';
 import 'package:intl/intl.dart';
 import '../add_book_page.dart';
 import '../edit_book_page.dart';
