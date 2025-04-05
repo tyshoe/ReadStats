@@ -1261,44 +1261,114 @@ class SettingsPage extends StatelessWidget {
       CupertinoColors.systemGrey,
     ];
 
+    Color selectedColor = settingsViewModel.accentColorNotifier.value;
+
     showCupertinoModalPopup(
       context: context,
       builder: (BuildContext ctx) {
-        return Container(
-          height: 250,
-          padding: const EdgeInsets.all(16),
-          color: CupertinoColors.systemGrey5.resolveFrom(context),
-          child: Column(
-            children: [
-              const Text('Choose Accent Color', style: TextStyle(fontSize: 18)),
-              const SizedBox(height: 16),
-              Expanded(
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 6,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
+        return StatefulBuilder(
+          builder: (BuildContext context, setState) {
+            return Container(
+              height: 340,
+              padding: const EdgeInsets.all(16),
+              color: CupertinoColors.systemGrey6.resolveFrom(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Align(
+                    alignment: Alignment.center,
+                    child: Text('Choose Accent Color', style: TextStyle(fontSize: 18)),
                   ),
-                  itemCount: colors.length,
-                  itemBuilder: (context, index) {
-                    return GestureDetector(
-                      onTap: () {
-                        settingsViewModel.setAccentColor(colors[index]);
-                        Navigator.pop(ctx);
+                  const SizedBox(height: 12),
+
+                  // 🎲 Shuffle Button Row
+                  Align(
+                    alignment: Alignment.center,
+                    child: CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      color: CupertinoColors.systemGrey5,
+                      borderRadius: BorderRadius.circular(10),
+                      onPressed: () {
+                        final randomColor = (colors.toList()..shuffle()).first;
+                        setState(() {
+                          selectedColor = randomColor;  // Update selected color
+                        });
+                        settingsViewModel.setAccentColor(randomColor);
                       },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: colors[index],
-                          shape: BoxShape.rectangle,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(CupertinoIcons.shuffle, size: 20),
+                          SizedBox(width: 6),
+                          Text("Random",),
+                        ],
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  ),
+
+                  // const SizedBox(height: 12),
+
+                  // 🎨 Color Grid
+                  Expanded(
+                    child: GridView.builder(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 6,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                      ),
+                      itemCount: colors.length,
+                      itemBuilder: (context, index) {
+                        final color = colors[index];
+                        final isSelected = color == selectedColor;
+
+                        // Determine brightness of the color
+                        final isDarkColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark;
+                        final checkmarkColor = isDarkColor ? CupertinoColors.white : CupertinoColors.black;
+
+                        final borderColor = isSelected
+                            ? HSLColor.fromColor(color)
+                            .withLightness(
+                          (HSLColor.fromColor(color).lightness - 0.25).clamp(0.0, 1.0),
+                        )
+                            .toColor()
+                            : null;
+
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              selectedColor = color; // Update selected color
+                            });
+                            settingsViewModel.setAccentColor(color);
+                            Navigator.pop(ctx);
+                          },
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: isSelected
+                                      ? Border.all(color: borderColor!, width: 3)
+                                      : null,
+                                ),
+                              ),
+                              if (isSelected)
+                                Icon(
+                                  CupertinoIcons.check_mark,
+                                  color: checkmarkColor,
+                                  size: 28,
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
