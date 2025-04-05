@@ -323,6 +323,18 @@ class _LibraryPageState extends State<LibraryPage> {
     });
   }
 
+  Color _getIconColorBasedOnAccentColor(Color color) {
+    // Convert to HSL (Hue, Saturation, Lightness)
+    HSLColor hslColor = HSLColor.fromColor(color);
+
+    // Determine brightness (lightness)
+    double lightness = hslColor.lightness;
+
+    // If the color's lightness is less than 0.5, it's dark, so use white icon
+    // Otherwise, use black icon
+    return lightness < 0.5 ? CupertinoColors.white : CupertinoColors.black;
+  }
+
   @override
   Widget build(BuildContext context) {
     final textColor = CupertinoColors.label.resolveFrom(context);
@@ -461,7 +473,10 @@ class _LibraryPageState extends State<LibraryPage> {
                 borderRadius: BorderRadius.circular(16),
                 color: accentColor,
                 onPressed: _navigateToAddBookPage,
-                child: Icon(CupertinoIcons.add, color: CupertinoColors.white),
+                child: Icon(
+                  CupertinoIcons.add,
+                  color: _getIconColorBasedOnAccentColor(accentColor),
+                ),
               ),
             ),
           ],
