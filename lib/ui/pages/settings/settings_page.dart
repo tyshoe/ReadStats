@@ -7,20 +7,20 @@ import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:csv/csv.dart';
 import 'package:share_plus/share_plus.dart';
-import '../themes/app_theme.dart';
+import '../../themes/app_theme.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/repositories/session_repository.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/data/models/book.dart';
 import '/data/models/session.dart';
 import 'font_page.dart';
-import '../settings/widgets/accent_color_picker.dart';
-import '../settings/widgets/tab_name_visibility_picker.dart';
-import '../settings/widgets/rating_style_picker.dart';
+import 'widgets/accent_color_picker.dart';
+import 'widgets/tab_name_visibility_picker.dart';
+import 'widgets/rating_style_picker.dart';
 import '../settings/widgets/book_type_picker.dart';
 import '../settings/widgets/theme_mode_picker.dart';
-import '../settings/widgets/default_tab_picker.dart';
-import '../settings/widgets/date_format_picker.dart';
+import 'widgets/default_tab_picker.dart';
+import 'widgets/date_format_picker.dart';
 
 class SettingsPage extends StatelessWidget {
   final Function(ThemeMode) toggleTheme;

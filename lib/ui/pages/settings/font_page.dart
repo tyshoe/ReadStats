@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import '../../viewmodels/SettingsViewModel.dart';
+import '../../../viewmodels/SettingsViewModel.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class FontSelectionPage extends StatelessWidget {
