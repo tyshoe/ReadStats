@@ -77,7 +77,7 @@ class _MyAppState extends State<MyApp> {
     final selectedFont = await SettingsViewModel.getSelectedFont();
 
     if (kDebugMode) {
-      print("Loading Prefrences: {Default Book Type: $defaultBookType,"
+      print("Loading Preferences: {Default Book Type: $defaultBookType,"
           " Library Sort Option: $sortOption,"
           " Library Sort Ascending: $isAscending,"
           " Library Book Format Filter: $bookFormat}"

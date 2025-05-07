@@ -148,7 +148,6 @@ class SettingsPage extends StatelessWidget {
                           builder: (context, selectedFont, child) {
                             return Text(
                               selectedFont,  // Display the formatted date
-                              style: TextStyle(fontSize: 16),
                             );
                           },
                         ),
@@ -180,7 +179,6 @@ class SettingsPage extends StatelessWidget {
 
                             return Text(
                               formattedDate,  // Display the formatted date
-                              style: TextStyle(fontSize: 16),
                             );
                           },
                         ),
@@ -208,7 +206,6 @@ class SettingsPage extends StatelessWidget {
                           builder: (context, value, child) {
                             return Text(
                               value,
-                              style: TextStyle(fontSize: 16),
                             );
                           },
                         ),
