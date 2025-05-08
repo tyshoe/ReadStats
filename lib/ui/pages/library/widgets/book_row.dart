@@ -78,7 +78,7 @@ class BookRow extends StatelessWidget {
       dateRangeString = "Finished ${formatDate(finishDate)}";
     }
 
-    double containerHeight = isCompactView ? 60 : 100; // Adjust height
+    double containerHeight = isCompactView ? 60 : 120; // Adjust height
 
     return GestureDetector(
       onTap: onTap,
@@ -109,6 +109,16 @@ class BookRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  book["is_favorite"] == 1
+                      ? Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Icon(
+                      CupertinoIcons.heart_fill,
+                      color: CupertinoColors.systemRed,
+                      size: 16,
+                    ),
+                  )
+                      : SizedBox.shrink(),
                   Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: Icon(

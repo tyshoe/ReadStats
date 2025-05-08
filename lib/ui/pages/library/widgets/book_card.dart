@@ -128,6 +128,20 @@ class BookPopup {
         bookTypeIcon = CupertinoIcons.book_fill;
     }
 
+    IconData favoriteIcon;
+    Color favoriteIconColor;
+
+    switch (book['is_favorite']) {
+      case 1:
+        favoriteIcon = CupertinoIcons.heart_fill;
+        favoriteIconColor = CupertinoColors.systemRed;
+        break;
+      default:
+        favoriteIcon = CupertinoIcons.heart;
+        favoriteIconColor = CupertinoColors.systemGrey; // Default color for non-favorites
+        break;
+    }
+
     String bookTypeString;
     switch (book['book_type_id']) {
       case 1:
@@ -162,19 +176,33 @@ class BookPopup {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Book title
-                Row(children: [
-                  Expanded(
-                    child: Text(
-                      book['title'],
-                      style: const TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold),
-                      maxLines: 2,
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        book['title'],
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 2,
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ]),
+                    const SizedBox(width: 8),
+                    Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(
+                        favoriteIcon,
+                        color: favoriteIconColor,
+                        size: 24,
+                      ),
+                    ),
+                  ],
+                ),
+
                 const SizedBox(height: 3),
                 Row(children: [
                   Expanded(

@@ -491,7 +491,7 @@ class SettingsPage extends StatelessWidget {
     List<Book> booksToInsert = [];
 
     for (var row in rows) {
-      if (row.length < 11) continue; // Skip invalid rows
+      if (row.length < 12) continue; // Skip invalid rows
 
       try {
         Book book = Book(
@@ -502,14 +502,15 @@ class SettingsPage extends StatelessWidget {
           pageCount: int.tryParse(row[4].toString()) ?? 0,
           rating: double.tryParse(row[5].toString()) ?? 0.0,
           isCompleted: row[6] == 1 || row[6] == 'true',
-          bookTypeId: int.tryParse(row[7].toString()) ?? 0,
-          dateAdded: DateTime.tryParse(row[8].toString())?.toIso8601String().split('T')[0] ??
+          isFavorite: row[7] == 1 || row[7] == 'true',
+          bookTypeId: int.tryParse(row[8].toString()) ?? 0,
+          dateAdded: DateTime.tryParse(row[9].toString())?.toIso8601String().split('T')[0] ??
               DateTime.now().toIso8601String().split('T')[0],
-          dateStarted: row[9]?.toString().isNotEmpty == true
-              ? DateTime.tryParse(row[9].toString())?.toIso8601String().split('T')[0]
-              : null,
-          dateFinished: row[10]?.toString().isNotEmpty == true
+          dateStarted: row[10]?.toString().isNotEmpty == true
               ? DateTime.tryParse(row[10].toString())?.toIso8601String().split('T')[0]
+              : null,
+          dateFinished: row[11]?.toString().isNotEmpty == true
+              ? DateTime.tryParse(row[11].toString())?.toIso8601String().split('T')[0]
               : null,
         );
 
@@ -601,6 +602,7 @@ class SettingsPage extends StatelessWidget {
         'page_count',
         'rating',
         'is_complete',
+        'is_favorite',
         'book_type_id',
         'date_added',
         'date_started',
@@ -614,6 +616,7 @@ class SettingsPage extends StatelessWidget {
         book.pageCount.toString(),
         book.rating.toString(),
         book.isCompleted.toString(),
+        book.isFavorite.toString(),
         book.bookTypeId.toString(),
         book.dateAdded.toString(),
         book.dateStarted.toString(),

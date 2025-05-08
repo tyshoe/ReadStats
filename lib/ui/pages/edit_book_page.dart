@@ -27,6 +27,7 @@ class _EditBookPageState extends State<EditBookPage> {
   final DateTime _dateToday = DateTime.now();
   double _rating = 0;
   bool _isCompleted = false;
+  bool _isFavorite = false;
   String _statusMessage = '';
   bool _isSuccess = false;
   int _selectedBookType = 0;
@@ -44,6 +45,7 @@ class _EditBookPageState extends State<EditBookPage> {
     _pageCountController.text = widget.book['page_count'].toString();
     _rating = widget.book['rating'];
     _isCompleted = widget.book['is_completed'] == 1;
+    _isFavorite = widget.book['is_favorite'] == 1;
     _selectedBookType = widget.book['book_type_id'] - 1;
     _dateStarted = widget.book['date_started'] != null
         ? DateTime.parse(widget.book['date_started'])
@@ -77,6 +79,7 @@ class _EditBookPageState extends State<EditBookPage> {
       "page_count": pageCount,
       "rating": _rating,
       "is_completed": _isCompleted ? 1 : 0,
+      "is_favorite": _isFavorite ? 1 : 0,
       "book_type_id": _selectedBookType + 1,
       "date_started": _dateStarted?.toIso8601String(),
       "date_finished": _dateFinished?.toIso8601String(),
@@ -278,39 +281,60 @@ class _EditBookPageState extends State<EditBookPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                if (_useStarRating)
-                  Center(
-                    child: RatingBar.builder(
-                      initialRating: _rating,
-                      minRating: 0,
-                      maxRating: 5,
-                      allowHalfRating: true,
-                      itemCount: 5,
-                      itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      glow: false,
-                      itemBuilder: (context, _) => const Icon(
-                        CupertinoIcons.star_fill,
-                        color: CupertinoColors.systemYellow,
+
+                // Row with Rating and Favorite icon
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: _useStarRating
+                          ? RatingBar.builder(
+                        initialRating: _rating,
+                        minRating: 0,
+                        maxRating: 5,
+                        allowHalfRating: true,
+                        itemCount: 5,
+                        itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        glow: false,
+                        itemBuilder: (context, _) => const Icon(
+                          CupertinoIcons.star_fill,
+                          color: CupertinoColors.systemYellow,
+                        ),
+                        onRatingUpdate: (rating) {
+                          setState(() {
+                            _rating = rating;
+                          });
+                        },
+                      )
+                          : CupertinoTextField(
+                        placeholder: "Rating (0 - 5)",
+                        padding: const EdgeInsets.all(12),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        onChanged: (value) {
+                          final parsed = double.tryParse(value);
+                          if (parsed != null && parsed >= 0 && parsed <= 10) {
+                            _rating = parsed;
+                          }
+                        },
                       ),
-                      onRatingUpdate: (rating) {
+                    ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: () {
                         setState(() {
-                          _rating = rating;
+                          _isFavorite = !_isFavorite;
                         });
                       },
+                      child: Icon(
+                        _isFavorite ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+                        color: _isFavorite
+                            ? CupertinoColors.systemRed
+                            : CupertinoColors.systemGrey2.resolveFrom(context),
+                        size: 40,
+                      ),
                     ),
-                  )
-                else
-                  CupertinoTextField(
-                    placeholder: "Rating (0 - 5)",
-                    padding: const EdgeInsets.all(12),
-                    keyboardType: TextInputType.numberWithOptions(decimal: true),
-                    onChanged: (value) {
-                      final parsed = double.tryParse(value);
-                      if (parsed != null && parsed >= 0 && parsed <= 10) {
-                        _rating = parsed;
-                      }
-                    },
-                  ),
+                  ],
+                ),
               ],
               const SizedBox(height: 16),
               const Text(

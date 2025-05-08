@@ -6,6 +6,7 @@ class Book {
   int pageCount;
   double rating;
   bool isCompleted;
+  bool isFavorite;
   int bookTypeId;
   final String dateAdded;
   final String? dateStarted;
@@ -19,6 +20,7 @@ class Book {
     required this.pageCount,
     required this.rating,
     required this.isCompleted,
+    required this.isFavorite,
     required this.bookTypeId,
     required this.dateAdded,
     this.dateStarted,
@@ -35,6 +37,7 @@ class Book {
       'page_count': pageCount,
       'rating': rating,
       'is_completed': isCompleted ? 1 : 0, // SQLite doesn't support bool, use 1 & 0
+      'is_favorite': isFavorite ? 1 : 0,
       'book_type_id': bookTypeId,
       'date_added': dateAdded,
       'date_started': dateStarted,
@@ -51,7 +54,8 @@ class Book {
       wordCount: map['word_count'],
       pageCount: map['page_count'],
       rating: map['rating'].toDouble(),
-      isCompleted: map['is_completed'] == 1, // Convert 1 & 0 back to bool
+      isCompleted: map['is_completed'] == 1,// Convert 1 & 0 back to bool
+      isFavorite: map['is_favorite'] == 1,
       bookTypeId: map['book_type_id'],
       dateAdded: map['date_added'],
       dateStarted: map['date_started'],
