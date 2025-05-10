@@ -9,7 +9,7 @@ class SettingsViewModel {
   final ValueNotifier<int> defaultRatingStyleNotifier;
   final ValueNotifier<String> librarySortOptionNotifier;
   final ValueNotifier<bool> isLibrarySortAscendingNotifier;
-  final ValueNotifier<String> libraryBookFormatFilterNotifier;
+  final ValueNotifier<String> libraryBookTypeFilterNotifier;
   final ValueNotifier<String> libraryBookViewNotifier;
   final ValueNotifier<String> tabNameVisibilityNotifier;
   final ValueNotifier<int> defaultTabNotifier;
@@ -35,7 +35,7 @@ class SettingsViewModel {
         defaultRatingStyleNotifier = ValueNotifier(defaultRatingStyle),
         librarySortOptionNotifier = ValueNotifier(sortOption),
         isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
-        libraryBookFormatFilterNotifier = ValueNotifier(bookFormat),
+        libraryBookTypeFilterNotifier = ValueNotifier(bookFormat),
         libraryBookViewNotifier = ValueNotifier(bookView),
         tabNameVisibilityNotifier = ValueNotifier(tabNameVisibility),
         defaultTabNotifier = ValueNotifier(defaultTab),
@@ -119,8 +119,8 @@ class SettingsViewModel {
   }
 
   // Save book format filter
-  Future<void> setLibraryBookFormatFilter(String bookFormat) async {
-    libraryBookFormatFilterNotifier.value = bookFormat;
+  Future<void> setLibraryBookTypeFilter(String bookFormat) async {
+    libraryBookTypeFilterNotifier.value = bookFormat;
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString('libraryBookFormatFilter', bookFormat);
   }
@@ -129,13 +129,6 @@ class SettingsViewModel {
   static Future<String> getLibraryBookFormatFilter() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('libraryBookFormatFilter') ?? 'All';
-  }
-
-  // Save book format filter
-  Future<void> setLibraryBookView(String bookFormat) async {
-    libraryBookFormatFilterNotifier.value = bookFormat;
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('libraryBookView', bookFormat);
   }
 
   // Load saved book format filter

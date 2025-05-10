@@ -1,25 +1,42 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+
+class SortFilterOptions {
+  final String sortOption;
+  final bool isAscending;
+  final String bookType;
+
+  SortFilterOptions({
+    required this.sortOption,
+    required this.isAscending,
+    required this.bookType,
+  });
+
+  SortFilterOptions copyWith({
+    String? sortOption,
+    bool? isAscending,
+    String? bookType,
+  }) {
+    return SortFilterOptions(
+      sortOption: sortOption ?? this.sortOption,
+      isAscending: isAscending ?? this.isAscending,
+      bookType: bookType ?? this.bookType,
+    );
+  }
+}
 
 class SortFilterPopup {
   static void showSortFilterPopup(
     BuildContext context,
-    Function(String) onSortChange,
-    Function(bool) onOrderChange,
-    String selectedSortOption,
-    bool isAscending,
-    Function(String) onFormatChange,
-    String selectedFormat,
+    SortFilterOptions currentOptions,
+    Function(SortFilterOptions) onOptionsChange,
   ) {
     showCupertinoModalPopup(
       context: context,
       builder: (context) {
         return _SortFilterPopup(
-          selectedSortOption: selectedSortOption,
-          isAscending: isAscending,
-          onSortChange: onSortChange,
-          onOrderChange: onOrderChange,
-          onFormatChange: onFormatChange,
-          selectedFormat: selectedFormat,
+          currentOptions: currentOptions,
+          onOptionsChange: onOptionsChange,
         );
       },
     );
@@ -27,42 +44,42 @@ class SortFilterPopup {
 }
 
 class _SortFilterPopup extends StatefulWidget {
-  final String selectedSortOption;
-  final bool isAscending;
-  final Function(String) onSortChange;
-  final Function(bool) onOrderChange;
-  final Function(String) onFormatChange;
-  final String selectedFormat;
+  final SortFilterOptions currentOptions;
+  final Function(SortFilterOptions) onOptionsChange;
 
   const _SortFilterPopup({
     Key? key,
-    required this.selectedSortOption,
-    required this.isAscending,
-    required this.onSortChange,
-    required this.onOrderChange,
-    required this.onFormatChange,
-    required this.selectedFormat,
+    required this.currentOptions,
+    required this.onOptionsChange,
   }) : super(key: key);
-
 
   @override
   _SortFilterPopupState createState() => _SortFilterPopupState();
 }
 
 class _SortFilterPopupState extends State<_SortFilterPopup> {
-  late String currentSelectedSortOption;
-  late bool currentIsAscending;
-  late String currentSelectedFormat;
-
-  // Book formats to be filtered
-  final List<String> bookFormats = ['All', 'Paperback', 'Hardback', 'eBook', 'Audiobook'];
+  late SortFilterOptions currentOptions;
+  final List<String> bookTypes = [
+    'All',
+    'Paperback',
+    'Hardback',
+    'eBook',
+    'Audiobook'
+  ];
+  final List<String> sortOptions = [
+    'Title',
+    'Author',
+    'Rating',
+    'Pages',
+    'Date started',
+    'Date finished',
+    'Date added'
+  ];
 
   @override
   void initState() {
     super.initState();
-    currentSelectedSortOption = widget.selectedSortOption;
-    currentIsAscending = widget.isAscending;
-    currentSelectedFormat = widget.selectedFormat; // Initialize format
+    currentOptions = widget.currentOptions;
   }
 
   @override
@@ -80,15 +97,12 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Sort and Filter',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+            const Text(
+              'Sort By',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
-            const SizedBox(height: 16),
-            // Sort and Order buttons in the same row
+            const SizedBox(height: 8),
+            // Sort and Order row
             Row(
               children: [
                 // Sort dropdown
@@ -99,64 +113,68 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
                     color: CupertinoColors.systemGrey5,
                     borderRadius: BorderRadius.circular(8),
                     onPressed: () async {
-                      final sortOption = await showCupertinoModalPopup<String>(
+                      final sortIndex =
+                          sortOptions.indexOf(currentOptions.sortOption);
+                      String? selectedOption;
+
+                      await showCupertinoModalPopup<void>(
                         context: context,
                         builder: (context) {
-                          return Container(
-                            height: 200,
-                            color: CupertinoColors.secondarySystemBackground
-                                .resolveFrom(context),
-                            child: CupertinoPicker(
-                              itemExtent: 32,
-                              scrollController: FixedExtentScrollController(
-                                initialItem: _getSortOptionIndex(
-                                    currentSelectedSortOption),
+                          return GestureDetector(
+                            onTap: () => Navigator.pop(context),
+                            behavior: HitTestBehavior.opaque,
+                            child: Container(
+                              height: 200,
+                              color: CupertinoColors.secondarySystemBackground
+                                  .resolveFrom(context),
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    child: CupertinoPicker(
+                                      itemExtent: 32,
+                                      scrollController:
+                                          FixedExtentScrollController(
+                                              initialItem: sortIndex),
+                                      onSelectedItemChanged: (index) {
+                                        selectedOption = sortOptions[index];
+                                      },
+                                      children: sortOptions
+                                          .map((option) => Text(option))
+                                          .toList(),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              onSelectedItemChanged: (index) {
-                                final newSortOption =
-                                    _getSortOptionByIndex(index);
-                                setState(() {
-                                  currentSelectedSortOption = newSortOption;
-                                });
-                              },
-                              children: const [
-                                Text('Title'),
-                                Text('Author'),
-                                Text('Rating'),
-                                Text('Pages'),
-                                Text('Date started'),
-                                Text('Date finished'),
-                                Text('Date added'),
-                              ],
                             ),
                           );
                         },
                       );
-                      if (sortOption != null) {
+
+                      if (selectedOption != null) {
                         setState(() {
-                          currentSelectedSortOption = sortOption;
+                          currentOptions = currentOptions.copyWith(
+                              sortOption: selectedOption!);
                         });
+                        widget.onOptionsChange(currentOptions);
                       }
-                      widget.onSortChange(currentSelectedSortOption);
                     },
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          currentSelectedSortOption,
+                          currentOptions.sortOption,
                           style: TextStyle(
-                              fontSize: 16,
-                              color:
-                                  CupertinoColors.label.resolveFrom(context)),
+                            fontSize: 16,
+                            color: CupertinoColors.label.resolveFrom(context),
+                          ),
                         ),
-                        Icon(CupertinoIcons.chevron_down,
+                        const Icon(CupertinoIcons.chevron_down,
                             color: CupertinoColors.systemGrey),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Sorting button (up/down icons)
                 CupertinoButton(
                   padding:
                       const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
@@ -164,13 +182,13 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
                   borderRadius: BorderRadius.circular(8),
                   onPressed: () {
                     setState(() {
-                      currentIsAscending = !currentIsAscending;
+                      currentOptions = currentOptions.copyWith(
+                          isAscending: !currentOptions.isAscending);
                     });
-                    widget.onOrderChange(currentIsAscending);
-                    widget.onSortChange(currentSelectedSortOption);
+                    widget.onOptionsChange(currentOptions);
                   },
                   child: Icon(
-                    currentIsAscending
+                    currentOptions.isAscending
                         ? CupertinoIcons.sort_up
                         : CupertinoIcons.sort_down,
                     size: 24,
@@ -178,113 +196,87 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            // Book Format Filter dropdown
-            Row(
-              children: [
-                Expanded(
-                  child: CupertinoButton(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 16),
-                    color: CupertinoColors.systemGrey5,
-                    borderRadius: BorderRadius.circular(8),
-                    onPressed: () async {
-                      final formatOption =
-                          await showCupertinoModalPopup<String>(
-                        context: context,
-                        builder: (context) {
-                          return Container(
-                            height: 200,
-                            color: CupertinoColors.secondarySystemBackground
-                                .resolveFrom(context),
-                            child: CupertinoPicker(
-                              itemExtent: 32,
-                              scrollController: FixedExtentScrollController(
-                                initialItem:
-                                    bookFormats.indexOf(currentSelectedFormat),
+            // Divider line
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Divider(
+                height: 1,
+                color: CupertinoColors.systemGrey4.resolveFrom(context),
+              ),
+            ),
+            const Text(
+              'Filter By',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 8),
+            // Format filter
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              color: CupertinoColors.systemGrey5,
+              borderRadius: BorderRadius.circular(8),
+              onPressed: () async {
+                final index = bookTypes.indexOf(currentOptions.bookType);
+                String? selectedFormat;
+
+                await showCupertinoModalPopup<void>(
+                  context: context,
+                  builder: (context) {
+                    return GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        height: 200,
+                        color: CupertinoColors.secondarySystemBackground
+                            .resolveFrom(context),
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: CupertinoPicker(
+                                itemExtent: 32,
+                                scrollController: FixedExtentScrollController(
+                                    initialItem: index),
+                                onSelectedItemChanged: (index) {
+                                  selectedFormat = bookTypes[index];
+                                },
+                                children: bookTypes
+                                    .map((format) => Text(format))
+                                    .toList(),
                               ),
-                              onSelectedItemChanged: (index) {
-                                setState(() {
-                                  currentSelectedFormat = bookFormats[index];
-                                });
-                              },
-                              children: bookFormats
-                                  .map((format) => Text(format))
-                                  .toList(),
                             ),
-                          );
-                        },
-                      );
-                      if (formatOption != null) {
-                        setState(() {
-                          currentSelectedFormat = formatOption;
-                        });
-                      }
-                      widget.onFormatChange(
-                          currentSelectedFormat); // Trigger format change callback
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          currentSelectedFormat,
-                          style: TextStyle(
-                              fontSize: 16,
-                              color:
-                                  CupertinoColors.label.resolveFrom(context)),
+                          ],
                         ),
-                        Icon(CupertinoIcons.chevron_down,
-                            color: CupertinoColors.systemGrey),
-                      ],
+                      ),
+                    );
+                  },
+                );
+
+                if (selectedFormat != null) {
+                  setState(() {
+                    currentOptions =
+                        currentOptions.copyWith(bookType: selectedFormat!);
+                  });
+                  widget.onOptionsChange(currentOptions);
+                }
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    currentOptions.bookType,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: CupertinoColors.label.resolveFrom(context),
                     ),
                   ),
-                ),
-              ],
+                  const Icon(CupertinoIcons.chevron_down,
+                      color: CupertinoColors.systemGrey),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
           ],
         ),
       ),
     );
-  }
-
-  int _getSortOptionIndex(String sortOption) {
-    switch (sortOption) {
-      case 'Author':
-        return 1;
-      case 'Rating':
-        return 2;
-      case 'Pages':
-        return 3;
-      case 'Date started':
-        return 4;
-      case 'Date finished':
-        return 5;
-      case 'Date added':
-        return 6;
-      case 'Title':
-      default:
-        return 0;
-    }
-  }
-
-  String _getSortOptionByIndex(int index) {
-    switch (index) {
-      case 1:
-        return 'Author';
-      case 2:
-        return 'Rating';
-      case 3:
-        return 'Pages';
-      case 4:
-        return 'Date started';
-      case 5:
-        return 'Date finished';
-      case 6:
-        return 'Date added';
-      case 0:
-      default:
-        return 'Title';
-    }
   }
 }

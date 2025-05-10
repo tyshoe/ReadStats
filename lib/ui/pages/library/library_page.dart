@@ -39,7 +39,7 @@ class _LibraryPageState extends State<LibraryPage> {
   List<Map<String, dynamic>> _filteredBooks = [];
   String _selectedSortOption = 'Date added';
   bool _isAscending = false;
-  String _selectedFormat = 'All';
+  String _selectedBookType = 'All';
 
   @override
   void initState() {
@@ -48,15 +48,15 @@ class _LibraryPageState extends State<LibraryPage> {
         widget.settingsViewModel.librarySortOptionNotifier.value;
     _isAscending =
         widget.settingsViewModel.isLibrarySortAscendingNotifier.value;
-    _selectedFormat =
-        widget.settingsViewModel.libraryBookFormatFilterNotifier.value;
+    _selectedBookType =
+        widget.settingsViewModel.libraryBookTypeFilterNotifier.value;
     _libraryBookView = widget.settingsViewModel.libraryBookViewNotifier.value;
     _filteredBooks = widget.books;
     _filteredBooks = _sortAndFilterBooks(
         List<Map<String, dynamic>>.from(widget.books),
         _selectedSortOption,
         _isAscending,
-        _selectedFormat);
+        _selectedBookType);
     _searchController.addListener(_searchBooks);
   }
 
@@ -72,7 +72,7 @@ class _LibraryPageState extends State<LibraryPage> {
             List<Map<String, dynamic>>.from(widget.books),
             _selectedSortOption,
             _isAscending,
-            _selectedFormat);
+            _selectedBookType);
       });
     }
   }
@@ -87,7 +87,7 @@ class _LibraryPageState extends State<LibraryPage> {
     setState(() {
       _libraryBookView = newView;
     });
-    widget.settingsViewModel.setLibraryBookView(_libraryBookView);
+    widget.settingsViewModel.setLibraryBookTypeFilter(_libraryBookView);
   }
 
   void _toggleSearch() {
@@ -99,7 +99,7 @@ class _LibraryPageState extends State<LibraryPage> {
             List<Map<String, dynamic>>.from(widget.books),
             _selectedSortOption,
             _isAscending,
-            _selectedFormat);
+            _selectedBookType);
       }
     });
   }
@@ -211,7 +211,7 @@ class _LibraryPageState extends State<LibraryPage> {
         _filterBooks(books, selectedFormat);
     widget.settingsViewModel.setLibrarySortOption(selectedSortOption);
     widget.settingsViewModel.setLibrarySortAscending(isAscending);
-    widget.settingsViewModel.setLibraryBookFormatFilter(selectedFormat);
+    widget.settingsViewModel.setLibraryBookTypeFilter(selectedFormat);
     return _sortBooks(filteredBooks, selectedSortOption, isAscending);
   }
 
@@ -219,9 +219,16 @@ class _LibraryPageState extends State<LibraryPage> {
       List<Map<String, dynamic>> books, String selectedFormat) {
     int selectedFormatId = 0; // Default to 0 (All formats)
     if (selectedFormat != 'All') {
-      selectedFormatId = bookTypeNames.entries
-          .firstWhere((entry) => entry.value == selectedFormat)
-          .key;
+      final entry = bookTypeNames.entries.firstWhere(
+            (entry) => entry.value == selectedFormat,
+        orElse: () => const MapEntry(-1, ''), // Use a safe fallback
+      );
+      if (entry.key != -1) {
+        selectedFormatId = entry.key;
+      } else {
+        // Handle the "not found" case if needed
+        selectedFormatId = 0; // or some default ID
+      }
     }
 
     return books.where((book) {
@@ -291,35 +298,35 @@ class _LibraryPageState extends State<LibraryPage> {
 
   // Show the filter/sort modal
   void _showSortFilterModal() {
-    SortFilterPopup.showSortFilterPopup(context, (String selectedOption) {
+    final currentOptions = SortFilterOptions(
+      sortOption: _selectedSortOption,
+      isAscending: _isAscending,
+      bookType: _selectedBookType,
+    );
+
+    SortFilterPopup.showSortFilterPopup(context, currentOptions, (newOptions) {
       setState(() {
-        _selectedSortOption = selectedOption;
+        _selectedSortOption = newOptions.sortOption;
+        _isAscending = newOptions.isAscending;
+        _selectedBookType = newOptions.bookType;
         _filteredBooks = _sortAndFilterBooks(
-            List<Map<String, dynamic>>.from(widget.books),
-            _selectedSortOption,
-            _isAscending,
-            _selectedFormat);
+          List<Map<String, dynamic>>.from(widget.books),
+          _selectedSortOption,
+          _isAscending,
+          _selectedBookType,
+        );
       });
-    }, (bool isAscending) {
-      setState(() {
-        _isAscending = isAscending;
-        _filteredBooks = _sortAndFilterBooks(
-            List<Map<String, dynamic>>.from(widget.books),
-            _selectedSortOption,
-            _isAscending,
-            _selectedFormat);
-      });
-    }, _selectedSortOption, _isAscending, onFormatChange, _selectedFormat);
+    });
   }
 
   void onFormatChange(String newFormat) {
     setState(() {
-      _selectedFormat = newFormat;
+      _selectedBookType = newFormat;
       _filteredBooks = _sortAndFilterBooks(
           List<Map<String, dynamic>>.from(widget.books),
           _selectedSortOption,
           _isAscending,
-          _selectedFormat);
+          _selectedBookType);
     });
   }
 
