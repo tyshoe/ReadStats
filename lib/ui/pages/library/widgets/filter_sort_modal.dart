@@ -5,32 +5,36 @@ class SortFilterOptions {
   final String sortOption;
   final bool isAscending;
   final String bookType;
+  final bool isFavorite;  // Added field for is_favorite
 
   SortFilterOptions({
     required this.sortOption,
     required this.isAscending,
     required this.bookType,
+    required this.isFavorite,  // Initialize isFavorite
   });
 
   SortFilterOptions copyWith({
     String? sortOption,
     bool? isAscending,
     String? bookType,
+    bool? isFavorite,  // Add isFavorite to copyWith
   }) {
     return SortFilterOptions(
       sortOption: sortOption ?? this.sortOption,
       isAscending: isAscending ?? this.isAscending,
       bookType: bookType ?? this.bookType,
+      isFavorite: isFavorite ?? this.isFavorite,  // Update isFavorite
     );
   }
 }
 
 class SortFilterPopup {
   static void showSortFilterPopup(
-    BuildContext context,
-    SortFilterOptions currentOptions,
-    Function(SortFilterOptions) onOptionsChange,
-  ) {
+      BuildContext context,
+      SortFilterOptions currentOptions,
+      Function(SortFilterOptions) onOptionsChange,
+      ) {
     showCupertinoModalPopup(
       context: context,
       builder: (context) {
@@ -75,6 +79,7 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
     'Date finished',
     'Date added'
   ];
+  final List<String> favoriteOptions = ['All', 'Favorites Only']; // Added filter options for favorites
 
   @override
   void initState() {
@@ -114,7 +119,7 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
                     borderRadius: BorderRadius.circular(8),
                     onPressed: () async {
                       final sortIndex =
-                          sortOptions.indexOf(currentOptions.sortOption);
+                      sortOptions.indexOf(currentOptions.sortOption);
                       String? selectedOption;
 
                       await showCupertinoModalPopup<void>(
@@ -133,8 +138,8 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
                                     child: CupertinoPicker(
                                       itemExtent: 32,
                                       scrollController:
-                                          FixedExtentScrollController(
-                                              initialItem: sortIndex),
+                                      FixedExtentScrollController(
+                                          initialItem: sortIndex),
                                       onSelectedItemChanged: (index) {
                                         selectedOption = sortOptions[index];
                                       },
@@ -177,7 +182,7 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
                 const SizedBox(width: 8),
                 CupertinoButton(
                   padding:
-                      const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                   color: CupertinoColors.systemGrey5,
                   borderRadius: BorderRadius.circular(8),
                   onPressed: () {
@@ -218,7 +223,7 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
                 final index = bookTypes.indexOf(currentOptions.bookType);
                 String? selectedFormat;
 
-                await showCupertinoModalPopup<void>(
+                await showCupertinoModalPopup<void>(  // Modal for book type
                   context: context,
                   builder: (context) {
                     return GestureDetector(
@@ -274,6 +279,41 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
               ),
             ),
             const SizedBox(height: 16),
+            // Favorite filter (newly added)
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              color: currentOptions.isFavorite
+                  ? CupertinoColors.systemRed.withOpacity(0.2)
+                  : CupertinoColors.systemGrey5,
+              borderRadius: BorderRadius.circular(8),
+              onPressed: () {
+                setState(() {
+                  currentOptions = currentOptions.copyWith(
+                      isFavorite: !currentOptions.isFavorite
+                  );
+                });
+                widget.onOptionsChange(currentOptions);
+              },
+              child: Row(
+                children: [
+                  Icon(
+                    CupertinoIcons.heart_fill,
+                    color: currentOptions.isFavorite
+                        ? CupertinoColors.systemRed
+                        : CupertinoColors.systemGrey,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    currentOptions.isFavorite ? 'Favorites Only' : 'All Books',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: CupertinoColors.label.resolveFrom(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
