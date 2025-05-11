@@ -250,6 +250,7 @@ class BookPopup {
                   children: [
                     // Book Completion Statuses
                     Expanded(
+                      flex: 6,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -265,6 +266,23 @@ class BookPopup {
                                 completionStatus,
                                 style: const TextStyle(fontSize: 14),
                               ),
+                              // Add time to finish estimate next to status
+                              if (book['is_completed'] == 0 &&
+                                  (stats['total_pages'] ?? 0) > 0 &&
+                                  (book['page_count'] ?? 0) > 0) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  _getTimeToFinishCompact(
+                                    stats['total_pages'] ?? 0,
+                                    book['page_count'] ?? 0,
+                                    stats['pages_per_minute'] ?? 0,
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                           if (book['is_completed'] == 1) ...[
@@ -282,10 +300,9 @@ class BookPopup {
                       ),
                     ),
 
-                    // const SizedBox(width: 10),
-
                     // Pages and words
                     Expanded(
+                      flex: 4,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -457,4 +474,25 @@ class BookPopup {
       );
     }
   }
+
+  static String _getTimeToFinishCompact(int pagesRead, int totalPages, double pagesPerMinute) {
+    if (totalPages <= 0) return "";
+
+    final percentage = ((pagesRead / totalPages) * 100).clamp(0, 100).toStringAsFixed(1);
+
+    if (pagesPerMinute <= 0 || totalPages <= pagesRead) {
+      return "$percentage% complete";
+    }
+
+    final remainingPages = totalPages - pagesRead;
+    final remainingMinutes = (remainingPages / pagesPerMinute).round();
+
+    final hours = remainingMinutes ~/ 60;
+    final minutes = remainingMinutes % 60;
+
+    final timeString = hours > 0 ? "${hours}h ${minutes}m left" : "${minutes}m left";
+
+    return "$percentage% ($timeString)";
+  }
+
 }
