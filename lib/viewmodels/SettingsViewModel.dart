@@ -9,12 +9,12 @@ class SettingsViewModel {
   final ValueNotifier<int> defaultRatingStyleNotifier;
   final ValueNotifier<String> librarySortOptionNotifier;
   final ValueNotifier<bool> isLibrarySortAscendingNotifier;
-  final ValueNotifier<String> libraryBookTypeFilterNotifier;
+  final ValueNotifier<List<String>> libraryBookTypeFilterNotifier;
   final ValueNotifier<String> libraryBookViewNotifier;
   final ValueNotifier<String> tabNameVisibilityNotifier;
   final ValueNotifier<int> defaultTabNotifier;
   final ValueNotifier<String> defaultDateFormatNotifier;
-  final ValueNotifier<String> selectedFontNotifier; // Added for font selection
+  final ValueNotifier<String> selectedFontNotifier;
 
   SettingsViewModel({
     required ThemeMode themeMode,
@@ -23,19 +23,19 @@ class SettingsViewModel {
     required int defaultRatingStyle,
     required String sortOption,
     required bool isAscending,
-    required String bookFormat,
+    required List<String> bookTypes,
     required String bookView,
     required String tabNameVisibility,
     required int defaultTab,
     required String defaultDateFormat,
-    required String selectedFont, // Added for font selection
+    required String selectedFont,
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
         defaultRatingStyleNotifier = ValueNotifier(defaultRatingStyle),
         librarySortOptionNotifier = ValueNotifier(sortOption),
         isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
-        libraryBookTypeFilterNotifier = ValueNotifier(bookFormat),
+        libraryBookTypeFilterNotifier = ValueNotifier(bookTypes),
         libraryBookViewNotifier = ValueNotifier(bookView),
         tabNameVisibilityNotifier = ValueNotifier(tabNameVisibility),
         defaultTabNotifier = ValueNotifier(defaultTab),
@@ -119,22 +119,37 @@ class SettingsViewModel {
   }
 
   // Save book format filter
-  Future<void> setLibraryBookTypeFilter(String bookFormat) async {
-    libraryBookTypeFilterNotifier.value = bookFormat;
+  Future<void> setLibraryBookTypeFilter(List<String> bookTypes) async {
+    libraryBookTypeFilterNotifier.value = bookTypes;
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('libraryBookFormatFilter', bookFormat);
+    if (bookTypes.isEmpty) {
+      await prefs.setString('libraryBookTypes', 'All');
+    } else {
+      await prefs.setString('libraryBookTypes', bookTypes.join(','));
+    }
   }
 
-  // Load saved book format filter
-  static Future<String> getLibraryBookFormatFilter() async {
+  // Load saved book type filters
+  static Future<List<String>> getLibraryBookTypes() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('libraryBookFormatFilter') ?? 'All';
+    final String? typesString = prefs.getString('libraryBookTypes');
+
+    if (typesString == null || typesString.isEmpty) {
+      return []; // Empty list represents "All" types
+    }
+    return typesString.split(',');
   }
 
   // Load saved book format filter
   static Future<String> getLibraryBookView() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('libraryBookView') ?? 'row_expanded';
+  }
+
+  Future<void> setLibraryBookView(String view) async {
+    libraryBookViewNotifier.value = view;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('libraryBookView', view);
   }
 
   // Save tab name visibility (using string values)

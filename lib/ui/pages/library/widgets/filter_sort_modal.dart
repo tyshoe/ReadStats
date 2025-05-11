@@ -5,14 +5,14 @@ import '/viewmodels/SettingsViewModel.dart';
 class SortFilterOptions {
   final String sortOption;
   final bool isAscending;
-  final String bookType;
+  final List<String> bookTypes;
   final bool isFavorite;
   final List<String> finishedYears;
 
   SortFilterOptions({
     required this.sortOption,
     required this.isAscending,
-    required this.bookType,
+    required this.bookTypes,
     required this.isFavorite,
     this.finishedYears = const [],
   });
@@ -20,14 +20,14 @@ class SortFilterOptions {
   SortFilterOptions copyWith({
     String? sortOption,
     bool? isAscending,
-    String? bookType,
+    List<String>? bookTypes,
     bool? isFavorite,
     List<String>? finishedYears,
   }) {
     return SortFilterOptions(
       sortOption: sortOption ?? this.sortOption,
       isAscending: isAscending ?? this.isAscending,
-      bookType: bookType ?? this.bookType,
+      bookTypes: bookTypes ?? this.bookTypes,
       isFavorite: isFavorite ?? this.isFavorite,
       finishedYears: finishedYears ?? this.finishedYears,
     );
@@ -40,7 +40,7 @@ class SortFilterPopup {
     required SortFilterOptions currentOptions,
     required Function(SortFilterOptions) onOptionsChange,
     required List<String> availableYears,
-    required SettingsViewModel settingsViewModel,  // Added parameter
+    required SettingsViewModel settingsViewModel,
   }) {
     showCupertinoModalPopup(
       context: context,
@@ -49,7 +49,7 @@ class SortFilterPopup {
           currentOptions: currentOptions,
           onOptionsChange: onOptionsChange,
           availableYears: availableYears,
-          settingsViewModel: settingsViewModel,  // Pass it through
+          settingsViewModel: settingsViewModel,
         );
       },
     );
@@ -60,14 +60,14 @@ class _SortFilterPopup extends StatefulWidget {
   final SortFilterOptions currentOptions;
   final Function(SortFilterOptions) onOptionsChange;
   final List<String> availableYears;
-  final SettingsViewModel settingsViewModel;  // Added field
+  final SettingsViewModel settingsViewModel;
 
   const _SortFilterPopup({
     Key? key,
     required this.currentOptions,
     required this.onOptionsChange,
     required this.availableYears,
-    required this.settingsViewModel,  // Added parameter
+    required this.settingsViewModel,
   }) : super(key: key);
 
   @override
@@ -76,7 +76,7 @@ class _SortFilterPopup extends StatefulWidget {
 
 class _SortFilterPopupState extends State<_SortFilterPopup> {
   late SortFilterOptions currentOptions;
-  final List<String> bookTypes = ['All', 'Paperback', 'Hardback', 'eBook', 'Audiobook'];
+  final List<String> bookTypes = ['Paperback', 'Hardback', 'eBook', 'Audiobook'];
   final List<String> sortOptions = [
     'Title',
     'Author',
@@ -91,6 +91,10 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
   void initState() {
     super.initState();
     currentOptions = widget.currentOptions;
+    // Initialize bookTypes as empty if it contains "All" or is empty
+    if (currentOptions.bookTypes.isEmpty || currentOptions.bookTypes.contains('All')) {
+      currentOptions = currentOptions.copyWith(bookTypes: []);
+    }
   }
 
   @override
@@ -109,6 +113,11 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Text(
+                'Filter & Sort',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 16),
               const Text(
                 'Sort By',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
@@ -155,17 +164,12 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Divider(height: 1),
               ),
-              const Text(
-                'Filter By',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 8),
               _buildBookTypeFilter(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               _buildFavoriteFilter(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               _buildYearFilter(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -174,24 +178,100 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
   }
 
   Widget _buildBookTypeFilter() {
-    return CupertinoButton(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      color: CupertinoColors.systemGrey5,
-      borderRadius: BorderRadius.circular(8),
-      onPressed: () => _showBookTypePicker(context),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            currentOptions.bookType,
-            style: TextStyle(
-              fontSize: 16,
-              color: CupertinoColors.label.resolveFrom(context),
-            ),
+    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
+    final bool showAll = currentOptions.bookTypes.isEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Book Type',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 46,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              // "All" chip
+              GestureDetector(
+                onTap: _clearBookTypeFilters,
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: showAll
+                        ? accentColor.withOpacity(0.3)
+                        : CupertinoColors.secondarySystemBackground.resolveFrom(context),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (showAll) ...[
+                        Icon(
+                          CupertinoIcons.checkmark,
+                          size: 18,
+                          color: _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2)),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        'All',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: showAll
+                              ? _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2))
+                              : CupertinoColors.label.resolveFrom(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Book type chips
+              ...bookTypes.map((type) {
+                final isSelected = currentOptions.bookTypes.contains(type);
+                return GestureDetector(
+                  onTap: () => _toggleBookTypeFilter(type),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? accentColor.withOpacity(0.3)
+                          : CupertinoColors.secondarySystemBackground.resolveFrom(context),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isSelected)
+                          Icon(
+                            CupertinoIcons.checkmark,
+                            size: 18,
+                            color: _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2)),
+                          ),
+                        if (isSelected) const SizedBox(width: 6),
+                        Text(
+                          type,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: isSelected
+                                ? _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2))
+                                : CupertinoColors.label.resolveFrom(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
           ),
-          const Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -256,13 +336,14 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (currentOptions.finishedYears.isEmpty)
+                      if (currentOptions.finishedYears.isEmpty) ...[
                         Icon(
                           CupertinoIcons.checkmark,
                           size: 18,
                           color: _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2)),
                         ),
-                      const SizedBox(width: 6),
+                        const SizedBox(width: 6),
+                      ],
                       Text(
                         'All',
                         style: TextStyle(
@@ -359,43 +440,26 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
     }
   }
 
-  void _showBookTypePicker(BuildContext context) async {
-    final index = bookTypes.indexOf(currentOptions.bookType);
-    String? selectedBookType;
-
-    await showCupertinoModalPopup<void>(
-      context: context,
-      builder: (context) {
-        return GestureDetector(
-          onTap: () => Navigator.pop(context),
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            height: 200,
-            color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
-            child: Column(
-              children: [
-                Expanded(
-                  child: CupertinoPicker(
-                    itemExtent: 32,
-                    scrollController: FixedExtentScrollController(initialItem: index),
-                    onSelectedItemChanged: (index) => selectedBookType = bookTypes[index],
-                    children: bookTypes.map((bookType) => Text(bookType)).toList(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
-    if (selectedBookType != null) {
-      setState(() {
-        currentOptions = currentOptions.copyWith(bookType: selectedBookType!);
-      });
-      widget.onOptionsChange(currentOptions);
+  void _toggleBookTypeFilter(String type) {
+    final updatedTypes = List<String>.from(currentOptions.bookTypes);
+    if (updatedTypes.contains(type)) {
+      updatedTypes.remove(type);
+    } else {
+      updatedTypes.add(type);
     }
+    setState(() {
+      currentOptions = currentOptions.copyWith(bookTypes: updatedTypes);
+    });
+    widget.onOptionsChange(currentOptions);
   }
+
+  void _clearBookTypeFilters() {
+    setState(() {
+      currentOptions = currentOptions.copyWith(bookTypes: []);
+    });
+    widget.onOptionsChange(currentOptions);
+  }
+
 
   void _toggleSortOrder() {
     setState(() {

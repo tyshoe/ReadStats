@@ -39,22 +39,27 @@ class _LibraryPageState extends State<LibraryPage> {
   List<Map<String, dynamic>> _filteredBooks = [];
   String _selectedSortOption = 'Date added';
   bool _isAscending = false;
-  String _selectedBookType = 'All';
+  // String _selectedBookType = 'All';
   bool _isFavorite = false;
   List<String> _selectedFinishedYears = [];
+  List<String> _selectedBookTypes = [];
 
+// Update initState:
   @override
   void initState() {
     super.initState();
     _selectedSortOption = widget.settingsViewModel.librarySortOptionNotifier.value;
     _isAscending = widget.settingsViewModel.isLibrarySortAscendingNotifier.value;
-    _selectedBookType = widget.settingsViewModel.libraryBookTypeFilterNotifier.value;
+
+    // Get the saved book types list directly from the ValueNotifier
+    _selectedBookTypes = List<String>.from(widget.settingsViewModel.libraryBookTypeFilterNotifier.value);
+
     _libraryBookView = widget.settingsViewModel.libraryBookViewNotifier.value;
     _filteredBooks = _sortAndFilterBooks(
       List<Map<String, dynamic>>.from(widget.books),
       _selectedSortOption,
       _isAscending,
-      _selectedBookType,
+      _selectedBookTypes,
       _isFavorite,
       _selectedFinishedYears,
     );
@@ -70,7 +75,7 @@ class _LibraryPageState extends State<LibraryPage> {
           List<Map<String, dynamic>>.from(widget.books),
           _selectedSortOption,
           _isAscending,
-          _selectedBookType,
+          _selectedBookTypes,
           _isFavorite,
           _selectedFinishedYears,
         );
@@ -88,7 +93,7 @@ class _LibraryPageState extends State<LibraryPage> {
     setState(() {
       _libraryBookView = newView;
     });
-    widget.settingsViewModel.setLibraryBookTypeFilter(_libraryBookView);
+    widget.settingsViewModel.setLibraryBookView(_libraryBookView);
   }
 
   void _toggleSearch() {
@@ -100,7 +105,7 @@ class _LibraryPageState extends State<LibraryPage> {
           List<Map<String, dynamic>>.from(widget.books),
           _selectedSortOption,
           _isAscending,
-          _selectedBookType,
+          _selectedBookTypes,
           _isFavorite,
           _selectedFinishedYears,
         );
@@ -209,41 +214,48 @@ class _LibraryPageState extends State<LibraryPage> {
       List<Map<String, dynamic>> books,
       String selectedSortOption,
       bool isAscending,
-      String selectedFormat,
+      List<String> selectedBookTypes,
       bool isFavorite,
       List<String> finishedYears,
       ) {
     List<Map<String, dynamic>> filteredBooks = _filterBooks(
       books,
-      selectedFormat,
+      selectedBookTypes,
       isFavorite,
       finishedYears,
     );
+
+    // Save sorting preferences
     widget.settingsViewModel.setLibrarySortOption(selectedSortOption);
     widget.settingsViewModel.setLibrarySortAscending(isAscending);
-    widget.settingsViewModel.setLibraryBookTypeFilter(selectedFormat);
+
+    // Save the complete list of book types
+    widget.settingsViewModel.setLibraryBookTypeFilter(selectedBookTypes);
+
     return _sortBooks(filteredBooks, selectedSortOption, isAscending);
   }
 
   List<Map<String, dynamic>> _filterBooks(
       List<Map<String, dynamic>> books,
-      String selectedFormat,
+      List<String> selectedBookTypes,
       bool isFavorite,
       List<String> finishedYears,
       ) {
-    int selectedFormatId = 0;
-    if (selectedFormat != 'All') {
+    // Convert book type names to IDs
+    final selectedTypeIds = <int>[];
+    for (final type in selectedBookTypes) {
       final entry = bookTypeNames.entries.firstWhere(
-            (entry) => entry.value == selectedFormat,
+            (entry) => entry.value == type,
         orElse: () => const MapEntry(-1, ''),
       );
       if (entry.key != -1) {
-        selectedFormatId = entry.key;
+        selectedTypeIds.add(entry.key);
       }
     }
 
     return books.where((book) {
-      bool formatMatch = selectedFormatId == 0 || book['book_type_id'] == selectedFormatId;
+      bool formatMatch = selectedTypeIds.isEmpty ||
+          selectedTypeIds.contains(book['book_type_id']);
       bool favoriteMatch = !isFavorite || (book['is_favorite'] == 1);
       bool yearMatch = finishedYears.isEmpty;
 
@@ -320,33 +332,34 @@ class _LibraryPageState extends State<LibraryPage> {
     final currentOptions = SortFilterOptions(
       sortOption: _selectedSortOption,
       isAscending: _isAscending,
-      bookType: _selectedBookType,
+      bookTypes: _selectedBookTypes,
       isFavorite: _isFavorite,
       finishedYears: _selectedFinishedYears,
     );
 
     SortFilterPopup.showSortFilterPopup(
-      context: context,  // Added named parameter
-      currentOptions: currentOptions,  // Named parameter
+      context: context,
+      currentOptions: currentOptions,
       onOptionsChange: (newOptions) {
         setState(() {
           _selectedSortOption = newOptions.sortOption;
           _isAscending = newOptions.isAscending;
-          _selectedBookType = newOptions.bookType;
+          _selectedBookTypes = newOptions.bookTypes;
           _isFavorite = newOptions.isFavorite;
           _selectedFinishedYears = newOptions.finishedYears;
+
           _filteredBooks = _sortAndFilterBooks(
             List<Map<String, dynamic>>.from(widget.books),
             _selectedSortOption,
             _isAscending,
-            _selectedBookType,
+            _selectedBookTypes,
             _isFavorite,
             _selectedFinishedYears,
           );
         });
       },
-      availableYears: availableYears,  // Named parameter
-      settingsViewModel: widget.settingsViewModel,  // Added this line
+      availableYears: availableYears,
+      settingsViewModel: widget.settingsViewModel,
     );
   }
 

@@ -69,7 +69,7 @@ class _MyAppState extends State<MyApp> {
     final defaultRatingStyle = await SettingsViewModel.getDefaultRatingStyle();
     final sortOption = await SettingsViewModel.getLibrarySortOption();
     final isAscending = await SettingsViewModel.getLibrarySortAscending();
-    final bookFormat = await SettingsViewModel.getLibraryBookFormatFilter();
+    final bookTypes = await SettingsViewModel.getLibraryBookTypes();
     final bookView = await SettingsViewModel.getLibraryBookView();
     final tabNameVisibility = await SettingsViewModel.getTabNameVisibility();
     final defaultTab = await SettingsViewModel.getDefaultTab();
@@ -77,26 +77,29 @@ class _MyAppState extends State<MyApp> {
     final selectedFont = await SettingsViewModel.getSelectedFont();
 
     if (kDebugMode) {
-      print("Loading Preferences: {Default Book Type: $defaultBookType,"
-          " Library Sort Option: $sortOption,"
-          " Library Sort Ascending: $isAscending,"
-          " Library Book Format Filter: $bookFormat}"
-          " Library Book View: $bookView}");
+      print("Loading Preferences: {"
+          "Default Book Type: $defaultBookType, "
+          "Library Sort Option: $sortOption, "
+          "Library Sort Ascending: $isAscending, "
+          "Library Book Types: $bookTypes, "
+          "Library Book View: $bookView"
+          "}");
     }
 
     _settingsViewModel = SettingsViewModel(
-        themeMode: widget.themeMode,
-        accentColor: accentColor,
-        defaultBookType: defaultBookType,
-        defaultRatingStyle: defaultRatingStyle,
-        sortOption: sortOption,
-        isAscending: isAscending,
-        bookFormat: bookFormat,
-        bookView: bookView,
-        tabNameVisibility: tabNameVisibility,
-        defaultTab: defaultTab,
-        defaultDateFormat: defaultDateFormat,
-        selectedFont: selectedFont);
+      themeMode: widget.themeMode,
+      accentColor: accentColor,
+      defaultBookType: defaultBookType,
+      defaultRatingStyle: defaultRatingStyle,
+      sortOption: sortOption,
+      isAscending: isAscending,
+      bookTypes: bookTypes,
+      bookView: bookView,
+      tabNameVisibility: tabNameVisibility,
+      defaultTab: defaultTab,
+      defaultDateFormat: defaultDateFormat,
+      selectedFont: selectedFont,
+    );
   }
 
   Future<void> _loadBooks() async {
