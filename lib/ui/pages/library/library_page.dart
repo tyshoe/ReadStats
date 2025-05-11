@@ -50,10 +50,11 @@ class _LibraryPageState extends State<LibraryPage> {
 
     _selectedSortOption = widget.settingsViewModel.librarySortOptionNotifier.value;
     _isAscending = widget.settingsViewModel.isLibrarySortAscendingNotifier.value;
-    _selectedBookTypes = List<String>.from(widget.settingsViewModel.libraryBookTypeFilterNotifier.value);
+    _selectedBookTypes = widget.settingsViewModel.libraryBookTypeFilterNotifier.value;
     _isFavorite = widget.settingsViewModel.libraryFavoriteFilterNotifier.value;
-
     _libraryBookView = widget.settingsViewModel.libraryBookViewNotifier.value;
+    _selectedFinishedYears = widget.settingsViewModel.libraryFinishedYearFilterNotifier.value;
+
     _filteredBooks = _sortAndFilterBooks(
       List<Map<String, dynamic>>.from(widget.books),
       _selectedSortOption,
@@ -229,6 +230,7 @@ class _LibraryPageState extends State<LibraryPage> {
     widget.settingsViewModel.setLibrarySortAscending(isAscending);
     widget.settingsViewModel.setLibraryBookTypeFilter(selectedBookTypes);
     widget.settingsViewModel.setLibraryIsFavorite(isFavorite);
+    widget.settingsViewModel.setLibraryFinishedYearFilter(finishedYears);
 
     return _sortBooks(filteredBooks, selectedSortOption, isAscending);
   }

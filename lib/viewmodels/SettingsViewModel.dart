@@ -17,6 +17,7 @@ class SettingsViewModel {
   final ValueNotifier<bool> isLibrarySortAscendingNotifier;
   final ValueNotifier<List<String>> libraryBookTypeFilterNotifier;
   final ValueNotifier<bool> libraryFavoriteFilterNotifier;
+  final ValueNotifier<List<String>> libraryFinishedYearFilterNotifier;
 
   SettingsViewModel({
     required ThemeMode themeMode,
@@ -32,6 +33,7 @@ class SettingsViewModel {
     required bool isAscending,
     required List<String> bookTypes,
     required bool isFavorite,
+    required List<String> finishedYears,
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
@@ -44,7 +46,8 @@ class SettingsViewModel {
         librarySortOptionNotifier = ValueNotifier(sortOption),
         isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
         libraryBookTypeFilterNotifier = ValueNotifier(bookTypes),
-        libraryFavoriteFilterNotifier = ValueNotifier(isFavorite);
+        libraryFavoriteFilterNotifier = ValueNotifier(isFavorite),
+        libraryFinishedYearFilterNotifier = ValueNotifier(finishedYears);
 
   // Method to toggle theme mode (light, dark, system)
   Future<void> toggleTheme(ThemeMode themeMode) async {
@@ -159,6 +162,28 @@ class SettingsViewModel {
   static Future<String> getLibraryBookView() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('libraryBookView') ?? 'row_expanded';
+  }
+
+  // Save finished year filter
+  Future<void> setLibraryFinishedYearFilter(List<String> years) async {
+    libraryFinishedYearFilterNotifier.value = years;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (years.isEmpty) {
+      await prefs.setString('libraryFinishedYears', 'All');
+    } else {
+      await prefs.setString('libraryFinishedYears', years.join(','));
+    }
+  }
+
+// Load saved finished year filters
+  static Future<List<String>> getLibraryFinishedYears() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? yearsString = prefs.getString('libraryFinishedYears');
+
+    if (yearsString == null || yearsString.isEmpty || yearsString == 'All') {
+      return []; // Empty list represents "All" years
+    }
+    return yearsString.split(',');
   }
 
   Future<void> setLibraryBookView(String view) async {

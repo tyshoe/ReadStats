@@ -78,33 +78,49 @@ class _MyAppState extends State<MyApp> {
     final isAscending = await SettingsViewModel.getLibrarySortAscending();
     final bookTypes = await SettingsViewModel.getLibraryBookTypes();
     final isFavorite = await SettingsViewModel.getLibraryIsFavorite();
+    final finishedYears = await SettingsViewModel.getLibraryFinishedYears();
 
     if (kDebugMode) {
-      print("Loading Preferences: {"
-          "Default Book Type: $defaultBookType, "
-          "Library Sort Option: $sortOption, "
-          "Library Sort Ascending: $isAscending, "
-          "Library Book Types: $bookTypes, "
-          "Library Book View: $bookView"
-          "Library Favorite: $isFavorite"
-          "}");
+      final preferencesDebugMessage = '''
+      ═══════════════════════════════════════════
+       LOADING USER PREFERENCES
+      ───────────────────────────────────────────
+      • Accent Color: ${accentColor.value.toRadixString(16)}
+      • Default Book Type: $defaultBookType
+      • Default Rating Style: $defaultRatingStyle
+      • Default Tab: $defaultTab
+      • Date Format: "$defaultDateFormat"
+      • Selected Font: "$selectedFont"
+      • Tab Name Visibility: "$tabNameVisibility"
+      • Book View: "$bookView"
+      
+       LIBRARY FILTER SETTINGS
+      ───────────────────────────────────────────
+      • Sort Option: "$sortOption"
+      • Sort Direction: ${isAscending ? 'Ascending' : 'Descending'}
+      • Favorite Filter: ${isFavorite ? 'ON' : 'OFF'}
+      • Book Types: ${bookTypes.isEmpty ? 'All' : bookTypes.join(', ')}
+      • Finished Years: ${finishedYears.isEmpty ? 'All' : finishedYears.join(', ')}
+      ═══════════════════════════════════════════
+      ''';
+      debugPrint(preferencesDebugMessage);
     }
 
     _settingsViewModel = SettingsViewModel(
-      themeMode: widget.themeMode,
-      accentColor: accentColor,
-      defaultBookType: defaultBookType,
-      defaultRatingStyle: defaultRatingStyle,
-      bookView: bookView,
-      tabNameVisibility: tabNameVisibility,
-      defaultTab: defaultTab,
-      defaultDateFormat: defaultDateFormat,
-      selectedFont: selectedFont,
-      sortOption: sortOption,
-      isAscending: isAscending,
-      bookTypes: bookTypes,
-      isFavorite: isFavorite
-    );
+        themeMode: widget.themeMode,
+        accentColor: accentColor,
+        defaultBookType: defaultBookType,
+        defaultRatingStyle: defaultRatingStyle,
+        bookView: bookView,
+        tabNameVisibility: tabNameVisibility,
+        defaultTab: defaultTab,
+        defaultDateFormat: defaultDateFormat,
+        selectedFont: selectedFont,
+        sortOption: sortOption,
+        isAscending: isAscending,
+        bookTypes: bookTypes,
+        isFavorite: isFavorite,
+        finishedYears: finishedYears);
   }
 
   Future<void> _loadBooks() async {
@@ -134,33 +150,34 @@ class _MyAppState extends State<MyApp> {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: _settingsViewModel.themeModeNotifier,
       builder: (context, themeMode, child) {
-      return ValueListenableBuilder<String>(
-        valueListenable: _settingsViewModel.selectedFontNotifier,
-        builder: (context, font, child) {
-          return CupertinoApp(
-            theme: themeMode == ThemeMode.system
-                ? AppTheme.systemTheme(
-                    MediaQuery.of(context).platformBrightness,
-                    _settingsViewModel, // Pass the ViewModel here
-                  )
-                : themeMode == ThemeMode.dark
-                    ? AppTheme.darkTheme(_settingsViewModel) // Pass to dark theme
-                    : AppTheme.lightTheme(_settingsViewModel), // Pass to l
-            home: NavigationMenu(
-              toggleTheme: _settingsViewModel.toggleTheme,
-              themeMode: themeMode,
-              books: _books,
-              addBook: _addBook,
-              refreshBooks: _loadBooks,
-              refreshSessions: _loadSessions,
-              sessions: _sessions,
-              bookRepository: widget.bookRepository,
-              sessionRepository: widget.sessionRepository,
-              settingsViewModel: _settingsViewModel,
-            ),
-          );
-        },
-      );
+        return ValueListenableBuilder<String>(
+          valueListenable: _settingsViewModel.selectedFontNotifier,
+          builder: (context, font, child) {
+            return CupertinoApp(
+              theme: themeMode == ThemeMode.system
+                  ? AppTheme.systemTheme(
+                      MediaQuery.of(context).platformBrightness,
+                      _settingsViewModel, // Pass the ViewModel here
+                    )
+                  : themeMode == ThemeMode.dark
+                      ? AppTheme.darkTheme(
+                          _settingsViewModel) // Pass to dark theme
+                      : AppTheme.lightTheme(_settingsViewModel), // Pass to l
+              home: NavigationMenu(
+                toggleTheme: _settingsViewModel.toggleTheme,
+                themeMode: themeMode,
+                books: _books,
+                addBook: _addBook,
+                refreshBooks: _loadBooks,
+                refreshSessions: _loadSessions,
+                sessions: _sessions,
+                bookRepository: widget.bookRepository,
+                sessionRepository: widget.sessionRepository,
+                settingsViewModel: _settingsViewModel,
+              ),
+            );
+          },
+        );
       },
     );
   }
