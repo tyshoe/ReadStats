@@ -67,14 +67,17 @@ class _MyAppState extends State<MyApp> {
     final accentColor = await SettingsViewModel.getAccentColor();
     final defaultBookType = await SettingsViewModel.getDefaultBookType();
     final defaultRatingStyle = await SettingsViewModel.getDefaultRatingStyle();
-    final sortOption = await SettingsViewModel.getLibrarySortOption();
-    final isAscending = await SettingsViewModel.getLibrarySortAscending();
-    final bookTypes = await SettingsViewModel.getLibraryBookTypes();
     final bookView = await SettingsViewModel.getLibraryBookView();
     final tabNameVisibility = await SettingsViewModel.getTabNameVisibility();
     final defaultTab = await SettingsViewModel.getDefaultTab();
     final defaultDateFormat = await SettingsViewModel.getDefaultDateFormat();
     final selectedFont = await SettingsViewModel.getSelectedFont();
+
+    // Library Filters
+    final sortOption = await SettingsViewModel.getLibrarySortOption();
+    final isAscending = await SettingsViewModel.getLibrarySortAscending();
+    final bookTypes = await SettingsViewModel.getLibraryBookTypes();
+    final isFavorite = await SettingsViewModel.getLibraryIsFavorite();
 
     if (kDebugMode) {
       print("Loading Preferences: {"
@@ -83,6 +86,7 @@ class _MyAppState extends State<MyApp> {
           "Library Sort Ascending: $isAscending, "
           "Library Book Types: $bookTypes, "
           "Library Book View: $bookView"
+          "Library Favorite: $isFavorite"
           "}");
     }
 
@@ -91,14 +95,15 @@ class _MyAppState extends State<MyApp> {
       accentColor: accentColor,
       defaultBookType: defaultBookType,
       defaultRatingStyle: defaultRatingStyle,
-      sortOption: sortOption,
-      isAscending: isAscending,
-      bookTypes: bookTypes,
       bookView: bookView,
       tabNameVisibility: tabNameVisibility,
       defaultTab: defaultTab,
       defaultDateFormat: defaultDateFormat,
       selectedFont: selectedFont,
+      sortOption: sortOption,
+      isAscending: isAscending,
+      bookTypes: bookTypes,
+      isFavorite: isFavorite
     );
   }
 

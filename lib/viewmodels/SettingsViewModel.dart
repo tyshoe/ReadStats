@@ -7,40 +7,44 @@ class SettingsViewModel {
   final ValueNotifier<Color> accentColorNotifier;
   final ValueNotifier<int> defaultBookTypeNotifier;
   final ValueNotifier<int> defaultRatingStyleNotifier;
-  final ValueNotifier<String> librarySortOptionNotifier;
-  final ValueNotifier<bool> isLibrarySortAscendingNotifier;
-  final ValueNotifier<List<String>> libraryBookTypeFilterNotifier;
   final ValueNotifier<String> libraryBookViewNotifier;
   final ValueNotifier<String> tabNameVisibilityNotifier;
   final ValueNotifier<int> defaultTabNotifier;
   final ValueNotifier<String> defaultDateFormatNotifier;
   final ValueNotifier<String> selectedFontNotifier;
+  // Library Filters
+  final ValueNotifier<String> librarySortOptionNotifier;
+  final ValueNotifier<bool> isLibrarySortAscendingNotifier;
+  final ValueNotifier<List<String>> libraryBookTypeFilterNotifier;
+  final ValueNotifier<bool> libraryFavoriteFilterNotifier;
 
   SettingsViewModel({
     required ThemeMode themeMode,
     required Color accentColor,
     required int defaultBookType,
     required int defaultRatingStyle,
-    required String sortOption,
-    required bool isAscending,
-    required List<String> bookTypes,
     required String bookView,
     required String tabNameVisibility,
     required int defaultTab,
     required String defaultDateFormat,
     required String selectedFont,
+    required String sortOption,
+    required bool isAscending,
+    required List<String> bookTypes,
+    required bool isFavorite,
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
         defaultRatingStyleNotifier = ValueNotifier(defaultRatingStyle),
-        librarySortOptionNotifier = ValueNotifier(sortOption),
-        isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
-        libraryBookTypeFilterNotifier = ValueNotifier(bookTypes),
         libraryBookViewNotifier = ValueNotifier(bookView),
         tabNameVisibilityNotifier = ValueNotifier(tabNameVisibility),
         defaultTabNotifier = ValueNotifier(defaultTab),
         defaultDateFormatNotifier = ValueNotifier(defaultDateFormat),
-        selectedFontNotifier = ValueNotifier(selectedFont);
+        selectedFontNotifier = ValueNotifier(selectedFont),
+        librarySortOptionNotifier = ValueNotifier(sortOption),
+        isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
+        libraryBookTypeFilterNotifier = ValueNotifier(bookTypes),
+        libraryFavoriteFilterNotifier = ValueNotifier(isFavorite);
 
   // Method to toggle theme mode (light, dark, system)
   Future<void> toggleTheme(ThemeMode themeMode) async {
@@ -116,6 +120,17 @@ class SettingsViewModel {
   static Future<bool> getLibrarySortAscending() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getBool('isLibrarySortAscending') ?? true;
+  }
+
+  Future<void> setLibraryIsFavorite(bool isFavorite) async {
+    libraryFavoriteFilterNotifier.value = isFavorite;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool('libraryIsFavorite', isFavorite);
+  }
+
+  static Future<bool> getLibraryIsFavorite() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('libraryIsFavorite') ?? false;
   }
 
   // Save book format filter

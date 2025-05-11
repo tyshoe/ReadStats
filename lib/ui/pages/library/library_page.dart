@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'widgets/book_card.dart';
 import 'widgets/book_row.dart';
-import 'widgets/filter_sort_modal.dart';  // This imports SortFilterOptions
+import 'widgets/filter_sort_modal.dart';
 import 'package:intl/intl.dart';
 import '../add_book_page.dart';
 import '../edit_book_page.dart';
@@ -39,7 +39,6 @@ class _LibraryPageState extends State<LibraryPage> {
   List<Map<String, dynamic>> _filteredBooks = [];
   String _selectedSortOption = 'Date added';
   bool _isAscending = false;
-  // String _selectedBookType = 'All';
   bool _isFavorite = false;
   List<String> _selectedFinishedYears = [];
   List<String> _selectedBookTypes = [];
@@ -48,11 +47,11 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   void initState() {
     super.initState();
+
     _selectedSortOption = widget.settingsViewModel.librarySortOptionNotifier.value;
     _isAscending = widget.settingsViewModel.isLibrarySortAscendingNotifier.value;
-
-    // Get the saved book types list directly from the ValueNotifier
     _selectedBookTypes = List<String>.from(widget.settingsViewModel.libraryBookTypeFilterNotifier.value);
+    _isFavorite = widget.settingsViewModel.libraryFavoriteFilterNotifier.value;
 
     _libraryBookView = widget.settingsViewModel.libraryBookViewNotifier.value;
     _filteredBooks = _sortAndFilterBooks(
@@ -228,9 +227,8 @@ class _LibraryPageState extends State<LibraryPage> {
     // Save sorting preferences
     widget.settingsViewModel.setLibrarySortOption(selectedSortOption);
     widget.settingsViewModel.setLibrarySortAscending(isAscending);
-
-    // Save the complete list of book types
     widget.settingsViewModel.setLibraryBookTypeFilter(selectedBookTypes);
+    widget.settingsViewModel.setLibraryIsFavorite(isFavorite);
 
     return _sortBooks(filteredBooks, selectedSortOption, isAscending);
   }
