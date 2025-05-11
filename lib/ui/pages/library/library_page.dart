@@ -425,7 +425,7 @@ class _LibraryPageState extends State<LibraryPage> {
       child: SafeArea(
         child: Stack(
           children: [
-            if (_filteredBooks.isEmpty)
+            if (widget.books.isEmpty)
               Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
