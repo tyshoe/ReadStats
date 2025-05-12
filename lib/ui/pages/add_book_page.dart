@@ -39,7 +39,8 @@ class _AddBookPageState extends State<AddBookPage> {
     // Set the default book type based on the value in settingsViewModel
     _selectedBookType =
         widget.settingsViewModel.defaultBookTypeNotifier.value - 1;
-    _useStarRating = widget.settingsViewModel.defaultRatingStyleNotifier.value == 0;
+    _useStarRating =
+        widget.settingsViewModel.defaultRatingStyleNotifier.value == 0;
   }
 
   void _saveBook() {
@@ -111,6 +112,8 @@ class _AddBookPageState extends State<AddBookPage> {
   Widget build(BuildContext context) {
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
     final textColor = CupertinoColors.label.resolveFrom(context);
+    final fieldBackColor =
+        CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8);
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
@@ -131,97 +134,121 @@ class _AddBookPageState extends State<AddBookPage> {
           padding: const EdgeInsets.all(16.0),
           child: ListView(
             children: [
-              const Text("Title",
-                  style: TextStyle(fontSize: 16)),
+              const Text("Title", style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
-              CupertinoTextField(
-                controller: _titleController,
-                placeholder: "Title",
-                padding: const EdgeInsets.all(12),
-                maxLines: null,
-                suffix: _titleController.text.isNotEmpty
-                    ? Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: GestureDetector(
-                    onTap: () => _clearField(_titleController),
-                    child: Icon(CupertinoIcons.clear,
-                        color: CupertinoColors.systemGrey),
-                  ),
-                )
-                    : null,
+              Container(
+                decoration: BoxDecoration(
+                  color: fieldBackColor, // Change this to your desired color
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                child: CupertinoTextField(
+                  controller: _titleController,
+                  placeholder: "Title *",
+                  padding: const EdgeInsets.all(12),
+                  decoration: null,
+                  maxLines: null,
+                  suffix: _titleController.text.isNotEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: GestureDetector(
+                            onTap: () => _clearField(_titleController),
+                            child: Icon(CupertinoIcons.clear,
+                                color: CupertinoColors.systemGrey),
+                          ),
+                        )
+                      : null,
+                ),
               ),
               const SizedBox(height: 16),
-              const Text("Author",
-                  style: TextStyle(fontSize: 16)),
+              const Text("Author", style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
-              CupertinoTextField(
-                controller: _authorController,
-                placeholder: "Author",
-                padding: const EdgeInsets.all(12),
-                maxLines: null,
-                suffix: _authorController.text.isNotEmpty
-                    ? Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: GestureDetector(
-                    onTap: () => _clearField(_authorController),
-                    child: Icon(CupertinoIcons.clear,
-                        color: CupertinoColors.systemGrey),
-                  ),
-                )
-                    : null,
+              Container(
+                decoration: BoxDecoration(
+                  color: fieldBackColor, // Change this to your desired color
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                child: CupertinoTextField(
+                  controller: _authorController,
+                  placeholder: "Author *",
+                  padding: const EdgeInsets.all(12),
+                  decoration: null,
+                  maxLines: null,
+                  suffix: _authorController.text.isNotEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: GestureDetector(
+                            onTap: () => _clearField(_authorController),
+                            child: Icon(CupertinoIcons.clear,
+                                color: CupertinoColors.systemGrey),
+                          ),
+                        )
+                      : null,
+                ),
               ),
               const SizedBox(height: 16),
-              const Text("Total Words",
-                  style: TextStyle(fontSize: 16)),
+              const Text("Total Words", style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
-              CupertinoTextField(
-                controller: _wordCountController,
-                onTapOutside: (event) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
-                placeholder: "Number of Words",
-                padding: const EdgeInsets.all(12),
-                keyboardType: TextInputType.number,
-                suffix: _wordCountController.text.isNotEmpty
-                    ? Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: GestureDetector(
-                    onTap: () => _clearField(_wordCountController),
-                    child: Icon(CupertinoIcons.clear,
-                        color: CupertinoColors.systemGrey),
-                  ),
-                )
-                    : null,
+              Container(
+                decoration: BoxDecoration(
+                  color: fieldBackColor, // Change this to your desired color
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                child: CupertinoTextField(
+                  controller: _wordCountController,
+                  onTapOutside: (event) {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                  },
+                  placeholder: "Number of Words",
+                  padding: const EdgeInsets.all(12),
+                  decoration: null,
+                  keyboardType: TextInputType.number,
+                  suffix: _wordCountController.text.isNotEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: GestureDetector(
+                            onTap: () => _clearField(_wordCountController),
+                            child: Icon(CupertinoIcons.clear,
+                                color: CupertinoColors.systemGrey),
+                          ),
+                        )
+                      : null,
+                ),
               ),
               const SizedBox(height: 16),
-              const Text("Total Pages",
-                  style: TextStyle(fontSize: 16)),
+              const Text("Total Pages", style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
-              CupertinoTextField(
-                controller: _pageCountController,
-                onTapOutside: (event) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
-                placeholder: "Number of Pages",
-                padding: const EdgeInsets.all(12),
-                keyboardType: TextInputType.number,
-                suffix: _pageCountController.text.isNotEmpty
-                    ? Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: GestureDetector(
-                    onTap: () => _clearField(_pageCountController),
-                    child: Icon(CupertinoIcons.clear,
-                        color: CupertinoColors.systemGrey),
-                  ),
-                )
-                    : null,
+              Container(
+                decoration: BoxDecoration(
+                  color: fieldBackColor, // Change this to your desired color
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                child: CupertinoTextField(
+                  controller: _pageCountController,
+                  onTapOutside: (event) {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                  },
+                  placeholder: "Number of Pages",
+                  padding: const EdgeInsets.all(12),
+                  decoration: null,
+                  keyboardType: TextInputType.number,
+                  suffix: _pageCountController.text.isNotEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: GestureDetector(
+                            onTap: () => _clearField(_pageCountController),
+                            child: Icon(CupertinoIcons.clear,
+                                color: CupertinoColors.systemGrey),
+                          ),
+                        )
+                      : null,
+                ),
               ),
               const SizedBox(height: 16),
-              const Text("Format",
-                  style: TextStyle(fontSize: 16)),
+              const Text("Format", style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
               CupertinoSlidingSegmentedControl<int>(
                 groupValue: _selectedBookType,
+                backgroundColor: fieldBackColor,
                 onValueChanged: (int? value) {
                   if (value != null) {
                     setState(() {
@@ -257,11 +284,11 @@ class _AddBookPageState extends State<AddBookPage> {
                 },
               ),
               const SizedBox(height: 16),
-              const Text("Status",
-                  style: TextStyle(fontSize: 16)),
+              const Text("Status", style: TextStyle(fontSize: 16)),
               const SizedBox(height: 8),
               CupertinoSlidingSegmentedControl<int>(
                 groupValue: _isCompleted ? 1 : 0,
+                backgroundColor: fieldBackColor,
                 onValueChanged: (int? value) {
                   if (value != null) {
                     setState(() {
@@ -289,41 +316,45 @@ class _AddBookPageState extends State<AddBookPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
                       child: _useStarRating
                           ? RatingBar.builder(
-                        initialRating: _rating,
-                        minRating: 0,
-                        maxRating: 5,
-                        allowHalfRating: true,
-                        itemCount: 5,
-                        itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                        glow: false,
-                        itemBuilder: (context, _) => const Icon(
-                          CupertinoIcons.star_fill,
-                          color: CupertinoColors.systemYellow,
-                        ),
-                        onRatingUpdate: (rating) {
-                          setState(() {
-                            _rating = rating;
-                          });
-                        },
-                      )
+                              initialRating: _rating,
+                              minRating: 0,
+                              maxRating: 5,
+                              allowHalfRating: true,
+                              itemCount: 5,
+                              itemPadding:
+                                  const EdgeInsets.symmetric(horizontal: 4.0),
+                              glow: false,
+                              itemBuilder: (context, _) => const Icon(
+                                CupertinoIcons.star_fill,
+                                color: CupertinoColors.systemYellow,
+                              ),
+                              onRatingUpdate: (rating) {
+                                setState(() {
+                                  _rating = rating;
+                                });
+                              },
+                            )
                           : CupertinoTextField(
-                        placeholder: "Rating (0 - 5)",
-                        padding: const EdgeInsets.all(12),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        onChanged: (value) {
-                          final parsed = double.tryParse(value);
-                          if (parsed != null && parsed >= 0 && parsed <= 10) {
-                            _rating = parsed;
-                          }
-                        },
-                      ),
+                              placeholder: "Rating (0 - 5)",
+                              padding: const EdgeInsets.all(12),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              onChanged: (value) {
+                                final parsed = double.tryParse(value);
+                                if (parsed != null &&
+                                    parsed >= 0 &&
+                                    parsed <= 10) {
+                                  _rating = parsed;
+                                }
+                              },
+                            ),
                     ),
                     const SizedBox(width: 12),
                     GestureDetector(
@@ -333,7 +364,9 @@ class _AddBookPageState extends State<AddBookPage> {
                         });
                       },
                       child: Icon(
-                        _isFavorite ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+                        _isFavorite
+                            ? CupertinoIcons.heart_fill
+                            : CupertinoIcons.heart,
                         color: _isFavorite
                             ? CupertinoColors.systemRed
                             : CupertinoColors.systemGrey2.resolveFrom(context),
@@ -343,7 +376,6 @@ class _AddBookPageState extends State<AddBookPage> {
                   ],
                 ),
               ],
-
               const SizedBox(height: 16),
               const Text(
                 'Date',
@@ -351,7 +383,8 @@ class _AddBookPageState extends State<AddBookPage> {
               ),
               const SizedBox(height: 8),
               Column(
-                crossAxisAlignment: CrossAxisAlignment.start, // Aligns the children to the left
+                crossAxisAlignment:
+                    CrossAxisAlignment.start, // Aligns the children to the left
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -364,58 +397,79 @@ class _AddBookPageState extends State<AddBookPage> {
                           children: [
                             const Text(
                               'Start Date',
-                              style: TextStyle(fontSize: 14, color: CupertinoColors.systemGrey),
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  color: CupertinoColors.systemGrey),
                             ),
                             const SizedBox(height: 8),
                             CupertinoButton(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                              color: CupertinoColors.systemGrey5,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 16),
+                              color: fieldBackColor,
                               borderRadius: BorderRadius.circular(8),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     _dateStarted == null
                                         ? 'Select Start Date'
-                                        : DateFormat('MMMM d, y').format(_dateStarted!),
-                                    style: TextStyle(fontSize: 16, color: textColor),
+                                        : DateFormat('MMMM d, y')
+                                            .format(_dateStarted!),
+                                    style: TextStyle(
+                                        fontSize: 16, color: textColor),
                                   ),
-                                  Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey),
+                                  Icon(CupertinoIcons.chevron_down,
+                                      color: CupertinoColors.systemGrey),
                                 ],
                               ),
                               onPressed: () {
-                                DateTime tempDate = _dateStarted ?? _dateToday; // Store temp date
+                                DateTime tempDate = _dateStarted ??
+                                    _dateToday; // Store temp date
                                 showCupertinoModalPopup(
                                   context: context,
                                   builder: (_) => Container(
                                     height: 250,
-                                    color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
+                                    color: CupertinoColors
+                                        .secondarySystemBackground
+                                        .resolveFrom(context),
                                     child: Column(
                                       children: [
                                         // Clear & Done buttons
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             CupertinoButton(
-                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 16),
                                               child: Text(
                                                 'Clear',
-                                                style: TextStyle(color: textColor),
+                                                style:
+                                                    TextStyle(color: textColor),
                                               ),
                                               onPressed: () {
-                                                setState(() => _dateStarted = null);
-                                                Navigator.pop(context); // Close modal
+                                                setState(
+                                                    () => _dateStarted = null);
+                                                Navigator.pop(
+                                                    context); // Close modal
                                               },
                                             ),
                                             CupertinoButton(
-                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 16),
                                               child: Text(
                                                 'Done',
-                                                style: TextStyle(color: accentColor),
+                                                style: TextStyle(
+                                                    color: accentColor),
                                               ),
                                               onPressed: () {
-                                                setState(() => _dateStarted = tempDate); // Apply selected date
-                                                Navigator.pop(context); // Close modal
+                                                setState(() => _dateStarted =
+                                                    tempDate); // Apply selected date
+                                                Navigator.pop(
+                                                    context); // Close modal
                                               },
                                             ),
                                           ],
@@ -427,7 +481,8 @@ class _AddBookPageState extends State<AddBookPage> {
                                             mode: CupertinoDatePickerMode.date,
                                             onDateTimeChanged: (date) {
                                               tempDate = date;
-                                              setState(() => _dateStarted = date);
+                                              setState(
+                                                  () => _dateStarted = date);
                                             },
                                           ),
                                         ),
@@ -450,58 +505,79 @@ class _AddBookPageState extends State<AddBookPage> {
                           children: [
                             const Text(
                               'Finish Date',
-                              style: TextStyle(fontSize: 14, color: CupertinoColors.systemGrey),
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  color: CupertinoColors.systemGrey),
                             ),
                             const SizedBox(height: 8),
                             CupertinoButton(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                              color: CupertinoColors.systemGrey5,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 16),
+                              color: fieldBackColor,
                               borderRadius: BorderRadius.circular(8),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     _dateFinished == null
                                         ? 'Select Finish Date'
-                                        : DateFormat('MMMM d, y').format(_dateFinished!),
-                                    style: TextStyle(fontSize: 16, color: textColor),
+                                        : DateFormat('MMMM d, y')
+                                            .format(_dateFinished!),
+                                    style: TextStyle(
+                                        fontSize: 16, color: textColor),
                                   ),
-                                  Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey),
+                                  Icon(CupertinoIcons.chevron_down,
+                                      color: CupertinoColors.systemGrey),
                                 ],
                               ),
                               onPressed: () {
-                                DateTime tempDate = _dateFinished ?? _dateToday; // Store temp date
+                                DateTime tempDate = _dateFinished ??
+                                    _dateToday; // Store temp date
                                 showCupertinoModalPopup(
                                   context: context,
                                   builder: (_) => Container(
                                     height: 250,
-                                    color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
+                                    color: CupertinoColors
+                                        .secondarySystemBackground
+                                        .resolveFrom(context),
                                     child: Column(
                                       children: [
                                         // Clear & Done buttons
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             CupertinoButton(
-                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 16),
                                               child: Text(
                                                 'Clear',
-                                                style: TextStyle(color: textColor),
+                                                style:
+                                                    TextStyle(color: textColor),
                                               ),
                                               onPressed: () {
-                                                setState(() => _dateFinished = null);
-                                                Navigator.pop(context); // Close modal
+                                                setState(
+                                                    () => _dateFinished = null);
+                                                Navigator.pop(
+                                                    context); // Close modal
                                               },
                                             ),
                                             CupertinoButton(
-                                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 16),
                                               child: Text(
                                                 'Done',
-                                                style: TextStyle(color: accentColor),
+                                                style: TextStyle(
+                                                    color: accentColor),
                                               ),
                                               onPressed: () {
-                                                setState(() => _dateFinished = tempDate); // Apply selected date
-                                                Navigator.pop(context); // Close modal
+                                                setState(() => _dateFinished =
+                                                    tempDate); // Apply selected date
+                                                Navigator.pop(
+                                                    context); // Close modal
                                               },
                                             ),
                                           ],
@@ -513,7 +589,8 @@ class _AddBookPageState extends State<AddBookPage> {
                                             mode: CupertinoDatePickerMode.date,
                                             onDateTimeChanged: (date) {
                                               tempDate = date;
-                                              setState(() => _dateFinished = date);
+                                              setState(
+                                                  () => _dateFinished = date);
                                             },
                                           ),
                                         ),
@@ -531,7 +608,6 @@ class _AddBookPageState extends State<AddBookPage> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity, // Make the button full width

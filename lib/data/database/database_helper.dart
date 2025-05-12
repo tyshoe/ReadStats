@@ -82,6 +82,24 @@ class DatabaseHelper {
       )
     ''');
 
+    await db.execute('''
+    CREATE TABLE tags(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      color INTEGER DEFAULT 0
+    )
+  ''');
+
+    await db.execute('''
+    CREATE TABLE book_tags(
+      book_id INTEGER,
+      tag_id INTEGER,
+      PRIMARY KEY (book_id, tag_id),
+      FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE,
+      FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
+    )
+  ''');
+
     await db.insert('book_types', {'name': 'Paperback'});
     await db.insert('book_types', {'name': 'Hardback'});
     await db.insert('book_types', {'name': 'EBook'});
@@ -401,7 +419,6 @@ class DatabaseHelper {
     }
   }
 
-
   Future<Map<String, dynamic>> getCompleteBookStats(int bookId) async {
     final book = await getBookById(bookId);
     final stats = await getBookStats(bookId);
@@ -414,5 +431,50 @@ class DatabaseHelper {
     } else {
       return {};
     }
+  }
+
+  Future<int> createTag(Map<String, dynamic> tag) async {
+    final db = await database;
+    return await db.insert('tags', tag);
+  }
+
+  Future<List<Map<String, dynamic>>> getAllTags() async {
+    final db = await database;
+    return await db.query('tags');
+  }
+
+  Future<int> addTagToBook(int bookId, int tagId) async {
+    final db = await database;
+    return await db.insert('book_tags', {
+      'book_id': bookId,
+      'tag_id': tagId,
+    });
+  }
+
+  Future<int> removeTagFromBook(int bookId, int tagId) async {
+    final db = await database;
+    return await db.delete(
+      'book_tags',
+      where: 'book_id = ? AND tag_id = ?',
+      whereArgs: [bookId, tagId],
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getTagsForBook(int bookId) async {
+    final db = await database;
+    return await db.rawQuery('''
+    SELECT tags.* FROM tags
+    INNER JOIN book_tags ON tags.id = book_tags.tag_id
+    WHERE book_tags.book_id = ?
+  ''', [bookId]);
+  }
+
+  Future<List<Map<String, dynamic>>> getBooksForTag(int tagId) async {
+    final db = await database;
+    return await db.rawQuery('''
+    SELECT books.* FROM books
+    INNER JOIN book_tags ON books.id = book_tags.book_id
+    WHERE book_tags.tag_id = ?
+  ''', [tagId]);
   }
 }
