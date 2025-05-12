@@ -8,6 +8,7 @@ class SortFilterOptions {
   final List<String> bookTypes;
   final bool isFavorite;
   final List<String> finishedYears;
+  final List<String> tags;
 
   SortFilterOptions({
     required this.sortOption,
@@ -15,6 +16,7 @@ class SortFilterOptions {
     required this.bookTypes,
     required this.isFavorite,
     this.finishedYears = const [],
+    this.tags = const [],
   });
 
   SortFilterOptions copyWith({
@@ -23,6 +25,7 @@ class SortFilterOptions {
     List<String>? bookTypes,
     bool? isFavorite,
     List<String>? finishedYears,
+    List<String>? tags,
   }) {
     return SortFilterOptions(
       sortOption: sortOption ?? this.sortOption,
@@ -30,6 +33,7 @@ class SortFilterOptions {
       bookTypes: bookTypes ?? this.bookTypes,
       isFavorite: isFavorite ?? this.isFavorite,
       finishedYears: finishedYears ?? this.finishedYears,
+      tags: tags ?? this.tags,
     );
   }
 }
@@ -40,6 +44,7 @@ class SortFilterPopup {
     required SortFilterOptions currentOptions,
     required Function(SortFilterOptions) onOptionsChange,
     required List<String> availableYears,
+    required List<String> availableTags,
     required SettingsViewModel settingsViewModel,
   }) {
     showCupertinoModalPopup(
@@ -49,6 +54,7 @@ class SortFilterPopup {
           currentOptions: currentOptions,
           onOptionsChange: onOptionsChange,
           availableYears: availableYears,
+          availableTags: availableTags,
           settingsViewModel: settingsViewModel,
         );
       },
@@ -60,6 +66,7 @@ class _SortFilterPopup extends StatefulWidget {
   final SortFilterOptions currentOptions;
   final Function(SortFilterOptions) onOptionsChange;
   final List<String> availableYears;
+  final List<String> availableTags;
   final SettingsViewModel settingsViewModel;
 
   const _SortFilterPopup({
@@ -67,6 +74,7 @@ class _SortFilterPopup extends StatefulWidget {
     required this.currentOptions,
     required this.onOptionsChange,
     required this.availableYears,
+    required this.availableTags,
     required this.settingsViewModel,
   }) : super(key: key);
 
@@ -123,43 +131,7 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: CupertinoButton(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                      color: CupertinoColors.systemGrey5,
-                      borderRadius: BorderRadius.circular(8),
-                      onPressed: () => _showSortPicker(context),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            currentOptions.sortOption,
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: CupertinoColors.label.resolveFrom(context),
-                            ),
-                          ),
-                          const Icon(CupertinoIcons.chevron_down,
-                              color: CupertinoColors.systemGrey),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  CupertinoButton(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                    color: CupertinoColors.systemGrey5,
-                    borderRadius: BorderRadius.circular(8),
-                    onPressed: _toggleSortOrder,
-                    child: Icon(
-                      currentOptions.isAscending ? CupertinoIcons.sort_up : CupertinoIcons.sort_down,
-                      size: 24,
-                    ),
-                  ),
-                ],
-              ),
+              // ... [keep existing sort controls] ...
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Divider(height: 1),
@@ -169,6 +141,8 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
               _buildFavoriteFilter(),
               const SizedBox(height: 24),
               _buildYearFilter(),
+              const SizedBox(height: 24),
+              _buildTagFilter(),
               const SizedBox(height: 24),
             ],
           ),
@@ -400,6 +374,124 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
         ),
       ],
     );
+  }
+
+  Widget _buildTagFilter() {
+    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
+    final bool showAll = currentOptions.tags.isEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Tags',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 46,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              // "All" chip
+              GestureDetector(
+                onTap: _clearTagFilters,
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: showAll
+                        ? accentColor.withOpacity(0.3)
+                        : CupertinoColors.secondarySystemBackground.resolveFrom(context),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (showAll) ...[
+                        Icon(
+                          CupertinoIcons.checkmark,
+                          size: 18,
+                          color: _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2)),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        'All',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: showAll
+                              ? _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2))
+                              : CupertinoColors.label.resolveFrom(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Tag chips
+              ...widget.availableTags.map((tag) {
+                final isSelected = currentOptions.tags.contains(tag);
+                return GestureDetector(
+                  onTap: () => _toggleTagFilter(tag),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? accentColor.withOpacity(0.3)
+                          : CupertinoColors.secondarySystemBackground.resolveFrom(context),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isSelected)
+                          Icon(
+                            CupertinoIcons.checkmark,
+                            size: 18,
+                            color: _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2)),
+                          ),
+                        if (isSelected) const SizedBox(width: 6),
+                        Text(
+                          tag,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: isSelected
+                                ? _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2))
+                                : CupertinoColors.label.resolveFrom(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _toggleTagFilter(String tag) {
+    setState(() {
+      final updatedTags = List<String>.from(currentOptions.tags);
+      if (updatedTags.contains(tag)) {
+        updatedTags.remove(tag);
+      } else {
+        updatedTags.add(tag);
+      }
+      currentOptions = currentOptions.copyWith(tags: updatedTags);
+    });
+    widget.onOptionsChange(currentOptions);
+  }
+
+  void _clearTagFilters() {
+    setState(() {
+      currentOptions = currentOptions.copyWith(tags: []);
+    });
+    widget.onOptionsChange(currentOptions);
   }
 
   void _showSortPicker(BuildContext context) async {

@@ -43,11 +43,18 @@ class _LibraryPageState extends State<LibraryPage> {
   bool _isFavorite = false;
   List<String> _selectedFinishedYears = [];
   List<String> _selectedBookTypes = [];
+  List<String> _selectedTags = [];
+  late TagRepository _tagRepository;
+  List<String> _availableTags = [];
+  Map<int, List<String>> _bookTagsCache = {};
 
 // Update initState:
   @override
   void initState() {
     super.initState();
+    _tagRepository = TagRepository(DatabaseHelper());
+    _loadAvailableTags();
+    _loadAllBookTags();
 
     _selectedSortOption = widget.settingsViewModel.librarySortOptionNotifier.value;
     _isAscending = widget.settingsViewModel.isLibrarySortAscendingNotifier.value;
@@ -56,6 +63,7 @@ class _LibraryPageState extends State<LibraryPage> {
     _libraryBookView = widget.settingsViewModel.libraryBookViewNotifier.value;
     _selectedFinishedYears = widget.settingsViewModel.libraryFinishedYearFilterNotifier.value;
 
+
     _filteredBooks = _sortAndFilterBooks(
       List<Map<String, dynamic>>.from(widget.books),
       _selectedSortOption,
@@ -63,6 +71,7 @@ class _LibraryPageState extends State<LibraryPage> {
       _selectedBookTypes,
       _isFavorite,
       _selectedFinishedYears,
+      _selectedTags
     );
     _searchController.addListener(_searchBooks);
   }
@@ -79,6 +88,7 @@ class _LibraryPageState extends State<LibraryPage> {
           _selectedBookTypes,
           _isFavorite,
           _selectedFinishedYears,
+          _selectedTags
         );
       });
     }
@@ -88,6 +98,10 @@ class _LibraryPageState extends State<LibraryPage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAllBookTags() async {
+    _bookTagsCache = await _tagRepository.getAllBookTags();
   }
 
   void _toggleView(String newView) {
@@ -109,6 +123,7 @@ class _LibraryPageState extends State<LibraryPage> {
           _selectedBookTypes,
           _isFavorite,
           _selectedFinishedYears,
+          _selectedTags,
         );
       }
     });
@@ -219,12 +234,14 @@ class _LibraryPageState extends State<LibraryPage> {
       List<String> selectedBookTypes,
       bool isFavorite,
       List<String> finishedYears,
+      List<String> tags,
       ) {
     List<Map<String, dynamic>> filteredBooks = _filterBooks(
       books,
       selectedBookTypes,
       isFavorite,
       finishedYears,
+      tags
     );
 
     // Save sorting preferences
@@ -242,37 +259,55 @@ class _LibraryPageState extends State<LibraryPage> {
       List<String> selectedBookTypes,
       bool isFavorite,
       List<String> finishedYears,
+      List<String> selectedTags,
       ) {
     // Convert book type names to IDs
-    final selectedTypeIds = <int>[];
-    for (final type in selectedBookTypes) {
-      final entry = bookTypeNames.entries.firstWhere(
+    final selectedTypeIds = selectedBookTypes.map((type) {
+      return bookTypeNames.entries
+          .firstWhere(
             (entry) => entry.value == type,
         orElse: () => const MapEntry(-1, ''),
-      );
-      if (entry.key != -1) {
-        selectedTypeIds.add(entry.key);
-      }
-    }
+      )
+          .key;
+    }).where((id) => id != -1).toList();
 
     return books.where((book) {
-      bool formatMatch = selectedTypeIds.isEmpty ||
-          selectedTypeIds.contains(book['book_type_id']);
-      bool favoriteMatch = !isFavorite || (book['is_favorite'] == 1);
-      bool yearMatch = finishedYears.isEmpty;
+      // 1. Check book type match
+      final typeMatch = selectedTypeIds.isEmpty ||
+          (book['book_type_id'] != null && selectedTypeIds.contains(book['book_type_id']));
 
+      // 2. Check favorite match
+      final favoriteMatch = !isFavorite ||
+          (book['is_favorite'] != null && book['is_favorite'] == 1);
+
+      // 3. Check year match
+      bool yearMatch = finishedYears.isEmpty;
       if (!yearMatch && book['date_finished'] != null) {
         try {
           final date = DateTime.parse(book['date_finished'].toString());
           yearMatch = finishedYears.contains(date.year.toString());
-        } catch (e) {
+        } catch (_) {
           yearMatch = false;
         }
       }
 
-      return formatMatch && favoriteMatch && yearMatch;
+      // 4. Check tag match
+      bool tagMatch = selectedTags.isEmpty;
+      if (!tagMatch) {
+        final bookTags = _extractBookTags(book);
+        print(bookTags);
+        tagMatch = selectedTags.any((tag) => bookTags.contains(tag));
+      }
+
+      return typeMatch && favoriteMatch && yearMatch && tagMatch;
     }).toList();
   }
+
+  List<String> _extractBookTags(Map<String, dynamic> book) {
+    final bookId = book['id'] as int;
+    return _bookTagsCache[bookId] ?? []; // Return cached tags or empty list
+  }
+
 
   static const Map<int, String> bookTypeNames = {
     1: "Paperback",
@@ -337,6 +372,7 @@ class _LibraryPageState extends State<LibraryPage> {
       bookTypes: _selectedBookTypes,
       isFavorite: _isFavorite,
       finishedYears: _selectedFinishedYears,
+      tags: _selectedTags,
     );
 
     SortFilterPopup.showSortFilterPopup(
@@ -349,6 +385,7 @@ class _LibraryPageState extends State<LibraryPage> {
           _selectedBookTypes = newOptions.bookTypes;
           _isFavorite = newOptions.isFavorite;
           _selectedFinishedYears = newOptions.finishedYears;
+          _selectedTags = newOptions.tags;
 
           _filteredBooks = _sortAndFilterBooks(
             List<Map<String, dynamic>>.from(widget.books),
@@ -357,11 +394,13 @@ class _LibraryPageState extends State<LibraryPage> {
             _selectedBookTypes,
             _isFavorite,
             _selectedFinishedYears,
+            _selectedTags
           );
         });
       },
       availableYears: availableYears,
       settingsViewModel: widget.settingsViewModel,
+      availableTags: _availableTags
     );
   }
 
@@ -383,6 +422,17 @@ class _LibraryPageState extends State<LibraryPage> {
     HSLColor hslColor = HSLColor.fromColor(color);
     double lightness = hslColor.lightness;
     return lightness < 0.5 ? CupertinoColors.white : CupertinoColors.black;
+  }
+
+  Future<void> _loadAvailableTags() async {
+    try {
+      final tags = await _tagRepository.getAllTags();
+      setState(() {
+        _availableTags = tags.map((tag) => tag.name).toList();
+      });
+    } catch (e) {
+      print('Error loading tags: $e');
+    }
   }
 
   @override
