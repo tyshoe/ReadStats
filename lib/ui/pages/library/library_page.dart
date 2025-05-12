@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../../../data/repositories/tag_repository.dart';
 import 'widgets/book_card.dart';
 import 'widgets/book_row.dart';
 import 'widgets/filter_sort_modal.dart';
@@ -207,6 +208,7 @@ class _LibraryPageState extends State<LibraryPage> {
       _navigateToEditBookPage,
       _navigateToAddSessionPage,
       _confirmDelete,
+      TagRepository(DatabaseHelper())
     );
   }
 

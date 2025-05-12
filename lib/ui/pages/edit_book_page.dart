@@ -118,6 +118,8 @@ class _EditBookPageState extends State<EditBookPage> {
     final textColor = CupertinoColors.label.resolveFrom(context);
     final fieldBackColor =
         CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8);
+    final tagBackColor =
+        CupertinoColors.systemGrey3.resolveFrom(context).withOpacity(0.8);
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
@@ -676,20 +678,17 @@ class _EditBookPageState extends State<EditBookPage> {
                                     for (final tag in tags)
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 6),
+                                            horizontal: 12, vertical: 8),
                                         decoration: BoxDecoration(
-                                          color: accentColor.withOpacity(0.2),
+                                          color: tagBackColor,
                                           borderRadius:
                                               BorderRadius.circular(20),
-                                          border: Border.all(
-                                            color: accentColor.withOpacity(0.4),
-                                          ),
                                         ),
                                         child: Text(
                                           tag.name,
                                           style: TextStyle(
                                             fontSize: 14,
-                                            color: accentColor,
+                                            color: textColor,
                                           ),
                                         ),
                                       ),

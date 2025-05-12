@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import '../../../../data/repositories/tag_repository.dart';
 import '/data/database/database_helper.dart';
 
 class BookPopup {
@@ -13,6 +14,7 @@ class BookPopup {
     Function navigateToEditBookPage,
     Function navigateToAddSessionPage,
     Function confirmDelete,
+    TagRepository tagRepository,
   ) async {
     final DatabaseHelper dbHelper = DatabaseHelper();
     final stats = await dbHelper.getBookStats(book['id']);
@@ -23,6 +25,7 @@ class BookPopup {
     final subtitleColor = CupertinoColors.secondaryLabel.resolveFrom(context);
     final cardColor =
         CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8);
+    final tags = await tagRepository.getTagsForBook(book['id']); // Fetch tags
 
     String defaultDate = '1999-11-15';
 
@@ -324,7 +327,45 @@ class BookPopup {
                   ],
                 ),
                 const SizedBox(height: 16),
-
+                if (tags.isNotEmpty) ...[
+                  SizedBox(
+                    height: 36,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: tags.length,
+                      physics: const BouncingScrollPhysics(),
+                      separatorBuilder: (context, index) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                CupertinoIcons.tag,
+                                size: 16,
+                                color: textColor.withOpacity(0.6),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                tags[index].name,
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 _statCard(
                     title: 'Sessions',
                     value: stats['session_count']?.toString() ?? '0',
