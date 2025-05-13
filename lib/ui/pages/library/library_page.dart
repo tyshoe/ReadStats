@@ -100,6 +100,12 @@ class _LibraryPageState extends State<LibraryPage> {
     super.dispose();
   }
 
+  Future<void> _refreshTags() async {
+    await _loadAvailableTags();
+    await _loadAllBookTags();
+    setState(() {}); // Trigger UI update
+  }
+
   Future<void> _loadAllBookTags() async {
     _bookTagsCache = await _tagRepository.getAllBookTags();
   }
@@ -169,6 +175,7 @@ class _LibraryPageState extends State<LibraryPage> {
         ),
       ),
     );
+    await _refreshTags(); // Refresh tags when returning
   }
 
   void _navigateToAddSessionPage(int? bookId) async {
