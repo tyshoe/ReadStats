@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
-void showDefaultTabPicker(
-    BuildContext context, SettingsViewModel settingsViewModel) {
+
+void showNavStylePicker(BuildContext context, SettingsViewModel settingsViewModel) {
   final theme = Theme.of(context);
   final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
+  final current = settingsViewModel.navStyleNotifier.value;
   final accentColor = settingsViewModel.accentColorNotifier.value;
-  final currentTabIndex = settingsViewModel.defaultTabNotifier.value;
 
   showDialog(
     context: context,
@@ -19,48 +20,38 @@ void showDefaultTabPicker(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Default Tab',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              'Navigation Style',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            _DefaultTabOption(
-              label: 'Library',
-              isSelected: currentTabIndex == 0,
+            _TabVisibilityOption(
+              label: 'Simple',
+              selected: current == IconStyle.simple,
               accentColor: accentColor,
               textColor: textColor,
               onTap: () {
-                settingsViewModel.setDefaultTab(0);
+                settingsViewModel.setNavStyle(IconStyle.simple);
                 Navigator.pop(context);
               },
             ),
-            _DefaultTabOption(
-              label: 'Sessions',
-              isSelected: currentTabIndex == 1,
+            _TabVisibilityOption(
+              label: 'Standard',
+              selected: current == IconStyle.Default,
               accentColor: accentColor,
               textColor: textColor,
               onTap: () {
-                settingsViewModel.setDefaultTab(1);
+                settingsViewModel.setNavStyle(IconStyle.Default);
                 Navigator.pop(context);
               },
             ),
-            _DefaultTabOption(
-              label: 'Stats',
-              isSelected: currentTabIndex == 2,
+            _TabVisibilityOption(
+              label: 'Animated',
+              selected: current == IconStyle.animated,
               accentColor: accentColor,
               textColor: textColor,
               onTap: () {
-                settingsViewModel.setDefaultTab(2);
-                Navigator.pop(context);
-              },
-            ),
-            _DefaultTabOption(
-              label: 'Settings',
-              isSelected: currentTabIndex == 3,
-              accentColor: accentColor,
-              textColor: textColor,
-              onTap: () {
-                settingsViewModel.setDefaultTab(3);
+                settingsViewModel.setNavStyle(IconStyle.animated);
                 Navigator.pop(context);
               },
             ),
@@ -71,16 +62,16 @@ void showDefaultTabPicker(
   );
 }
 
-class _DefaultTabOption extends StatelessWidget {
+class _TabVisibilityOption extends StatelessWidget {
   final String label;
-  final bool isSelected;
+  final bool selected;
   final Color accentColor;
   final Color textColor;
   final VoidCallback onTap;
 
-  const _DefaultTabOption({
+  const _TabVisibilityOption({
     required this.label,
-    required this.isSelected,
+    required this.selected,
     required this.accentColor,
     required this.textColor,
     required this.onTap,
@@ -91,14 +82,14 @@ class _DefaultTabOption extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       contentPadding: EdgeInsets.zero,
-      leading: isSelected
+      leading: selected
           ? Icon(Icons.check, color: accentColor)
-          : const SizedBox(width: 24), // keep alignment
+          : const SizedBox(width: 24),
       title: Text(
         label,
         style: TextStyle(
           fontSize: 16,
-          color: isSelected ? accentColor : textColor,
+          color: selected ? accentColor : textColor,
         ),
       ),
     );

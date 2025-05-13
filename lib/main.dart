@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 import 'data/database/database_helper.dart';
 import 'data/repositories/book_repository.dart';
 import 'data/repositories/session_repository.dart';
@@ -68,7 +69,7 @@ class _MyAppState extends State<MyApp> {
     final defaultBookType = await SettingsViewModel.getDefaultBookType();
     final defaultRatingStyle = await SettingsViewModel.getDefaultRatingStyle();
     final bookView = await SettingsViewModel.getLibraryBookView();
-    final tabNameVisibility = await SettingsViewModel.getTabNameVisibility();
+    final navStyle = await SettingsViewModel.getNavStyle();
     final defaultTab = await SettingsViewModel.getDefaultTab();
     final defaultDateFormat = await SettingsViewModel.getDefaultDateFormat();
     final selectedFont = await SettingsViewModel.getSelectedFont();
@@ -91,7 +92,7 @@ class _MyAppState extends State<MyApp> {
       • Default Tab: $defaultTab
       • Date Format: "$defaultDateFormat"
       • Selected Font: "$selectedFont"
-      • Tab Name Visibility: "$tabNameVisibility"
+      • Nav Style: "$navStyle"
       • Book View: "$bookView"
       
        LIBRARY FILTER SETTINGS
@@ -112,7 +113,7 @@ class _MyAppState extends State<MyApp> {
         defaultBookType: defaultBookType,
         defaultRatingStyle: defaultRatingStyle,
         bookView: bookView,
-        tabNameVisibility: tabNameVisibility,
+        navStyle: navStyle,
         defaultTab: defaultTab,
         defaultDateFormat: defaultDateFormat,
         selectedFont: selectedFont,
@@ -145,42 +146,53 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  Future<void> _refreshBooks() async {
+    await _loadBooks();
+  }
+
+  Future<void> _refreshSessions() async {
+    await _loadSessions();
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: _settingsViewModel.themeModeNotifier,
-      builder: (context, themeMode, child) {
-        return ValueListenableBuilder<String>(
-          valueListenable: _settingsViewModel.selectedFontNotifier,
-          builder: (context, font, child) {
-            return CupertinoApp(
-              theme: themeMode == ThemeMode.system
-                  ? AppTheme.systemTheme(
-                      MediaQuery.of(context).platformBrightness,
-                      _settingsViewModel, // Pass the ViewModel here
-                    )
-                  : themeMode == ThemeMode.dark
-                      ? AppTheme.darkTheme(
-                          _settingsViewModel) // Pass to dark theme
-                      : AppTheme.lightTheme(_settingsViewModel), // Pass to l
-              home: NavigationMenu(
-                toggleTheme: _settingsViewModel.toggleTheme,
-                themeMode: themeMode,
-                books: _books,
-                addBook: _addBook,
-                refreshBooks: _loadBooks,
-                refreshSessions: _loadSessions,
-                sessions: _sessions,
-                bookRepository: widget.bookRepository,
-                sessionRepository: widget.sessionRepository,
-                settingsViewModel: _settingsViewModel,
-              ),
+      builder: (context, themeMode, _) {
+        return ValueListenableBuilder<Color>(
+          valueListenable: _settingsViewModel.accentColorNotifier,
+          builder: (context, accentColor, _) {
+            return ValueListenableBuilder<String>(
+              valueListenable: _settingsViewModel.selectedFontNotifier,
+              builder: (context, fontName, _) {
+                return MaterialApp(
+                  title: 'ReadStats',
+                  theme: AppTheme.lightTheme(_settingsViewModel),
+                  darkTheme: AppTheme.darkTheme(_settingsViewModel),
+                  themeMode: themeMode,
+                  home: NavigationMenu(
+                    toggleTheme: (newMode) {
+                      _settingsViewModel.themeModeNotifier.value = newMode;
+                    },
+                    themeMode: themeMode,
+                    books: _books,
+                    addBook: _addBook,
+                    refreshBooks: _refreshBooks,
+                    refreshSessions: _refreshSessions,
+                    sessions: _sessions,
+                    bookRepository: widget.bookRepository,
+                    sessionRepository: widget.sessionRepository,
+                    settingsViewModel: _settingsViewModel,
+                  ),
+                );
+              },
             );
           },
         );
       },
     );
   }
+
 }
 
 class NavigationMenu extends StatefulWidget {
@@ -227,79 +239,56 @@ class _NavigationMenuState extends State<NavigationMenu> {
     return ValueListenableBuilder<Color>(
       valueListenable: widget.settingsViewModel.accentColorNotifier,
       builder: (context, accentColor, child) {
-        return ValueListenableBuilder<String>(
-          valueListenable: widget.settingsViewModel.tabNameVisibilityNotifier,
+        return ValueListenableBuilder<IconStyle>(
+          valueListenable: widget.settingsViewModel.navStyleNotifier,
           builder: (context, tabVisibility, child) {
-            return CupertinoTabScaffold(
-              tabBar: CupertinoTabBar(
+            return Scaffold(
+              body: _getPage(_activeTabIndex),
+              bottomNavigationBar: StylishBottomBar(
+                items: [
+                  BottomBarItem(
+                    icon: const Icon(Icons.import_contacts),
+                    selectedIcon: const Icon(Icons.import_contacts),
+                    title: Text('Library'),
+                    unSelectedColor: Colors.grey,
+                    selectedColor: accentColor,
+
+                  ),
+                  BottomBarItem(
+                    icon: const Icon(Icons.schedule),
+                    selectedIcon: const Icon(Icons.schedule),
+                    title: Text('Sessions'),
+                    unSelectedColor: Colors.grey,
+                    selectedColor: accentColor,
+                  ),
+                  BottomBarItem(
+                    icon: const Icon(Icons.bar_chart),
+                    selectedIcon: const Icon(Icons.bar_chart),
+                    title: Text('Stats'),
+                    unSelectedColor: Colors.grey,
+                    selectedColor: accentColor,
+                  ),
+                  BottomBarItem(
+                    icon: const Icon(Icons.settings),
+                    selectedIcon: const Icon(Icons.settings),
+                    title: Text('Settings'),
+                    unSelectedColor: Colors.grey,
+                    selectedColor: accentColor,
+                  ),
+                ],
                 currentIndex: _activeTabIndex,
-                activeColor: accentColor,
-                inactiveColor: CupertinoColors.systemGrey,
                 onTap: (index) {
                   setState(() {
                     _activeTabIndex = index;
                   });
                 },
-                items: [
-                  BottomNavigationBarItem(
-                    icon: Icon(CupertinoIcons.book),
-                    activeIcon: Icon(CupertinoIcons.book_fill),
-                    label: _getTabLabel('Library', tabVisibility),
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(CupertinoIcons.time),
-                    activeIcon: Icon(CupertinoIcons.time_solid),
-                    label: _getTabLabel('Sessions', tabVisibility),
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(CupertinoIcons.chart_bar),
-                    activeIcon: Icon(CupertinoIcons.chart_bar_fill),
-                    label: _getTabLabel('Stats', tabVisibility),
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(CupertinoIcons.settings),
-                    activeIcon: Icon(CupertinoIcons.settings_solid),
-                    label: _getTabLabel('Settings', tabVisibility),
-                  ),
-                ],
+                option: AnimatedBarOptions(
+                  iconSize: 28,
+                  iconStyle: widget.settingsViewModel.navStyleNotifier.value,
+                  opacity: 0.3,
+                ),
+                backgroundColor: Theme.of(context).colorScheme.surface,
               ),
-              tabBuilder: (context, index) {
-                switch (index) {
-                  case 0:
-                    return LibraryPage(
-                      books: widget.books,
-                      refreshBooks: widget.refreshBooks,
-                      refreshSessions: widget.refreshSessions,
-                      settingsViewModel: widget.settingsViewModel,
-                      sessionRepository: widget.sessionRepository,
-                    );
-                  case 1:
-                    return SessionsPage(
-                      books: widget.books,
-                      sessions: widget.sessions,
-                      refreshSessions: widget.refreshSessions,
-                      settingsViewModel: widget.settingsViewModel,
-                      sessionRepository: widget.sessionRepository,
-                    );
-                  case 2:
-                    return StatisticsPage(
-                      bookRepository: widget.bookRepository,
-                      sessionRepository: widget.sessionRepository,
-                      settingsViewModel: widget.settingsViewModel,
-                    );
-                  case 3:
-                  default:
-                    return SettingsPage(
-                      toggleTheme: widget.toggleTheme,
-                      themeMode: widget.themeMode,
-                      bookRepository: widget.bookRepository,
-                      sessionRepository: widget.sessionRepository,
-                      refreshBooks: widget.refreshBooks,
-                      refreshSessions: widget.refreshSessions,
-                      settingsViewModel: widget.settingsViewModel,
-                    );
-                }
-              },
             );
           },
         );
@@ -307,29 +296,41 @@ class _NavigationMenuState extends State<NavigationMenu> {
     );
   }
 
-  String _getTabLabel(String tabName, String tabVisibility) {
-    if (tabVisibility == 'Always') {
-      return tabName; // Always show the label
-    } else if (tabVisibility == 'Selected' && _isTabActive(tabName)) {
-      return tabName; // Show label if tab is active
-    } else {
-      return ''; // Hide the label for other cases
-    }
-  }
-
-  bool _isTabActive(String tabName) {
-    // Check if the tabName matches the active tab index
-    switch (tabName) {
-      case 'Library':
-        return _activeTabIndex == 0;
-      case 'Sessions':
-        return _activeTabIndex == 1;
-      case 'Stats':
-        return _activeTabIndex == 2;
-      case 'Settings':
-        return _activeTabIndex == 3;
+  Widget _getPage(int index) {
+    switch (index) {
+      case 0:
+        return LibraryPage(
+          books: widget.books,
+          refreshBooks: widget.refreshBooks,
+          refreshSessions: widget.refreshSessions,
+          settingsViewModel: widget.settingsViewModel,
+          sessionRepository: widget.sessionRepository,
+        );
+      case 1:
+        return SessionsPage(
+          books: widget.books,
+          sessions: widget.sessions,
+          refreshSessions: widget.refreshSessions,
+          settingsViewModel: widget.settingsViewModel,
+          sessionRepository: widget.sessionRepository,
+        );
+      case 2:
+        return StatisticsPage(
+          bookRepository: widget.bookRepository,
+          sessionRepository: widget.sessionRepository,
+          settingsViewModel: widget.settingsViewModel,
+        );
+      case 3:
       default:
-        return false;
+        return SettingsPage(
+          toggleTheme: widget.toggleTheme,
+          themeMode: widget.themeMode,
+          bookRepository: widget.bookRepository,
+          sessionRepository: widget.sessionRepository,
+          refreshBooks: widget.refreshBooks,
+          refreshSessions: widget.refreshSessions,
+          settingsViewModel: widget.settingsViewModel,
+        );
     }
   }
 }

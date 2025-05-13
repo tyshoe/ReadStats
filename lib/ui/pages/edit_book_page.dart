@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:read_stats/ui/pages/tag_selector_page.dart';
@@ -42,7 +42,6 @@ class _EditBookPageState extends State<EditBookPage> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill the form with the existing book data
     _titleController.text = widget.book['title'];
     _authorController.text = widget.book['author'];
     _wordCountController.text = widget.book['word_count'].toString();
@@ -75,7 +74,6 @@ class _EditBookPageState extends State<EditBookPage> {
       return;
     }
 
-    // Update the book
     widget.updateBook({
       "id": widget.book['id'],
       "title": title,
@@ -100,10 +98,39 @@ class _EditBookPageState extends State<EditBookPage> {
     }
   }
 
-  void _clearField(TextEditingController textEditController) {
+  void _clearField(TextEditingController controller) {
+    controller.clear();
+    setState(() {});
+  }
+
+  void _clearStartDate() {
     setState(() {
-      textEditController.clear();
+      _dateStarted = null;
     });
+  }
+
+  void _clearFinishDate() {
+    setState(() {
+      _dateFinished = null;
+    });
+  }
+
+  Future<void> _selectDate(BuildContext context, bool isStartDate) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: isStartDate ? _dateStarted ?? _dateToday : _dateFinished ?? _dateToday,
+      firstDate: DateTime(1900),
+      lastDate: _dateToday,
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStartDate) {
+          _dateStarted = picked;
+        } else {
+          _dateFinished = picked;
+        }
+      });
+    }
   }
 
   Future<List<Tag>> _getBookTags() async {
@@ -113,621 +140,426 @@ class _EditBookPageState extends State<EditBookPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
 
-    final textColor = CupertinoColors.label.resolveFrom(context);
-    final fieldBackColor =
-        CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8);
-    final tagBackColor =
-        CupertinoColors.systemGrey3.resolveFrom(context).withOpacity(0.8);
-
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: Text('Edit Book'),
-        trailing: GestureDetector(
-          onTap: _updateBook,
-          child: Text(
-            'Save',
-            style: TextStyle(
-              color: accentColor,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Edit Book'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        actions: [
+          TextButton(
+            onPressed: _updateBook,
+            child: Text(
+              'Save',
+              style: TextStyle(color: accentColor),
             ),
           ),
-        ),
+        ],
       ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: ListView(
-            children: [
-              const Text("Title", style: TextStyle(fontSize: 16)),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: fieldBackColor, // Change this to your desired color
-                  borderRadius: BorderRadius.circular(8.0),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title Field
+            Text('Title', style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _titleController,
+              decoration: InputDecoration(
+                hintText: 'Title *',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: CupertinoTextField(
-                  controller: _titleController,
-                  placeholder: "Title *",
-                  padding: const EdgeInsets.all(12),
-                  decoration: null,
-                  maxLines: null,
-                  suffix: _titleController.text.isNotEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: GestureDetector(
-                            onTap: () => _clearField(_titleController),
-                            child: Icon(CupertinoIcons.clear,
-                                color: CupertinoColors.systemGrey),
-                          ),
-                        )
-                      : null,
-                ),
+                suffixIcon: _titleController.text.isNotEmpty
+                    ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _clearField(_titleController),
+                )
+                    : null,
               ),
-              const SizedBox(height: 16),
-              const Text("Author", style: TextStyle(fontSize: 16)),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: fieldBackColor, // Change this to your desired color
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                child: CupertinoTextField(
-                  controller: _authorController,
-                  placeholder: "Author *",
-                  padding: const EdgeInsets.all(12),
-                  decoration: null,
-                  maxLines: null,
-                  suffix: _authorController.text.isNotEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: GestureDetector(
-                            onTap: () => _clearField(_authorController),
-                            child: Icon(
-                              CupertinoIcons.clear,
-                              color: CupertinoColors.systemGrey,
-                            ),
-                          ),
-                        )
-                      : null,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text("Total Words", style: TextStyle(fontSize: 16)),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: fieldBackColor, // Change this to your desired color
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                child: CupertinoTextField(
-                  controller: _wordCountController,
-                  onTapOutside: (event) {
-                    FocusManager.instance.primaryFocus?.unfocus();
-                  },
-                  placeholder: "Number of Words",
-                  padding: const EdgeInsets.all(12),
-                  decoration: null,
-                  keyboardType: TextInputType.number,
-                  suffix: _wordCountController.text.isNotEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: GestureDetector(
-                            onTap: () => _clearField(_wordCountController),
-                            child: Icon(CupertinoIcons.clear,
-                                color: CupertinoColors.systemGrey),
-                          ),
-                        )
-                      : null,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text("Total Pages", style: TextStyle(fontSize: 16)),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  color: fieldBackColor, // Change this to your desired color
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-                child: CupertinoTextField(
-                  controller: _pageCountController,
-                  onTapOutside: (event) {
-                    FocusManager.instance.primaryFocus?.unfocus();
-                  },
-                  placeholder: "Number of Pages",
-                  padding: const EdgeInsets.all(12),
-                  decoration: null,
-                  keyboardType: TextInputType.number,
-                  suffix: _pageCountController.text.isNotEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: GestureDetector(
-                            onTap: () => _clearField(_pageCountController),
-                            child: Icon(CupertinoIcons.clear,
-                                color: CupertinoColors.systemGrey),
-                          ),
-                        )
-                      : null,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text("Format", style: TextStyle(fontSize: 16)),
-              const SizedBox(height: 8),
-              CupertinoSlidingSegmentedControl<int>(
-                groupValue: _selectedBookType,
-                backgroundColor: fieldBackColor,
-                onValueChanged: (int? value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedBookType = value;
-                    });
-                  }
-                },
-                children: const {
-                  0: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        "Paperback",
-                        style: TextStyle(fontSize: 12),
-                      )),
-                  1: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        "Hardback",
-                        style: TextStyle(fontSize: 12),
-                      )),
-                  2: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        "eBook",
-                        style: TextStyle(fontSize: 12),
-                      )),
-                  3: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        "Audiobook",
-                        style: TextStyle(fontSize: 12),
-                      )),
-                },
-              ),
-              const SizedBox(height: 16),
-              const Text("Status", style: TextStyle(fontSize: 16)),
-              const SizedBox(height: 8),
-              CupertinoSlidingSegmentedControl<int>(
-                // padding: const EdgeInsets.all(12),
-                backgroundColor: fieldBackColor,
-                groupValue:
-                    _isCompleted ? 1 : 0, // Map boolean to segment index
-                onValueChanged: (int? value) {
-                  if (value != null) {
-                    setState(() {
-                      _isCompleted = value == 1; // Map index back to boolean
-                    });
-                  }
-                },
-                children: const {
-                  0: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text("Not Completed"),
-                  ),
-                  1: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text("Completed"),
-                  ),
-                },
-              ),
-              if (_isCompleted) ...[
-                const SizedBox(height: 16),
-                const Text(
-                  "Rating",
-                  style: TextStyle(
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 8),
+            ),
+            const SizedBox(height: 16),
 
-                // Row with Rating and Favorite icon
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: _useStarRating
-                          ? RatingBar.builder(
-                              initialRating: _rating,
-                              minRating: 0,
-                              maxRating: 5,
-                              allowHalfRating: true,
-                              itemCount: 5,
-                              itemPadding:
-                                  const EdgeInsets.symmetric(horizontal: 4.0),
-                              glow: false,
-                              itemBuilder: (context, _) => const Icon(
-                                CupertinoIcons.star_fill,
-                                color: CupertinoColors.systemYellow,
-                              ),
-                              onRatingUpdate: (rating) {
-                                setState(() {
-                                  _rating = rating;
-                                });
-                              },
-                            )
-                          : CupertinoTextField(
-                              placeholder: "Rating (0 - 5)",
-                              padding: const EdgeInsets.all(12),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              onChanged: (value) {
-                                final parsed = double.tryParse(value);
-                                if (parsed != null &&
-                                    parsed >= 0 &&
-                                    parsed <= 10) {
-                                  _rating = parsed;
-                                }
-                              },
-                            ),
-                    ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isFavorite = !_isFavorite;
-                        });
-                      },
-                      child: Icon(
-                        _isFavorite
-                            ? CupertinoIcons.heart_fill
-                            : CupertinoIcons.heart,
-                        color: _isFavorite
-                            ? CupertinoColors.systemRed
-                            : CupertinoColors.systemGrey2.resolveFrom(context),
-                        size: 40,
-                      ),
-                    ),
-                  ],
+            // Author Field
+            Text('Author', style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _authorController,
+              decoration: InputDecoration(
+                hintText: 'Author *',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                suffixIcon: _authorController.text.isNotEmpty
+                    ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _clearField(_authorController),
+                )
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Word Count
+            Text('Total Words', style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _wordCountController,
+              decoration: InputDecoration(
+                hintText: 'Number of Words',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                suffixIcon: _wordCountController.text.isNotEmpty
+                    ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _clearField(_wordCountController),
+                )
+                    : null,
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+
+            // Page Count
+            Text('Total Pages', style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _pageCountController,
+              decoration: InputDecoration(
+                hintText: 'Number of Pages',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                suffixIcon: _pageCountController.text.isNotEmpty
+                    ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _clearField(_pageCountController),
+                )
+                    : null,
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+
+            // Book Type
+            Text('Format', style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 8),
+            SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(
+                  value: 0,
+                  label: Text('Paperback'),
+                ),
+                ButtonSegment(
+                  value: 1,
+                  label: Text('Hardback'),
+                ),
+                ButtonSegment(
+                  value: 2,
+                  label: Text('eBook'),
+                ),
+                ButtonSegment(
+                  value: 3,
+                  label: Text('Audiobook'),
                 ),
               ],
-              const SizedBox(height: 16),
-              const Text(
-                'Date',
-                style: TextStyle(fontSize: 16),
-              ),
+              selected: {_selectedBookType},
+              onSelectionChanged: (Set<int> newSelection) {
+                setState(() {
+                  _selectedBookType = newSelection.first;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Completion Status
+            Text('Status', style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 8),
+            SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(
+                  value: 0,
+                  label: Text('Not Completed'),
+                ),
+                ButtonSegment(
+                  value: 1,
+                  label: Text('Completed'),
+                ),
+              ],
+              selected: {_isCompleted ? 1 : 0},
+              onSelectionChanged: (Set<int> newSelection) {
+                setState(() {
+                  _isCompleted = newSelection.first == 1;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Rating (only shown if completed)
+            if (_isCompleted) ...[
+              Text('Rating', style: theme.textTheme.bodyMedium),
               const SizedBox(height: 8),
-              Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start, // Aligns the children to the left
+              Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Start Date Column
-                      Expanded(
-                        flex: 1,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Start Date',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  color: CupertinoColors.systemGrey),
-                            ),
-                            const SizedBox(height: 8),
-                            CupertinoButton(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12, horizontal: 16),
-                              color: fieldBackColor,
-                              borderRadius: BorderRadius.circular(8),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    _dateStarted == null
-                                        ? 'Select Start Date'
-                                        : DateFormat('MMM d, y')
-                                            .format(_dateStarted!),
-                                    style: TextStyle(
-                                        fontSize: 16, color: textColor),
-                                  ),
-                                  Icon(CupertinoIcons.chevron_down,
-                                      color: CupertinoColors.systemGrey),
-                                ],
-                              ),
-                              onPressed: () {
-                                DateTime tempDate = _dateStarted ??
-                                    _dateToday; // Store temp date
-                                showCupertinoModalPopup(
-                                  context: context,
-                                  builder: (_) => Container(
-                                    height: 250,
-                                    color: CupertinoColors
-                                        .secondarySystemBackground
-                                        .resolveFrom(context),
-                                    child: Column(
-                                      children: [
-                                        // Clear & Done buttons
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            CupertinoButton(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 16),
-                                              child: Text(
-                                                'Clear',
-                                                style:
-                                                    TextStyle(color: textColor),
-                                              ),
-                                              onPressed: () {
-                                                setState(
-                                                    () => _dateStarted = null);
-                                                Navigator.pop(
-                                                    context); // Close modal
-                                              },
-                                            ),
-                                            CupertinoButton(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 16),
-                                              child: Text(
-                                                'Done',
-                                                style: TextStyle(
-                                                    color: accentColor),
-                                              ),
-                                              onPressed: () {
-                                                setState(() =>
-                                                    _dateStarted = tempDate);
-                                                Navigator.pop(context);
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                        Expanded(
-                                          child: CupertinoDatePicker(
-                                            maximumDate: _dateToday,
-                                            initialDateTime: tempDate,
-                                            mode: CupertinoDatePickerMode.date,
-                                            onDateTimeChanged: (date) {
-                                              tempDate = date;
-                                              setState(
-                                                  () => _dateStarted = date);
-                                            },
-                                          ),
-                                        ),
-                                        const SizedBox(height: 32),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
+                  Expanded(
+                    child: _useStarRating
+                        ? RatingBar.builder(
+                      initialRating: _rating,
+                      minRating: 0,
+                      direction: Axis.horizontal,
+                      allowHalfRating: true,
+                      itemCount: 5,
+                      itemSize: 32,
+                      itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      itemBuilder: (context, _) => const Icon(
+                        Icons.star,
+                        color: Colors.amber,
+                      ),
+                      onRatingUpdate: (rating) {
+                        setState(() {
+                          _rating = rating;
+                        });
+                      },
+                    )
+                        : TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Rating (0-5)',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      // Finish Date Column
-                      Expanded(
-                        flex: 1,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (value) {
+                        final parsed = double.tryParse(value);
+                        if (parsed != null && parsed >= 0 && parsed <= 5) {
+                          setState(() {
+                            _rating = parsed;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    icon: Icon(
+                      _isFavorite ? Icons.favorite : Icons.favorite_border,
+                      color: _isFavorite ? Colors.red : theme.colorScheme.onSurface.withOpacity(0.6),
+                      size: 32,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isFavorite = !_isFavorite;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Date Selection
+            Text('Date', style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Start Date', style: theme.textTheme.bodySmall),
+                      const SizedBox(height: 4),
+                      SizedBox(
+                        height: 48,
+                        child: Stack(
                           children: [
-                            const Text(
-                              'Finish Date',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  color: CupertinoColors.systemGrey),
-                            ),
-                            const SizedBox(height: 8),
-                            CupertinoButton(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12, horizontal: 16),
-                              color: fieldBackColor,
-                              borderRadius: BorderRadius.circular(8),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    _dateFinished == null
-                                        ? 'Select Finish Date'
-                                        : DateFormat('MMM d, y')
-                                            .format(_dateFinished!),
-                                    style: TextStyle(
-                                        fontSize: 16, color: textColor),
-                                  ),
-                                  Icon(CupertinoIcons.chevron_down,
-                                      color: CupertinoColors.systemGrey),
-                                ],
+                            OutlinedButton(
+                              onPressed: () => _selectDate(context, true),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
-                              onPressed: () {
-                                DateTime tempDate = _dateFinished ??
-                                    _dateToday; // Store temp date
-                                showCupertinoModalPopup(
-                                  context: context,
-                                  builder: (_) => Container(
-                                    height: 250,
-                                    color: CupertinoColors
-                                        .secondarySystemBackground
-                                        .resolveFrom(context),
-                                    child: Column(
-                                      children: [
-                                        // Clear & Done buttons
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            CupertinoButton(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 16),
-                                              child: Text(
-                                                'Clear',
-                                                style:
-                                                    TextStyle(color: textColor),
-                                              ),
-                                              onPressed: () {
-                                                setState(
-                                                    () => _dateFinished = null);
-                                                Navigator.pop(
-                                                    context); // Close modal
-                                              },
-                                            ),
-                                            CupertinoButton(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 16),
-                                              child: Text(
-                                                'Done',
-                                                style: TextStyle(
-                                                    color: accentColor),
-                                              ),
-                                              onPressed: () {
-                                                setState(() =>
-                                                    _dateFinished = tempDate);
-                                                Navigator.pop(context);
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                        Expanded(
-                                          child: CupertinoDatePicker(
-                                            maximumDate: _dateToday,
-                                            initialDateTime: tempDate,
-                                            mode: CupertinoDatePickerMode.date,
-                                            onDateTimeChanged: (date) {
-                                              tempDate = date;
-                                              setState(
-                                                  () => _dateFinished = date);
-                                            },
-                                          ),
-                                        ),
-                                        const SizedBox(height: 32),
-                                      ],
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _dateStarted == null
+                                          ? 'Select Start Date'
+                                          : DateFormat('MMM d, y').format(_dateStarted!),
+                                      style: theme.textTheme.bodyMedium,
                                     ),
                                   ),
-                                );
-                              },
+                                  const Icon(Icons.calendar_today, size: 18),
+                                ],
+                              ),
                             ),
+                            if (_dateStarted != null)
+                              Positioned(
+                                right: 8,
+                                top: 0,
+                                bottom: 0,
+                                child: GestureDetector(
+                                  onTap: _clearStartDate,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    child: const Icon(Icons.clear, size: 18),
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              FutureBuilder<List<Tag>>(
-                future: _getBookTags(),
-                builder: (context, snapshot) {
-                  final tags = snapshot.data ?? [];
-                  return GestureDetector(
-                    onTap: () {
-                      showCupertinoModalPopup(
-                        context: context,
-                        builder: (context) => TagSelectorSheet(
-                          bookId: widget.book['id'],
-                          tagRepository: TagRepository(DatabaseHelper()),
-                          settingsViewModel: widget.settingsViewModel,
-                        ),
-                      ).then((_) {
-                        setState(() {});
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: fieldBackColor,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                CupertinoIcons.tag,
-                                color: CupertinoColors.systemGrey,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Tags',
-                                style: TextStyle(
-                                  color: textColor,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Finish Date', style: theme.textTheme.bodySmall),
+                      const SizedBox(height: 4),
+                      SizedBox(
+                        height: 48,
+                        child: Stack(
+                          children: [
+                            OutlinedButton(
+                              onPressed: () => _selectDate(context, false),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                            ],
-                          ),
-                          if (tags.isNotEmpty) const SizedBox(height: 8),
-                          if (tags.isNotEmpty)
-                            ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxHeight: 4 * 32.0 +
-                                    24, // 4 rows * row height + buffer
-                              ),
-                              child: SingleChildScrollView(
-                                child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    for (final tag in tags)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 8),
-                                        decoration: BoxDecoration(
-                                          color: tagBackColor,
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                        ),
-                                        child: Text(
-                                          tag.name,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: textColor,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _dateFinished == null
+                                          ? 'Select Finish Date'
+                                          : DateFormat('MMM d, y').format(_dateFinished!),
+                                      style: theme.textTheme.bodyMedium,
+                                    ),
+                                  ),
+                                  const Icon(Icons.calendar_today, size: 18),
+                                ],
                               ),
                             ),
-                        ],
+                            if (_dateFinished != null)
+                              Positioned(
+                                right: 8,
+                                top: 0,
+                                bottom: 0,
+                                child: GestureDetector(
+                                  onTap: _clearFinishDate,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    child: const Icon(Icons.clear, size: 18),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity, // Make the button full width
-                child: CupertinoButton(
-                  onPressed: _updateBook,
-                  color: accentColor,
-                  child: const Text("Save",
-                      style: TextStyle(
-                          fontSize: 16, color: CupertinoColors.white)),
+                    ],
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Tags Section
+            FutureBuilder<List<Tag>>(
+              future: _getBookTags(),
+              builder: (context, snapshot) {
+                final tags = snapshot.data ?? [];
+                return InkWell(
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      builder: (context) => TagSelectorSheet(
+                        bookId: widget.book['id'],
+                        tagRepository: TagRepository(DatabaseHelper()),
+                        settingsViewModel: widget.settingsViewModel,
+                      ),
+                      isScrollControlled: true,
+                    ).then((_) {
+                      setState(() {});
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: theme.dividerColor),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.tag, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Tags',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                        if (tags.isNotEmpty) const SizedBox(height: 8),
+                        if (tags.isNotEmpty)
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: tags.map((tag) => Chip(
+                              label: Text(tag.name),
+                              backgroundColor: theme.colorScheme.surfaceVariant,
+                            )).toList(),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 24),
+
+            // Save Button
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: accentColor,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _updateBook,
+                child: const Text('Save Changes'),
               ),
-              const SizedBox(height: 16),
-              // Display the status message
-              if (_statusMessage.isNotEmpty)
-                Text(
+            ),
+            const SizedBox(height: 16),
+
+            // Status Message
+            if (_statusMessage.isNotEmpty)
+              Center(
+                child: Text(
                   _statusMessage,
                   style: TextStyle(
-                    color: _isSuccess
-                        ? CupertinoColors.systemGreen
-                        : CupertinoColors.systemRed,
+                    color: _isSuccess ? Colors.green : Colors.red,
                     fontSize: 16,
                   ),
-                  textAlign: TextAlign.center,
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );

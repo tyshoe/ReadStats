@@ -1,67 +1,75 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
 void showDateFormatPicker(BuildContext context, SettingsViewModel settingsViewModel) {
-  final textColor = CupertinoColors.label.resolveFrom(context);
+  final theme = Theme.of(context);
+  final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
   final currentDateFormat = settingsViewModel.defaultDateFormatNotifier.value;
   final accentColor = settingsViewModel.accentColorNotifier.value;
-  final DateTime currentDate = DateTime.now();
+  final currentDate = DateTime.now();
 
-  showCupertinoModalPopup(
+  showDialog(
     context: context,
-    builder: (context) => GestureDetector(
-      onTap: () => Navigator.pop(context), // Dismiss when tapping outside
-      child: Center(
-        child: CupertinoPopupSurface(
-          isSurfacePainted: true,
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.9, // Adjust width as needed
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start, // Align left
-              children: [
-                const Text(
-                  'Date Format',
-                  style: TextStyle(fontSize: 18),
-                ),
-                const SizedBox(height: 16),
-                _DateFormatOption(
-                  format: 'MMM dd, yyyy',
-                  currentDateFormat: currentDateFormat,
-                  accentColor: accentColor,
-                  textColor: textColor,
-                  currentDate: currentDate,
-                  settingsViewModel: settingsViewModel,
-                ),
-                _DateFormatOption(
-                  format: 'MM/dd/yyyy',
-                  currentDateFormat: currentDateFormat,
-                  accentColor: accentColor,
-                  textColor: textColor,
-                  currentDate: currentDate,
-                  settingsViewModel: settingsViewModel,
-                ),
-                _DateFormatOption(
-                  format: 'dd/MM/yyyy',
-                  currentDateFormat: currentDateFormat,
-                  accentColor: accentColor,
-                  textColor: textColor,
-                  currentDate: currentDate,
-                  settingsViewModel: settingsViewModel,
-                ),
-                _DateFormatOption(
-                  format: 'yyyy/MM/dd',
-                  currentDateFormat: currentDateFormat,
-                  accentColor: accentColor,
-                  textColor: textColor,
-                  currentDate: currentDate,
-                  settingsViewModel: settingsViewModel,
-                ),
-              ],
+    builder: (context) => Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: theme.dialogBackgroundColor,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Date Format',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
-          ),
+            const SizedBox(height: 16),
+            _DateFormatOption(
+              format: 'MMM dd, yyyy',
+              currentDateFormat: currentDateFormat,
+              accentColor: accentColor,
+              textColor: textColor,
+              currentDate: currentDate,
+              onSelect: () {
+                settingsViewModel.setDefaultDateFormat('MMM dd, yyyy');
+                Navigator.pop(context);
+              },
+            ),
+            _DateFormatOption(
+              format: 'MM/dd/yyyy',
+              currentDateFormat: currentDateFormat,
+              accentColor: accentColor,
+              textColor: textColor,
+              currentDate: currentDate,
+              onSelect: () {
+                settingsViewModel.setDefaultDateFormat('MM/dd/yyyy');
+                Navigator.pop(context);
+              },
+            ),
+            _DateFormatOption(
+              format: 'dd/MM/yyyy',
+              currentDateFormat: currentDateFormat,
+              accentColor: accentColor,
+              textColor: textColor,
+              currentDate: currentDate,
+              onSelect: () {
+                settingsViewModel.setDefaultDateFormat('dd/MM/yyyy');
+                Navigator.pop(context);
+              },
+            ),
+            _DateFormatOption(
+              format: 'yyyy/MM/dd',
+              currentDateFormat: currentDateFormat,
+              accentColor: accentColor,
+              textColor: textColor,
+              currentDate: currentDate,
+              onSelect: () {
+                settingsViewModel.setDefaultDateFormat('yyyy/MM/dd');
+                Navigator.pop(context);
+              },
+            ),
+          ],
         ),
       ),
     ),
@@ -74,7 +82,7 @@ class _DateFormatOption extends StatelessWidget {
   final Color accentColor;
   final Color textColor;
   final DateTime currentDate;
-  final SettingsViewModel settingsViewModel;
+  final VoidCallback onSelect;
 
   const _DateFormatOption({
     required this.format,
@@ -82,35 +90,29 @@ class _DateFormatOption extends StatelessWidget {
     required this.accentColor,
     required this.textColor,
     required this.currentDate,
-    required this.settingsViewModel,
+    required this.onSelect,
   });
 
   String _getFormattedDate(DateTime date, String format) {
-    // Use DateFormat or custom formatting logic here
     return DateFormat(format).format(date);
   }
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoButton(
-      onPressed: () {
-        settingsViewModel.setDefaultDateFormat(format);
-        Navigator.pop(context);
-      },
-      padding: EdgeInsets.zero,
-      child: Row(
-        children: [
-          if (currentDateFormat == format)
-            Icon(CupertinoIcons.check_mark, color: accentColor),
-          const SizedBox(width: 8),
-          Text(
-            _getFormattedDate(currentDate, format),
-            style: TextStyle(
-              fontSize: 16,
-              color: currentDateFormat == format ? accentColor : textColor,
-            ),
-          ),
-        ],
+    final isSelected = currentDateFormat == format;
+
+    return ListTile(
+      onTap: onSelect,
+      contentPadding: EdgeInsets.zero,
+      leading: isSelected
+          ? Icon(Icons.check, color: accentColor)
+          : const SizedBox(width: 24),
+      title: Text(
+        _getFormattedDate(currentDate, format),
+        style: TextStyle(
+          fontSize: 16,
+          color: isSelected ? accentColor : textColor,
+        ),
       ),
     );
   }

@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'edit_session_page.dart';
 import 'add_session_page.dart';
@@ -49,8 +49,8 @@ class _SessionsPageState extends State<SessionsPage> {
 
   @override
   void dispose() {
-    super.dispose();
     widget.settingsViewModel.defaultDateFormatNotifier.removeListener(_formatListener);
+    super.dispose();
   }
 
   @override
@@ -62,7 +62,6 @@ class _SessionsPageState extends State<SessionsPage> {
     }
   }
 
-  // Fetch book details and store in a map
   void _initializeBookMap() {
     setState(() {
       _bookMap = {for (var book in widget.books) book['id']: book};
@@ -72,10 +71,9 @@ class _SessionsPageState extends State<SessionsPage> {
   String _formatDuration(int minutes) {
     final int hours = minutes ~/ 60;
     final int remainingMinutes = minutes % 60;
-
     final String hourText = hours > 0 ? '${hours}h ' : '';
     final String minuteText = '${remainingMinutes}m';
-    return '$hourText$minuteText'.trim(); // Trim to remove extra spaces
+    return '$hourText$minuteText'.trim();
   }
 
   String _formatDate(String isoDate) {
@@ -83,7 +81,6 @@ class _SessionsPageState extends State<SessionsPage> {
     return DateFormat(_dateFormatString).format(date);
   }
 
-  // Group sessions by month and year
   Map<String, List<Map<String, dynamic>>> _groupSessionsByMonth() {
     Map<String, List<Map<String, dynamic>>> groupedSessions = {};
 
@@ -94,16 +91,11 @@ class _SessionsPageState extends State<SessionsPage> {
       DateTime sessionDate = DateTime.parse(date);
       String monthYear = DateFormat('MMMM yyyy').format(sessionDate);
 
-      // Merge book data with session
       int bookId = session['book_id'];
       Map<String, dynamic>? book = _bookMap[bookId];
-
       var sessionWithBook = {...session, 'book': book};
 
-      if (!groupedSessions.containsKey(monthYear)) {
-        groupedSessions[monthYear] = [];
-      }
-      groupedSessions[monthYear]!.add(sessionWithBook);
+      groupedSessions.putIfAbsent(monthYear, () => []).add(sessionWithBook);
     }
 
     return groupedSessions;
@@ -116,7 +108,7 @@ class _SessionsPageState extends State<SessionsPage> {
     if (book != null) {
       await Navigator.push(
         context,
-        CupertinoPageRoute(
+        MaterialPageRoute(
           builder: (context) => EditSessionPage(
             session: session,
             book: book,
@@ -127,13 +119,13 @@ class _SessionsPageState extends State<SessionsPage> {
         ),
       );
     } else {
-      showCupertinoDialog(
+      showDialog(
         context: context,
-        builder: (_) => CupertinoAlertDialog(
+        builder: (_) => AlertDialog(
           title: const Text("Error"),
           content: const Text("Book details not found."),
           actions: [
-            CupertinoDialogAction(
+            TextButton(
               child: const Text("OK"),
               onPressed: () => Navigator.pop(context),
             ),
@@ -146,7 +138,7 @@ class _SessionsPageState extends State<SessionsPage> {
   void _navigateToAddSessionPage() async {
     await Navigator.push(
       context,
-      CupertinoPageRoute(
+      MaterialPageRoute(
         builder: (context) => LogSessionPage(
           books: widget.books,
           refreshSessions: widget.refreshSessions,
@@ -162,176 +154,142 @@ class _SessionsPageState extends State<SessionsPage> {
       return 'Add a book to your library';
     } else if (widget.sessions.isEmpty) {
       return 'No sessions, time to get cozy and read a few pages';
-    } else {
-      return ''; // No message when there are books and sessions
     }
+    return '';
   }
 
   Color _getIconColorBasedOnAccentColor(Color color) {
-    // Convert to HSL (Hue, Saturation, Lightness)
-    HSLColor hslColor = HSLColor.fromColor(color);
-
-    // Determine brightness (lightness)
-    double lightness = hslColor.lightness;
-
-    // If the color's lightness is less than 0.5, it's dark, so use white icon
-    // Otherwise, use black icon
-    return lightness < 0.5 ? CupertinoColors.white : CupertinoColors.black;
+    return color.computeLuminance() > 0.5 ? Colors.black : Colors.white;
   }
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
-    final textColor = CupertinoColors.label.resolveFrom(context);
+    final theme = Theme.of(context);
     final groupedSessions = _groupSessionsByMonth();
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
 
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: const Text('Reading Sessions'),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Reading Sessions'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
       ),
-      child: SafeArea(
-        child: Stack(
-          children: [
-            widget.sessions.isEmpty
-                ? Center(
-                    child: Text(
-                      _getMessageToDisplay(),
-                      style: TextStyle(color: textColor),
-                      textAlign: TextAlign.center,
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(8),
-                    itemCount: groupedSessions.length,
-                    itemBuilder: (context, index) {
-                      String monthYear = groupedSessions.keys.elementAt(index);
-                      List<Map<String, dynamic>> sessions =
-                          groupedSessions[monthYear]!;
+      body: widget.sessions.isEmpty
+          ? Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            _getMessageToDisplay(),
+            style: theme.textTheme.bodyLarge,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      )
+          : ListView.builder(
+        padding: const EdgeInsets.all(8),
+        itemCount: groupedSessions.length,
+        itemBuilder: (context, index) {
+          String monthYear = groupedSessions.keys.elementAt(index);
+          List<Map<String, dynamic>> sessions = groupedSessions[monthYear]!;
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10.0),
-                            child: Text(
-                              monthYear,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                              ),
-                            ),
-                          ),
-                          ...sessions.map((session) {
-                            final book = session['book'];
-                            final bookTitle = book?['title'] ?? 'Unknown Book';
-                            final bookAuthor =
-                                book?['author'] ?? 'Unknown Author';
-                            final pagesRead = session['pages_read'] ?? 0;
-                            final minutes = session['duration_minutes'] ?? 0;
-                            final date = session['date'] ?? '';
-
-                            return GestureDetector(
-                              onTap: () {
-                                _navigateToEditSessionsPage(session);
-                              },
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 10, horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: CupertinoColors
-                                      .secondarySystemBackground
-                                      .resolveFrom(context),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    // Left Column
-                                    Expanded(
-                                      flex: 2,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(bookTitle,
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                overflow: TextOverflow.ellipsis,
-                                              )),
-                                          Text(bookAuthor,
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color:
-                                                    CupertinoColors.systemGrey,
-                                                overflow: TextOverflow.ellipsis,
-                                              )),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 24),
-                                    // Right Column
-                                    Expanded(
-                                      flex: 1,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text('$pagesRead pages',
-                                              style: const TextStyle(
-                                                  color: CupertinoColors
-                                                      .systemGrey,
-                                                  fontSize: 14)),
-                                          Text(_formatDuration(minutes),
-                                              style: const TextStyle(
-                                                  color: CupertinoColors
-                                                      .systemGrey,
-                                                  fontSize: 14)),
-                                          Text(
-                                            date.isNotEmpty
-                                                ? _formatDate(date)
-                                                : 'No date available',
-                                            style: const TextStyle(
-                                                color:
-                                                    CupertinoColors.systemGrey,
-                                                fontSize: 14),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-
-                                    // Edit Icon (Trailing)
-                                    const Icon(CupertinoIcons.chevron_right,
-                                        color: CupertinoColors.systemGrey),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ],
-                      );
-                    },
-                  ),
-            if (widget.books.isNotEmpty)
-              Positioned(
-                bottom: 20,
-                right: 20,
-                child: CupertinoButton(
-                  padding: EdgeInsets.all(16),
-                  borderRadius: BorderRadius.circular(16),
-                  color: accentColor,
-                  onPressed: _navigateToAddSessionPage,
-                  child: Icon(
-                    CupertinoIcons.add,
-                    color: _getIconColorBasedOnAccentColor(accentColor),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16),
+                child: Text(
+                  monthYear,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-          ],
-        ),
+              ...sessions.map((session) {
+                final book = session['book'];
+                final bookTitle = book?['title'] ?? 'Unknown Book';
+                final bookAuthor = book?['author'] ?? 'Unknown Author';
+                final pagesRead = session['pages_read'] ?? 0;
+                final minutes = session['duration_minutes'] ?? 0;
+                final date = session['date'] ?? '';
+
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  elevation: 1,
+                  child: InkWell(
+                    onTap: () => _navigateToEditSessionsPage(session),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  bookTitle,
+                                  style: theme.textTheme.bodyLarge,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  bookAuthor,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '$pagesRead pages',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                ),
+                              ),
+                              Text(
+                                _formatDuration(minutes),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                ),
+                              ),
+                              Text(
+                                date.isNotEmpty ? _formatDate(date) : 'No date',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.chevron_right,
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ],
+          );
+        },
       ),
+      floatingActionButton: widget.books.isNotEmpty
+          ? FloatingActionButton(
+        backgroundColor: accentColor,
+        onPressed: _navigateToAddSessionPage,
+        child: Icon(
+          Icons.add,
+          color: _getIconColorBasedOnAccentColor(accentColor),
+        ),
+      )
+          : null,
     );
   }
 }

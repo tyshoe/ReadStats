@@ -1,7 +1,6 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import '../../../viewmodels/SettingsViewModel.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../viewmodels/SettingsViewModel.dart';
 
 class FontSelectionPage extends StatelessWidget {
   final SettingsViewModel settingsViewModel;
@@ -13,125 +12,92 @@ class FontSelectionPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
+
     // Define a list of font styles with Google Fonts
     final List<Map<String, String>> fonts = [
-      {
-        'name': 'Roboto',
-        'sampleText': 'The quick brown fox jumps over the lazy dog.'
-      },
-      {
-        'name': 'Open Sans',
-        'sampleText': 'The quick brown fox jumps over the lazy dog.'
-      },
-      {
-        'name': 'Lato',
-        'sampleText': 'The quick brown fox jumps over the lazy dog.'
-      },
-      {
-        'name': 'Montserrat',
-        'sampleText': 'The quick brown fox jumps over the lazy dog.'
-      },
-      {
-        'name': 'Playfair Display',
-        'sampleText': 'The quick brown fox jumps over the lazy dog.'
-      },
-      {
-        'name': 'Raleway',
-        'sampleText': 'The quick brown fox jumps over the lazy dog.'
-      },
-      {
-        'name': 'Poppins',
-        'sampleText': 'The quick brown fox jumps over the lazy dog.'
-      },
-      {
-        'name': 'Merriweather',
-        'sampleText': 'The quick brown fox jumps over the lazy dog.'
-      },
+      {'name': 'Roboto', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
+      {'name': 'Open Sans', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
+      {'name': 'Lato', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
+      {'name': 'Montserrat', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
+      {'name': 'Playfair Display', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
+      {'name': 'Raleway', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
+      {'name': 'Poppins', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
+      {'name': 'Merriweather', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
     ];
 
-    // Get the current theme mode (light or dark)
-    bool isDarkMode =
-        settingsViewModel.themeModeNotifier.value == ThemeMode.dark;
+    final String selectedFont = settingsViewModel.selectedFontNotifier.value;
 
-    // Get the currently selected font
-    String selectedFont = settingsViewModel.selectedFontNotifier.value;
-
-    // Choose colors based on the theme
-    Color backgroundColor = isDarkMode
-        ? CupertinoColors.systemGrey6
-        : CupertinoColors.secondarySystemBackground;
-    final textColor = CupertinoColors.label.resolveFrom(context);
-    final accentColor = settingsViewModel.accentColorNotifier.value;
-
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: Text('Select Font', style: TextStyle(color: textColor)),
-        backgroundColor: backgroundColor,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Select Font'),
+        backgroundColor: colors.surface,
+        elevation: 0,
       ),
-      child: SafeArea(
-        child: ListView.builder(
-          itemCount: fonts.length,
-          itemBuilder: (context, index) {
-            bool isSelected = fonts[index]['name'] == selectedFont;
+      backgroundColor: colors.background,
+      body: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: fonts.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final isSelected = fonts[index]['name'] == selectedFont;
 
-            return Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: GestureDetector(
-                onTap: () async {
-                  // Update the font selection in the settings view model
-                  await settingsViewModel
-                      .setSelectedFont(fonts[index]['name']!);
-                  // Optionally, pop the page after selecting the font
-                  Navigator.pop(context);
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? accentColor.withOpacity(0.2)
-                        : CupertinoColors.secondarySystemBackground
-                            .resolveFrom(context),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          if (isSelected) ...[
-                            Icon(
-                              CupertinoIcons.check_mark,
-                              color: accentColor,
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                          Text(
-                            fonts[index]['name']!,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: textColor,
-                            ),
+          return Card(
+            elevation: 0,
+            color: isSelected
+                ? colors.primary.withOpacity(0.1)
+                : colors.surfaceVariant,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: isSelected
+                  ? BorderSide(color: colors.primary, width: 1.5)
+                  : BorderSide.none,
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () async {
+                await settingsViewModel.setSelectedFont(fonts[index]['name']!);
+                Navigator.pop(context);
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (isSelected)
+                          Icon(
+                            Icons.check_circle,
+                            color: colors.primary,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        fonts[index]['sampleText']!,
-                        style: GoogleFonts.getFont(
+                        if (isSelected) const SizedBox(width: 8),
+                        Text(
                           fonts[index]['name']!,
-                          fontSize: 14,
-                          color: textColor,
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: isSelected ? colors.primary : colors.onSurface,
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      fonts[index]['sampleText']!,
+                      style: GoogleFonts.getFont(
+                        fonts[index]['name']!,
+                        fontSize: 14,
+                        color: colors.onSurface.withOpacity(0.8),
                       ),
-
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -1,5 +1,5 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/models/session.dart';
@@ -86,233 +86,150 @@ class _StatisticsPageState extends State<StatisticsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
-    final textColor = CupertinoColors.label.resolveFrom(context);
-    final subtitleColor = CupertinoColors.secondaryLabel.resolveFrom(context);
-    final cardColor = CupertinoColors.systemGrey6.resolveFrom(context);
-    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
 
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: Text('Statistics'),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Statistics'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
       ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            // Year selection row - Static at the top
-            FutureBuilder<List<int>>(
-              future: getCombinedYears(),
-              builder: (context, yearSnapshot) {
-                List<int> years = yearSnapshot.data!;
-                return SizedBox(
-                  height: 35,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: years.length + 1, // Add "All" option
-                    itemBuilder: (context, index) {
-                      int year = (index == 0) ? 0 : years[index - 1]; // "All" is represented by 0
-                      bool isSelected = selectedYear == year;
+      body: Column(
+        children: [
+          // Year selection row
+          FutureBuilder<List<int>>(
+            future: getCombinedYears(),
+            builder: (context, yearSnapshot) {
+              if (!yearSnapshot.hasData) return const SizedBox.shrink();
 
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            selectedYear = year;
-                          });
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: Container(
-                            width: 60,  // Control the width of the underline here
-                            decoration: BoxDecoration(
-                              shape: BoxShape.rectangle,
-                              border: isSelected
-                                  ? Border(
-                                bottom: BorderSide(
-                                  color: accentColor,
-                                  width: 2.0,
-                                ),
-                              )
-                                  : null, // No border when not selected
-                            ),
-                            child: Align(
-                              alignment: Alignment.center,  // Align the text horizontally
-                              child: Text(
-                                (year == 0) ? 'All' : year.toString(),
-                                style: TextStyle(
-                                  color: isSelected ? accentColor : textColor,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal ,
-                                ),
+              final years = yearSnapshot.data!;
+              return SizedBox(
+                height: 48,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: years.length + 1,
+                  itemBuilder: (context, index) {
+                    final year = index == 0 ? 0 : years[index - 1];
+                    final isSelected = selectedYear == year;
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: isSelected ? colors.primary : colors.onSurface,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                        ),
+                        onPressed: () => setState(() => selectedYear = year),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: isSelected
+                                ? Border(
+                              bottom: BorderSide(
+                                color: colors.primary,
+                                width: 2,
                               ),
+                            )
+                                : null,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            year == 0 ? 'All' : year.toString(),
+                            style: textTheme.bodyLarge?.copyWith(
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+          const Divider(height: 1),
+          // Statistics content
+          Expanded(
+            child: FutureBuilder<Map<String, dynamic>>(
+              future: calculateStats(selectedYear),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                final stats = snapshot.data ?? {};
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionHeader('Overall'),
+                      _buildStatCard('Total Sessions', stats['totalSessions'].toString()),
+                      _buildStatCard('Books Finished', stats['booksCompleted'].toString()),
+
+                      _buildSectionHeader('Ratings'),
+                      _buildStatCard('Highest Rating', stats['highestRating'].toString()),
+                      _buildStatCard('Lowest Rating', stats['lowestRating'].toString()),
+                      _buildStatCard('Average Rating', stats['averageRating'].toStringAsFixed(2)),
+
+                      _buildSectionHeader('Reading Time'),
+                      _buildStatCard('Total Time Spent', stats['totalTimeSpent']),
+                      _buildStatCard('Slowest Read', stats['slowestReadTime'].toString()),
+                      _buildStatCard('Fastest Read', stats['fastestReadTime'].toString()),
+
+                      _buildSectionHeader('Pages'),
+                      _buildStatCard('Total Pages Read', stats['totalPagesRead'].toString()),
+                      _buildStatCard('Avg Pages/Min', stats['avgPagesPerMinute'].toStringAsFixed(2)),
+                      _buildStatCard('Average Pages', stats['averagePages'].toStringAsFixed(2)),
+                      _buildStatCard('Longest Book', stats['highestPages'].toString()),
+                      _buildStatCard('Shortest Book', stats['lowestPages'].toString()),
+                    ],
                   ),
                 );
               },
             ),
-            // Divider
-            Container(
-              height: 1.0, // Height of the divider
-              decoration: BoxDecoration(
-                color: CupertinoColors.systemGrey, // Color of the divider
-                borderRadius: BorderRadius.circular(1.0), // Optional: Add rounded corners
-              ),
-            ),
-            // Rest of the statistics content (scrollable)
-            Expanded(
-              child: FutureBuilder<Map<String, dynamic>>(
-                future: calculateStats(selectedYear),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CupertinoActivityIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  }
+          ),
+        ],
+      ),
+    );
+  }
 
-                  final stats = snapshot.data ?? {};
-
-                  return Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Overall',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          _statCard(
-                              title: 'Total Sessions',
-                              value: stats['totalSessions'].toString(),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          _statCard(
-                              title: 'Books Finished',
-                              value: stats['booksCompleted'].toString(),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Ratings',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          _statCard(
-                              title: 'Highest Rating',
-                              value: stats['highestRating'].toString(),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          _statCard(
-                              title: 'Lowest Rating',
-                              value: stats['lowestRating'].toString(),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          _statCard(
-                              title: 'Average Rating',
-                              value: stats['averageRating'].toStringAsPrecision(2),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Reading Time',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          _statCard(
-                              title: 'Total Time Spent',
-                              value: stats['totalTimeSpent'],
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          _statCard(
-                              title: 'Slowest Read',
-                              value: stats['slowestReadTime'].toString(),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          _statCard(
-                              title: 'Fastest Read',
-                              value: stats['fastestReadTime'].toString(),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Pages',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          _statCard(
-                              title: 'Total Pages Read',
-                              value: stats['totalPagesRead'].toString(),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          _statCard(
-                              title: 'Average Pages/Minute',
-                              value: stats['avgPagesPerMinute'].toStringAsFixed(2),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          _statCard(
-                              title: 'Average Pages',
-                              value: stats['averagePages'].toStringAsFixed(2),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          _statCard(
-                              title: 'Longest Book',
-                              value: stats['highestPages'].toString(),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                          _statCard(
-                              title: 'Shortest Book',
-                              value: stats['lowestPages'].toString(),
-                              bgColor: cardColor,
-                              textColor: textColor,
-                              subtitleColor: subtitleColor),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
   }
 
-  Widget _statCard({
-    required String title,
-    required String value,
-    required Color bgColor,
-    required Color textColor,
-    required Color subtitleColor,
-  }) {
-    return Container(
+  Widget _buildStatCard(String title, String value) {
+    return Card(
       margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: TextStyle(fontSize: 16, color: subtitleColor)),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

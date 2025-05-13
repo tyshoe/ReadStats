@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../../data/repositories/tag_repository.dart';
 import '../../data/models/tag.dart';
@@ -81,21 +80,23 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
   }
 
   Future<void> _deleteTag(Tag tag) async {
-    final shouldDelete = await showCupertinoModalPopup<bool>(
+    final shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Delete Tag'),
         content: Text(
           'This will remove the "${tag.name}" tag from all books. '
-          'Are you sure you want to delete it?',
+              'Are you sure you want to delete it?',
         ),
         actions: [
-          CupertinoDialogAction(
+          TextButton(
             child: const Text('Cancel'),
             onPressed: () => Navigator.pop(context, false),
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: const Text('Delete'),
             onPressed: () => Navigator.pop(context, true),
           ),
@@ -118,8 +119,7 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
     _editTagController.text = tag.name;
     setState(() => _editingTagId = tag.id);
 
-    // Optional: Auto-focus and select all text
-    await Future.delayed(Duration(milliseconds: 100));
+    await Future.delayed(const Duration(milliseconds: 100));
     FocusScope.of(context).requestFocus(FocusNode());
     _editTagController.selection = TextSelection(
       baseOffset: 0,
@@ -162,242 +162,161 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
     });
   }
 
-  Color _getIconColorBasedOnAccentColor(Color backgroundColor) {
-    return backgroundColor.computeLuminance() > 0.5
-        ? Colors.black
-        : Colors.white;
-  }
-
   void _showTagOptions(Tag tag) {
-    showCupertinoModalPopup(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => CupertinoActionSheet(
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.edit),
+            title: const Text('Edit Tag'),
+            onTap: () {
               Navigator.pop(context);
               _editTag(tag);
             },
-            child: const Text('Edit Tag'),
           ),
-          CupertinoActionSheetAction(
-            isDestructiveAction: true,
-            onPressed: () {
+          ListTile(
+            leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
+            title: Text(
+              'Delete Tag',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+            onTap: () {
               Navigator.pop(context);
               _deleteTag(tag);
             },
-            child: const Text('Delete Tag'),
+          ),
+          const SizedBox(height: 8),
+          SafeArea(
+            child: TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.pop(context),
+            ),
           ),
         ],
-        cancelButton: CupertinoActionSheetAction(
-          child: const Text('Cancel'),
-          onPressed: () => Navigator.pop(context),
-        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
-    final textColor = CupertinoColors.label.resolveFrom(context);
-    final fieldBackColor =
-        CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8);
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: const Text('Select Tags'),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: _isLoading ? null : _save,
-          child: const Icon(CupertinoIcons.check_mark),
-        ),
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Select Tags'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.check),
+            onPressed: _isLoading ? null : _save,
+          ),
+        ],
       ),
-      child: SafeArea(
-        child: _isLoading
-            ? const Center(child: CupertinoActivityIndicator())
-            : Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+        children: [
+          // New tag input
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: _newTagController,
+              decoration: InputDecoration(
+                labelText: 'Create new tag',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: _createNewTag,
+                ),
+              ),
+              onSubmitted: (_) => _createNewTag(),
+            ),
+          ),
+
+          // Tags list
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  // New tag input
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color:
-                            fieldBackColor, // Change this to your desired color
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                      child: CupertinoTextField(
-                        controller: _newTagController,
-                        placeholder: 'Create new tag',
-                        decoration: null,
-                        suffix: CupertinoButton(
-                          padding: EdgeInsets.zero,
-                          onPressed: _createNewTag,
-                          child: const Icon(CupertinoIcons.add_circled),
-                        ),
-                        onSubmitted: (_) => _createNewTag(),
-                      ),
+                  // "All" chip
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        if (_selectedTagIds.length == _allTags.length) {
+                          _selectedTagIds.clear();
+                        } else {
+                          _selectedTagIds = _allTags.map((t) => t.id!).toSet();
+                        }
+                      });
+                    },
+                    child: Chip(
+                      label: const Text('All'),
+                      avatar: _selectedTagIds.length == _allTags.length
+                          ? const Icon(Icons.check, size: 18)
+                          : null,
+                      backgroundColor: _selectedTagIds.length == _allTags.length
+                          ? accentColor.withOpacity(0.3)
+                          : theme.colorScheme.surfaceVariant,
                     ),
                   ),
+                  // Tag chips
+                  ..._allTags.map((tag) {
+                    final isSelected = _selectedTagIds.contains(tag.id);
+                    final isEditing = _editingTagId == tag.id;
 
-                  // Tags list
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          // "All" chip
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                if (_selectedTagIds.length == _allTags.length) {
-                                  _selectedTagIds.clear();
-                                } else {
-                                  _selectedTagIds =
-                                      _allTags.map((t) => t.id!).toSet();
-                                }
-                              });
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _selectedTagIds.length == _allTags.length
-                                    ? accentColor.withOpacity(0.3)
-                                    : fieldBackColor,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (_selectedTagIds.length ==
-                                      _allTags.length) ...[
-                                    Icon(
-                                      CupertinoIcons.check_mark,
-                                      size: 18,
-                                      color: _getIconColorBasedOnAccentColor(
-                                          accentColor.withOpacity(0.3)),
-                                    ),
-                                    const SizedBox(width: 6),
-                                  ],
-                                  Text(
-                                    'All',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: _selectedTagIds.length ==
-                                              _allTags.length
-                                          ? _getIconColorBasedOnAccentColor(
-                                              accentColor.withOpacity(0.3))
-                                          : textColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Tag chips
-                          ..._allTags.map((tag) {
-                            final isSelected = _selectedTagIds.contains(tag.id);
-                            final isEditing = _editingTagId == tag.id;
+                    if (isEditing) {
+                      return _buildEditTagInput(tag, accentColor);
+                    }
 
-                            if (isEditing) {
-                              return _buildEditTagInput(tag, accentColor);
-                            }
-
-                            return GestureDetector(
-                              onTap: () => _toggleTagSelection(tag),
-                              onLongPress: () => _showTagOptions(tag),
-                              child: Container(
-                                margin:
-                                    const EdgeInsets.symmetric(horizontal: 4),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? accentColor.withOpacity(0.3)
-                                      : fieldBackColor,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (isSelected)
-                                      Icon(
-                                        CupertinoIcons.check_mark,
-                                        size: 18,
-                                        color: _getIconColorBasedOnAccentColor(
-                                            accentColor.withOpacity(0.3)),
-                                      ),
-                                    if (isSelected) const SizedBox(width: 6),
-                                    Text(
-                                      tag.name,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: isSelected
-                                            ? _getIconColorBasedOnAccentColor(
-                                                accentColor.withOpacity(0.3))
-                                            : textColor,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }),
-                        ],
+                    return GestureDetector(
+                      onTap: () => _toggleTagSelection(tag),
+                      onLongPress: () => _showTagOptions(tag),
+                      child: Chip(
+                        label: Text(tag.name),
+                        avatar: isSelected
+                            ? const Icon(Icons.check, size: 18)
+                            : null,
+                        backgroundColor: isSelected
+                            ? accentColor.withOpacity(0.3)
+                            : theme.colorScheme.surfaceVariant,
                       ),
-                    ),
-                  ),
+                    );
+                  }),
                 ],
               ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildEditTagInput(Tag tag, Color accentColor) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: accentColor),
+    return InputChip(
+      label: SizedBox(
+        width: 100,
+        child: TextField(
+          controller: _editTagController,
+          decoration: const InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+          ),
+          autofocus: true,
+          style: const TextStyle(fontSize: 16),
+        ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 100,
-            child: CupertinoTextField(
-              controller: _editTagController,
-              placeholder: tag.name,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              decoration: null,
-              autofocus: true,
-              style: const TextStyle(fontSize: 16),
-            ),
-          ),
-          CupertinoButton(
-            padding: const EdgeInsets.all(8),
-            minSize: 20,
-            onPressed: () => _saveTagEdit(tag),
-            child: const Icon(CupertinoIcons.check_mark, size: 18),
-          ),
-          CupertinoButton(
-            padding: const EdgeInsets.all(8),
-            minSize: 20,
-            onPressed: _cancelEdit,
-            child: const Icon(CupertinoIcons.clear, size: 18),
-          ),
-        ],
-      ),
+      deleteIcon: const Icon(Icons.check, size: 18),
+      onDeleted: () => _saveTagEdit(tag),
+      backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+      side: BorderSide(color: accentColor),
     );
   }
 

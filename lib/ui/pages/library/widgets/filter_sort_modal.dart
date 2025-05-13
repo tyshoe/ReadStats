@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
@@ -10,7 +9,7 @@ class SortFilterOptions {
   final List<String> finishedYears;
   final List<String> tags;
 
-  SortFilterOptions({
+  const SortFilterOptions({
     required this.sortOption,
     required this.isAscending,
     required this.bookTypes,
@@ -39,50 +38,55 @@ class SortFilterOptions {
 }
 
 class SortFilterPopup {
-  static void showSortFilterPopup({
+  static Future<void> show({
     required BuildContext context,
     required SortFilterOptions currentOptions,
     required Function(SortFilterOptions) onOptionsChange,
     required List<String> availableYears,
     required List<String> availableTags,
     required SettingsViewModel settingsViewModel,
-  }) {
-    showCupertinoModalPopup(
+  }) async {
+    final result = await showModalBottomSheet<SortFilterOptions>(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) {
-        return _SortFilterPopup(
-          currentOptions: currentOptions,
-          onOptionsChange: onOptionsChange,
+        return _SortFilterView(
+          initialOptions: currentOptions,
           availableYears: availableYears,
           availableTags: availableTags,
           settingsViewModel: settingsViewModel,
         );
       },
     );
+
+    if (result != null) {
+      onOptionsChange(result);
+    }
   }
 }
 
-class _SortFilterPopup extends StatefulWidget {
-  final SortFilterOptions currentOptions;
-  final Function(SortFilterOptions) onOptionsChange;
+class _SortFilterView extends StatefulWidget {
+  final SortFilterOptions initialOptions;
   final List<String> availableYears;
   final List<String> availableTags;
   final SettingsViewModel settingsViewModel;
 
-  const _SortFilterPopup({
-    Key? key,
-    required this.currentOptions,
-    required this.onOptionsChange,
+  const _SortFilterView({
+    required this.initialOptions,
     required this.availableYears,
     required this.availableTags,
     required this.settingsViewModel,
-  }) : super(key: key);
+  });
 
   @override
-  _SortFilterPopupState createState() => _SortFilterPopupState();
+  State<_SortFilterView> createState() => _SortFilterViewState();
 }
 
-class _SortFilterPopupState extends State<_SortFilterPopup> {
+class _SortFilterViewState extends State<_SortFilterView> {
   late SortFilterOptions currentOptions;
   final List<String> bookTypes = ['Paperback', 'Hardback', 'eBook', 'Audiobook'];
   final List<String> sortOptions = [
@@ -98,534 +102,343 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
   @override
   void initState() {
     super.initState();
-    currentOptions = widget.currentOptions;
-    // Initialize bookTypes as empty if it contains "All" or is empty
-    if (currentOptions.bookTypes.isEmpty || currentOptions.bookTypes.contains('All')) {
-      currentOptions = currentOptions.copyWith(bookTypes: []);
-    }
+    currentOptions = widget.initialOptions;
   }
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPopupSurface(
-      isSurfacePainted: true,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: CupertinoColors.systemBackground.resolveFrom(context),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Filter & Sort',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Sort By',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: CupertinoButton(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                      color: CupertinoColors.systemGrey5,
-                      borderRadius: BorderRadius.circular(8),
-                      onPressed: () => _showSortPicker(context),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            currentOptions.sortOption,
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: CupertinoColors.label.resolveFrom(context),
-                            ),
-                          ),
-                          const Icon(CupertinoIcons.chevron_down,
-                              color: CupertinoColors.systemGrey),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  CupertinoButton(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                    color: CupertinoColors.systemGrey5,
-                    borderRadius: BorderRadius.circular(8),
-                    onPressed: _toggleSortOrder,
-                    child: Icon(
-                      currentOptions.isAscending ? CupertinoIcons.sort_up : CupertinoIcons.sort_down,
-                      size: 24,
-                    ),
-                  ),
-                ],
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Divider(height: 1),
-              ),
-              _buildBookTypeFilter(),
-              const SizedBox(height: 24),
-              _buildFavoriteFilter(),
-              const SizedBox(height: 24),
-              _buildYearFilter(),
-              const SizedBox(height: 24),
-              _buildTagFilter(),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-    );
-  }
-
-  Widget _buildBookTypeFilter() {
-    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
-    final bool showAll = currentOptions.bookTypes.isEmpty;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Book Type',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 46,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              // "All" chip
-              GestureDetector(
-                onTap: _clearBookTypeFilters,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: showAll
-                        ? accentColor.withOpacity(0.3)
-                        : CupertinoColors.secondarySystemBackground.resolveFrom(context),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (showAll) ...[
-                        Icon(
-                          CupertinoIcons.checkmark,
-                          size: 18,
-                          color: _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2)),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      Text(
-                        'All',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: showAll
-                              ? _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2))
-                              : CupertinoColors.label.resolveFrom(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Book type chips
-              ...bookTypes.map((type) {
-                final isSelected = currentOptions.bookTypes.contains(type);
-                return GestureDetector(
-                  onTap: () => _toggleBookTypeFilter(type),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? accentColor.withOpacity(0.3)
-                          : CupertinoColors.secondarySystemBackground.resolveFrom(context),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isSelected)
-                          Icon(
-                            CupertinoIcons.checkmark,
-                            size: 18,
-                            color: _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2)),
-                          ),
-                        if (isSelected) const SizedBox(width: 6),
-                        Text(
-                          type,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: isSelected
-                                ? _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2))
-                                : CupertinoColors.label.resolveFrom(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFavoriteFilter() {
-    return CupertinoButton(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      color: currentOptions.isFavorite
-          ? CupertinoColors.systemRed.withOpacity(0.2)
-          : CupertinoColors.systemGrey5,
-      borderRadius: BorderRadius.circular(8),
-      onPressed: _toggleFavoriteFilter,
-      child: Row(
-        children: [
-          Icon(
-            CupertinoIcons.heart_fill,
-            color: currentOptions.isFavorite
-                ? CupertinoColors.systemRed
-                : CupertinoColors.systemGrey,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            currentOptions.isFavorite ? 'Favorites Only' : 'All Books',
-            style: TextStyle(
-              fontSize: 16,
-              color: CupertinoColors.label.resolveFrom(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildYearFilter() {
-    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Finished Year',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 46,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              // "All" chip
-              GestureDetector(
-                onTap: _clearYearFilters,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: currentOptions.finishedYears.isEmpty
-                        ? accentColor.withOpacity(0.3)
-                        : CupertinoColors.secondarySystemBackground.resolveFrom(context),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (currentOptions.finishedYears.isEmpty) ...[
-                        Icon(
-                          CupertinoIcons.checkmark,
-                          size: 18,
-                          color: _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2)),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      Text(
-                        'All',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: currentOptions.finishedYears.isEmpty
-                              ? _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2))
-                              : CupertinoColors.label.resolveFrom(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Year chips
-              ...widget.availableYears.map((year) {
-                final isSelected = currentOptions.finishedYears.contains(year);
-                return GestureDetector(
-                  onTap: () => _toggleYearFilter(year),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? accentColor.withOpacity(0.3)
-                          : CupertinoColors.secondarySystemBackground.resolveFrom(context),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isSelected)
-                          Icon(
-                            CupertinoIcons.checkmark,
-                            size: 18,
-                            color: _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2)),
-                          ),
-                        if (isSelected) const SizedBox(width: 6),
-                        Text(
-                          year,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: isSelected
-                                ? _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2))
-                                : CupertinoColors.label.resolveFrom(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTagFilter() {
-    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
-    final bool showAll = currentOptions.tags.isEmpty;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Tags',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 46,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              // "All" chip
-              GestureDetector(
-                onTap: _clearTagFilters,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: showAll
-                        ? accentColor.withOpacity(0.3)
-                        : CupertinoColors.secondarySystemBackground.resolveFrom(context),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (showAll) ...[
-                        Icon(
-                          CupertinoIcons.checkmark,
-                          size: 18,
-                          color: _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2)),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      Text(
-                        'All',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: showAll
-                              ? _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2))
-                              : CupertinoColors.label.resolveFrom(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              // Tag chips
-              ...widget.availableTags.map((tag) {
-                final isSelected = currentOptions.tags.contains(tag);
-                return GestureDetector(
-                  onTap: () => _toggleTagFilter(tag),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? accentColor.withOpacity(0.3)
-                          : CupertinoColors.secondarySystemBackground.resolveFrom(context),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isSelected)
-                          Icon(
-                            CupertinoIcons.checkmark,
-                            size: 18,
-                            color: _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2)),
-                          ),
-                        if (isSelected) const SizedBox(width: 6),
-                        Text(
-                          tag,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: isSelected
-                                ? _getIconColorBasedOnAccentColor(accentColor.withOpacity(0.2))
-                                : CupertinoColors.label.resolveFrom(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _toggleTagFilter(String tag) {
-    setState(() {
-      final updatedTags = List<String>.from(currentOptions.tags);
-      if (updatedTags.contains(tag)) {
-        updatedTags.remove(tag);
-      } else {
-        updatedTags.add(tag);
-      }
-      currentOptions = currentOptions.copyWith(tags: updatedTags);
-    });
-    widget.onOptionsChange(currentOptions);
-  }
-
-  void _clearTagFilters() {
-    setState(() {
-      currentOptions = currentOptions.copyWith(tags: []);
-    });
-    widget.onOptionsChange(currentOptions);
-  }
-
-  void _showSortPicker(BuildContext context) async {
-    final sortIndex = sortOptions.indexOf(currentOptions.sortOption);
-    String? selectedOption;
-
-    await showCupertinoModalPopup<void>(
-      context: context,
-      builder: (context) {
-        return GestureDetector(
-          onTap: () => Navigator.pop(context),
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            height: 200,
-            color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
-            child: Column(
-              children: [
-                Expanded(
-                  child: CupertinoPicker(
-                    itemExtent: 32,
-                    scrollController: FixedExtentScrollController(initialItem: sortIndex),
-                    onSelectedItemChanged: (index) => selectedOption = sortOptions[index],
-                    children: sortOptions.map((option) => Text(option)).toList(),
-                  ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: const Text('Filter & Sort'),
+              centerTitle: false,
+              automaticallyImplyLeading: false,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Sort Section
+                      _buildSectionHeader('Sort By'),
+                      _buildSortControls(),
+                      const Divider(height: 32),
+
+                      // Book Type Filter
+                      _buildSectionHeader('Book Type'),
+                      _buildFilterChips(
+                        options: ['All', ...bookTypes],
+                        selected: currentOptions.bookTypes.isEmpty
+                            ? ['All']
+                            : currentOptions.bookTypes,
+                        onChanged: (selected) {
+                          setState(() {
+                            currentOptions = currentOptions.copyWith(
+                              bookTypes: selected.contains('All') ? [] : selected,
+                            );
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Favorite Filter
+                      FilterChip(
+                        label: Text(
+                          currentOptions.isFavorite ? 'Favorites Only' : 'All Books',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: currentOptions.isFavorite
+                                ? Theme.of(context).colorScheme.onPrimaryContainer
+                                : Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        selected: currentOptions.isFavorite,
+                        onSelected: (value) {
+                          setState(() {
+                            currentOptions = currentOptions.copyWith(isFavorite: value);
+                          });
+                        },
+                        avatar: Icon(
+                          Icons.favorite,
+                          color: currentOptions.isFavorite
+                              ? Colors.red
+                              : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                          size: 20,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(
+                            color: currentOptions.isFavorite
+                                ? Colors.transparent
+                                : Theme.of(context).colorScheme.outline,
+                            width: 1,
+                          ),
+                        ),
+                        selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        labelPadding: const EdgeInsets.only(left: 4, right: 8),
+                        showCheckmark: false,
+                      ),
+                      const Divider(height: 32),
+
+                      // Year Filter
+                      if (widget.availableYears.isNotEmpty) ...[
+                        _buildSectionHeader('Finished Year'),
+                        _buildFilterChips(
+                          options: ['All', ...widget.availableYears],
+                          selected: currentOptions.finishedYears.isEmpty
+                              ? ['All']
+                              : currentOptions.finishedYears,
+                          onChanged: (selected) {
+                            setState(() {
+                              currentOptions = currentOptions.copyWith(
+                                finishedYears: selected.contains('All') ? [] : selected,
+                              );
+                            });
+                          },
+                        ),
+                        const Divider(height: 32),
+                      ],
+
+                      // Tag Filter
+                      if (widget.availableTags.isNotEmpty) ...[
+                        _buildSectionHeader('Tags'),
+                        _buildFilterChips(
+                          options: ['All', ...widget.availableTags],
+                          selected: currentOptions.tags.isEmpty ? ['All'] : currentOptions.tags,
+                          onChanged: (selected) {
+                            setState(() {
+                              currentOptions = currentOptions.copyWith(
+                                tags: selected.contains('All') ? [] : selected,
+                              );
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, currentOptions),
+                child: const Text('Apply Filters'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSortControls() {
+    final theme = Theme.of(context);
+    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
+
+    return Row(
+      children: [
+        Expanded(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: _showSortPicker,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: theme.colorScheme.outline.withOpacity(0.5),
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    currentOptions.sortOption,
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                  Icon(
+                    Icons.arrow_drop_down,
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            setState(() {
+              currentOptions = currentOptions.copyWith(
+                isAscending: !currentOptions.isAscending,
+              );
+            });
+          },
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: theme.colorScheme.outline.withOpacity(0.5),
+                width: 1,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              currentOptions.isAscending ? Icons.arrow_upward : Icons.arrow_downward,
+              color: theme.colorScheme.onSurface.withOpacity(0.8),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterChips({
+    required List<String> options,
+    required List<String> selected,
+    required Function(List<String>) onChanged,
+  }) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: options.map((option) {
+        final isSelected = selected.contains(option);
+        return FilterChip(
+          label: Text(option),
+          selected: isSelected,
+          onSelected: (value) {
+            final newSelection = List<String>.from(selected);
+            if (option == 'All') {
+              onChanged(value ? ['All'] : []);
+            } else {
+              if (value) {
+                newSelection.add(option);
+                newSelection.remove('All');
+              } else {
+                newSelection.remove(option);
+              }
+              onChanged(newSelection.isEmpty ? ['All'] : newSelection);
+            }
+          },
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Future<void> _showSortPicker() async {
+    final theme = Theme.of(context);
+    final initialIndex = sortOptions.indexOf(currentOptions.sortOption);
+
+    await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Sort By',
+                      style: theme.textTheme.titleLarge,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              SizedBox(
+                height: 250, // Fixed height for consistent appearance
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  itemCount: sortOptions.length,
+                  itemBuilder: (context, index) {
+                    return Material(
+                      color: Colors.transparent,
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                        title: Text(sortOptions[index]),
+                        trailing: Radio<String>(
+                          value: sortOptions[index],
+                          groupValue: currentOptions.sortOption,
+                          onChanged: (value) {
+                            setState(() {
+                              currentOptions = currentOptions.copyWith(
+                                sortOption: value!,
+                              );
+                            });
+                            Navigator.pop(context);
+                          },
+                        ),
+                        onTap: () {
+                          setState(() {
+                            currentOptions = currentOptions.copyWith(
+                              sortOption: sortOptions[index],
+                            );
+                          });
+                          Navigator.pop(context);
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         );
       },
     );
 
-    if (selectedOption != null) {
-      setState(() {
-        currentOptions = currentOptions.copyWith(sortOption: selectedOption!);
-      });
-      widget.onOptionsChange(currentOptions);
-    }
-  }
-
-  void _toggleBookTypeFilter(String type) {
-    final updatedTypes = List<String>.from(currentOptions.bookTypes);
-    if (updatedTypes.contains(type)) {
-      updatedTypes.remove(type);
-    } else {
-      updatedTypes.add(type);
-    }
-    setState(() {
-      currentOptions = currentOptions.copyWith(bookTypes: updatedTypes);
-    });
-    widget.onOptionsChange(currentOptions);
-  }
-
-  void _clearBookTypeFilters() {
-    setState(() {
-      currentOptions = currentOptions.copyWith(bookTypes: []);
-    });
-    widget.onOptionsChange(currentOptions);
-  }
-
-
-  void _toggleSortOrder() {
-    setState(() {
-      currentOptions = currentOptions.copyWith(isAscending: !currentOptions.isAscending);
-    });
-    widget.onOptionsChange(currentOptions);
-  }
-
-  void _toggleFavoriteFilter() {
-    setState(() {
-      currentOptions = currentOptions.copyWith(isFavorite: !currentOptions.isFavorite);
-    });
-    widget.onOptionsChange(currentOptions);
-  }
-
-  void _toggleYearFilter(String year) {
-    setState(() {
-      final newYears = List<String>.from(currentOptions.finishedYears);
-      if (newYears.contains(year)) {
-        newYears.remove(year);
-      } else {
-        newYears.add(year);
-      }
-      currentOptions = currentOptions.copyWith(finishedYears: newYears);
-    });
-    widget.onOptionsChange(currentOptions);
-  }
-
-  void _clearYearFilters() {
-    setState(() {
-      currentOptions = currentOptions.copyWith(finishedYears: []);
-    });
-    widget.onOptionsChange(currentOptions);
-  }
-
-  Color _getIconColorBasedOnAccentColor(Color color) {
-    HSLColor hslColor = HSLColor.fromColor(color);
-    double lightness = hslColor.lightness;
-    return lightness < 0.5 ? CupertinoColors.white : CupertinoColors.black;
   }
 }

@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
@@ -172,235 +172,234 @@ class _LogSessionPageState extends State<LogSessionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
-    final textColor = CupertinoColors.label.resolveFrom(context);
-    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
 
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: Text('Add Reading Session'),
-        trailing: GestureDetector(
-          onTap: _saveSession,
-          child: Text(
-            'Save',
-            style: TextStyle(
-              color: accentColor,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Add Reading Session'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        actions: [
+          TextButton(
+            onPressed: _saveSession,
+            child: Text(
+              'Save',
+              style: TextStyle(color: colors.primary),
             ),
           ),
-        ),
+        ],
       ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: ListView(
-            children: [
-              const Text(
-                'Book',
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: CupertinoButton(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  color: CupertinoColors.systemGrey5,
-                  borderRadius: BorderRadius.circular(8),
-                  onPressed: _availableBooks.isEmpty
-                      ? null // Disable if no available books
-                      : () {
-                          setState(() {
-                            // Set _selectedBook to the first available book when button is pressed
-                            _selectedBook = _availableBooks[0];
-                          });
-
-                          showCupertinoModalPopup(
-                            context: context,
-                            builder: (_) => Container(
-                              height: 200,
-                              color: CupertinoColors.secondarySystemBackground
-                                  .resolveFrom(context),
-                              child: CupertinoPicker(
-                                itemExtent: 32,
-                                onSelectedItemChanged: (index) {
-                                  setState(() {
-                                    _selectedBook = _availableBooks[index];
-                                  });
-                                },
-                                children: _availableBooks
-                                    .map((book) => Text(book['title']))
-                                    .toList(),
-                              ),
-                            ),
-                          );
-                        },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _selectedBook?['title'] ?? 'Select a book',
-                        style: TextStyle(fontSize: 16, color: textColor),
-                      ),
-                      Icon(CupertinoIcons.chevron_down,
-                          color: CupertinoColors.systemGrey)
-                    ],
-                  ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Book', style: textTheme.titleSmall),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<Map<String, dynamic>>(
+              value: _selectedBook,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Pages',
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              CupertinoTextField(
-                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                controller: _pagesController,
-                placeholder: "Number of Pages",
-                onTapOutside: (event) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
-                keyboardType: TextInputType.number,
-                suffix: _pagesController.text.isNotEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: GestureDetector(
-                          onTap: () => _clearField(_pagesController),
-                          child: Icon(CupertinoIcons.clear,
-                              color: CupertinoColors.systemGrey),
-                        ),
+              items: _availableBooks.map((book) {
+                return DropdownMenuItem(
+                  value: book,
+                  child: Text(
+                    book['title'],
+                    overflow: TextOverflow.ellipsis, // Handles long text
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) => setState(() => _selectedBook = value),
+              hint: const Text('Select a book'),
+              isExpanded: true,
+              dropdownColor: Theme.of(context).colorScheme.surface,
+              menuMaxHeight: 200,
+              alignment: AlignmentDirectional.centerStart,
+            ),
+            const SizedBox(height: 24),
+            Text('Pages', style: textTheme.titleSmall),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _pagesController,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                hintText: 'Number of Pages',
+                suffixIcon: _pagesController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_pagesController),
                       )
                     : null,
               ),
-              const SizedBox(height: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Time',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CupertinoButton(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 16),
-                    color: CupertinoColors.systemGrey5,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          formatSessionTime(
-                              _hoursController.text, _minutesController.text),
-                          style: TextStyle(fontSize: 16, color: textColor),
-                        ),
-                        Icon(CupertinoIcons.chevron_down,
-                            color: CupertinoColors.systemGrey)
-                      ],
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 24),
+            Text('Time', style: textTheme.titleSmall),
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: () => _showDurationPicker(context),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: colors.outline),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      formatSessionTime(
+                          _hoursController.text, _minutesController.text),
+                      style: textTheme.bodyLarge,
                     ),
-                    onPressed: () => showCupertinoModalPopup(
-                      context: context,
-                      builder: (_) => Container(
-                        height: 250,
-                        color: CupertinoColors.secondarySystemBackground
-                            .resolveFrom(context),
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: CupertinoTimerPicker(
-                                itemExtent:
-                                    40, // Adjust this for faster/slower scrolling
-                                mode: CupertinoTimerPickerMode
-                                    .hm, // Hours & Minutes only
-                                initialTimerDuration: Duration(
-                                  hours:
-                                      int.tryParse(_hoursController.text) ?? 0,
-                                  minutes:
-                                      int.tryParse(_minutesController.text) ??
-                                          0,
-                                ),
-                                onTimerDurationChanged: (Duration duration) {
-                                  setState(() {
-                                    _hoursController.text =
-                                        duration.inHours.toString();
-                                    _minutesController.text =
-                                        (duration.inMinutes % 60).toString();
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                    Icon(Icons.arrow_drop_down, color: colors.onSurface),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Date',
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              CupertinoButton(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                color: CupertinoColors.systemGrey5,
-                borderRadius: BorderRadius.circular(8),
+            ),
+            const SizedBox(height: 24),
+            Text('Date', style: textTheme.titleSmall),
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: () => _showDatePicker(context),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: colors.outline),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       DateFormat('MMMM d, y').format(_sessionDate),
-                      style: TextStyle(fontSize: 16, color: textColor),
+                      style: textTheme.bodyLarge,
                     ),
-                    Icon(CupertinoIcons.chevron_down,
-                        color: CupertinoColors.systemGrey)
+                    Icon(Icons.calendar_today, color: colors.onSurface),
                   ],
                 ),
-                onPressed: () => showCupertinoModalPopup(
-                  context: context,
-                  builder: (_) => Container(
-                    height: 200,
-                    color: CupertinoColors.secondarySystemBackground
-                        .resolveFrom(context),
-                    child: CupertinoDatePicker(
-                      maximumDate: DateTime.now(),
-                      initialDateTime: _sessionDate,
-                      mode: CupertinoDatePickerMode.date,
-                      onDateTimeChanged: (date) =>
-                          setState(() => _sessionDate = date),
-                    ),
-                  ),
-                ),
               ),
-              const SizedBox(height: 24),
-              CupertinoButton(
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
                 onPressed: _saveSession,
-                color: accentColor,
-                child: const Text('Save',
-                    style: TextStyle(color: CupertinoColors.white)),
-              ),
-              const SizedBox(height: 16),
-              if (_statusMessage.isNotEmpty)
-                Text(
-                  _statusMessage,
-                  style: TextStyle(
-                    color: _isSuccess
-                        ? CupertinoColors.systemGreen
-                        : CupertinoColors.systemRed,
-                    fontSize: 16,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  textAlign: TextAlign.center,
                 ),
-            ],
-          ),
+                child: const Text('SAVE SESSION'),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_statusMessage.isNotEmpty)
+              Text(
+                _statusMessage,
+                style: textTheme.bodyLarge?.copyWith(
+                  color: _isSuccess ? colors.primary : colors.error,
+                ),
+                textAlign: TextAlign.center,
+              ),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _showDurationPicker(BuildContext context) async {
+    int hours = int.tryParse(_hoursController.text) ?? 0;
+    int minutes = int.tryParse(_minutesController.text) ?? 0;
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Duration'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: hours.toString(),
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Hours',
+                      // suffixText: 'h',
+                    ),
+                    onChanged: (value) => hours = int.tryParse(value) ?? 0,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: minutes.toString(),
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Minutes',
+                      // suffixText: 'm',
+                    ),
+                    onChanged: (value) => minutes = int.tryParse(value) ?? 0,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              setState(() {
+                _hoursController.text = hours.toString();
+                _minutesController.text = minutes.toString();
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showDatePicker(BuildContext context) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _sessionDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            dialogTheme: DialogTheme(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (date != null) {
+      setState(() => _sessionDate = date);
+    }
   }
 }

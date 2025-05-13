@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:csv/csv.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 import '../../themes/app_theme.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/repositories/session_repository.dart';
@@ -15,7 +16,7 @@ import '/data/models/book.dart';
 import '/data/models/session.dart';
 import 'font_page.dart';
 import 'widgets/accent_color_picker.dart';
-import 'widgets/tab_name_visibility_picker.dart';
+import 'widgets/nav_style_picker.dart';
 import 'widgets/rating_style_picker.dart';
 import '../settings/widgets/book_type_picker.dart';
 import '../settings/widgets/theme_mode_picker.dart';
@@ -44,358 +45,230 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = (themeMode == ThemeMode.dark ||
-        (themeMode == ThemeMode.system &&
-            MediaQuery.of(context).platformBrightness == Brightness.dark))
-        ? AppTheme.darkBackground
-        : AppTheme.lightBackground;
-    final textColor = CupertinoColors.label.resolveFrom(context);
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
 
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: const Text('Settings'),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Settings'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
       ),
-      child: SafeArea(
-        child: ListView(
-          children: [
-            CupertinoFormSection.insetGrouped(
-              header: const Text('Appearance'),
-              backgroundColor: bgColor,
-              children: [
-                // Dark Mode Section
-                GestureDetector(
-                  onTap: () => showThemeModePicker(context, settingsViewModel, toggleTheme),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey5
-                          .resolveFrom(context)
-                          .withOpacity(0.8),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(10),
-                        topRight: Radius.circular(10),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 20, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Theme'),
-                        Text(
-                          _getThemeModeString(themeMode),
-                        ),
-                      ],
-                    ),
-                  ),
+      body: ListView(
+        children: [
+          // Appearance Section
+          _buildSettingsSection(
+            context,
+            header: 'Appearance',
+            children: [
+              _buildSettingsTile(
+                context,
+                title: 'Theme',
+                trailing: Text(
+                  _getThemeModeString(themeMode),
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
-                // Accent Color Container
-                Container(
+                onTap: () => showThemeModePicker(
+                    context, settingsViewModel, toggleTheme),
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'Accent Color',
+                trailing: Container(
+                  width: 48,
+                  height: 32,
                   decoration: BoxDecoration(
-                    color: CupertinoColors.systemGrey5
-                        .resolveFrom(context)
-                        .withOpacity(0.8),
-                  ),
-                  padding:
-                  const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Accent Color'),
-                      CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        child: Container(
-                          width: 48,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: settingsViewModel.accentColorNotifier.value,
-                            shape: BoxShape.rectangle,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: () => showAccentColorPickerModal(
-                          context,
-                          settingsViewModel.accentColorNotifier.value,
-                              (newColor) {
-                            settingsViewModel.setAccentColor(newColor);
-                          },
-                        ),
-                      ),
-                    ],
+                    color: settingsViewModel.accentColorNotifier.value,
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      CupertinoPageRoute(
-                        builder: (context) => FontSelectionPage(settingsViewModel: settingsViewModel),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey5
-                          .resolveFrom(context)
-                          .withOpacity(0.8),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Font'),  // Label for the date format option
-                        ValueListenableBuilder<String>(
-                          valueListenable: settingsViewModel.selectedFontNotifier,  // Use the correct notifier
-                          builder: (context, selectedFont, child) {
-                            return Text(
-                              selectedFont,  // Display the formatted date
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                onTap: () => showAccentColorPickerModal(
+                  context,
+                  settingsViewModel.accentColorNotifier.value,
+                  (newColor) => settingsViewModel.setAccentColor(newColor),
+                ),
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'Font',
+                trailing: ValueListenableBuilder<String>(
+                  valueListenable: settingsViewModel.selectedFontNotifier,
+                  builder: (context, selectedFont, _) => Text(
+                    selectedFont,
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),
-                GestureDetector(
-                  onTap: () => showDateFormatPicker(context, settingsViewModel),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey5
-                          .resolveFrom(context)
-                          .withOpacity(0.8),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Date Format'),  // Label for the date format option
-                        ValueListenableBuilder<String>(
-                          valueListenable: settingsViewModel.defaultDateFormatNotifier,  // Use the correct notifier
-                          builder: (context, selectedDateFormat, child) {
-                            // Get current date
-                            DateTime currentDate = DateTime.now();
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        FontSelectionPage(settingsViewModel: settingsViewModel),
+                  ),
+                ),
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'Date Format',
+                trailing: ValueListenableBuilder<String>(
+                  valueListenable: settingsViewModel.defaultDateFormatNotifier,
+                  builder: (context, format, _) => Text(
+                    _getFormattedDate(DateTime.now(), format),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+                onTap: () => showDateFormatPicker(context, settingsViewModel),
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'Navigation Style',
+                trailing: ValueListenableBuilder<IconStyle>(
+                  valueListenable: settingsViewModel.navStyleNotifier,
+                  builder: (context, value, _) =>
+                      Text(_iconStyleToString(value), style: Theme.of(context).textTheme.bodyMedium,),
+                ),
+                onTap: () => showNavStylePicker(context, settingsViewModel),
+              ),
+            ],
+          ),
 
-                            // Format the current date based on the selected format
-                            String formattedDate = _getFormattedDate(currentDate, selectedDateFormat);
+          // Preferences Section
+          _buildSettingsSection(
+            context,
+            header: 'Preferences',
+            children: [
+              _buildSettingsTile(
+                context,
+                title: 'Default Book Format',
+                trailing: ValueListenableBuilder<int>(
+                  valueListenable: settingsViewModel.defaultBookTypeNotifier,
+                  builder: (context, type, _) =>
+                      Text(bookTypeNames[type] ?? "Unknown", style: Theme.of(context).textTheme.bodyMedium,),
+                ),
+                onTap: () => showBookTypePicker(context, settingsViewModel),
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'Rating Style',
+                trailing: ValueListenableBuilder<int>(
+                  valueListenable: settingsViewModel.defaultRatingStyleNotifier,
+                  builder: (context, style, _) =>
+                      Text(ratingStyleNames[style] ?? "Unknown", style: Theme.of(context).textTheme.bodyMedium,),
+                ),
+                onTap: () => showRatingStylePicker(context, settingsViewModel),
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'Default Tab',
+                trailing: ValueListenableBuilder<int>(
+                  valueListenable: settingsViewModel.defaultTabNotifier,
+                  builder: (context, index, _) => Text(_getTabName(index), style: Theme.of(context).textTheme.bodyMedium,),
+                ),
+                onTap: () => showDefaultTabPicker(context, settingsViewModel),
+              ),
+            ],
+          ),
 
-                            return Text(
-                              formattedDate,  // Display the formatted date
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+          // Data Management Section
+          _buildSettingsSection(
+            context,
+            header: 'Manage Your Data',
+            children: [
+              _buildSettingsTile(
+                context,
+                title: 'Export data as CSV',
+                onTap: exportDataToCSV,
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'Import Books from CSV',
+                onTap: _importBooksFromCSV,
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'Import Sessions from CSV',
+                onTap: _importSessionsFromCSV,
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'Delete All Books',
+                textColor: colors.error,
+                onTap: () => _confirmDeleteBooks(context),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsSection(
+    BuildContext context, {
+    required String header,
+    required List<Widget> children,
+  }) {
+    return Card(
+      margin: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              header,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
                   ),
-                ),
-                GestureDetector(
-                  onTap: () => showTabNameVisibilityPicker(context, settingsViewModel),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(10),
-                        bottomRight: Radius.circular(10),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Tab Name Visibility'),
-                        ValueListenableBuilder<String>(
-                          valueListenable: settingsViewModel.tabNameVisibilityNotifier,
-                          builder: (context, value, child) {
-                            return Text(
-                              value,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
             ),
-            CupertinoFormSection.insetGrouped(
-              header: const Text('Preferences'),
-              backgroundColor: bgColor,
-              children: [
-                GestureDetector(
-                  onTap: () => showBookTypePicker(context, settingsViewModel),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey5
-                          .resolveFrom(context)
-                          .withOpacity(0.8),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(10),
-                        topRight: Radius.circular(10),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 20, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Default Book Format'),
-                        ValueListenableBuilder<int>(
-                          valueListenable:
-                          settingsViewModel.defaultBookTypeNotifier,
-                          builder: (context, defaultBookType, child) {
-                            return Text(
-                              bookTypeNames[defaultBookType] ?? "Unknown",
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => showRatingStylePicker(context, settingsViewModel),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey5.resolveFrom(context).withOpacity(0.8),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Rating Style'),
-                        ValueListenableBuilder<int>(
-                          valueListenable: settingsViewModel.defaultRatingStyleNotifier,
-                          builder: (context, defaultRatingStyle, child) {
-                            return Text(
-                              ratingStyleNames[defaultRatingStyle] ?? "Unknown",
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => showDefaultTabPicker(context, settingsViewModel),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey5
-                          .resolveFrom(context)
-                          .withOpacity(0.8),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(10),
-                        bottomRight: Radius.circular(10),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Default Tab'),
-                        ValueListenableBuilder<int>(
-                          valueListenable: settingsViewModel.defaultTabNotifier,
-                          builder: (context, selectedTabIndex, child) {
-                            return Text(_getTabName(selectedTabIndex)); // Corrected function call
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            CupertinoFormSection.insetGrouped(
-              header: const Text('Manage Your Data'),
-              backgroundColor: bgColor,
-              children: [
-                GestureDetector(
-                  onTap: () async {
-                    await exportDataToCSV();
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey5
-                          .resolveFrom(context)
-                          .withOpacity(0.8),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(10),
-                        topRight: Radius.circular(10),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 20, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Export data as CSV'),
-                      ],
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () async {
-                    await _importBooksFromCSV();
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey5
-                          .resolveFrom(context)
-                          .withOpacity(0.8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 20, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Import Books from CSV'),
-                      ],
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () async {
-                    await _importSessionsFromCSV();
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey5
-                          .resolveFrom(context)
-                          .withOpacity(0.8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 20, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Import Sessions from CSV'),
-                      ],
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => _confirmDeleteBooks(context),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.systemGrey5
-                          .resolveFrom(context)
-                          .withOpacity(0.8),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(10),
-                        bottomRight: Radius.circular(10),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 20, horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Delete All Books'),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsTile(
+    BuildContext context, {
+    required String title,
+    Widget? trailing,
+    VoidCallback? onTap,
+    Color? textColor,
+  }) {
+    return ListTile(
+      title: Text(
+        title,
+        style: TextStyle(
+            color: textColor ?? Theme.of(context).colorScheme.onSurface),
+      ),
+      trailing: trailing,
+      onTap: onTap,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+    );
+  }
+
+  void _confirmDeleteBooks(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete All Books?'),
+        content: const Text('This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await bookRepository.deleteAllBooks();
+              refreshBooks();
+              refreshSessions();
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }
@@ -470,7 +343,7 @@ class SettingsPage extends StatelessWidget {
         String csvString = await file.readAsString();
 
         List<List<dynamic>> csvData =
-        const CsvToListConverter().convert(csvString);
+            const CsvToListConverter().convert(csvString);
 
         if (csvData.isNotEmpty) {
           if (type == 'books') {
@@ -504,13 +377,19 @@ class SettingsPage extends StatelessWidget {
           isCompleted: row[6] == 1 || row[6] == 'true',
           isFavorite: row[7] == 1 || row[7] == 'true',
           bookTypeId: int.tryParse(row[8].toString()) ?? 0,
-          dateAdded: DateTime.tryParse(row[9].toString())?.toIso8601String().split('T')[0] ??
+          dateAdded: DateTime.tryParse(row[9].toString())
+                  ?.toIso8601String()
+                  .split('T')[0] ??
               DateTime.now().toIso8601String().split('T')[0],
           dateStarted: row[10]?.toString().isNotEmpty == true
-              ? DateTime.tryParse(row[10].toString())?.toIso8601String().split('T')[0]
+              ? DateTime.tryParse(row[10].toString())
+                  ?.toIso8601String()
+                  .split('T')[0]
               : null,
           dateFinished: row[11]?.toString().isNotEmpty == true
-              ? DateTime.tryParse(row[11].toString())?.toIso8601String().split('T')[0]
+              ? DateTime.tryParse(row[11].toString())
+                  ?.toIso8601String()
+                  .split('T')[0]
               : null,
         );
 
@@ -541,8 +420,8 @@ class SettingsPage extends StatelessWidget {
             pagesRead: int.tryParse(row[2].toString()) ?? 0,
             durationMinutes: int.tryParse(row[3].toString()) ?? 0,
             date: DateTime.tryParse(row[4].toString())
-                ?.toIso8601String()
-                .split('T')[0] ??
+                    ?.toIso8601String()
+                    .split('T')[0] ??
                 DateTime.now().toIso8601String().split('T')[0],
           ),
         );
@@ -559,14 +438,13 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
-
   Future<void> exportDataToCSV() async {
     try {
       // Call the export functions and store file paths
       String booksFilePath =
-      await exportBooksToCSV(await bookRepository.getBooks());
+          await exportBooksToCSV(await bookRepository.getBooks());
       String sessionsFilePath =
-      await exportSessionsToCSV(await sessionRepository.getSessions());
+          await exportSessionsToCSV(await sessionRepository.getSessions());
 
       if (kDebugMode) {
         print('Books data exported to: $booksFilePath');
@@ -609,19 +487,19 @@ class SettingsPage extends StatelessWidget {
         'date_finished'
       ],
       ...booksData.map((book) => [
-        book.id.toString(),
-        book.title,
-        book.author,
-        book.wordCount.toString(),
-        book.pageCount.toString(),
-        book.rating.toString(),
-        book.isCompleted.toString(),
-        book.isFavorite.toString(),
-        book.bookTypeId.toString(),
-        book.dateAdded.toString(),
-        book.dateStarted.toString(),
-        book.dateFinished.toString(),
-      ])
+            book.id.toString(),
+            book.title,
+            book.author,
+            book.wordCount.toString(),
+            book.pageCount.toString(),
+            book.rating.toString(),
+            book.isCompleted.toString(),
+            book.isFavorite.toString(),
+            book.bookTypeId.toString(),
+            book.dateAdded.toString(),
+            book.dateStarted.toString(),
+            book.dateFinished.toString(),
+          ])
     ];
 
     String csv = const ListToCsvConverter().convert(rows);
@@ -640,12 +518,12 @@ class SettingsPage extends StatelessWidget {
     List<List<String>> rows = [
       ['session_id', 'book_id', 'pages_read', 'duration_minutes', 'date'],
       ...sessionsData.map((session) => [
-        session.id.toString(),
-        session.bookId.toString(),
-        session.pagesRead.toString(),
-        session.durationMinutes.toString(),
-        session.date.toString(),
-      ])
+            session.id.toString(),
+            session.bookId.toString(),
+            session.pagesRead.toString(),
+            session.durationMinutes.toString(),
+            session.date.toString(),
+          ])
     ];
 
     String csv = const ListToCsvConverter().convert(rows);
@@ -655,34 +533,14 @@ class SettingsPage extends StatelessWidget {
     return filePath;
   }
 
-  void _confirmDeleteBooks(BuildContext context) {
-    showCupertinoDialog(
-      context: context,
-      builder: (BuildContext ctx) {
-        return CupertinoAlertDialog(
-          title: const Text('Delete All Books?'),
-          content: const Text(
-              'This action cannot be undone. Are you sure you want to delete all books?'),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(ctx),
-              isDefaultAction: true,
-              child: const Text('Cancel'),
-            ),
-            CupertinoDialogAction(
-              isDestructiveAction: true,
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await bookRepository.deleteAllBooks();
-                refreshBooks(); // Refresh the book list
-                refreshSessions(); // Refresh the session list
-              },
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
-    );
+  static String _iconStyleToString(IconStyle style) {
+    switch (style) {
+      case IconStyle.animated:
+        return 'Animated';
+      case IconStyle.Default:
+        return 'Standard';
+      default:
+        return 'Simple';
+    }
   }
-
 }

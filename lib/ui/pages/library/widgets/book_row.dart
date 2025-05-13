@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:intl/intl.dart';
 
@@ -22,23 +22,26 @@ class BookRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     // Determine the icon based on the book type
     IconData bookTypeIcon;
     switch (book['book_type_id']) {
       case 1:
-        bookTypeIcon = CupertinoIcons.book;
+        bookTypeIcon = Icons.book_outlined;
         break;
       case 2:
-        bookTypeIcon = CupertinoIcons.book_fill;
+        bookTypeIcon = Icons.book;
         break;
       case 3:
-        bookTypeIcon = CupertinoIcons.device_desktop;
+        bookTypeIcon = Icons.computer;
         break;
       case 4:
-        bookTypeIcon = CupertinoIcons.headphones;
+        bookTypeIcon = Icons.headset;
         break;
       default:
-        bookTypeIcon = CupertinoIcons.book_fill;
+        bookTypeIcon = Icons.book;
     }
 
     // Helper function to format date
@@ -80,97 +83,102 @@ class BookRow extends StatelessWidget {
 
     double containerHeight = isCompactView ? 60 : 120; // Adjust height
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        height: containerHeight,
-        decoration: BoxDecoration(
-          color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
-          borderRadius: BorderRadius.circular(8),
-        ),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(12),
           child: Column(
+            mainAxisSize: MainAxisSize.min, // This allows vertical expansion
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Title Row
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Text(
                       book['title'],
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 16,
-                      ),
-                      maxLines: 2,
+                      style: theme.textTheme.bodyLarge,
+                      maxLines: isCompactView ? 1 : 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  book["is_favorite"] == 1
-                      ? Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Icon(
-                      CupertinoIcons.heart_fill,
-                      color: CupertinoColors.systemRed,
-                      size: 16,
+                  if (book["is_favorite"] == 1)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Icon(
+                        Icons.favorite,
+                        color: Colors.red,
+                        size: 16,
+                      ),
                     ),
-                  )
-                      : SizedBox.shrink(),
                   Padding(
                     padding: const EdgeInsets.only(left: 8),
                     child: Icon(
                       bookTypeIcon,
-                      color: CupertinoColors.systemGrey2.resolveFrom(context),
+                      color: theme.iconTheme.color?.withOpacity(0.6),
                       size: 16,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                "by ${book['author']}",
-                style: TextStyle(
-                  color: CupertinoColors.systemGrey,
-                  fontSize: 14,
+
+              // Author
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  "by ${book['author']}",
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
 
-              // Show additional details if not in compact view
+              // Expanded details section (only for non-compact view)
               if (!isCompactView) ...[
-                const SizedBox(height: 4),
-                // Display either star rating or numeric rating based on showStars
-                if (showStars)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: RatingBarIndicator(
-                      rating: book['rating']?.toDouble() ?? 0.0,
-                      itemCount: 5,
-                      itemSize: 20.0,
-                      itemPadding: const EdgeInsets.symmetric(horizontal: 2.0),
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemBuilder: (context, _) => const Icon(
-                        CupertinoIcons.star_fill,
-                        color: CupertinoColors.systemYellow,
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Rating
+                      if (showStars)
+                        RatingBarIndicator(
+                          rating: book['rating']?.toDouble() ?? 0.0,
+                          itemCount: 5,
+                          itemSize: 20,
+                          itemBuilder: (context, _) => const Icon(
+                            Icons.star,
+                            color: Colors.amber,
+                          ),
+                        )
+                      else
+                        Text(
+                          "Rating: ${book['rating']?.toStringAsFixed(1) ?? '0'}",
+                          style: theme.textTheme.bodyMedium,
+                        ),
+
+                      // Date range
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          dateRangeString,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+                          ),
+                        ),
                       ),
-                    ),
-                  )
-                else
-                  Text(
-                    "${book['rating']?.toStringAsFixed(1) ?? '0'}",
-                    style: TextStyle(
-                      color: CupertinoColors.systemGrey,
-                      fontSize: 14,
-                    ),
-                  ),
-                const SizedBox(height: 4),
-                Text(
-                  dateRangeString,
-                  style: TextStyle(
-                    color: CupertinoColors.systemGrey,
-                    fontSize: 14,
+                    ],
                   ),
                 ),
               ],

@@ -1,4 +1,4 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
@@ -35,45 +35,29 @@ class _EditSessionPageState extends State<EditSessionPage> {
   @override
   void initState() {
     super.initState();
+    int durationMinutes = widget.session['duration_minutes'] ?? 0;
+    int hours = durationMinutes ~/ 60;
+    int minutes = durationMinutes % 60;
 
-    // Assuming duration_minutes is in the session data
-    int durationMinutes = widget.session['duration_minutes'] ?? 0; // Default to 0 if null
-
-    // Extract hours and minutes
-    int hours = durationMinutes ~/ 60; // Get the hours by dividing by 60
-    int minutes = durationMinutes % 60; // Get the remaining minutes after dividing by 60
-
-    // Populate the controllers with the extracted values
     _pagesController.text = widget.session['pages_read'].toString();
     _hoursController.text = hours.toString();
     _minutesController.text = minutes.toString();
-
-    // Parse and set the session date
     _sessionDate = DateTime.parse(widget.session['date']);
   }
 
   void _updateSession() async {
-    // Validate input fields
     final int? pagesRead = int.tryParse(_pagesController.text);
     final int? hours = int.tryParse(_hoursController.text);
     final int? minutes = int.tryParse(_minutesController.text);
 
     if (pagesRead == null || hours == null || minutes == null) {
-      setState(() {
-        _statusMessage = 'Please enter valid numbers.';
-        _isSuccess = false;
-      });
-      _clearStatusMessage();
+      _showStatusMessage('Please enter valid numbers.', false);
       return;
     }
 
     final int durationMinutes = (hours * 60) + minutes;
     if (pagesRead <= 0 || durationMinutes <= 0) {
-      setState(() {
-        _statusMessage = 'Pages and time must be greater than zero.';
-        _isSuccess = false;
-      });
-      _clearStatusMessage();
+      _showStatusMessage('Pages and time must be greater than zero.', false);
       return;
     }
 
@@ -87,23 +71,21 @@ class _EditSessionPageState extends State<EditSessionPage> {
 
     try {
       await widget.sessionRepository.updateSession(session);
-      setState(() {
-        _statusMessage = 'Session updated successfully!';
-        _isSuccess = true;
-      });
+      _showStatusMessage('Session updated successfully!', true);
       widget.refreshSessions();
-      if (mounted) {
-        Navigator.pop(context); // Go back to the previous screen immediately
-      }
+      if (mounted) Navigator.pop(context);
     } catch (e) {
-      setState(() {
-        _statusMessage = 'Failed to update session. Please try again.';
-        _isSuccess = false;
-      });
-      _clearStatusMessage();
+      _showStatusMessage('Failed to update session. Please try again.', false);
     }
   }
 
+  void _showStatusMessage(String message, bool isSuccess) {
+    setState(() {
+      _statusMessage = message;
+      _isSuccess = isSuccess;
+    });
+    _clearStatusMessage();
+  }
 
   void _clearStatusMessage() {
     Future.delayed(const Duration(seconds: 2), () {
@@ -120,260 +102,275 @@ class _EditSessionPageState extends State<EditSessionPage> {
     try {
       await widget.sessionRepository.deleteSession(widget.session['id']);
       widget.refreshSessions();
-      Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
     } catch (e) {
-      setState(() {
-        _statusMessage = 'Failed to delete session. Please try again.';
-        _isSuccess = false;
-      });
+      _showStatusMessage('Failed to delete session. Please try again.', false);
     }
   }
 
   void _confirmDelete() {
-    showCupertinoDialog(
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Delete Session'),
         content: const Text('Are you sure you want to delete this session?'),
         actions: [
-          CupertinoDialogAction(
-            child: const Text('Cancel'),
+          TextButton(
             onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
+          TextButton(
             onPressed: () {
               Navigator.pop(context);
               _deleteSession();
             },
-            child: const Text('Delete'),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _clearField(TextEditingController textEditController) {
-    setState(() {
-      textEditController.clear();
-    });
-  }
-
   String formatSessionTime(String hours, String minutes) {
-    if (hours == '0' && minutes == '0') {
-      return 'Select time';
-    }
+    if (hours == '0' && minutes == '0') return 'Select time';
 
-    String hourText = '';
-    String minuteText = '';
+    String hourText = hours != '0' ? '$hours hour${hours == "1" ? "" : "s"}' : '';
+    String minuteText = minutes != '0' ? '$minutes minute${minutes == "1" ? "" : "s"}' : '';
 
-    if (hours != '0') {
-      hourText = '$hours hour${hours == '1' ? '' : 's'}';
-    }
-
-    if (minutes != '0') {
-      minuteText = '$minutes minute${minutes == '1' ? '' : 's'}';
-    }
-
-    // If both hour and minute are present, combine them
-    if (hourText.isNotEmpty && minuteText.isNotEmpty) {
-      return '$hourText $minuteText';
-    }
-
-    // Return either hour or minute depending on what is available
-    return hourText.isNotEmpty ? hourText : minuteText;
+    return [hourText, minuteText].where((e) => e.isNotEmpty).join(' ');
   }
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = CupertinoColors.systemBackground.resolveFrom(context);
-    final textColor = CupertinoColors.label.resolveFrom(context);
-    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
 
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: Text('Edit Reading Session'),
-        trailing: GestureDetector(
-          onTap: _updateSession,
-          child: Text(
-            'Save',
-            style: TextStyle(
-              color: accentColor,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Edit Reading Session'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        actions: [
+          TextButton(
+            onPressed: _updateSession,
+            child: Text(
+              'Save',
+              style: TextStyle(color: colors.primary),
             ),
           ),
-        ),
+        ],
       ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: ListView(
-            children: [
-              const Text('Book',
-                  style: TextStyle(fontSize: 16)),
-              const SizedBox(height: 8),
-              Text(
-                widget.book['title'],
-                style: const TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Pages',
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              CupertinoTextField(
-                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                controller: _pagesController,
-                placeholder: "Number of Pages",
-                onTapOutside: (event) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
-                keyboardType: TextInputType.number,
-                suffix: _pagesController.text.isNotEmpty
-                    ? Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: GestureDetector(
-                    onTap: () => _clearField(_pagesController),
-                    child: Icon(CupertinoIcons.clear, color: CupertinoColors.systemGrey),
-                  ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Book', style: textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Text(
+              widget.book['title'],
+              style: textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 24),
+            Text('Pages', style: textTheme.titleSmall),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _pagesController,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                hintText: 'Number of Pages',
+                suffixIcon: _pagesController.text.isNotEmpty
+                    ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _pagesController.clear(),
                 )
                     : null,
               ),
-              const SizedBox(height: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Time',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CupertinoButton(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    color: CupertinoColors.systemGrey5,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          formatSessionTime(_hoursController.text, _minutesController.text),
-                          style: TextStyle(fontSize: 16, color: textColor),
-                        ),
-                        Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey),
-                      ],
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 24),
+            Text('Time', style: textTheme.titleSmall),
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: () => _showDurationPicker(context),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: colors.outline),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      formatSessionTime(_hoursController.text, _minutesController.text),
+                      style: textTheme.bodyLarge,
                     ),
-                    onPressed: () => showCupertinoModalPopup(
-                      context: context,
-                      builder: (_) => Container(
-                        height: 250,
-                        color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: CupertinoTimerPicker(
-                                itemExtent: 40, // Adjust this for faster/slower scrolling
-                                mode: CupertinoTimerPickerMode.hm,
-                                initialTimerDuration: Duration(
-                                  hours: int.tryParse(_hoursController.text) ?? 0,
-                                  minutes: int.tryParse(_minutesController.text) ?? 0,
-                                ),
-                                onTimerDurationChanged: (Duration duration) {
-                                  setState(() {
-                                    _hoursController.text = duration.inHours.toString();
-                                    _minutesController.text = (duration.inMinutes % 60).toString();
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                    Icon(Icons.arrow_drop_down, color: colors.onSurface),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Date',
-                style: TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              CupertinoButton(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                color: CupertinoColors.systemGrey5,
-                borderRadius: BorderRadius.circular(8),
+            ),
+            const SizedBox(height: 24),
+            Text('Date', style: textTheme.titleSmall),
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: () => _showDatePicker(context),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: colors.outline),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       DateFormat('MMMM d, y').format(_sessionDate),
-                      style: TextStyle(fontSize: 16, color: textColor),
+                      style: textTheme.bodyLarge,
                     ),
-                    Icon(CupertinoIcons.chevron_down, color: CupertinoColors.systemGrey),
+                    Icon(Icons.calendar_today, color: colors.onSurface),
                   ],
                 ),
-                onPressed: () => showCupertinoModalPopup(
-                  context: context,
-                  builder: (_) => Container(
-                    height: 200,
-                    color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
-                    child: CupertinoDatePicker(
-                      maximumDate: DateTime.now(),
-                      initialDateTime: _sessionDate,
-                      mode: CupertinoDatePickerMode.date,
-                      onDateTimeChanged: (date) => setState(() => _sessionDate = date),
-                    ),
-                  ),
-                ),
               ),
-              const SizedBox(height: 24),
-              // Row to align buttons side by side
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    flex: 1,
-                    child: CupertinoButton(
-                      onPressed: _confirmDelete,
-                      color: CupertinoColors.destructiveRed,
-                      child: const Text(
-                        'Delete',
-                        style: TextStyle(color: CupertinoColors.white),
+            ),
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _confirmDelete,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colors.error,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: BorderSide(color: colors.error),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
+                    child: const Text('DELETE'),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    flex: 2,
-                    child: CupertinoButton(
-                      onPressed: _updateSession,
-                      color: accentColor,
-                      child: const Text('Save',
-                          style: TextStyle(color: CupertinoColors.white)),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Display the status message
-              if (_statusMessage.isNotEmpty)
-                Text(
-                  _statusMessage,
-                  style: TextStyle(
-                    color: _isSuccess ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
-                    fontSize: 16,
-                  ),
-                  textAlign: TextAlign.center,
                 ),
-            ],
-          ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton(
+                    onPressed: _updateSession,
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('SAVE CHANGES'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_statusMessage.isNotEmpty)
+              Text(
+                _statusMessage,
+                style: textTheme.bodyLarge?.copyWith(
+                  color: _isSuccess ? colors.primary : colors.error,
+                ),
+                textAlign: TextAlign.center,
+              ),
+          ],
         ),
       ),
     );
+  }
+
+  Future<void> _showDurationPicker(BuildContext context) async {
+    int hours = int.tryParse(_hoursController.text) ?? 0;
+    int minutes = int.tryParse(_minutesController.text) ?? 0;
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Duration'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: hours.toString(),
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Hours',
+                      // suffixText: 'h',
+                    ),
+                    onChanged: (value) => hours = int.tryParse(value) ?? 0,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: minutes.toString(),
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Minutes',
+                      // suffixText: 'm',
+                    ),
+                    onChanged: (value) => minutes = int.tryParse(value) ?? 0,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              setState(() {
+                _hoursController.text = hours.toString();
+                _minutesController.text = minutes.toString();
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showDatePicker(BuildContext context) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _sessionDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            dialogTheme: DialogTheme(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (date != null) {
+      setState(() => _sessionDate = date);
+    }
   }
 }

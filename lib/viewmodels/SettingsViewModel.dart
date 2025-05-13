@@ -1,6 +1,6 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 
 class SettingsViewModel {
   final ValueNotifier<ThemeMode> themeModeNotifier;
@@ -8,7 +8,7 @@ class SettingsViewModel {
   final ValueNotifier<int> defaultBookTypeNotifier;
   final ValueNotifier<int> defaultRatingStyleNotifier;
   final ValueNotifier<String> libraryBookViewNotifier;
-  final ValueNotifier<String> tabNameVisibilityNotifier;
+  final ValueNotifier<IconStyle> navStyleNotifier;
   final ValueNotifier<int> defaultTabNotifier;
   final ValueNotifier<String> defaultDateFormatNotifier;
   final ValueNotifier<String> selectedFontNotifier;
@@ -25,7 +25,7 @@ class SettingsViewModel {
     required int defaultBookType,
     required int defaultRatingStyle,
     required String bookView,
-    required String tabNameVisibility,
+    required IconStyle navStyle,
     required int defaultTab,
     required String defaultDateFormat,
     required String selectedFont,
@@ -39,7 +39,7 @@ class SettingsViewModel {
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
         defaultRatingStyleNotifier = ValueNotifier(defaultRatingStyle),
         libraryBookViewNotifier = ValueNotifier(bookView),
-        tabNameVisibilityNotifier = ValueNotifier(tabNameVisibility),
+        navStyleNotifier = ValueNotifier(navStyle),
         defaultTabNotifier = ValueNotifier(defaultTab),
         defaultDateFormatNotifier = ValueNotifier(defaultDateFormat),
         selectedFontNotifier = ValueNotifier(selectedFont),
@@ -192,17 +192,15 @@ class SettingsViewModel {
     await prefs.setString('libraryBookView', view);
   }
 
-  // Save tab name visibility (using string values)
-  Future<void> setTabNameVisibility(String visibility) async {
-    tabNameVisibilityNotifier.value = visibility;
+  Future<void> setNavStyle(IconStyle style) async {
+    navStyleNotifier.value = style;
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('tabNameVisibility', visibility);
+    prefs.setString('navStyle', _iconStyleToString(style));
   }
 
-  // Load saved tab name visibility
-  static Future<String> getTabNameVisibility() async {
+  static Future<IconStyle> getNavStyle() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('tabNameVisibility') ?? 'Always'; // Default to 'Always'
+    return _iconStringToStyle(prefs.getString('navStyle') ?? 'simple');
   }
 
   Future<void> setDefaultRatingStyle(int ratingStyle) async {
@@ -249,5 +247,27 @@ class SettingsViewModel {
   static Future<String> getSelectedFont() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('selectedFont') ?? 'Roboto'; // Default to 'Roboto'
+  }
+
+  static String _iconStyleToString(IconStyle style) {
+    switch (style) {
+      case IconStyle.animated:
+        return 'animated';
+      case IconStyle.Default:
+        return 'default';
+      default:
+        return 'simple';
+    }
+  }
+
+  static IconStyle _iconStringToStyle(String style) {
+    switch (style) {
+      case 'animated':
+        return IconStyle.animated;
+      case 'default':
+        return IconStyle.Default;
+      default:
+        return IconStyle.simple;
+    }
   }
 }

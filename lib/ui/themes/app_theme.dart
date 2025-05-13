@@ -1,49 +1,47 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '../../viewmodels/SettingsViewModel.dart';
 
 class AppTheme {
-  static const Color lightBackground = CupertinoColors.systemBackground;
-  static const Color darkBackground = Color(0xFF121212);
+  static ThemeData lightTheme(SettingsViewModel settings) {
+    final font = GoogleFonts.getFont(settings.selectedFontNotifier.value);
 
-  static CupertinoThemeData lightTheme(SettingsViewModel settings) {
-    return CupertinoThemeData(
+    return ThemeData(
       brightness: Brightness.light,
-      primaryColor: CupertinoColors.systemGrey,
-      scaffoldBackgroundColor: lightBackground,
-      barBackgroundColor: CupertinoColors.systemGrey5,
-      applyThemeToAll: true,
-      textTheme: CupertinoTextThemeData(
-        textStyle: GoogleFonts.getFont(
-          settings.selectedFontNotifier.value,
-          color: CupertinoColors.label,
-        ),
-        primaryColor: CupertinoColors.systemGrey,
+      primaryColor: settings.accentColorNotifier.value,
+      scaffoldBackgroundColor: Colors.white,
+      fontFamily: font.toString(),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: settings.accentColorNotifier.value,
+        brightness: Brightness.light,
       ),
+      cardColor: Colors.black12,
+      textTheme: TextTheme(
+        bodyLarge: font,
+        bodyMedium: font,
+        labelLarge: font,
+      ),
+      useMaterial3: true,
     );
   }
 
-  static CupertinoThemeData darkTheme(SettingsViewModel settings) {
-    return CupertinoThemeData(
+  static ThemeData darkTheme(SettingsViewModel settings) {
+    final font = GoogleFonts.getFont(settings.selectedFontNotifier.value);
+
+    return ThemeData(
       brightness: Brightness.dark,
-      primaryColor: CupertinoColors.systemGrey,
-      scaffoldBackgroundColor: darkBackground,
-      barBackgroundColor: Color(0xFF0C0C0C),
-      applyThemeToAll: true,
-      textTheme: CupertinoTextThemeData(
-        textStyle: GoogleFonts.getFont(
-          settings.selectedFontNotifier.value,
-          color: CupertinoColors.label,
-        ),
-        primaryColor: CupertinoColors.systemGrey,
+      primaryColor: settings.accentColorNotifier.value,
+      scaffoldBackgroundColor: const Color(0xFF121212),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: settings.accentColorNotifier.value,
+        brightness: Brightness.dark,
       ),
+      textTheme: TextTheme(
+        bodyLarge: font,
+        bodyMedium: font,
+        labelLarge: font,
+      ),
+      useMaterial3: true,
     );
-  }
-
-  static CupertinoThemeData systemTheme(
-      Brightness brightness, SettingsViewModel settings) {
-    return brightness == Brightness.dark
-        ? darkTheme(settings)
-        : lightTheme(settings);
   }
 }

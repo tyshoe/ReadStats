@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../../../data/repositories/tag_repository.dart';
 import 'widgets/book_card.dart';
@@ -48,7 +47,6 @@ class _LibraryPageState extends State<LibraryPage> {
   List<String> _availableTags = [];
   Map<int, List<String>> _bookTagsCache = {};
 
-// Update initState:
   @override
   void initState() {
     super.initState();
@@ -63,15 +61,14 @@ class _LibraryPageState extends State<LibraryPage> {
     _libraryBookView = widget.settingsViewModel.libraryBookViewNotifier.value;
     _selectedFinishedYears = widget.settingsViewModel.libraryFinishedYearFilterNotifier.value;
 
-
     _filteredBooks = _sortAndFilterBooks(
-      List<Map<String, dynamic>>.from(widget.books),
-      _selectedSortOption,
-      _isAscending,
-      _selectedBookTypes,
-      _isFavorite,
-      _selectedFinishedYears,
-      _selectedTags
+        List<Map<String, dynamic>>.from(widget.books),
+        _selectedSortOption,
+        _isAscending,
+        _selectedBookTypes,
+        _isFavorite,
+        _selectedFinishedYears,
+        _selectedTags
     );
     _searchController.addListener(_searchBooks);
   }
@@ -82,13 +79,13 @@ class _LibraryPageState extends State<LibraryPage> {
     if (widget.books != oldWidget.books) {
       setState(() {
         _filteredBooks = _sortAndFilterBooks(
-          List<Map<String, dynamic>>.from(widget.books),
-          _selectedSortOption,
-          _isAscending,
-          _selectedBookTypes,
-          _isFavorite,
-          _selectedFinishedYears,
-          _selectedTags
+            List<Map<String, dynamic>>.from(widget.books),
+            _selectedSortOption,
+            _isAscending,
+            _selectedBookTypes,
+            _isFavorite,
+            _selectedFinishedYears,
+            _selectedTags
         );
       });
     }
@@ -103,7 +100,7 @@ class _LibraryPageState extends State<LibraryPage> {
   Future<void> _refreshTags() async {
     await _loadAvailableTags();
     await _loadAllBookTags();
-    setState(() {}); // Trigger UI update
+    setState(() {});
   }
 
   Future<void> _loadAllBookTags() async {
@@ -149,7 +146,7 @@ class _LibraryPageState extends State<LibraryPage> {
   void _navigateToAddBookPage() async {
     await Navigator.push(
       context,
-      CupertinoPageRoute(
+      MaterialPageRoute(
         builder: (context) => AddBookPage(
           addBook: (book) async {
             await _dbHelper.insertBook(book);
@@ -164,7 +161,7 @@ class _LibraryPageState extends State<LibraryPage> {
   void _navigateToEditBookPage(Map<String, dynamic> book) async {
     await Navigator.push(
       context,
-      CupertinoPageRoute(
+      MaterialPageRoute(
         builder: (context) => EditBookPage(
           book: book,
           updateBook: (updatedBook) async {
@@ -175,13 +172,13 @@ class _LibraryPageState extends State<LibraryPage> {
         ),
       ),
     );
-    await _refreshTags(); // Refresh tags when returning
+    await _refreshTags();
   }
 
   void _navigateToAddSessionPage(int? bookId) async {
     await Navigator.push(
       context,
-      CupertinoPageRoute(
+      MaterialPageRoute(
         builder: (context) => LogSessionPage(
           books: widget.books,
           initialBookId: bookId,
@@ -196,19 +193,20 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   void _confirmDelete(int bookId) {
-    showCupertinoDialog(
+    showDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Delete Book'),
         content: const Text('Are you sure you want to delete this book and all its sessions?'),
         actions: [
-          CupertinoDialogAction(
+          TextButton(
             onPressed: () => Navigator.pop(context),
-            isDefaultAction: true,
             child: const Text('Cancel'),
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             onPressed: () async {
               await _dbHelper.deleteBook(bookId);
               widget.refreshBooks();
@@ -223,14 +221,14 @@ class _LibraryPageState extends State<LibraryPage> {
 
   void _showBookPopup(BuildContext context, Map<String, dynamic> book) async {
     BookPopup.showBookPopup(
-      context,
-      book,
-      widget.settingsViewModel.defaultRatingStyleNotifier.value,
-      widget.settingsViewModel.defaultDateFormatNotifier.value,
-      _navigateToEditBookPage,
-      _navigateToAddSessionPage,
-      _confirmDelete,
-      TagRepository(DatabaseHelper())
+        context,
+        book,
+        widget.settingsViewModel.defaultRatingStyleNotifier.value,
+        widget.settingsViewModel.defaultDateFormatNotifier.value,
+        _navigateToEditBookPage,
+        _navigateToAddSessionPage,
+        _confirmDelete,
+        TagRepository(DatabaseHelper())
     );
   }
 
@@ -244,14 +242,13 @@ class _LibraryPageState extends State<LibraryPage> {
       List<String> tags,
       ) {
     List<Map<String, dynamic>> filteredBooks = _filterBooks(
-      books,
-      selectedBookTypes,
-      isFavorite,
-      finishedYears,
-      tags
+        books,
+        selectedBookTypes,
+        isFavorite,
+        finishedYears,
+        tags
     );
 
-    // Save sorting preferences
     widget.settingsViewModel.setLibrarySortOption(selectedSortOption);
     widget.settingsViewModel.setLibrarySortAscending(isAscending);
     widget.settingsViewModel.setLibraryBookTypeFilter(selectedBookTypes);
@@ -268,7 +265,6 @@ class _LibraryPageState extends State<LibraryPage> {
       List<String> finishedYears,
       List<String> selectedTags,
       ) {
-    // Convert book type names to IDs
     final selectedTypeIds = selectedBookTypes.map((type) {
       return bookTypeNames.entries
           .firstWhere(
@@ -279,15 +275,12 @@ class _LibraryPageState extends State<LibraryPage> {
     }).where((id) => id != -1).toList();
 
     return books.where((book) {
-      // 1. Check book type match
       final typeMatch = selectedTypeIds.isEmpty ||
           (book['book_type_id'] != null && selectedTypeIds.contains(book['book_type_id']));
 
-      // 2. Check favorite match
       final favoriteMatch = !isFavorite ||
           (book['is_favorite'] != null && book['is_favorite'] == 1);
 
-      // 3. Check year match
       bool yearMatch = finishedYears.isEmpty;
       if (!yearMatch && book['date_finished'] != null) {
         try {
@@ -298,11 +291,9 @@ class _LibraryPageState extends State<LibraryPage> {
         }
       }
 
-      // 4. Check tag match
       bool tagMatch = selectedTags.isEmpty;
       if (!tagMatch) {
         final bookTags = _extractBookTags(book);
-        print(bookTags);
         tagMatch = selectedTags.any((tag) => bookTags.contains(tag));
       }
 
@@ -312,9 +303,8 @@ class _LibraryPageState extends State<LibraryPage> {
 
   List<String> _extractBookTags(Map<String, dynamic> book) {
     final bookId = book['id'] as int;
-    return _bookTagsCache[bookId] ?? []; // Return cached tags or empty list
+    return _bookTagsCache[bookId] ?? [];
   }
-
 
   static const Map<int, String> bookTypeNames = {
     1: "Paperback",
@@ -382,32 +372,32 @@ class _LibraryPageState extends State<LibraryPage> {
       tags: _selectedTags,
     );
 
-    SortFilterPopup.showSortFilterPopup(
-      context: context,
-      currentOptions: currentOptions,
-      onOptionsChange: (newOptions) {
-        setState(() {
-          _selectedSortOption = newOptions.sortOption;
-          _isAscending = newOptions.isAscending;
-          _selectedBookTypes = newOptions.bookTypes;
-          _isFavorite = newOptions.isFavorite;
-          _selectedFinishedYears = newOptions.finishedYears;
-          _selectedTags = newOptions.tags;
+    SortFilterPopup.show(
+        context: context,
+        currentOptions: currentOptions,
+        onOptionsChange: (newOptions) {
+          setState(() {
+            _selectedSortOption = newOptions.sortOption;
+            _isAscending = newOptions.isAscending;
+            _selectedBookTypes = newOptions.bookTypes;
+            _isFavorite = newOptions.isFavorite;
+            _selectedFinishedYears = newOptions.finishedYears;
+            _selectedTags = newOptions.tags;
 
-          _filteredBooks = _sortAndFilterBooks(
-            List<Map<String, dynamic>>.from(widget.books),
-            _selectedSortOption,
-            _isAscending,
-            _selectedBookTypes,
-            _isFavorite,
-            _selectedFinishedYears,
-            _selectedTags
-          );
-        });
-      },
-      availableYears: availableYears,
-      settingsViewModel: widget.settingsViewModel,
-      availableTags: _availableTags
+            _filteredBooks = _sortAndFilterBooks(
+                List<Map<String, dynamic>>.from(widget.books),
+                _selectedSortOption,
+                _isAscending,
+                _selectedBookTypes,
+                _isFavorite,
+                _selectedFinishedYears,
+                _selectedTags
+            );
+          });
+        },
+        availableYears: availableYears,
+        settingsViewModel: widget.settingsViewModel,
+        availableTags: _availableTags
     );
   }
 
@@ -425,12 +415,6 @@ class _LibraryPageState extends State<LibraryPage> {
     return years.toList()..sort((a, b) => b.compareTo(a));
   }
 
-  Color _getIconColorBasedOnAccentColor(Color color) {
-    HSLColor hslColor = HSLColor.fromColor(color);
-    double lightness = hslColor.lightness;
-    return lightness < 0.5 ? CupertinoColors.white : CupertinoColors.black;
-  }
-
   Future<void> _loadAvailableTags() async {
     try {
       final tags = await _tagRepository.getAllTags();
@@ -444,134 +428,118 @@ class _LibraryPageState extends State<LibraryPage> {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = CupertinoColors.label.resolveFrom(context);
+    final theme = Theme.of(context);
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
 
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: _isSearching
-            ? CupertinoTextField(
-          onTapOutside: (event) => FocusManager.instance.primaryFocus?.unfocus(),
+    return Scaffold(
+      appBar: AppBar(
+        title: _isSearching
+            ? TextField(
           controller: _searchController,
-          placeholder: 'Search books...',
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          style: TextStyle(color: textColor),
-          decoration: BoxDecoration(
-            color: CupertinoColors.systemGrey5,
-            borderRadius: BorderRadius.circular(8),
+          decoration: const InputDecoration(
+            hintText: 'Search books...',
+            border: InputBorder.none,
           ),
+          autofocus: true,
+          style: TextStyle(color: theme.colorScheme.onSurface),
         )
-            : Text('Library', style: TextStyle(color: textColor)),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: _toggleSearch,
-              child: Icon(
-                _isSearching ? CupertinoIcons.clear_circled : CupertinoIcons.search,
-                color: textColor,
-              ),
-            ),
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: _showSortFilterModal,
-              child: Icon(Icons.filter_list, color: textColor),
-            ),
-          ],
-        ),
+            : const Text('Library'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        actions: [
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: _toggleSearch,
+          ),
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _showSortFilterModal,
+          ),
+        ],
       ),
-      child: SafeArea(
-        child: Stack(
-          children: [
-            if (widget.books.isEmpty)
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset('assets/images/carl.png', width: 100, height: 100),
-                    SizedBox(height: 16),
-                    Text(
-                      'Carl is hungry, add a book to your library',
-                      style: TextStyle(fontSize: 16, color: textColor),
-                    ),
-                  ],
-                ),
-              )
-            else
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: CupertinoSlidingSegmentedControl<String>(
-                            groupValue: _libraryBookView,
-                            onValueChanged: (String? value) {
-                              if (value != null) _toggleView(value);
-                            },
-                            children: {
-                              "row_expanded": Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 8),
-                                child: Icon(CupertinoIcons.list_bullet, color: textColor),
-                              ),
-                              "row_compact": Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 8),
-                                child: Icon(CupertinoIcons.bars, color: textColor),
-                              ),
-                            },
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.only(top: 16),
-                          child: Text(
-                            '${_filteredBooks.length}/${widget.books.length}',
-                            style: TextStyle(fontSize: 16, color: textColor),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Expanded(
-                      child: CupertinoScrollbar(
-                        thickness: 2,
-                        child: ListView.builder(
-                          itemCount: _filteredBooks.length,
-                          itemBuilder: (context, index) {
-                            final book = _filteredBooks[index];
-                            return BookRow(
-                              book: book,
-                              textColor: textColor,
-                              isCompactView: _libraryBookView == "row_compact",
-                              showStars: widget.settingsViewModel.defaultRatingStyleNotifier.value == 0,
-                              dateFormatString: widget.settingsViewModel.defaultDateFormatNotifier.value,
-                              onTap: () => _showBookPopup(context, book),
-                            );
+      body: Stack(
+        children: [
+          if (widget.books.isEmpty)
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset('assets/images/carl.png', width: 100, height: 100),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Carl is hungry, add a book to your library',
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                ],
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      SizedBox(
+                        height: 40,
+                        child: ToggleButtons(
+                          isSelected: [
+                            _libraryBookView == "row_expanded",
+                            _libraryBookView == "row_compact",
+                          ],
+                          onPressed: (index) {
+                            _toggleView(index == 0 ? "row_expanded" : "row_compact");
                           },
+                          constraints: const BoxConstraints(
+                            minHeight: 30, // Match the SizedBox height
+                            minWidth: 40, // Make buttons square
+                          ),
+                          borderWidth: 1,
+                          borderColor: theme.colorScheme.outline,
+                          selectedBorderColor: theme.colorScheme.primary,
+                          borderRadius: BorderRadius.circular(8),
+                          children: const [
+                            Icon(Icons.density_medium, size: 16),
+                            Icon(Icons.density_small, size: 16),
+                          ],
                         ),
                       ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: Text(
+                          '${_filteredBooks.length}/${widget.books.length}',
+                          style: theme.textTheme.bodyLarge,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Expanded(
+                    child: Scrollbar(
+                      child: ListView.builder(
+                        itemCount: _filteredBooks.length,
+                        itemBuilder: (context, index) {
+                          final book = _filteredBooks[index];
+                          return BookRow(
+                            book: book,
+                            textColor: theme.colorScheme.onSurface,
+                            isCompactView: _libraryBookView == "row_compact",
+                            showStars: widget.settingsViewModel.defaultRatingStyleNotifier.value == 0,
+                            dateFormatString: widget.settingsViewModel.defaultDateFormatNotifier.value,
+                            onTap: () => _showBookPopup(context, book),
+                          );
+                        },
+                      ),
                     ),
-                  ],
-                ),
-              ),
-            Positioned(
-              bottom: 20,
-              right: 20,
-              child: CupertinoButton(
-                padding: EdgeInsets.all(16),
-                borderRadius: BorderRadius.circular(16),
-                color: accentColor,
-                onPressed: _navigateToAddBookPage,
-                child: Icon(
-                  CupertinoIcons.add,
-                  color: _getIconColorBasedOnAccentColor(accentColor),
-                ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: accentColor,
+        onPressed: _navigateToAddBookPage,
+        child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
       ),
     );
   }
