@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flex_color_picker/flex_color_picker.dart';
 
 class AccentColorPicker extends StatefulWidget {
   final Color initialColor;
@@ -18,21 +19,6 @@ class AccentColorPicker extends StatefulWidget {
 class _AccentColorPickerState extends State<AccentColorPicker> {
   late Color selectedColor;
 
-  final List<Color> colors = [
-    CupertinoColors.systemPink,
-    CupertinoColors.systemOrange,
-    CupertinoColors.systemYellow,
-    CupertinoColors.systemGreen,
-    CupertinoColors.systemTeal,
-    CupertinoColors.systemCyan,
-    CupertinoColors.systemBlue,
-    CupertinoColors.systemIndigo,
-    CupertinoColors.systemPurple,
-    CupertinoColors.systemMint,
-    CupertinoColors.systemBrown,
-    CupertinoColors.systemGrey,
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -42,84 +28,77 @@ class _AccentColorPickerState extends State<AccentColorPicker> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 340,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
       padding: const EdgeInsets.all(16),
-      color: CupertinoColors.systemGrey6.resolveFrom(context),
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemGrey6.resolveFrom(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Align(
-            alignment: Alignment.center,
-            child: Text('Choose Accent Color', style: TextStyle(fontSize: 18)),
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.center,
-            child: CupertinoButton(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              color: CupertinoColors.systemGrey5,
-              borderRadius: BorderRadius.circular(10),
-              onPressed: () {
-                final randomColor = (colors.toList()..shuffle()).first;
-                setState(() => selectedColor = randomColor);
-                widget.onColorSelected(randomColor);
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(CupertinoIcons.shuffle, size: 20),
-                  SizedBox(width: 6),
-                  Text("Random"),
-                ],
-              ),
+          Text(
+            'Choose Accent Color',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: CupertinoColors.label.resolveFrom(context),
             ),
           ),
+          const SizedBox(height: 16),
+
+          // Random Color Button
+          CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            color: CupertinoColors.systemGrey5,
+            borderRadius: BorderRadius.circular(10),
+            onPressed: () {
+              final randomColor = (ColorTools.primaryColors.toList()..shuffle()).first;
+              setState(() {
+                selectedColor = randomColor;
+              });
+              widget.onColorSelected(randomColor);
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(CupertinoIcons.shuffle, size: 20),
+                SizedBox(width: 6),
+                Text("Random Color"),
+              ],
+            ),
+          ),
+
+          // Color Picker
           Expanded(
-            child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 6,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-              ),
-              itemCount: colors.length,
-              itemBuilder: (context, index) {
-                final color = colors[index];
-                final isSelected = color == selectedColor;
-
-                final isDarkColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark;
-                final checkmarkColor = isDarkColor ? CupertinoColors.white : CupertinoColors.black;
-
-                final borderColor = isSelected
-                    ? HSLColor.fromColor(color)
-                    .withLightness((HSLColor.fromColor(color).lightness - 0.25).clamp(0.0, 1.0))
-                    .toColor()
-                    : null;
-
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => selectedColor = color);
-                    widget.onColorSelected(color);
-                    Navigator.pop(context);
-                  },
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(12),
-                          border: isSelected ? Border.all(color: borderColor!, width: 3) : null,
-                        ),
-                      ),
-                      if (isSelected)
-                        Icon(
-                          CupertinoIcons.check_mark,
-                          color: checkmarkColor,
-                          size: 28,
-                        ),
-                    ],
-                  ),
-                );
+            child: ColorPicker(
+              color: selectedColor,
+              onColorChanged: (Color color) {
+                setState(() {
+                  selectedColor = color;
+                });
+                widget.onColorSelected(color);
+              },
+              width: 60,
+              height: 60,
+              borderRadius: 8,
+              spacing: 8,
+              runSpacing: 8,
+              wheelDiameter: MediaQuery.of(context).size.width * 0.7,
+              enableOpacity: false,
+              subheading: const Text('Select color shade'),
+              pickerTypeLabels: const {
+                ColorPickerType.primary: 'Simple',
+                ColorPickerType.wheel: 'Custom',
+              },
+              pickersEnabled: const {
+                ColorPickerType.wheel: true,
+                ColorPickerType.primary: true,
+                ColorPickerType.accent: false,
+                ColorPickerType.both: false,
+                ColorPickerType.custom: false,
               },
             ),
           ),
@@ -129,7 +108,11 @@ class _AccentColorPickerState extends State<AccentColorPicker> {
   }
 }
 
-void showAccentColorPickerModal(BuildContext context, Color currentColor, ValueChanged<Color> onColorSelected) {
+void showAccentColorPickerModal(
+    BuildContext context,
+    Color currentColor,
+    ValueChanged<Color> onColorSelected,
+    ) {
   showCupertinoModalPopup(
     context: context,
     builder: (ctx) => AccentColorPicker(

@@ -82,7 +82,7 @@ class SettingsViewModel {
   // Get accent color
   static Future<Color> getAccentColor() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final int colorValue = prefs.getInt('accentColor') ?? CupertinoColors.systemPurple.value;
+    final int colorValue = prefs.getInt('accentColor') ?? 0xFF2196F3;
     return Color(colorValue);
   }
 
