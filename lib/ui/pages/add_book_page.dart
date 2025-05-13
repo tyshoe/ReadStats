@@ -414,7 +414,7 @@ class _AddBookPageState extends State<AddBookPage> {
                                   Text(
                                     _dateStarted == null
                                         ? 'Select Start Date'
-                                        : DateFormat('MMMM d, y')
+                                        : DateFormat('MMM d, y')
                                             .format(_dateStarted!),
                                     style: TextStyle(
                                         fontSize: 16, color: textColor),
@@ -522,7 +522,7 @@ class _AddBookPageState extends State<AddBookPage> {
                                   Text(
                                     _dateFinished == null
                                         ? 'Select Finish Date'
-                                        : DateFormat('MMMM d, y')
+                                        : DateFormat('MMM d, y')
                                             .format(_dateFinished!),
                                     style: TextStyle(
                                         fontSize: 16, color: textColor),
