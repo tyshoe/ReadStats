@@ -131,7 +131,43 @@ class _SortFilterPopupState extends State<_SortFilterPopup> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
-              // ... [keep existing sort controls] ...
+              Row(
+                children: [
+                  Expanded(
+                    child: CupertinoButton(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      color: CupertinoColors.systemGrey5,
+                      borderRadius: BorderRadius.circular(8),
+                      onPressed: () => _showSortPicker(context),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            currentOptions.sortOption,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: CupertinoColors.label.resolveFrom(context),
+                            ),
+                          ),
+                          const Icon(CupertinoIcons.chevron_down,
+                              color: CupertinoColors.systemGrey),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    color: CupertinoColors.systemGrey5,
+                    borderRadius: BorderRadius.circular(8),
+                    onPressed: _toggleSortOrder,
+                    child: Icon(
+                      currentOptions.isAscending ? CupertinoIcons.sort_up : CupertinoIcons.sort_down,
+                      size: 24,
+                    ),
+                  ),
+                ],
+              ),
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Divider(height: 1),
