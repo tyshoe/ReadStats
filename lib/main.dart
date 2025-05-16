@@ -171,9 +171,7 @@ class _MyAppState extends State<MyApp> {
                   darkTheme: AppTheme.darkTheme(_settingsViewModel),
                   themeMode: themeMode,
                   home: NavigationMenu(
-                    toggleTheme: (newMode) {
-                      _settingsViewModel.themeModeNotifier.value = newMode;
-                    },
+                    toggleTheme: _settingsViewModel.toggleTheme,
                     themeMode: themeMode,
                     books: _books,
                     addBook: _addBook,
@@ -245,37 +243,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
             return Scaffold(
               body: _getPage(_activeTabIndex),
               bottomNavigationBar: StylishBottomBar(
-                items: [
-                  BottomBarItem(
-                    icon: const Icon(Icons.import_contacts),
-                    selectedIcon: const Icon(Icons.import_contacts),
-                    title: Text('Library'),
-                    unSelectedColor: Colors.grey,
-                    selectedColor: accentColor,
-
-                  ),
-                  BottomBarItem(
-                    icon: const Icon(Icons.schedule),
-                    selectedIcon: const Icon(Icons.schedule),
-                    title: Text('Sessions'),
-                    unSelectedColor: Colors.grey,
-                    selectedColor: accentColor,
-                  ),
-                  BottomBarItem(
-                    icon: const Icon(Icons.bar_chart),
-                    selectedIcon: const Icon(Icons.bar_chart),
-                    title: Text('Stats'),
-                    unSelectedColor: Colors.grey,
-                    selectedColor: accentColor,
-                  ),
-                  BottomBarItem(
-                    icon: const Icon(Icons.settings),
-                    selectedIcon: const Icon(Icons.settings),
-                    title: Text('Settings'),
-                    unSelectedColor: Colors.grey,
-                    selectedColor: accentColor,
-                  ),
-                ],
+                items: _buildBottomBarItems(accentColor),
                 currentIndex: _activeTabIndex,
                 onTap: (index) {
                   setState(() {
@@ -294,6 +262,39 @@ class _NavigationMenuState extends State<NavigationMenu> {
         );
       },
     );
+  }
+
+  List<BottomBarItem> _buildBottomBarItems(Color accentColor) {
+    return [
+      BottomBarItem(
+        icon: Icon(Icons.import_contacts),
+        selectedIcon: Icon(Icons.import_contacts, color: accentColor),
+        title: Text('Library'),
+        unSelectedColor: Colors.grey,
+        selectedColor: accentColor,
+      ),
+      BottomBarItem(
+        icon: Icon(Icons.schedule),
+        selectedIcon: Icon(Icons.schedule, color: accentColor),
+        title: Text('Sessions'),
+        unSelectedColor: Colors.grey,
+        selectedColor: accentColor,
+      ),
+      BottomBarItem(
+        icon: Icon(Icons.bar_chart),
+        selectedIcon: Icon(Icons.bar_chart, color: accentColor),
+        title: Text('Stats'),
+        unSelectedColor: Colors.grey,
+        selectedColor: accentColor,
+      ),
+      BottomBarItem(
+        icon: Icon(Icons.settings),
+        selectedIcon: Icon(Icons.settings, color: accentColor),
+        title: Text('Settings'),
+        unSelectedColor: Colors.grey,
+        selectedColor: accentColor,
+      ),
+    ];
   }
 
   Widget _getPage(int index) {

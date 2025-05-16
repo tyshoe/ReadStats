@@ -175,6 +175,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final textTheme = theme.textTheme;
+    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
 
     return Scaffold(
       appBar: AppBar(
@@ -185,7 +186,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
             onPressed: _saveSession,
             child: Text(
               'Save',
-              style: TextStyle(color: colors.primary),
+              style: TextStyle(color: accentColor),
             ),
           ),
         ],
@@ -239,6 +240,9 @@ class _LogSessionPageState extends State<LogSessionPage> {
                     : null,
               ),
               keyboardType: TextInputType.number,
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
             ),
             const SizedBox(height: 24),
             Text('Time', style: textTheme.titleSmall),
@@ -295,12 +299,13 @@ class _LogSessionPageState extends State<LogSessionPage> {
               child: FilledButton(
                 onPressed: _saveSession,
                 style: FilledButton.styleFrom(
+                  backgroundColor: accentColor,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('SAVE SESSION'),
+                child: const Text('Save Session'),
               ),
             ),
             const SizedBox(height: 16),

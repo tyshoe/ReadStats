@@ -233,7 +233,7 @@ class BookPopup {
                     children: [
                       // Book Completion Statuses
                       Expanded(
-                        flex: 6,
+                        flex: 7,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -289,7 +289,7 @@ class BookPopup {
                       ),
                       // Pages and words
                       Expanded(
-                        flex: 4,
+                        flex: 3,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [

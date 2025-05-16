@@ -284,10 +284,7 @@ class _SessionsPageState extends State<SessionsPage> {
           ? FloatingActionButton(
         backgroundColor: accentColor,
         onPressed: _navigateToAddSessionPage,
-        child: Icon(
-          Icons.add,
-          color: _getIconColorBasedOnAccentColor(accentColor),
-        ),
+        child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
       )
           : null,
     );

@@ -118,14 +118,35 @@ class _EditBookPageState extends State<EditBookPage> {
   Future<void> _selectDate(BuildContext context, bool isStartDate) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isStartDate ? _dateStarted ?? _dateToday : _dateFinished ?? _dateToday,
-      firstDate: DateTime(1900),
+      initialDate: isStartDate
+          ? _dateStarted ?? _dateToday
+          : _dateFinished ?? _dateStarted ?? _dateToday,
+      firstDate: isStartDate
+          ? DateTime(1900)
+          : _dateStarted ??
+              DateTime(1900), // Finish date can't be before start date
       lastDate: _dateToday,
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: widget.settingsViewModel.accentColorNotifier.value,
+              onPrimary: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
+
     if (picked != null) {
       setState(() {
         if (isStartDate) {
           _dateStarted = picked;
+          // Reset finish date if it's now before the new start date
+          if (_dateFinished != null && _dateFinished!.isBefore(picked)) {
+            _dateFinished = null;
+          }
         } else {
           _dateFinished = picked;
         }
@@ -136,6 +157,70 @@ class _EditBookPageState extends State<EditBookPage> {
   Future<List<Tag>> _getBookTags() async {
     return await TagRepository(DatabaseHelper())
         .getTagsForBook(widget.book['id']);
+  }
+
+  Widget _buildDateField({
+    required BuildContext context,
+    required String label,
+    required DateTime? date,
+    required VoidCallback onPressed,
+    required VoidCallback onClear,
+    required ThemeData theme,
+  }) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: theme.textTheme.bodySmall),
+          const SizedBox(height: 4),
+          SizedBox(
+            height: 48,
+            child: OutlinedButton(
+              onPressed: onPressed,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.5),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      date == null
+                          ? 'Select $label'
+                          : DateFormat('MMM d, y').format(date),
+                      style: theme.textTheme.bodyMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  date == null
+                      ? Icon(
+                          Icons.calendar_today,
+                          size: 18,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: onClear,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -174,11 +259,14 @@ class _EditBookPageState extends State<EditBookPage> {
                 ),
                 suffixIcon: _titleController.text.isNotEmpty
                     ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _clearField(_titleController),
-                )
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_titleController),
+                      )
                     : null,
               ),
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
             ),
             const SizedBox(height: 16),
 
@@ -194,11 +282,14 @@ class _EditBookPageState extends State<EditBookPage> {
                 ),
                 suffixIcon: _authorController.text.isNotEmpty
                     ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _clearField(_authorController),
-                )
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_authorController),
+                      )
                     : null,
               ),
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
             ),
             const SizedBox(height: 16),
 
@@ -214,12 +305,15 @@ class _EditBookPageState extends State<EditBookPage> {
                 ),
                 suffixIcon: _wordCountController.text.isNotEmpty
                     ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _clearField(_wordCountController),
-                )
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_wordCountController),
+                      )
                     : null,
               ),
               keyboardType: TextInputType.number,
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
             ),
             const SizedBox(height: 16),
 
@@ -235,42 +329,42 @@ class _EditBookPageState extends State<EditBookPage> {
                 ),
                 suffixIcon: _pageCountController.text.isNotEmpty
                     ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _clearField(_pageCountController),
-                )
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_pageCountController),
+                      )
                     : null,
               ),
               keyboardType: TextInputType.number,
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
             ),
             const SizedBox(height: 16),
 
             // Book Type
             Text('Format', style: theme.textTheme.bodyMedium),
             const SizedBox(height: 8),
-            SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(
-                  value: 0,
-                  label: Text('Paperback'),
+            DropdownButtonFormField<int>(
+              value: _selectedBookType,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                ButtonSegment(
-                  value: 1,
-                  label: Text('Hardback'),
-                ),
-                ButtonSegment(
-                  value: 2,
-                  label: Text('eBook'),
-                ),
-                ButtonSegment(
-                  value: 3,
-                  label: Text('Audiobook'),
-                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              ),
+              items: const [
+                DropdownMenuItem(value: 0, child: Text('Paperback')),
+                DropdownMenuItem(value: 1, child: Text('Hardback')),
+                DropdownMenuItem(value: 2, child: Text('eBook')),
+                DropdownMenuItem(value: 3, child: Text('Audiobook')),
               ],
-              selected: {_selectedBookType},
-              onSelectionChanged: (Set<int> newSelection) {
-                setState(() {
-                  _selectedBookType = newSelection.first;
-                });
+              onChanged: (int? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _selectedBookType = newValue;
+                  });
+                }
               },
             ),
             const SizedBox(height: 16),
@@ -307,46 +401,55 @@ class _EditBookPageState extends State<EditBookPage> {
                   Expanded(
                     child: _useStarRating
                         ? RatingBar.builder(
-                      initialRating: _rating,
-                      minRating: 0,
-                      direction: Axis.horizontal,
-                      allowHalfRating: true,
-                      itemCount: 5,
-                      itemSize: 32,
-                      itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      itemBuilder: (context, _) => const Icon(
-                        Icons.star,
-                        color: Colors.amber,
-                      ),
-                      onRatingUpdate: (rating) {
-                        setState(() {
-                          _rating = rating;
-                        });
-                      },
-                    )
+                            initialRating: _rating,
+                            minRating: 0,
+                            direction: Axis.horizontal,
+                            allowHalfRating: true,
+                            itemCount: 5,
+                            itemSize: 32,
+                            itemPadding:
+                                const EdgeInsets.symmetric(horizontal: 4.0),
+                            itemBuilder: (context, _) => const Icon(
+                              Icons.star,
+                              color: Colors.amber,
+                            ),
+                            onRatingUpdate: (rating) {
+                              setState(() {
+                                _rating = rating;
+                              });
+                            },
+                          )
                         : TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Rating (0-5)',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (value) {
-                        final parsed = double.tryParse(value);
-                        if (parsed != null && parsed >= 0 && parsed <= 5) {
-                          setState(() {
-                            _rating = parsed;
-                          });
-                        }
-                      },
-                    ),
+                            decoration: InputDecoration(
+                              hintText: 'Rating (0-5)',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            keyboardType:
+                                TextInputType.numberWithOptions(decimal: true),
+                            onChanged: (value) {
+                              final parsed = double.tryParse(value);
+                              if (parsed != null &&
+                                  parsed >= 0 &&
+                                  parsed <= 5) {
+                                setState(() {
+                                  _rating = parsed;
+                                });
+                              }
+                            },
+                            onTapOutside: (event) {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                            },
+                          ),
                   ),
                   const SizedBox(width: 16),
                   IconButton(
                     icon: Icon(
                       _isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: _isFavorite ? Colors.red : theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: _isFavorite
+                          ? Colors.red
+                          : theme.colorScheme.onSurface.withOpacity(0.6),
                       size: 32,
                     ),
                     onPressed: () {
@@ -365,110 +468,22 @@ class _EditBookPageState extends State<EditBookPage> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Start Date', style: theme.textTheme.bodySmall),
-                      const SizedBox(height: 4),
-                      SizedBox(
-                        height: 48,
-                        child: Stack(
-                          children: [
-                            OutlinedButton(
-                              onPressed: () => _selectDate(context, true),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      _dateStarted == null
-                                          ? 'Select Start Date'
-                                          : DateFormat('MMM d, y').format(_dateStarted!),
-                                      style: theme.textTheme.bodyMedium,
-                                    ),
-                                  ),
-                                  const Icon(Icons.calendar_today, size: 18),
-                                ],
-                              ),
-                            ),
-                            if (_dateStarted != null)
-                              Positioned(
-                                right: 8,
-                                top: 0,
-                                bottom: 0,
-                                child: GestureDetector(
-                                  onTap: _clearStartDate,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    child: const Icon(Icons.clear, size: 18),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                _buildDateField(
+                  context: context,
+                  label: 'Start Date',
+                  date: _dateStarted,
+                  onPressed: () => _selectDate(context, true),
+                  onClear: _clearStartDate,
+                  theme: theme,
                 ),
                 const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Finish Date', style: theme.textTheme.bodySmall),
-                      const SizedBox(height: 4),
-                      SizedBox(
-                        height: 48,
-                        child: Stack(
-                          children: [
-                            OutlinedButton(
-                              onPressed: () => _selectDate(context, false),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      _dateFinished == null
-                                          ? 'Select Finish Date'
-                                          : DateFormat('MMM d, y').format(_dateFinished!),
-                                      style: theme.textTheme.bodyMedium,
-                                    ),
-                                  ),
-                                  const Icon(Icons.calendar_today, size: 18),
-                                ],
-                              ),
-                            ),
-                            if (_dateFinished != null)
-                              Positioned(
-                                right: 8,
-                                top: 0,
-                                bottom: 0,
-                                child: GestureDetector(
-                                  onTap: _clearFinishDate,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    child: const Icon(Icons.clear, size: 18),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                _buildDateField(
+                  context: context,
+                  label: 'Finish Date',
+                  date: _dateFinished,
+                  onPressed: () => _selectDate(context, false),
+                  onClear: _clearFinishDate,
+                  theme: theme,
                 ),
               ],
             ),
@@ -481,16 +496,34 @@ class _EditBookPageState extends State<EditBookPage> {
                 final tags = snapshot.data ?? [];
                 return InkWell(
                   onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      builder: (context) => TagSelectorSheet(
-                        bookId: widget.book['id'],
-                        tagRepository: TagRepository(DatabaseHelper()),
-                        settingsViewModel: widget.settingsViewModel,
+                    Navigator.of(context)
+                        .push(
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) =>
+                            TagSelectorSheet(
+                          bookId: widget.book['id'],
+                          tagRepository: TagRepository(DatabaseHelper()),
+                          settingsViewModel: widget.settingsViewModel,
+                        ),
+                        transitionsBuilder:
+                            (context, animation, secondaryAnimation, child) {
+                          const begin = Offset(1.0, 0.0);
+                          const end = Offset.zero;
+                          const curve = Curves.easeInOut;
+
+                          var tween = Tween(begin: begin, end: end)
+                              .chain(CurveTween(curve: curve));
+                          var offsetAnimation = animation.drive(tween);
+
+                          return SlideTransition(
+                            position: offsetAnimation,
+                            child: child,
+                          );
+                        },
                       ),
-                      isScrollControlled: true,
-                    ).then((_) {
-                      setState(() {});
+                    )
+                        .then((_) {
+                      if (mounted) setState(() {});
                     });
                   },
                   borderRadius: BorderRadius.circular(12),
@@ -505,7 +538,9 @@ class _EditBookPageState extends State<EditBookPage> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.tag, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                            Icon(Icons.tag,
+                                color: theme.colorScheme.onSurface
+                                    .withOpacity(0.6)),
                             const SizedBox(width: 8),
                             Text(
                               'Tags',
@@ -518,10 +553,13 @@ class _EditBookPageState extends State<EditBookPage> {
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children: tags.map((tag) => Chip(
-                              label: Text(tag.name),
-                              backgroundColor: theme.colorScheme.surfaceVariant,
-                            )).toList(),
+                            children: tags
+                                .map((tag) => Chip(
+                                      label: Text(tag.name),
+                                      backgroundColor:
+                                          theme.colorScheme.surfaceVariant,
+                                    ))
+                                .toList(),
                           ),
                       ],
                     ),

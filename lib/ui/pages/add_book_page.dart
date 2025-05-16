@@ -117,14 +117,34 @@ class _AddBookPageState extends State<AddBookPage> {
   Future<void> _selectDate(BuildContext context, bool isStartDate) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isStartDate ? _dateStarted ?? _dateToday : _dateFinished ?? _dateToday,
-      firstDate: DateTime(1900),
+      initialDate: isStartDate
+          ? _dateStarted ?? _dateToday
+          : _dateFinished ?? _dateStarted ?? _dateToday,
+      firstDate: isStartDate
+          ? DateTime(1900)
+          : _dateStarted ?? DateTime(1900), // Finish date can't be before start date
       lastDate: _dateToday,
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: widget.settingsViewModel.accentColorNotifier.value,
+              onPrimary: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
+
     if (picked != null) {
       setState(() {
         if (isStartDate) {
           _dateStarted = picked;
+          // Reset finish date if it's now before the new start date
+          if (_dateFinished != null && _dateFinished!.isBefore(picked)) {
+            _dateFinished = null;
+          }
         } else {
           _dateFinished = picked;
         }
@@ -175,6 +195,9 @@ class _AddBookPageState extends State<AddBookPage> {
                 )
                     : null,
               ),
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
             ),
             const SizedBox(height: 16),
 
@@ -195,6 +218,9 @@ class _AddBookPageState extends State<AddBookPage> {
                 )
                     : null,
               ),
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
             ),
             const SizedBox(height: 16),
 
@@ -215,6 +241,9 @@ class _AddBookPageState extends State<AddBookPage> {
                 )
                     : null,
               ),
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 16),
@@ -237,36 +266,35 @@ class _AddBookPageState extends State<AddBookPage> {
                     : null,
               ),
               keyboardType: TextInputType.number,
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
             ),
             const SizedBox(height: 16),
 
             // Book Type
             Text('Format', style: theme.textTheme.bodyMedium),
             const SizedBox(height: 8),
-            SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(
-                  value: 0,
-                  label: Text('Paperback'),
+            DropdownButtonFormField<int>(
+              value: _selectedBookType,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                ButtonSegment(
-                  value: 1,
-                  label: Text('Hardback'),
-                ),
-                ButtonSegment(
-                  value: 2,
-                  label: Text('eBook'),
-                ),
-                ButtonSegment(
-                  value: 3,
-                  label: Text('Audiobook'),
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              ),
+              items: const [
+                DropdownMenuItem(value: 0, child: Text('Paperback')),
+                DropdownMenuItem(value: 1, child: Text('Hardback')),
+                DropdownMenuItem(value: 2, child: Text('eBook')),
+                DropdownMenuItem(value: 3, child: Text('Audiobook')),
               ],
-              selected: {_selectedBookType},
-              onSelectionChanged: (Set<int> newSelection) {
-                setState(() {
-                  _selectedBookType = newSelection.first;
-                });
+              onChanged: (int? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _selectedBookType = newValue;
+                  });
+                }
               },
             ),
             const SizedBox(height: 16),
@@ -336,6 +364,9 @@ class _AddBookPageState extends State<AddBookPage> {
                             _rating = parsed;
                           });
                         }
+                      },
+                      onTapOutside: (event) {
+                        FocusManager.instance.primaryFocus?.unfocus();
                       },
                     ),
                   ),

@@ -148,6 +148,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final textTheme = theme.textTheme;
+    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
 
     return Scaffold(
       appBar: AppBar(
@@ -158,7 +159,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
             onPressed: _updateSession,
             child: Text(
               'Save',
-              style: TextStyle(color: colors.primary),
+              style: TextStyle(color: accentColor),
             ),
           ),
         ],
@@ -192,6 +193,9 @@ class _EditSessionPageState extends State<EditSessionPage> {
                     : null,
               ),
               keyboardType: TextInputType.number,
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
             ),
             const SizedBox(height: 24),
             Text('Time', style: textTheme.titleSmall),
@@ -255,7 +259,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('DELETE'),
+                    child: const Text('Delete'),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -264,12 +268,13 @@ class _EditSessionPageState extends State<EditSessionPage> {
                   child: FilledButton(
                     onPressed: _updateSession,
                     style: FilledButton.styleFrom(
+                      backgroundColor: accentColor,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('SAVE CHANGES'),
+                    child: const Text('Save Changes'),
                   ),
                 ),
               ],
@@ -311,6 +316,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
                       // suffixText: 'h',
                     ),
                     onChanged: (value) => hours = int.tryParse(value) ?? 0,
+
                   ),
                 ),
                 const SizedBox(width: 16),
