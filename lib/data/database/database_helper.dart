@@ -301,6 +301,16 @@ class DatabaseHelper {
     );
   }
 
+  Future<int> updateBookPartial(int id, Map<String, dynamic> updates) async {
+    final db = await database;
+    return await db.update(
+      'books',
+      updates,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   Future<int> deleteBook(int id) async {
     final db = await database;
     return await db.delete(

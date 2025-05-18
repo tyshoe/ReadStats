@@ -306,6 +306,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
           refreshSessions: widget.refreshSessions,
           settingsViewModel: widget.settingsViewModel,
           sessionRepository: widget.sessionRepository,
+          bookRepository: widget.bookRepository,
         );
       case 1:
         return SessionsPage(
@@ -314,6 +315,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
           refreshSessions: widget.refreshSessions,
           settingsViewModel: widget.settingsViewModel,
           sessionRepository: widget.sessionRepository,
+          bookRepository: widget.bookRepository,
         );
       case 2:
         return StatisticsPage(

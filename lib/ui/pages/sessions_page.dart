@@ -4,6 +4,7 @@ import 'edit_session_page.dart';
 import 'add_session_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/data/repositories/session_repository.dart';
+import '/data/repositories/book_repository.dart';
 
 class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -11,6 +12,7 @@ class SessionsPage extends StatefulWidget {
   final Function() refreshSessions;
   final SettingsViewModel settingsViewModel;
   final SessionRepository sessionRepository;
+  final BookRepository bookRepository;
 
   const SessionsPage({
     super.key,
@@ -19,6 +21,7 @@ class SessionsPage extends StatefulWidget {
     required this.refreshSessions,
     required this.settingsViewModel,
     required this.sessionRepository,
+    required this.bookRepository,
   });
 
   @override
@@ -144,6 +147,7 @@ class _SessionsPageState extends State<SessionsPage> {
           refreshSessions: widget.refreshSessions,
           settingsViewModel: widget.settingsViewModel,
           sessionRepository: widget.sessionRepository,
+          bookRepository: widget.bookRepository,
         ),
       ),
     );

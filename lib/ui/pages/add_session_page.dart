@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
+import '/data/repositories/book_repository.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
 class LogSessionPage extends StatefulWidget {
@@ -10,6 +11,7 @@ class LogSessionPage extends StatefulWidget {
   final int? initialBookId;
   final SettingsViewModel settingsViewModel;
   final SessionRepository sessionRepository;
+  final BookRepository bookRepository;
 
   const LogSessionPage({
     super.key,
@@ -18,6 +20,7 @@ class LogSessionPage extends StatefulWidget {
     this.initialBookId,
     required this.settingsViewModel,
     required this.sessionRepository,
+    required this.bookRepository,
   });
 
   @override
@@ -32,6 +35,8 @@ class _LogSessionPageState extends State<LogSessionPage> {
   DateTime _sessionDate = DateTime.now();
   String _statusMessage = '';
   bool _isSuccess = false;
+  bool _isFirstSession = false;
+  bool _isFinalSession = false;
 
   List<Map<String, dynamic>> _availableBooks = [];
 
@@ -45,14 +50,15 @@ class _LogSessionPageState extends State<LogSessionPage> {
     // Pre-select book if initialBookId is provided
     if (widget.initialBookId != null) {
       _selectedBook = _availableBooks.firstWhere(
-        (book) => book['id'] == widget.initialBookId,
-        orElse: () =>
-            <String, dynamic>{}, // Return an empty map instead of null
+            (book) => book['id'] == widget.initialBookId,
+        orElse: () => <String, dynamic>{},
       );
 
-      // If an empty map was returned, set _selectedBook to null
       if (_selectedBook!.isEmpty) {
         _selectedBook = null;
+      } else {
+        // Check if this is the first session for the book
+        _checkIfFirstSession();
       }
     }
 
@@ -60,48 +66,58 @@ class _LogSessionPageState extends State<LogSessionPage> {
     _minutesController.text = "0";
   }
 
+  Future<void> _checkIfFirstSession() async {
+    if (_selectedBook == null) return;
+
+    final sessions = await widget.sessionRepository.getSessionsByBookId(_selectedBook!['id']);
+    if (sessions.isEmpty) {
+      setState(() => _isFirstSession = true);
+    }
+  }
+
   void _saveSession() async {
-    // Validate book selection
     if (_selectedBook == null) {
       _showStatusMessage('Please select a book.', false);
       return;
     }
 
-    // Validate numeric inputs
     final int? pagesRead = int.tryParse(_pagesController.text);
     final int? hours = int.tryParse(_hoursController.text);
     final int? minutes = int.tryParse(_minutesController.text);
 
     if (pagesRead == null || hours == null || minutes == null) {
-      setState(() {
-        _statusMessage = 'Please enter valid numbers.';
-        _isSuccess = false;
-      });
-      _clearStatusMessage();
+      _showStatusMessage('Please enter valid numbers.', false);
       return;
     }
 
     final int durationMinutes = (hours * 60) + minutes;
     if (pagesRead <= 0 || durationMinutes <= 0) {
-      setState(() {
-        _statusMessage = 'Pages and time must be greater than zero.';
-        _isSuccess = false;
-      });
-      _clearStatusMessage();
+      _showStatusMessage('Pages and time must be greater than zero.', false);
       return;
     }
 
-    final session = Session(
-      bookId: _selectedBook!['id'],
-      pagesRead: pagesRead,
-      durationMinutes: durationMinutes,
-      date: _sessionDate.toIso8601String(),
-    );
-
     try {
-      await widget.sessionRepository.addSession(session);
-      widget.refreshSessions();
+      // First create the session
+      final session = Session(
+        bookId: _selectedBook!['id'],
+        pagesRead: pagesRead,
+        durationMinutes: durationMinutes,
+        date: _sessionDate.toIso8601String(),
+      );
 
+      await widget.sessionRepository.addSession(session);
+
+      // Then update book dates if needed
+      if (_isFirstSession || _isFinalSession) {
+        await widget.bookRepository.updateBookDates(
+          _selectedBook!['id'],
+          isFirstSession: _isFirstSession,
+          isFinalSession: _isFinalSession,
+          sessionDate: _sessionDate,
+        );
+      }
+
+      widget.refreshSessions();
       _showStatusMessage('Session added successfully!', true);
       _resetInputs();
     } catch (e) {
@@ -211,11 +227,18 @@ class _LogSessionPageState extends State<LogSessionPage> {
                   value: book,
                   child: Text(
                     book['title'],
-                    overflow: TextOverflow.ellipsis, // Handles long text
+                    overflow: TextOverflow.ellipsis,
                   ),
                 );
               }).toList(),
-              onChanged: (value) => setState(() => _selectedBook = value),
+              onChanged: (value) {
+                setState(() {
+                  _selectedBook = value;
+                  _isFirstSession = false;
+                  _isFinalSession = false;
+                });
+                if (value != null) _checkIfFirstSession();
+              },
               hint: const Text('Select a book'),
               isExpanded: true,
               dropdownColor: Theme.of(context).colorScheme.surface,
@@ -293,6 +316,40 @@ class _LogSessionPageState extends State<LogSessionPage> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Session Type Checkboxes
+            if (_selectedBook != null) ...[
+              Text('Session Type', style: textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Column(
+                children: [
+                  CheckboxListTile(
+                    title: const Text('First session for this book'),
+                    value: _isFirstSession,
+                    onChanged: (value) {
+                      setState(() => _isFirstSession = value ?? false);
+                      if (value == true) {
+                        setState(() => _isFinalSession = false);
+                      }
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                  CheckboxListTile(
+                    title: const Text('Final session (book completed)'),
+                    value: _isFinalSession,
+                    onChanged: (value) {
+                      setState(() => _isFinalSession = value ?? false);
+                      if (value == true) {
+                        setState(() => _isFirstSession = false);
+                      }
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ],
+              ),
+            ],
+
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,

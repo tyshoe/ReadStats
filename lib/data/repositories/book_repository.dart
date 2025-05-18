@@ -46,5 +46,27 @@ class BookRepository {
   Future<List<int>> getBookYears() async {
     return await _databaseHelper.getBookYears();
   }
+
+  Future<void> updateBookDates(
+      int bookId, {
+        required bool isFirstSession,
+        required bool isFinalSession,
+        required DateTime sessionDate,
+      }) async {
+    final updates = <String, dynamic>{};
+
+    if (isFirstSession) {
+      updates['date_started'] = sessionDate.toIso8601String();
+    }
+
+    if (isFinalSession) {
+      updates['date_finished'] = sessionDate.toIso8601String();
+      updates['is_completed'] = 1;
+    }
+
+    if (updates.isNotEmpty) {
+      await _databaseHelper.updateBookPartial(bookId, updates);
+    }
+  }
 }
 
