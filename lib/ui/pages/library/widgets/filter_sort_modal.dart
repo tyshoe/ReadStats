@@ -266,63 +266,70 @@ class _SortFilterViewState extends State<_SortFilterView> {
 
   Widget _buildSortControls() {
     final theme = Theme.of(context);
-    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
+    final borderColor = theme.colorScheme.outline;
 
     return Row(
       children: [
         Expanded(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: _showSortPicker,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: theme.colorScheme.outline.withOpacity(0.5),
-                  width: 1,
-                ),
+          child: DropdownButtonFormField<String>(
+            value: currentOptions.sortOption,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    currentOptions.sortOption,
-                    style: theme.textTheme.bodyLarge,
-                  ),
-                  Icon(
-                    Icons.arrow_drop_down,
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  ),
-                ],
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor),
               ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: borderColor, width: 1.5),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
             ),
+            items: sortOptions.map((option) {
+              return DropdownMenuItem<String>(
+                value: option,
+                child: Text(option, overflow: TextOverflow.ellipsis),
+              );
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  currentOptions = currentOptions.copyWith(sortOption: value);
+                });
+              }
+            },
+            isExpanded: true,
+            dropdownColor: theme.colorScheme.secondaryContainer,
+            menuMaxHeight: 200,
+            alignment: AlignmentDirectional.centerStart,
           ),
         ),
         const SizedBox(width: 8),
-        InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            setState(() {
-              currentOptions = currentOptions.copyWith(
-                isAscending: !currentOptions.isAscending,
-              );
-            });
-          },
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: theme.colorScheme.outline.withOpacity(0.5),
-                width: 1,
+        SizedBox(
+          width: 48,
+          height: 48,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              setState(() {
+                currentOptions = currentOptions.copyWith(
+                  isAscending: !currentOptions.isAscending,
+                );
+              });
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: borderColor, width: 1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              currentOptions.isAscending ? Icons.arrow_upward : Icons.arrow_downward,
-              color: theme.colorScheme.onSurface.withOpacity(0.8),
+              alignment: Alignment.center,
+              child: Icon(
+                currentOptions.isAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                color: theme.colorScheme.onSurface.withOpacity(0.8),
+              ),
             ),
           ),
         ),
@@ -335,6 +342,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
     required List<String> selected,
     required Function(List<String>) onChanged,
   }) {
+
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -359,85 +367,19 @@ class _SortFilterViewState extends State<_SortFilterView> {
           },
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
+            side: BorderSide(
+              color: isSelected
+                  ? Colors.transparent
+                  : Theme.of(context).colorScheme.outline,
+              width: 1,
+            ),
           ),
+          selectedColor: Theme.of(context).colorScheme.primaryContainer,
+          labelStyle: Theme.of(context).textTheme.bodyMedium,
         );
       }).toList(),
     );
   }
 
-  Future<void> _showSortPicker() async {
-    final theme = Theme.of(context);
-    final initialIndex = sortOptions.indexOf(currentOptions.sortOption);
 
-    await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          insetPadding: const EdgeInsets.all(20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Sort By',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              SizedBox(
-                height: 250, // Fixed height for consistent appearance
-                child: ListView.builder(
-                  padding: EdgeInsets.zero,
-                  itemCount: sortOptions.length,
-                  itemBuilder: (context, index) {
-                    return Material(
-                      color: Colors.transparent,
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-                        title: Text(sortOptions[index]),
-                        trailing: Radio<String>(
-                          value: sortOptions[index],
-                          groupValue: currentOptions.sortOption,
-                          onChanged: (value) {
-                            setState(() {
-                              currentOptions = currentOptions.copyWith(
-                                sortOption: value!,
-                              );
-                            });
-                            Navigator.pop(context);
-                          },
-                        ),
-                        onTap: () {
-                          setState(() {
-                            currentOptions = currentOptions.copyWith(
-                              sortOption: sortOptions[index],
-                            );
-                          });
-                          Navigator.pop(context);
-                        },
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-
-  }
 }
