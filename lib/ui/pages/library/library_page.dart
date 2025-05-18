@@ -438,6 +438,18 @@ class _LibraryPageState extends State<LibraryPage> {
     }
   }
 
+  void _showRandomBook() {
+    if (_filteredBooks.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No books available to choose from')),
+      );
+      return;
+    }
+
+    final randomBook = (_filteredBooks.toList()..shuffle()).first;
+    _showBookPopup(context, randomBook);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -465,6 +477,20 @@ class _LibraryPageState extends State<LibraryPage> {
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: _showSortFilterModal,
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'random') {
+                _showRandomBook();
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'random',
+                child: Text('Random Book'),
+              ),
+            ],
           ),
         ],
       ),
