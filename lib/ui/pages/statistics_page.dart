@@ -31,9 +31,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
 
   Future<Map<String, dynamic>> calculateStats(int selectedYear) async {
     // Fetch session stats filtered by the selected year
-    List<Session> sessions;
-
-    sessions = await widget.sessionRepository.getSessions(yearFilter: selectedYear);
+    List<Session> sessions = await widget.sessionRepository.getSessions(yearFilter: selectedYear);
 
     int totalSessions = sessions.length;
     int totalPagesRead = 0;
@@ -44,8 +42,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
       totalMinutes += session.durationMinutes;
     }
 
-    double avgPagesPerMinute =
-    totalMinutes > 0 ? totalPagesRead / totalMinutes : 0;
+    double avgPagesPerMinute = totalMinutes > 0 ? totalPagesRead / totalMinutes : 0;
     String totalTimeSpent = convertMinutesToTimeString(totalMinutes);
 
     // Fetch book stats filtered by the selected year
@@ -57,17 +54,20 @@ class _StatisticsPageState extends State<StatisticsPage> {
       'totalTimeSpent': totalTimeSpent,
       'avgPagesPerMinute': avgPagesPerMinute,
       'highestRating': bookStats['highest_rating'] ?? 0,
+      'highestRatingBookTitle': bookStats['highest_rating_book_title'],
       'lowestRating': bookStats['lowest_rating'] ?? 0,
+      'lowestRatingBookTitle': bookStats['lowest_rating_book_title'],
       'averageRating': bookStats['average_rating'] ?? 0,
       'highestPages': bookStats['highest_pages'] ?? 0,
+      'highestPagesBookTitle': bookStats['highest_pages_book_title'],
       'lowestPages': bookStats['lowest_pages'] ?? 0,
+      'lowestPagesBookTitle': bookStats['lowest_pages_book_title'],
       'averagePages': bookStats['average_pages'] ?? 0,
-      'slowestReadTime':
-      convertMinutesToTimeString(bookStats['slowest_read_time'] ?? 0),
-      'fastestReadTime':
-      convertMinutesToTimeString(bookStats['fastest_read_time'] ?? 0),
+      'slowestReadTime': convertMinutesToTimeString(bookStats['slowest_read_time'] ?? 0),
+      'slowestReadBookTitle': bookStats['slowest_read_book_title'],
+      'fastestReadTime': convertMinutesToTimeString(bookStats['fastest_read_time'] ?? 0),
+      'fastestReadBookTitle': bookStats['fastest_read_book_title'],
       'booksCompleted': bookStats['books_completed'] ?? 0,
-
     };
   }
 
@@ -175,21 +175,45 @@ class _StatisticsPageState extends State<StatisticsPage> {
                       _buildStatCard('Books Finished', stats['booksCompleted'].toString()),
 
                       _buildSectionHeader('Ratings'),
-                      _buildStatCard('Highest Rating', stats['highestRating'].toString()),
-                      _buildStatCard('Lowest Rating', stats['lowestRating'].toString()),
+                      _buildStatCardWithBook(
+                        'Highest Rating',
+                        stats['highestRating'].toString(),
+                        stats['highestRatingBookTitle'],
+                      ),
+                      _buildStatCardWithBook(
+                        'Lowest Rating',
+                        stats['lowestRating'].toString(),
+                        stats['lowestRatingBookTitle'],
+                      ),
                       _buildStatCard('Average Rating', stats['averageRating'].toStringAsFixed(2)),
 
                       _buildSectionHeader('Reading Time'),
                       _buildStatCard('Total Time Spent', stats['totalTimeSpent']),
-                      _buildStatCard('Slowest Read', stats['slowestReadTime'].toString()),
-                      _buildStatCard('Fastest Read', stats['fastestReadTime'].toString()),
+                      _buildStatCardWithBook(
+                        'Slowest Read',
+                        stats['slowestReadTime'].toString(),
+                        stats['slowestReadBookTitle'],
+                      ),
+                      _buildStatCardWithBook(
+                        'Fastest Read',
+                        stats['fastestReadTime'].toString(),
+                        stats['fastestReadBookTitle'],
+                      ),
 
                       _buildSectionHeader('Pages'),
                       _buildStatCard('Total Pages Read', stats['totalPagesRead'].toString()),
                       _buildStatCard('Avg Pages/Min', stats['avgPagesPerMinute'].toStringAsFixed(2)),
                       _buildStatCard('Average Pages', stats['averagePages'].toStringAsFixed(2)),
-                      _buildStatCard('Longest Book', stats['highestPages'].toString()),
-                      _buildStatCard('Shortest Book', stats['lowestPages'].toString()),
+                      _buildStatCardWithBook(
+                        'Longest Book',
+                        stats['highestPages'].toString(),
+                        stats['highestPagesBookTitle'],
+                      ),
+                      _buildStatCardWithBook(
+                        'Shortest Book',
+                        stats['lowestPages'].toString(),
+                        stats['lowestPagesBookTitle'],
+                      ),
                     ],
                   ),
                 );
@@ -234,8 +258,45 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
   }
 
+  Widget _buildStatCardWithBook(String title, String value, String? bookTitle) {
+    return Card(
+      margin: const EdgeInsets.only(top: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.bodyMedium),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  value,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (bookTitle != null && bookTitle.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    bookTitle,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<List<int>> getCombinedYears() async {
-    // Fetch the valid session years and book years
     final sessionYears = await widget.sessionRepository.getSessionYears();
     final bookYears = await widget.bookRepository.getBookYears();
 
@@ -243,12 +304,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
       print('SessionYears: $sessionYears, bookYears: $bookYears');
     }
 
-    // Combine both lists and remove duplicates
     final combinedYears = {...sessionYears, ...bookYears}.toList();
-
-    // Sort the combined list in descending order
     combinedYears.sort((a, b) => b.compareTo(a));
-
     return combinedYears;
   }
 }

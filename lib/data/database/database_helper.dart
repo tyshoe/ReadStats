@@ -377,34 +377,81 @@ class DatabaseHelper {
     WITH BookReadTimes AS (
       SELECT 
         books.id AS book_id,
+        books.title AS book_title,
+        books.rating,
+        books.page_count,
         COALESCE(SUM(sessions.duration_minutes), 0) AS total_read_time
       FROM books
-      JOIN sessions ON books.id = sessions.book_id
+      LEFT JOIN sessions ON books.id = sessions.book_id
       WHERE 
         books.is_completed = 1
-        $yearFilter  -- Apply the year filter if selected
+        $yearFilter
       GROUP BY books.id
+    ),
+    MaxRating AS (
+      SELECT book_id, book_title 
+      FROM BookReadTimes 
+      WHERE rating = (SELECT MAX(rating) FROM BookReadTimes WHERE rating > 0)
+      LIMIT 1
+    ),
+    MinRating AS (
+      SELECT book_id, book_title 
+      FROM BookReadTimes 
+      WHERE rating = (SELECT MIN(rating) FROM BookReadTimes WHERE rating > 0)
+      LIMIT 1
+    ),
+    MaxPages AS (
+      SELECT book_id, book_title 
+      FROM BookReadTimes 
+      WHERE page_count = (SELECT MAX(page_count) FROM BookReadTimes WHERE page_count > 0)
+      LIMIT 1
+    ),
+    MinPages AS (
+      SELECT book_id, book_title 
+      FROM BookReadTimes 
+      WHERE page_count = (SELECT MIN(page_count) FROM BookReadTimes WHERE page_count > 0)
+      LIMIT 1
+    ),
+    SlowestRead AS (
+      SELECT book_id, book_title 
+      FROM BookReadTimes 
+      WHERE total_read_time = (SELECT MAX(total_read_time) FROM BookReadTimes WHERE total_read_time > 0)
+      LIMIT 1
+    ),
+    FastestRead AS (
+      SELECT book_id, book_title 
+      FROM BookReadTimes 
+      WHERE total_read_time = (SELECT MIN(total_read_time) FROM BookReadTimes WHERE total_read_time > 0)
+      LIMIT 1
     )
     SELECT 
-      COALESCE(MAX(books.rating), 0) AS highest_rating,
-      COALESCE(MIN(books.rating), 0) AS lowest_rating,
-      COALESCE(AVG(books.rating), 0) AS average_rating,
-      COALESCE(MAX(books.page_count), 0) AS highest_pages,
-      COALESCE(MIN(books.page_count), 0) AS lowest_pages,
-      COALESCE(AVG(books.page_count), 0) AS average_pages,
-      COALESCE(MAX(BookReadTimes.total_read_time), 0) AS slowest_read_time,
-      COALESCE(MIN(BookReadTimes.total_read_time), 0) AS fastest_read_time,
-      COALESCE(COUNT(DISTINCT books.id), 0) AS books_completed
-    FROM books
-    LEFT JOIN BookReadTimes ON books.id = BookReadTimes.book_id
-    WHERE 
-      books.is_completed = 1
-      $yearFilter  -- Apply the year filter if selected
+      -- Basic stats
+      COALESCE(MAX(brt.rating), 0) AS highest_rating,
+      COALESCE(MIN(brt.rating), 0) AS lowest_rating,
+      COALESCE(AVG(brt.rating), 0) AS average_rating,
+      COALESCE(MAX(brt.page_count), 0) AS highest_pages,
+      COALESCE(MIN(brt.page_count), 0) AS lowest_pages,
+      COALESCE(AVG(brt.page_count), 0) AS average_pages,
+      COALESCE(MAX(brt.total_read_time), 0) AS slowest_read_time,
+      COALESCE(MIN(brt.total_read_time), 0) AS fastest_read_time,
+      COALESCE(COUNT(DISTINCT brt.book_id), 0) AS books_completed,
+      
+      -- Book IDs and titles for each stat
+      (SELECT book_id FROM MaxRating) AS highest_rating_book_id,
+      (SELECT book_title FROM MaxRating) AS highest_rating_book_title,
+      (SELECT book_id FROM MinRating) AS lowest_rating_book_id,
+      (SELECT book_title FROM MinRating) AS lowest_rating_book_title,
+      (SELECT book_id FROM MaxPages) AS highest_pages_book_id,
+      (SELECT book_title FROM MaxPages) AS highest_pages_book_title,
+      (SELECT book_id FROM MinPages) AS lowest_pages_book_id,
+      (SELECT book_title FROM MinPages) AS lowest_pages_book_title,
+      (SELECT book_id FROM SlowestRead) AS slowest_read_book_id,
+      (SELECT book_title FROM SlowestRead) AS slowest_read_book_title,
+      (SELECT book_id FROM FastestRead) AS fastest_read_book_id,
+      (SELECT book_title FROM FastestRead) AS fastest_read_book_title
+    FROM BookReadTimes brt
   ''');
 
-    if (kDebugMode) {
-      print(result);
-    }
     if (result.isNotEmpty) {
       return result.first;
     } else {
@@ -412,9 +459,25 @@ class DatabaseHelper {
         'highest_rating': 0,
         'lowest_rating': 0,
         'average_rating': 0,
+        'highest_pages': 0,
+        'lowest_pages': 0,
+        'average_pages': 0,
         'slowest_read_time': 0,
         'fastest_read_time': 0,
         'books_completed': 0,
+        // Default null values for book references
+        'highest_rating_book_id': null,
+        'highest_rating_book_title': null,
+        'lowest_rating_book_id': null,
+        'lowest_rating_book_title': null,
+        'highest_pages_book_id': null,
+        'highest_pages_book_title': null,
+        'lowest_pages_book_id': null,
+        'lowest_pages_book_title': null,
+        'slowest_read_book_id': null,
+        'slowest_read_book_title': null,
+        'fastest_read_book_id': null,
+        'fastest_read_book_title': null,
       };
     }
   }
