@@ -159,7 +159,7 @@ class BookPopup {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.dialogBackgroundColor,
+      backgroundColor: theme.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),

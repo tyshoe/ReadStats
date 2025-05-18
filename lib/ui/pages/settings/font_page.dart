@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../viewmodels/SettingsViewModel.dart';
+import '../library/widgets/book_row.dart';
 
 class FontSelectionPage extends StatelessWidget {
   final SettingsViewModel settingsViewModel;
@@ -16,88 +17,148 @@ class FontSelectionPage extends StatelessWidget {
     final colors = theme.colorScheme;
     final textTheme = theme.textTheme;
 
-    // Define a list of font styles with Google Fonts
-    final List<Map<String, String>> fonts = [
-      {'name': 'Roboto', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
-      {'name': 'Open Sans', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
-      {'name': 'Lato', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
-      {'name': 'Montserrat', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
-      {'name': 'Playfair Display', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
-      {'name': 'Raleway', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
-      {'name': 'Poppins', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
-      {'name': 'Merriweather', 'sampleText': 'The quick brown fox jumps over the lazy dog'},
+    // Simplified font list with just names
+    final List<String> fonts = [
+      'Roboto',
+      'Open Sans',
+      'Lato',
+      'Montserrat',
+      'Playfair Display',
+      'Raleway',
+      'Poppins',
+      'Merriweather',
     ];
 
     final String selectedFont = settingsViewModel.selectedFontNotifier.value;
 
+    // Sample book data for the preview
+    final sampleBook = {
+      'title': 'The Art of War',
+      'author': 'Sun Tzu',
+      'book_type_id': 1,
+      'is_favorite': 1,
+      'rating': 4.5,
+      'date_started': '2024-08-16',
+      'date_finished': '2024-08-24',
+    };
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Font'),
+        title: const Text('Select Font Style'),
         backgroundColor: colors.surface,
         elevation: 0,
       ),
       backgroundColor: colors.background,
-      body: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: fonts.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          final isSelected = fonts[index]['name'] == selectedFont;
-
-          return Card(
-            elevation: 0,
-            color: isSelected
-                ? colors.primary.withOpacity(0.1)
-                : colors.surfaceVariant,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: isSelected
-                  ? BorderSide(color: colors.primary, width: 1.5)
-                  : BorderSide.none,
+      body: Column(
+        children: [
+          // Preview section at the top
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: colors.surfaceVariant.withOpacity(0.3),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Preview', style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colors.primary,
+                )),
+                const SizedBox(height: 12),
+                Theme(
+                  data: theme.copyWith(
+                    textTheme: GoogleFonts.getTextTheme(selectedFont, theme.textTheme),
+                  ),
+                  child: BookRow(
+                    book: sampleBook,
+                    textColor: colors.onSurface,
+                    onTap: () {},
+                    isCompactView: false,
+                    showStars: true,
+                    dateFormatString: 'MMM d, yyyy',
+                  ),
+                ),
+              ],
             ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () async {
-                await settingsViewModel.setSelectedFont(fonts[index]['name']!);
-                Navigator.pop(context);
+          ),
+
+          // Font selection list
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: fonts.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final fontName = fonts[index];
+                final isSelected = fontName == selectedFont;
+
+                return _buildFontOption(
+                  context: context,
+                  fontName: fontName,
+                  isSelected: isSelected,
+                  onTap: () async {
+                    await settingsViewModel.setSelectedFont(fontName);
+                  },
+                );
               },
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        if (isSelected)
-                          Icon(
-                            Icons.check_circle,
-                            color: colors.primary,
-                          ),
-                        if (isSelected) const SizedBox(width: 8),
-                        Text(
-                          fonts[index]['name']!,
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? colors.primary : colors.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      fonts[index]['sampleText']!,
-                      style: GoogleFonts.getFont(
-                        fonts[index]['name']!,
-                        fontSize: 14,
-                        color: colors.onSurface.withOpacity(0.8),
-                      ),
-                    ),
-                  ],
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Icon(Icons.check),
+      ),
+    );
+  }
+
+  Widget _buildFontOption({
+    required BuildContext context,
+    required String fontName,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final textTheme = theme.textTheme;
+
+    return Material(
+      borderRadius: BorderRadius.circular(12),
+      color: isSelected
+          ? colors.primary.withOpacity(0.1)
+          : colors.surfaceVariant.withOpacity(0.5),
+      elevation: 0,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: isSelected
+                ? Border.all(color: colors.primary, width: 1.5)
+                : null,
+          ),
+          child: Row(
+            children: [
+              if (isSelected) Icon(
+                Icons.check_circle_rounded,
+                color: colors.primary,
+                size: 20,
+              ),
+              if (isSelected) const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  fontName,
+                  style: GoogleFonts.getFont(
+                    fontName,
+                    fontSize: 16,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? colors.primary : colors.onSurface,
+                  ),
                 ),
               ),
-            ),
-          );
-        },
+            ],
+          ),
+        ),
       ),
     );
   }

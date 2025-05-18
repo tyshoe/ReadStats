@@ -1,9 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../data/repositories/tag_repository.dart';
 import 'widgets/book_card.dart';
 import 'widgets/book_row.dart';
 import 'widgets/filter_sort_modal.dart';
-import 'package:intl/intl.dart';
 import '../add_book_page.dart';
 import '../edit_book_page.dart';
 import '../add_session_page.dart';
@@ -414,7 +414,12 @@ class _LibraryPageState extends State<LibraryPage> {
         try {
           final date = DateTime.parse(dateFinished);
           years.add(date.year.toString());
-        } catch (e) {}
+        } catch (e) {
+          if (kDebugMode)
+            {
+              print('Error getting available years: $e');
+            }
+        }
       }
     }
     return years.toList()..sort((a, b) => b.compareTo(a));
@@ -427,7 +432,9 @@ class _LibraryPageState extends State<LibraryPage> {
         _availableTags = tags.map((tag) => tag.name).toList();
       });
     } catch (e) {
-      print('Error loading tags: $e');
+      if (kDebugMode) {
+        print('Error loading tags: $e');
+      }
     }
   }
 

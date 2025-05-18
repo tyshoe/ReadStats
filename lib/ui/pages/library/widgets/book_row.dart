@@ -23,7 +23,6 @@ class BookRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     // Determine the icon based on the book type
     IconData bookTypeIcon;
@@ -80,8 +79,6 @@ class BookRow extends StatelessWidget {
     } else if (finishDate != null) {
       dateRangeString = "Finished ${formatDate(finishDate)}";
     }
-
-    double containerHeight = isCompactView ? 60 : 120; // Adjust height
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),

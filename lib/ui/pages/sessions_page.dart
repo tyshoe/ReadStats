@@ -162,10 +162,6 @@ class _SessionsPageState extends State<SessionsPage> {
     return '';
   }
 
-  Color _getIconColorBasedOnAccentColor(Color color) {
-    return color.computeLuminance() > 0.5 ? Colors.black : Colors.white;
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -279,7 +275,7 @@ class _SessionsPageState extends State<SessionsPage> {
                     ),
                   ),
                 );
-              }).toList(),
+              }),
             ],
           );
         },

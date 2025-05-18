@@ -154,9 +154,6 @@ class DatabaseHelper {
 
       final result = await db.rawQuery(query, arguments);
 
-      if (kDebugMode) {
-        print('Sessions fetched: $result');
-      }
       return result;
     } catch (e) {
       if (kDebugMode) {

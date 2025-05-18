@@ -147,10 +147,6 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
     }
   }
 
-  void _cancelEdit() {
-    setState(() => _editingTagId = null);
-  }
-
   void _toggleTagSelection(Tag tag) {
     if (_editingTagId != null) return;
     setState(() {

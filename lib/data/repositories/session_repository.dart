@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 import '../models/session.dart';
 import '../database/database_helper.dart';
 
@@ -18,9 +16,6 @@ class SessionRepository {
 
   Future<List<Session>> getSessions({int yearFilter = 0}) async {
     final sessionsMap = await _databaseHelper.getSessionsWithBooks(yearFilter: yearFilter);
-    if (kDebugMode) {
-      print('Session Repo, getSession: $sessionsMap');
-    }
     return sessionsMap.map((map) => Session.fromMap(map)).toList();
   }
 

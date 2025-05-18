@@ -49,7 +49,7 @@ class SortFilterPopup {
     final result = await showModalBottomSheet<SortFilterOptions>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).dialogBackgroundColor,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -108,7 +108,6 @@ class _SortFilterViewState extends State<_SortFilterView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Padding(
       padding: EdgeInsets.only(
