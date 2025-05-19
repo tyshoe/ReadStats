@@ -6,7 +6,7 @@ import 'widgets/book_row.dart';
 import 'widgets/filter_sort_modal.dart';
 import 'add_book_page.dart';
 import 'edit_book_page.dart';
-import '../add_session_page.dart';
+import '../sessions/add_session_page.dart';
 import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/data/repositories/session_repository.dart';

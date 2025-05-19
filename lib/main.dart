@@ -6,7 +6,7 @@ import 'data/repositories/book_repository.dart';
 import 'data/repositories/session_repository.dart';
 import 'ui/pages/library/library_page.dart';
 import 'ui/pages/settings/settings_page.dart';
-import 'ui/pages/sessions_page.dart';
+import 'ui/pages/sessions/sessions_page.dart';
 import 'ui/pages/statistics_page.dart';
 import 'ui/themes/app_theme.dart';
 import 'viewmodels/SettingsViewModel.dart';

@@ -29,7 +29,6 @@ class _EditSessionPageState extends State<EditSessionPage> {
   final TextEditingController _hoursController = TextEditingController();
   final TextEditingController _minutesController = TextEditingController();
   late DateTime _sessionDate;
-  String _statusMessage = '';
   bool _isSuccess = false;
 
   @override
@@ -51,13 +50,19 @@ class _EditSessionPageState extends State<EditSessionPage> {
     final int? minutes = int.tryParse(_minutesController.text);
 
     if (pagesRead == null || hours == null || minutes == null) {
-      _showStatusMessage('Please enter valid numbers.', false);
+      final errorMessage = pagesRead == null
+          ? 'Please enter pages read'
+          : 'Please enter a duration';
+      showSnackBar(errorMessage);
       return;
     }
 
     final int durationMinutes = (hours * 60) + minutes;
     if (pagesRead <= 0 || durationMinutes <= 0) {
-      _showStatusMessage('Pages and time must be greater than zero.', false);
+      final errorMessage = pagesRead <= 0
+          ? 'Pages should be above 0'
+          : 'Duration should be above 0 minutes';
+      showSnackBar(errorMessage);
       return;
     }
 
@@ -71,31 +76,29 @@ class _EditSessionPageState extends State<EditSessionPage> {
 
     try {
       await widget.sessionRepository.updateSession(session);
-      _showStatusMessage('Session updated successfully!', true);
+      showSnackBar('Session added successfully!');
       widget.refreshSessions();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      _showStatusMessage('Failed to update session. Please try again.', false);
+      showSnackBar('Failed to add session. Please try again.');
     }
   }
 
-  void _showStatusMessage(String message, bool isSuccess) {
-    setState(() {
-      _statusMessage = message;
-      _isSuccess = isSuccess;
-    });
-    _clearStatusMessage();
-  }
-
-  void _clearStatusMessage() {
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _statusMessage = '';
-          _isSuccess = false;
-        });
-      }
-    });
+  void showSnackBar(String message){
+    ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        margin: EdgeInsets.only(
+          left: 20,
+          right: 20,
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _deleteSession() async {
@@ -104,7 +107,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
       widget.refreshSessions();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      _showStatusMessage('Failed to delete session. Please try again.', false);
+      showSnackBar('Failed to delete session. Please try again.');
     }
   }
 
@@ -134,8 +137,8 @@ class _EditSessionPageState extends State<EditSessionPage> {
     );
   }
 
-  String formatSessionTime(String hours, String minutes) {
-    if (hours == '0' && minutes == '0') return 'Select time';
+  String formatSessionDuration(String hours, String minutes) {
+    if (hours == '0' && minutes == '0') return 'Select duration *';
 
     String hourText = hours != '0' ? '$hours hour${hours == "1" ? "" : "s"}' : '';
     String minuteText = minutes != '0' ? '$minutes minute${minutes == "1" ? "" : "s"}' : '';
@@ -169,14 +172,14 @@ class _EditSessionPageState extends State<EditSessionPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Book', style: textTheme.titleSmall),
+            Text('Book', style: textTheme.bodyMedium),
             const SizedBox(height: 8),
             Text(
               widget.book['title'],
               style: textTheme.bodyLarge,
             ),
             const SizedBox(height: 24),
-            Text('Pages', style: textTheme.titleSmall),
+            Text('Pages', style: textTheme.bodyMedium),
             const SizedBox(height: 8),
             TextField(
               controller: _pagesController,
@@ -184,7 +187,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                hintText: 'Number of Pages',
+                hintText: 'Number of Pages *',
                 suffixIcon: _pagesController.text.isNotEmpty
                     ? IconButton(
                   icon: const Icon(Icons.clear),
@@ -198,7 +201,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
               },
             ),
             const SizedBox(height: 24),
-            Text('Time', style: textTheme.titleSmall),
+            Text('Duration', style: textTheme.bodyMedium),
             const SizedBox(height: 8),
             InkWell(
               onTap: () => _showDurationPicker(context),
@@ -213,7 +216,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      formatSessionTime(_hoursController.text, _minutesController.text),
+                      formatSessionDuration(_hoursController.text, _minutesController.text),
                       style: textTheme.bodyLarge,
                     ),
                     Icon(Icons.arrow_drop_down, color: colors.onSurface),
@@ -222,7 +225,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
               ),
             ),
             const SizedBox(height: 24),
-            Text('Date', style: textTheme.titleSmall),
+            Text('Date', style: textTheme.bodyMedium),
             const SizedBox(height: 8),
             InkWell(
               onTap: () => _showDatePicker(context),
@@ -279,15 +282,6 @@ class _EditSessionPageState extends State<EditSessionPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            if (_statusMessage.isNotEmpty)
-              Text(
-                _statusMessage,
-                style: textTheme.bodyLarge?.copyWith(
-                  color: _isSuccess ? colors.primary : colors.error,
-                ),
-                textAlign: TextAlign.center,
-              ),
           ],
         ),
       ),
@@ -301,7 +295,7 @@ class _EditSessionPageState extends State<EditSessionPage> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select Duration'),
+        title: const Text('Set Duration'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

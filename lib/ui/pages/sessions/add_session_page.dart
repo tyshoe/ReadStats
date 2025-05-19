@@ -33,7 +33,6 @@ class _LogSessionPageState extends State<LogSessionPage> {
   final TextEditingController _hoursController = TextEditingController();
   final TextEditingController _minutesController = TextEditingController();
   DateTime _sessionDate = DateTime.now();
-  String _statusMessage = '';
   bool _isSuccess = false;
   bool _isFirstSession = false;
   bool _isFinalSession = false;
@@ -77,7 +76,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
 
   void _saveSession() async {
     if (_selectedBook == null) {
-      _showStatusMessage('Please select a book.', false);
+      showSnackBar('Please select a book.');
       return;
     }
 
@@ -86,13 +85,19 @@ class _LogSessionPageState extends State<LogSessionPage> {
     final int? minutes = int.tryParse(_minutesController.text);
 
     if (pagesRead == null || hours == null || minutes == null) {
-      _showStatusMessage('Please enter valid numbers.', false);
+      final errorMessage = pagesRead == null
+          ? 'Please enter pages read'
+          : 'Please enter a duration';
+      showSnackBar(errorMessage);
       return;
     }
 
     final int durationMinutes = (hours * 60) + minutes;
     if (pagesRead <= 0 || durationMinutes <= 0) {
-      _showStatusMessage('Pages and time must be greater than zero.', false);
+      final errorMessage = pagesRead <= 0
+          ? 'Pages should be above 0'
+          : 'Duration should be above 0 minutes';
+      showSnackBar(errorMessage);
       return;
     }
 
@@ -118,31 +123,28 @@ class _LogSessionPageState extends State<LogSessionPage> {
       }
 
       widget.refreshSessions();
-      _showStatusMessage('Session added successfully!', true);
+      showSnackBar('Session added successfully!');
       _resetInputs();
     } catch (e) {
-      _showStatusMessage('Failed to add session. Please try again.', false);
+      showSnackBar('Failed to add session. Please try again.');
     }
   }
 
-// Helper function to handle status messages
-  void _showStatusMessage(String message, bool isSuccess) {
-    setState(() {
-      _statusMessage = message;
-      _isSuccess = isSuccess;
-    });
-    _clearStatusMessage();
-  }
-
-  void _clearStatusMessage() {
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _statusMessage = '';
-          _isSuccess = false;
-        });
-      }
-    });
+  void showSnackBar(String message){
+    ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        margin: EdgeInsets.only(
+          left: 20,
+          right: 20,
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _resetInputs() {
@@ -161,9 +163,9 @@ class _LogSessionPageState extends State<LogSessionPage> {
     });
   }
 
-  String formatSessionTime(String hours, String minutes) {
+  String formatSessionDuration(String hours, String minutes) {
     if (hours == '0' && minutes == '0') {
-      return 'Select time';
+      return 'Set duration *';
     }
 
     String hourText = '';
@@ -212,15 +214,16 @@ class _LogSessionPageState extends State<LogSessionPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Book', style: textTheme.titleSmall),
+            Text('Book', style: textTheme.bodyMedium),
             const SizedBox(height: 8),
             DropdownButtonFormField<Map<String, dynamic>>(
               value: _selectedBook,
+              style: theme.textTheme.bodyLarge,
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
               ),
               items: _availableBooks.map((book) {
                 return DropdownMenuItem(
@@ -239,14 +242,14 @@ class _LogSessionPageState extends State<LogSessionPage> {
                 });
                 if (value != null) _checkIfFirstSession();
               },
-              hint: const Text('Select a book'),
+              hint: const Text('Select a book *'),
               isExpanded: true,
               dropdownColor: Theme.of(context).colorScheme.surface,
               menuMaxHeight: 200,
               alignment: AlignmentDirectional.centerStart,
             ),
             const SizedBox(height: 24),
-            Text('Pages', style: textTheme.titleSmall),
+            Text('Pages', style: textTheme.bodyMedium),
             const SizedBox(height: 8),
             TextField(
               controller: _pagesController,
@@ -254,7 +257,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                hintText: 'Number of Pages',
+                hintText: 'Number of Pages *',
                 suffixIcon: _pagesController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -266,9 +269,10 @@ class _LogSessionPageState extends State<LogSessionPage> {
               onTapOutside: (event) {
                 FocusManager.instance.primaryFocus?.unfocus();
               },
+
             ),
             const SizedBox(height: 24),
-            Text('Time', style: textTheme.titleSmall),
+            Text('Duration', style: textTheme.bodyMedium),
             const SizedBox(height: 8),
             InkWell(
               onTap: () => _showDurationPicker(context),
@@ -283,7 +287,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      formatSessionTime(
+                      formatSessionDuration(
                           _hoursController.text, _minutesController.text),
                       style: textTheme.bodyLarge,
                     ),
@@ -293,7 +297,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
               ),
             ),
             const SizedBox(height: 24),
-            Text('Date', style: textTheme.titleSmall),
+            Text('Date', style: textTheme.bodyMedium),
             const SizedBox(height: 8),
             InkWell(
               onTap: () => _showDatePicker(context),
@@ -320,29 +324,23 @@ class _LogSessionPageState extends State<LogSessionPage> {
 
             // Session Type Checkboxes
             if (_selectedBook != null) ...[
-              Text('Session Type', style: textTheme.titleSmall),
+              Text('Session Type', style: textTheme.bodyMedium),
               const SizedBox(height: 8),
               Column(
                 children: [
                   CheckboxListTile(
-                    title: const Text('First session for this book'),
+                    title: const Text('First session'),
                     value: _isFirstSession,
                     onChanged: (value) {
                       setState(() => _isFirstSession = value ?? false);
-                      if (value == true) {
-                        setState(() => _isFinalSession = false);
-                      }
                     },
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
                   CheckboxListTile(
-                    title: const Text('Final session (book completed)'),
+                    title: const Text('Final session (book finished)'),
                     value: _isFinalSession,
                     onChanged: (value) {
                       setState(() => _isFinalSession = value ?? false);
-                      if (value == true) {
-                        setState(() => _isFirstSession = false);
-                      }
                     },
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
@@ -365,15 +363,6 @@ class _LogSessionPageState extends State<LogSessionPage> {
                 child: const Text('Save Session'),
               ),
             ),
-            const SizedBox(height: 16),
-            if (_statusMessage.isNotEmpty)
-              Text(
-                _statusMessage,
-                style: textTheme.bodyLarge?.copyWith(
-                  color: _isSuccess ? colors.primary : colors.error,
-                ),
-                textAlign: TextAlign.center,
-              ),
           ],
         ),
       ),
@@ -387,7 +376,7 @@ class _LogSessionPageState extends State<LogSessionPage> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select Duration'),
+        title: const Text('Set Duration'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
