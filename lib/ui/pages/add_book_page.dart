@@ -277,6 +277,7 @@ class _AddBookPageState extends State<AddBookPage> {
             const SizedBox(height: 8),
             DropdownButtonFormField<int>(
               value: _selectedBookType,
+              style: theme.textTheme.bodyLarge,
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -302,23 +303,29 @@ class _AddBookPageState extends State<AddBookPage> {
             // Completion Status
             Text('Status', style: theme.textTheme.bodyMedium),
             const SizedBox(height: 8),
-            SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(
-                  value: 0,
-                  label: Text('Not Completed'),
-                ),
-                ButtonSegment(
-                  value: 1,
-                  label: Text('Completed'),
-                ),
-              ],
-              selected: {_isCompleted ? 1 : 0},
-              onSelectionChanged: (Set<int> newSelection) {
+            GestureDetector(
+              onTap: () {
                 setState(() {
-                  _isCompleted = newSelection.first == 1;
+                  _isCompleted = !_isCompleted;
                 });
               },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Checkbox(
+                    value: _isCompleted,
+                    onChanged: (bool? value) {
+                      setState(() {
+                        _isCompleted = value ?? false;
+                      });
+                    },
+                  ),
+                  Text(
+                    _isCompleted ? 'Marked as Finished' : 'Mark as Finished',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
 

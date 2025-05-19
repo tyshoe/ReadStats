@@ -54,6 +54,7 @@ class SettingsPage extends StatelessWidget {
         title: const Text('Settings'),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
+        centerTitle: false,
       ),
       body: ListView(
         children: [
@@ -191,9 +192,9 @@ class SettingsPage extends StatelessWidget {
               ),
               _buildSettingsTile(
                 context,
-                title: 'Delete All Books',
+                title: 'Delete All Data',
                 textColor: colors.error,
-                onTap: () => _confirmDeleteBooks(context),
+                onTap: () => _confirmDeleteData(context),
               ),
             ],
           ),
@@ -248,11 +249,11 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  void _confirmDeleteBooks(BuildContext context) {
+  void _confirmDeleteData(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete All Books?'),
+        title: const Text('Delete All Data?'),
         content: const Text('This action cannot be undone.'),
         actions: [
           TextButton(

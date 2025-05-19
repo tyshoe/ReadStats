@@ -441,7 +441,10 @@ class _LibraryPageState extends State<LibraryPage> {
   void _showRandomBook() {
     if (_filteredBooks.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No books available to choose from')),
+        const SnackBar(
+            content: Text('No books available to choose from'),
+            behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }

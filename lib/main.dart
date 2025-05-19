@@ -189,7 +189,6 @@ class _MyAppState extends State<MyApp> {
       },
     );
   }
-
 }
 
 class NavigationMenu extends StatefulWidget {
@@ -241,20 +240,31 @@ class _NavigationMenuState extends State<NavigationMenu> {
           builder: (context, tabVisibility, child) {
             return Scaffold(
               body: _getPage(_activeTabIndex),
-              bottomNavigationBar: StylishBottomBar(
-                items: _buildBottomBarItems(accentColor),
-                currentIndex: _activeTabIndex,
-                onTap: (index) {
-                  setState(() {
-                    _activeTabIndex = index;
-                  });
-                },
-                option: AnimatedBarOptions(
-                  iconSize: 28,
-                  iconStyle: widget.settingsViewModel.navStyleNotifier.value,
-                  opacity: 0.3,
+              bottomNavigationBar: Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context)
+                          .dividerColor,
+                      width: .25,
+                    ),
+                  ),
                 ),
-                backgroundColor: Theme.of(context).colorScheme.surface,
+                child: StylishBottomBar(
+                  items: _buildBottomBarItems(accentColor),
+                  currentIndex: _activeTabIndex,
+                  onTap: (index) {
+                    setState(() {
+                      _activeTabIndex = index;
+                    });
+                  },
+                  option: AnimatedBarOptions(
+                    iconSize: 28,
+                    iconStyle: widget.settingsViewModel.navStyleNotifier.value,
+                    opacity: 0.3,
+                  ),
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                ),
               ),
             );
           },

@@ -172,6 +172,7 @@ class _SessionsPageState extends State<SessionsPage> {
       appBar: AppBar(
         title: const Text('Reading Sessions'),
         backgroundColor: theme.scaffoldBackgroundColor,
+        centerTitle: false,
         elevation: 0,
       ),
       body: widget.sessions.isEmpty

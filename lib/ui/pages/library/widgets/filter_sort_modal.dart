@@ -49,7 +49,7 @@ class SortFilterPopup {
     final result = await showModalBottomSheet<SortFilterOptions>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).cardColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -124,6 +124,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
               title: const Text('Filter & Sort'),
               centerTitle: false,
               automaticallyImplyLeading: false,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
               actions: [
                 IconButton(
                   icon: const Icon(Icons.close),

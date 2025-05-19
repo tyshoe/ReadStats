@@ -95,6 +95,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
         title: const Text('Statistics'),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
+        centerTitle: false,
       ),
       body: Column(
         children: [
