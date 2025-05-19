@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:read_stats/ui/pages/tag_selector_page.dart';
-import '../../data/database/database_helper.dart';
-import '../../data/models/tag.dart';
-import '../../data/repositories/tag_repository.dart';
+import '../../../data/database/database_helper.dart';
+import '../../../data/models/tag.dart';
+import '../../../data/repositories/tag_repository.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
 class EditBookPage extends StatefulWidget {
@@ -32,8 +32,6 @@ class _EditBookPageState extends State<EditBookPage> {
   double _rating = 0;
   bool _isCompleted = false;
   bool _isFavorite = false;
-  String _statusMessage = '';
-  bool _isSuccess = false;
   int _selectedBookType = 0;
   DateTime? _dateStarted;
   DateTime? _dateFinished;
@@ -67,10 +65,11 @@ class _EditBookPageState extends State<EditBookPage> {
     int pageCount = int.tryParse(_pageCountController.text) ?? 0;
 
     if (title.isEmpty || author.isEmpty) {
-      setState(() {
-        _statusMessage = 'Please fill all fields correctly.';
-        _isSuccess = false;
-      });
+      final errorMessage = title.isEmpty
+          ? 'Please enter a book title'
+          : 'Please enter an author name';
+
+      _showSnackBar(errorMessage);
       return;
     }
 
@@ -88,14 +87,48 @@ class _EditBookPageState extends State<EditBookPage> {
       "date_finished": _dateFinished?.toIso8601String(),
     });
 
-    setState(() {
-      _statusMessage = 'Book updated successfully!';
-      _isSuccess = true;
-    });
+    _handleSaveSuccess();
 
     if (mounted) {
       Navigator.pop(context);
     }
+  }
+
+  void _handleSaveSuccess(){
+    _showSnackBar('Book edited successfully!');
+    _clearFormInputs();
+  }
+
+  void _clearFormInputs() {
+    _titleController.clear();
+    _authorController.clear();
+    _wordCountController.clear();
+    _pageCountController.clear();
+    setState(() {
+      _rating = 0;
+      _isCompleted = false;
+      _isFavorite = false;
+      _selectedBookType = 0;
+      _dateStarted = null;
+      _dateFinished = null;
+    });
+  }
+
+  void _showSnackBar(String message){
+    ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        margin: EdgeInsets.only(
+          left: 20,
+          right: 20,
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _clearField(TextEditingController controller) {
@@ -591,19 +624,6 @@ class _EditBookPageState extends State<EditBookPage> {
                 child: const Text('Save Changes'),
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Status Message
-            if (_statusMessage.isNotEmpty)
-              Center(
-                child: Text(
-                  _statusMessage,
-                  style: TextStyle(
-                    color: _isSuccess ? Colors.green : Colors.red,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
           ],
         ),
       ),

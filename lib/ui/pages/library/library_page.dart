@@ -4,8 +4,8 @@ import '../../../data/repositories/tag_repository.dart';
 import 'widgets/book_card.dart';
 import 'widgets/book_row.dart';
 import 'widgets/filter_sort_modal.dart';
-import '../add_book_page.dart';
-import '../edit_book_page.dart';
+import 'add_book_page.dart';
+import 'edit_book_page.dart';
 import '../add_session_page.dart';
 import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
@@ -440,10 +440,18 @@ class _LibraryPageState extends State<LibraryPage> {
 
   void _showRandomBook() {
     if (_filteredBooks.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+      ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(
+        SnackBar(
             content: Text('No books available to choose from'),
             behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: EdgeInsets.only(
+              left: 20,
+              right: 20,
+            ),
+            duration: const Duration(seconds: 2),
         ),
       );
       return;

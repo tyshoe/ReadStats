@@ -26,8 +26,6 @@ class _AddBookPageState extends State<AddBookPage> {
   double _rating = 0;
   bool _isCompleted = false;
   bool _isFavorite = false;
-  String _statusMessage = '';
-  bool _isSuccess = false;
   int _selectedBookType = 0;
   DateTime? _dateStarted;
   DateTime? _dateFinished;
@@ -47,11 +45,11 @@ class _AddBookPageState extends State<AddBookPage> {
     int pageCount = int.tryParse(_pageCountController.text) ?? 0;
 
     if (title.isEmpty || author.isEmpty) {
-      setState(() {
-        _statusMessage = 'Please fill all required fields';
-        _isSuccess = false;
-      });
-      _clearStatusMessage();
+      final errorMessage = title.isEmpty
+          ? 'Please enter a book title'
+          : 'Please enter an author name';
+
+      _showSnackBar(errorMessage);
       return;
     }
 
@@ -68,6 +66,15 @@ class _AddBookPageState extends State<AddBookPage> {
       "date_finished": _dateFinished?.toIso8601String(),
     });
 
+    _handleSaveSuccess();
+  }
+
+  void _handleSaveSuccess(){
+    _showSnackBar('Book added successfully!');
+    _clearFormInputs();
+  }
+
+  void _clearFormInputs() {
     _titleController.clear();
     _authorController.clear();
     _wordCountController.clear();
@@ -77,13 +84,26 @@ class _AddBookPageState extends State<AddBookPage> {
       _isCompleted = false;
       _isFavorite = false;
       _selectedBookType = 0;
-      _statusMessage = 'Book added successfully!';
-      _isSuccess = true;
       _dateStarted = null;
       _dateFinished = null;
     });
+  }
 
-    _clearStatusMessage();
+  void _showSnackBar(String message){
+    ScaffoldMessenger.of(context)..hideCurrentSnackBar()..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        margin: EdgeInsets.only(
+          left: 20,
+          right: 20,
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _clearStartDate() {
@@ -101,17 +121,6 @@ class _AddBookPageState extends State<AddBookPage> {
   void _clearField(TextEditingController controller) {
     controller.clear();
     setState(() {});
-  }
-
-  void _clearStatusMessage() {
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _statusMessage = '';
-          _isSuccess = false;
-        });
-      }
-    });
   }
 
   Future<void> _selectDate(BuildContext context, bool isStartDate) async {
@@ -508,19 +517,6 @@ class _AddBookPageState extends State<AddBookPage> {
                 child: const Text('Save Book'),
               ),
             ),
-            const SizedBox(height: 16),
-
-            // Status Message
-            if (_statusMessage.isNotEmpty)
-              Center(
-                child: Text(
-                  _statusMessage,
-                  style: TextStyle(
-                    color: _isSuccess ? Colors.green : Colors.red,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
           ],
         ),
       ),
