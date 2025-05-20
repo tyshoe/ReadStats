@@ -4,8 +4,7 @@ import '../../../data/repositories/tag_repository.dart';
 import 'widgets/book_card.dart';
 import 'widgets/book_row.dart';
 import 'widgets/filter_sort_modal.dart';
-import 'add_book_page.dart';
-import 'edit_book_page.dart';
+import 'book_form_page.dart';
 import '../sessions/add_session_page.dart';
 import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
@@ -150,8 +149,8 @@ class _LibraryPageState extends State<LibraryPage> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddBookPage(
-          addBook: (book) async {
+        builder: (context) => BookFormPage(
+          onSave: (book) async {
             await _dbHelper.insertBook(book);
             widget.refreshBooks();
           },
@@ -165,13 +164,13 @@ class _LibraryPageState extends State<LibraryPage> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => EditBookPage(
-          book: book,
-          updateBook: (updatedBook) async {
+        builder: (context) => BookFormPage(
+          onSave: (updatedBook) async {
             await _dbHelper.updateBook(updatedBook);
             widget.refreshBooks();
           },
           settingsViewModel: widget.settingsViewModel,
+          book: book,
         ),
       ),
     );
