@@ -5,7 +5,7 @@ import 'widgets/book_card.dart';
 import 'widgets/book_row.dart';
 import 'widgets/filter_sort_modal.dart';
 import 'book_form_page.dart';
-import '../sessions/add_session_page.dart';
+import '../sessions/session_form_page.dart';
 import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/data/repositories/session_repository.dart';
@@ -160,7 +160,7 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  void _navigateToEditBookPage(Map<String, dynamic> book) async {
+  void _navigateToEditBookPage(Map<String, dynamic>? book) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -177,13 +177,13 @@ class _LibraryPageState extends State<LibraryPage> {
     await _refreshTags();
   }
 
-  void _navigateToAddSessionPage(int? bookId) async {
+  void _navigateToAddSessionPage(Map<String, dynamic> book) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => LogSessionPage(
-          books: widget.books,
-          initialBookId: bookId,
+        builder: (context) => SessionFormPage(
+          availableBooks: widget.books.where((book) => book['is_completed'] == 0).toList(),
+          book: book,
           refreshSessions: () {
             widget.refreshSessions();
             widget.refreshBooks();

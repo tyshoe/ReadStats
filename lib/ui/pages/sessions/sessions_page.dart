@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'edit_session_page.dart';
-import 'add_session_page.dart';
+import 'session_form_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
@@ -112,12 +111,16 @@ class _SessionsPageState extends State<SessionsPage> {
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => EditSessionPage(
+          builder: (context) => SessionFormPage(
             session: session,
             book: book,
-            refreshSessions: widget.refreshSessions,
+            availableBooks: [], // Not used in edit mode
+            refreshSessions: () {
+              widget.refreshSessions();
+            },
             settingsViewModel: widget.settingsViewModel,
             sessionRepository: widget.sessionRepository,
+            bookRepository: widget.bookRepository,
           ),
         ),
       );
@@ -142,8 +145,8 @@ class _SessionsPageState extends State<SessionsPage> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => LogSessionPage(
-          books: widget.books,
+        builder: (context) => SessionFormPage(
+          availableBooks: widget.books.where((book) => book['is_completed'] == 0).toList(),
           refreshSessions: widget.refreshSessions,
           settingsViewModel: widget.settingsViewModel,
           sessionRepository: widget.sessionRepository,

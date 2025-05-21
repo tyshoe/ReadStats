@@ -392,7 +392,7 @@ class BookPopup {
                             ? null
                             : () {
                           Navigator.pop(context);
-                          navigateToAddSessionPage(book['id']);
+                          navigateToAddSessionPage(book);
                         },
                       ),
                     ],
