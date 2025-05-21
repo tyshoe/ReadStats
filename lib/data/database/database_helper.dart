@@ -60,7 +60,7 @@ class DatabaseHelper {
         author TEXT,
         word_count INTEGER DEFAULT 0,
         page_count INTEGER DEFAULT 0,
-        rating REAL,
+        rating REAL DEFAULT NULL,
         is_completed INTEGER DEFAULT 0,
         is_favorite INTEGER DEFAULT 0,
         book_type_id INTEGER,
@@ -141,7 +141,7 @@ class DatabaseHelper {
 
       if (yearFilter != 0) {
         // Apply the year filter to the query.
-        query += ''' 
+        query += '''
         WHERE strftime('%Y', sessions.date) = ? 
       ''';
       }
@@ -395,55 +395,73 @@ class DatabaseHelper {
         $yearFilter
       GROUP BY books.id
     ),
+    -- Filtered datasets for specific calculations
+    ValidRatings AS (
+      SELECT * FROM BookReadTimes WHERE rating IS NOT NULL
+    ),
+    ValidPages AS (
+      SELECT * FROM BookReadTimes WHERE page_count > 0
+    ),
+    ValidReadTimes AS (
+      SELECT * FROM BookReadTimes WHERE total_read_time > 0
+    ),
+    -- Statistics CTEs using appropriate filtered datasets
     MaxRating AS (
       SELECT book_id, book_title 
-      FROM BookReadTimes 
-      WHERE rating = (SELECT MAX(rating) FROM BookReadTimes WHERE rating > 0)
+      FROM ValidRatings 
+      WHERE rating = (SELECT MAX(rating) FROM ValidRatings)
       LIMIT 1
     ),
     MinRating AS (
       SELECT book_id, book_title 
-      FROM BookReadTimes 
-      WHERE rating = (SELECT MIN(rating) FROM BookReadTimes WHERE rating > 0)
+      FROM ValidRatings 
+      WHERE rating = (SELECT MIN(rating) FROM ValidRatings)
       LIMIT 1
     ),
     MaxPages AS (
       SELECT book_id, book_title 
-      FROM BookReadTimes 
-      WHERE page_count = (SELECT MAX(page_count) FROM BookReadTimes WHERE page_count > 0)
+      FROM ValidPages 
+      WHERE page_count = (SELECT MAX(page_count) FROM ValidPages)
       LIMIT 1
     ),
     MinPages AS (
       SELECT book_id, book_title 
-      FROM BookReadTimes 
-      WHERE page_count = (SELECT MIN(page_count) FROM BookReadTimes WHERE page_count > 0)
+      FROM ValidPages 
+      WHERE page_count = (SELECT MIN(page_count) FROM ValidPages)
       LIMIT 1
     ),
     SlowestRead AS (
       SELECT book_id, book_title 
-      FROM BookReadTimes 
-      WHERE total_read_time = (SELECT MAX(total_read_time) FROM BookReadTimes WHERE total_read_time > 0)
+      FROM ValidReadTimes 
+      WHERE total_read_time = (SELECT MAX(total_read_time) FROM ValidReadTimes)
       LIMIT 1
     ),
     FastestRead AS (
       SELECT book_id, book_title 
-      FROM BookReadTimes 
-      WHERE total_read_time = (SELECT MIN(total_read_time) FROM BookReadTimes WHERE total_read_time > 0)
+      FROM ValidReadTimes 
+      WHERE total_read_time = (SELECT MIN(total_read_time) FROM ValidReadTimes)
       LIMIT 1
     )
+    
     SELECT 
-      -- Basic stats
-      COALESCE(MAX(brt.rating), 0) AS highest_rating,
-      COALESCE(MIN(brt.rating), 0) AS lowest_rating,
-      COALESCE(AVG(brt.rating), 0) AS average_rating,
-      COALESCE(MAX(brt.page_count), 0) AS highest_pages,
-      COALESCE(MIN(brt.page_count), 0) AS lowest_pages,
-      COALESCE(AVG(brt.page_count), 0) AS average_pages,
-      COALESCE(MAX(brt.total_read_time), 0) AS slowest_read_time,
-      COALESCE(MIN(brt.total_read_time), 0) AS fastest_read_time,
-      COALESCE(COUNT(DISTINCT brt.book_id), 0) AS books_completed,
+      -- Rating stats (only from ValidRatings)
+      (SELECT MAX(rating) FROM ValidRatings) AS highest_rating,
+      (SELECT MIN(rating) FROM ValidRatings) AS lowest_rating,
+      (SELECT AVG(rating) FROM ValidRatings) AS average_rating,
       
-      -- Book IDs and titles for each stat
+      -- Page stats (only from ValidPages)
+      (SELECT MAX(page_count) FROM ValidPages) AS highest_pages,
+      (SELECT MIN(page_count) FROM ValidPages) AS lowest_pages,
+      (SELECT AVG(page_count) FROM ValidPages) AS average_pages,
+      
+      -- Read time stats (only from ValidReadTimes)
+      (SELECT MAX(total_read_time) FROM ValidReadTimes) AS slowest_read_time,
+      (SELECT MIN(total_read_time) FROM ValidReadTimes) AS fastest_read_time,
+      
+      -- Counts from base dataset
+      COUNT(DISTINCT book_id) AS books_completed,
+      
+      -- Book references
       (SELECT book_id FROM MaxRating) AS highest_rating_book_id,
       (SELECT book_title FROM MaxRating) AS highest_rating_book_title,
       (SELECT book_id FROM MinRating) AS lowest_rating_book_id,
@@ -456,7 +474,7 @@ class DatabaseHelper {
       (SELECT book_title FROM SlowestRead) AS slowest_read_book_title,
       (SELECT book_id FROM FastestRead) AS fastest_read_book_id,
       (SELECT book_title FROM FastestRead) AS fastest_read_book_title
-    FROM BookReadTimes brt
+    FROM BookReadTimes
   ''');
 
     if (result.isNotEmpty) {

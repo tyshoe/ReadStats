@@ -30,7 +30,7 @@ class _BookFormPageState extends State<BookFormPage> {
   final TextEditingController _wordCountController = TextEditingController();
   final TextEditingController _pageCountController = TextEditingController();
   final DateTime _dateToday = DateTime.now();
-  double _rating = 0;
+  double? _rating;
   bool _isCompleted = false;
   bool _isFavorite = false;
   int _selectedBookType = 0;
@@ -49,7 +49,7 @@ class _BookFormPageState extends State<BookFormPage> {
       _authorController.text = widget.book!['author'];
       _wordCountController.text = widget.book!['word_count'].toString();
       _pageCountController.text = widget.book!['page_count'].toString();
-      _rating = widget.book!['rating'];
+      _rating = widget.book!['rating']?.toDouble();
       _isCompleted = widget.book!['is_completed'] == 1;
       _isFavorite = widget.book!['is_favorite'] == 1;
       _selectedBookType = widget.book!['book_type_id'] - 1;
@@ -415,7 +415,7 @@ class _BookFormPageState extends State<BookFormPage> {
                   Expanded(
                     child: _useStarRating
                         ? RatingBar.builder(
-                      initialRating: _rating,
+                      initialRating: _rating ?? 0,
                       minRating: 0,
                       direction: Axis.horizontal,
                       allowHalfRating: true,

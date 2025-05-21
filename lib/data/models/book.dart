@@ -6,14 +6,14 @@ class Book {
   String author;
   int wordCount;
   int pageCount;
-  double rating;
+  double? rating;
   bool isCompleted;
   bool isFavorite;
   int bookTypeId;
   final String dateAdded;
   final String? dateStarted;
   final String? dateFinished;
-  List<Tag> tags; // Add tags list to the model
+  List<Tag> tags;
 
   Book({
     this.id,

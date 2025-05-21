@@ -298,7 +298,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
               primary: widget.settingsViewModel.accentColorNotifier.value,
               onPrimary: Colors.white,
             ),
-            dialogTheme: DialogTheme(
+            dialogTheme: DialogThemeData(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
