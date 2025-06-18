@@ -565,4 +565,13 @@ class DatabaseHelper {
     WHERE book_tags.tag_id = ?
   ''', [tagId]);
   }
+
+  Future<List<Map<String, dynamic>>> getBooksByTitleAndAuthor(String title, String author) async {
+    final db = await database;
+    return await db.query(
+      'books',
+      where: 'title = ? AND author = ?',
+      whereArgs: [title, author],
+    );
+  }
 }

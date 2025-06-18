@@ -4,6 +4,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:read_stats/ui/pages/tag_selector_page.dart';
 import '../../../data/database/database_helper.dart';
 import '../../../data/models/tag.dart';
+import '../../../data/repositories/book_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
@@ -62,9 +63,9 @@ class _BookFormPageState extends State<BookFormPage> {
     }
   }
 
-  void _saveBook() {
-    String title = _titleController.text;
-    String author = _authorController.text;
+  void _saveBook() async {
+    String title = _titleController.text.trim();
+    String author = _authorController.text.trim();
     int wordCount = int.tryParse(_wordCountController.text) ?? 0;
     int pageCount = int.tryParse(_pageCountController.text) ?? 0;
 
@@ -73,6 +74,42 @@ class _BookFormPageState extends State<BookFormPage> {
       title.isEmpty ? 'Please enter a book title' : 'Please enter an author name';
       _showSnackBar(errorMessage);
       return;
+    }
+
+    // Check if book already exists
+    final bookRepository = BookRepository(DatabaseHelper());
+    final bookExists = await bookRepository.doesBookExist(
+      title,
+      author,
+      excludeId: widget.isEditing ? widget.book!['id'] : null,
+    );
+
+    if (bookExists) {
+      // Show confirmation dialog instead of blocking
+      final shouldProceed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Duplicate Book'),
+          content: const Text(
+            'A book with this title and author already exists. '
+                'Are you sure you want to add it anyway?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Add Anyway'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldProceed != true) {
+        return; // User cancelled
+      }
     }
 
     final bookData = {

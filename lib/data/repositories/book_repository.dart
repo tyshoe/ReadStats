@@ -68,5 +68,13 @@ class BookRepository {
       await _databaseHelper.updateBookPartial(bookId, updates);
     }
   }
+
+  Future<bool> doesBookExist(String title, String author, {int? excludeId}) async {
+    final books = await _databaseHelper.getBooksByTitleAndAuthor(title, author);
+    if (excludeId != null) {
+      return books.any((book) => book['id'] != excludeId);
+    }
+    return books.isNotEmpty;
+  }
 }
 
