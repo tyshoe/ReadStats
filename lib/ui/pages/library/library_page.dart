@@ -151,7 +151,6 @@ class _LibraryPageState extends State<LibraryPage> {
       MaterialPageRoute(
         builder: (context) => BookFormPage(
           onSave: (book) async {
-            await _dbHelper.insertBook(book);
             widget.refreshBooks();
           },
           settingsViewModel: widget.settingsViewModel,
@@ -166,7 +165,6 @@ class _LibraryPageState extends State<LibraryPage> {
       MaterialPageRoute(
         builder: (context) => BookFormPage(
           onSave: (updatedBook) async {
-            await _dbHelper.updateBook(updatedBook);
             widget.refreshBooks();
           },
           settingsViewModel: widget.settingsViewModel,

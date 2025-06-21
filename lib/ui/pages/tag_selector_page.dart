@@ -7,12 +7,14 @@ class TagSelectorSheet extends StatefulWidget {
   final int bookId;
   final TagRepository tagRepository;
   final SettingsViewModel settingsViewModel;
+  final bool isCreationMode;
 
   const TagSelectorSheet({
     Key? key,
     required this.bookId,
     required this.tagRepository,
     required this.settingsViewModel,
+    this.isCreationMode = false,
   }) : super(key: key);
 
   @override
@@ -66,16 +68,11 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
   Future<void> _save() async {
     setState(() => _isLoading = true);
     try {
-      for (final tag in _allTags) {
-        if (_selectedTagIds.contains(tag.id)) {
-          await widget.tagRepository.addTagToBook(widget.bookId, tag.id!);
-        } else {
-          await widget.tagRepository.removeTagFromBook(widget.bookId, tag.id!);
-        }
-      }
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(_selectedTagIds.toList());
     } finally {
-      setState(() => _isLoading = false);
+      if (!widget.isCreationMode) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

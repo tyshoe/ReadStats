@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:read_stats/ui/pages/tag_selector_page.dart';
 import '../../../data/database/database_helper.dart';
+import '../../../data/models/book.dart';
 import '../../../data/models/tag.dart';
 import '../../../data/repositories/book_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
@@ -38,6 +39,8 @@ class _BookFormPageState extends State<BookFormPage> {
   DateTime? _dateStarted;
   DateTime? _dateFinished;
   late bool _useStarRating;
+  Set<int> _selectedTagIds = {};
+  List<Tag> _existingTags = [];
 
   @override
   void initState() {
@@ -60,6 +63,7 @@ class _BookFormPageState extends State<BookFormPage> {
       _dateFinished = widget.book!['date_finished'] != null
           ? DateTime.parse(widget.book!['date_finished'])
           : null;
+      _loadExistingTags();
     }
   }
 
@@ -85,7 +89,6 @@ class _BookFormPageState extends State<BookFormPage> {
     );
 
     if (bookExists) {
-      // Show confirmation dialog instead of blocking
       final shouldProceed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -118,19 +121,82 @@ class _BookFormPageState extends State<BookFormPage> {
       "author": author,
       "word_count": wordCount,
       "page_count": pageCount,
-      "rating": _rating,
+      "rating": _rating?.toDouble(),  // Explicit null handling
       "is_completed": _isCompleted ? 1 : 0,
       "is_favorite": _isFavorite ? 1 : 0,
       "book_type_id": _selectedBookType + 1,
       "date_started": _dateStarted?.toIso8601String(),
       "date_finished": _dateFinished?.toIso8601String(),
+      // Ensure date_added is never null
+      "date_added": widget.isEditing
+          ? widget.book!['date_added']
+          : DateTime.now().toIso8601String(),
     };
 
-    widget.onSave(bookData);
-    _handleSaveSuccess();
+    // Handle book saving and tag assignment
+    try {
+      if (widget.isEditing) {
+        // Update existing book
+        await bookRepository.updateBook(Book.fromMap(bookData));
 
-    if (widget.isEditing && mounted) {
-      Navigator.pop(context);
+        // Handle tags for existing book
+        if (_selectedTagIds.isNotEmpty) {
+          final tagRepo = TagRepository(DatabaseHelper());
+          final currentTags = await tagRepo.getTagsForBook(widget.book!['id']);
+          final currentTagIds = currentTags.map((t) => t.id!).toSet();
+
+          // Add new tags
+          for (final tagId in _selectedTagIds) {
+            if (!currentTagIds.contains(tagId)) {
+              await tagRepo.addTagToBook(widget.book!['id'], tagId);
+            }
+          }
+
+          // Remove deselected tags
+          for (final tagId in currentTagIds) {
+            if (!_selectedTagIds.contains(tagId)) {
+              await tagRepo.removeTagFromBook(widget.book!['id'], tagId);
+            }
+          }
+        }
+      } else {
+        // Create new book
+        final newBookId = await bookRepository.addBook(Book.fromMap(bookData));
+
+        // Assign tags to new book
+        if (_selectedTagIds.isNotEmpty) {
+          final tagRepo = TagRepository(DatabaseHelper());
+          for (final tagId in _selectedTagIds) {
+            await tagRepo.addTagToBook(newBookId, tagId);
+          }
+        }
+      }
+
+      widget.onSave(bookData);
+      _handleSaveSuccess();
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Error saving book: ${e.toString()}');
+      }
+    }
+  }
+
+  Future<void> _loadExistingTags() async {
+    try {
+      final tags = await TagRepository(DatabaseHelper())
+          .getTagsForBook(widget.book!['id']);
+      setState(() {
+        _existingTags = tags;
+        _selectedTagIds = tags.map((tag) => tag.id!).toSet();
+      });
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Error loading tags: ${e.toString()}');
+      }
     }
   }
 
@@ -231,6 +297,12 @@ class _BookFormPageState extends State<BookFormPage> {
   Future<List<Tag>> _getBookTags() async {
     if (!widget.isEditing) return [];
     return await TagRepository(DatabaseHelper()).getTagsForBook(widget.book!['id']);
+  }
+
+  Future<List<Tag>> _getTagsByIds(List<int> tagIds) async {
+    if (tagIds.isEmpty) return [];
+    final allTags = await TagRepository(DatabaseHelper()).getAllTags();
+    return allTags.where((tag) => tagIds.contains(tag.id)).toList();
   }
 
   @override
@@ -512,85 +584,87 @@ class _BookFormPageState extends State<BookFormPage> {
             ],
             const SizedBox(height: 16),
 
-            // Tags Section (only shown in edit mode)
-            if (widget.isEditing)
-              FutureBuilder<List<Tag>>(
-                future: _getBookTags(),
-                builder: (context, snapshot) {
-                  final tags = snapshot.data ?? [];
-                  return InkWell(
-                    onTap: () {
-                      Navigator.of(context)
-                          .push(
-                        PageRouteBuilder(
-                          pageBuilder: (context, animation, secondaryAnimation) =>
-                              TagSelectorSheet(
-                                bookId: widget.book!['id'],
-                                tagRepository: TagRepository(DatabaseHelper()),
-                                settingsViewModel: widget.settingsViewModel,
-                              ),
-                          transitionsBuilder:
-                              (context, animation, secondaryAnimation, child) {
-                            const begin = Offset(1.0, 0.0);
-                            const end = Offset.zero;
-                            const curve = Curves.easeInOut;
-
-                            var tween = Tween(begin: begin, end: end)
-                                .chain(CurveTween(curve: curve));
-                            var offsetAnimation = animation.drive(tween);
-
-                            return SlideTransition(
-                              position: offsetAnimation,
-                              child: child,
-                            );
-                          },
+            // Tags Section
+            InkWell(
+              onTap: () async {
+                final result = await Navigator.of(context).push<List<int>>(
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        TagSelectorSheet(
+                          bookId: widget.isEditing ? widget.book!['id'] : -1,
+                          tagRepository: TagRepository(DatabaseHelper()),
+                          settingsViewModel: widget.settingsViewModel,
+                          isCreationMode: !widget.isEditing,
                         ),
-                      )
-                          .then((_) {
-                        if (mounted) setState(() {});
-                      });
+                    transitionsBuilder:
+                        (context, animation, secondaryAnimation, child) {
+                      const begin = Offset(1.0, 0.0);
+                      const end = Offset.zero;
+                      const curve = Curves.easeInOut;
+
+                      var tween = Tween(begin: begin, end: end)
+                          .chain(CurveTween(curve: curve));
+                      var offsetAnimation = animation.drive(tween);
+
+                      return SlideTransition(
+                        position: offsetAnimation,
+                        child: child,
+                      );
                     },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: theme.dividerColor),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.sell,
-                                  color: theme.colorScheme.onSurface
-                                      .withOpacity(0.6)),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Tags',
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
-                          if (tags.isNotEmpty) const SizedBox(height: 8),
-                          if (tags.isNotEmpty)
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: tags
-                                  .map((tag) => Chip(
-                                label: Text(tag.name),
-                                backgroundColor:
-                                theme.colorScheme.surfaceVariant,
-                              ))
-                                  .toList(),
-                            ),
-                        ],
-                      ),
+                  ),
+                );
+
+                if (result != null && mounted) {
+                  setState(() {
+                    _selectedTagIds = result.toSet();
+                  });
+                }
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: theme.dividerColor),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.sell,
+                            color: theme.colorScheme.onSurface
+                                .withOpacity(0.6)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Tags',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ],
                     ),
-                  );
-                },
+                    if (_selectedTagIds.isNotEmpty) const SizedBox(height: 8),
+                    if (_selectedTagIds.isNotEmpty)
+                      FutureBuilder<List<Tag>>(
+                        future: _getTagsByIds(_selectedTagIds.toList()),
+                        builder: (context, snapshot) {
+                          final tags = snapshot.data ?? [];
+                          return Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: tags
+                                .map((tag) => Chip(
+                              label: Text(tag.name),
+                              backgroundColor:
+                              theme.colorScheme.surfaceVariant,
+                            ))
+                                .toList(),
+                          );
+                        },
+                      ),
+                  ],
+                ),
               ),
+            ),
             const SizedBox(height: 16),
 
             // Save Button

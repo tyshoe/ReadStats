@@ -54,18 +54,17 @@ class Book {
   factory Book.fromMap(Map<String, dynamic> map) {
     return Book(
       id: map['id'],
-      title: map['title'],
-      author: map['author'],
-      wordCount: map['word_count'],
-      pageCount: map['page_count'],
-      rating: map['rating'].toDouble(),
-      isCompleted: map['is_completed'] == 1,
-      isFavorite: map['is_favorite'] == 1,
-      bookTypeId: map['book_type_id'],
-      dateAdded: map['date_added'],
+      title: map['title'] ?? '', // Ensure non-null string
+      author: map['author'] ?? '', // Ensure non-null string
+      wordCount: (map['word_count'] as int?) ?? 0,
+      pageCount: (map['page_count'] as int?) ?? 0,
+      rating: map['rating'] != null ? double.tryParse(map['rating'].toString()) : null,
+      isCompleted: (map['is_completed'] as int?) == 1,
+      isFavorite: (map['is_favorite'] as int?) == 1,
+      bookTypeId: (map['book_type_id'] as int?) ?? 1, // Default value
+      dateAdded: map['date_added'] ?? DateTime.now().toIso8601String(),
       dateStarted: map['date_started'],
-      dateFinished: map['date_finished'],
-      // Tags will be loaded separately and set later
+      dateFinished: map['date_finished']
     );
   }
 
