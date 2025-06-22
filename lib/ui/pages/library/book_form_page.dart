@@ -88,7 +88,7 @@ class _BookFormPageState extends State<BookFormPage> {
       excludeId: widget.isEditing ? widget.book!['id'] : null,
     );
 
-    if (bookExists) {
+    if (bookExists && !widget.isEditing) {
       final shouldProceed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -591,7 +591,7 @@ class _BookFormPageState extends State<BookFormPage> {
                   PageRouteBuilder(
                     pageBuilder: (context, animation, secondaryAnimation) =>
                         TagSelectorSheet(
-                          bookId: widget.isEditing ? widget.book!['id'] : -1,
+                          initialSelectedTagIds: _selectedTagIds,
                           tagRepository: TagRepository(DatabaseHelper()),
                           settingsViewModel: widget.settingsViewModel,
                           isCreationMode: !widget.isEditing,

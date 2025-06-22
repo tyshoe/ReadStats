@@ -4,14 +4,14 @@ import '../../data/models/tag.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
 class TagSelectorSheet extends StatefulWidget {
-  final int bookId;
+  final Set<int> initialSelectedTagIds;
   final TagRepository tagRepository;
   final SettingsViewModel settingsViewModel;
   final bool isCreationMode;
 
   const TagSelectorSheet({
     Key? key,
-    required this.bookId,
+    required this.initialSelectedTagIds,
     required this.tagRepository,
     required this.settingsViewModel,
     this.isCreationMode = false,
@@ -23,7 +23,7 @@ class TagSelectorSheet extends StatefulWidget {
 
 class _TagSelectorSheetState extends State<TagSelectorSheet> {
   List<Tag> _allTags = [];
-  Set<int> _selectedTagIds = {};
+  late Set<int> _selectedTagIds;
   final TextEditingController _newTagController = TextEditingController();
   bool _isLoading = true;
   int? _editingTagId;
@@ -32,6 +32,7 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
   @override
   void initState() {
     super.initState();
+    _selectedTagIds = Set.from(widget.initialSelectedTagIds);
     _loadTags();
   }
 
@@ -39,10 +40,8 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
     setState(() => _isLoading = true);
     try {
       final tags = await widget.tagRepository.getAllTags();
-      final existing = await widget.tagRepository.getTagsForBook(widget.bookId);
       setState(() {
         _allTags = tags;
-        _selectedTagIds = existing.map((tag) => tag.id!).toSet();
       });
     } finally {
       setState(() => _isLoading = false);
@@ -105,6 +104,7 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
       setState(() => _isLoading = true);
       try {
         await widget.tagRepository.deleteTag(tag.id!);
+        _selectedTagIds.remove(tag.id);
         await _loadTags();
       } finally {
         setState(() => _isLoading = false);
