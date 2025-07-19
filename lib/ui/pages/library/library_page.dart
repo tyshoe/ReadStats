@@ -320,45 +320,53 @@ class _LibraryPageState extends State<LibraryPage> {
       String selectedSortOption,
       bool isAscending,
       ) {
+    // Create a new list to avoid modifying the original
+    books = List.from(books);
+
     books.sort((a, b) {
       int comparison = 0;
 
       if (selectedSortOption == 'Title') {
-        comparison = a['title'].compareTo(b['title']);
+        comparison = (a['title'] ?? '').compareTo(b['title'] ?? '');
       } else if (selectedSortOption == 'Author') {
-        comparison = a['author'].compareTo(b['author']);
+        comparison = (a['author'] ?? '').compareTo(b['author'] ?? '');
       } else if (selectedSortOption == 'Rating') {
-        comparison = (a['rating'] as double).compareTo(b['rating'] as double);
+        double ratingA = (a['rating'] ?? 0.0).toDouble();
+        double ratingB = (b['rating'] ?? 0.0).toDouble();
+        comparison = ratingA.compareTo(ratingB);
       } else if (selectedSortOption == 'Pages') {
-        comparison = (a['page_count'] as int).compareTo(b['page_count'] as int);
+        int pagesA = (a['page_count'] ?? 0).toInt();
+        int pagesB = (b['page_count'] ?? 0).toInt();
+        comparison = pagesA.compareTo(pagesB);
       } else if (selectedSortOption == 'Date started') {
         DateTime dateStartedA = a['date_started'] != null
-            ? DateTime.parse(a['date_started'])
+            ? DateTime.tryParse(a['date_started']) ?? DateTime(0)
             : DateTime(0);
         DateTime dateStartedB = b['date_started'] != null
-            ? DateTime.parse(b['date_started'])
+            ? DateTime.tryParse(b['date_started']) ?? DateTime(0)
             : DateTime(0);
         comparison = dateStartedA.compareTo(dateStartedB);
       } else if (selectedSortOption == 'Date finished') {
         DateTime dateFinishedA = a['date_finished'] != null
-            ? DateTime.parse(a['date_finished'])
+            ? DateTime.tryParse(a['date_finished']) ?? DateTime(0)
             : DateTime(0);
         DateTime dateFinishedB = b['date_finished'] != null
-            ? DateTime.parse(b['date_finished'])
+            ? DateTime.tryParse(b['date_finished']) ?? DateTime(0)
             : DateTime(0);
         comparison = dateFinishedA.compareTo(dateFinishedB);
       } else if (selectedSortOption == 'Date added') {
         DateTime dateAddedA = a['date_added'] != null
-            ? DateTime.parse(a['date_added'])
+            ? DateTime.tryParse(a['date_added']) ?? DateTime(0)
             : DateTime(0);
         DateTime dateAddedB = b['date_added'] != null
-            ? DateTime.parse(b['date_added'])
+            ? DateTime.tryParse(b['date_added']) ?? DateTime(0)
             : DateTime(0);
         comparison = dateAddedA.compareTo(dateAddedB);
       }
 
       return isAscending ? comparison : -comparison;
     });
+
     return books;
   }
 
