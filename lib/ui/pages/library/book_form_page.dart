@@ -139,31 +139,29 @@ class _BookFormPageState extends State<BookFormPage> {
         // Update existing book
         await bookRepository.updateBook(Book.fromMap(bookData));
 
-        // Handle tags for existing book
-        if (_selectedTagIds.isNotEmpty) {
-          final tagRepo = TagRepository(DatabaseHelper());
-          final currentTags = await tagRepo.getTagsForBook(widget.book!['id']);
-          final currentTagIds = currentTags.map((t) => t.id!).toSet();
+        // Handle tags for existing book - always process tags even if empty
+        final tagRepo = TagRepository(DatabaseHelper());
+        final currentTags = await tagRepo.getTagsForBook(widget.book!['id']);
+        final currentTagIds = currentTags.map((t) => t.id!).toSet();
 
-          // Add new tags
-          for (final tagId in _selectedTagIds) {
-            if (!currentTagIds.contains(tagId)) {
-              await tagRepo.addTagToBook(widget.book!['id'], tagId);
-            }
+        // Add new tags
+        for (final tagId in _selectedTagIds) {
+          if (!currentTagIds.contains(tagId)) {
+            await tagRepo.addTagToBook(widget.book!['id'], tagId);
           }
+        }
 
-          // Remove deselected tags
-          for (final tagId in currentTagIds) {
-            if (!_selectedTagIds.contains(tagId)) {
-              await tagRepo.removeTagFromBook(widget.book!['id'], tagId);
-            }
+        // Remove deselected tags
+        for (final tagId in currentTagIds) {
+          if (!_selectedTagIds.contains(tagId)) {
+            await tagRepo.removeTagFromBook(widget.book!['id'], tagId);
           }
         }
       } else {
         // Create new book
         final newBookId = await bookRepository.addBook(Book.fromMap(bookData));
 
-        // Assign tags to new book
+        // Assign tags to new book (only if any selected)
         if (_selectedTagIds.isNotEmpty) {
           final tagRepo = TagRepository(DatabaseHelper());
           for (final tagId in _selectedTagIds) {
