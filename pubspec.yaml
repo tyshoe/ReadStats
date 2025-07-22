@@ -13,12 +13,12 @@ dependencies:
   sqflite: ^2.4.1
   path: ^1.9.0
   shared_preferences: ^2.2.2
-  intl: ^0.18.1
+  intl: ^0.20.2
   flutter_rating_bar: ^4.0.1
   path_provider: ^2.1.5
   csv : ^6.0.0
-  share_plus: ^10.1.4
-  file_picker: ^9.2.1
+  share_plus: ^11.0.0
+  file_picker: ^10.2.0
   google_fonts: ^6.2.1
   flutter_launcher_icons: ^0.14.3
   flex_color_picker: ^3.7.1
@@ -27,7 +27,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true
