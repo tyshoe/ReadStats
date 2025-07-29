@@ -23,6 +23,8 @@ dependencies:
   flutter_launcher_icons: ^0.14.3
   flex_color_picker: ^3.7.1
   stylish_bottom_bar: ^1.1.1
+  url_launcher: ^6.3.2
+  package_info_plus: ^8.3.0
 
 dev_dependencies:
   flutter_test:

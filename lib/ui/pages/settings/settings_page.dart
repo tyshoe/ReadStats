@@ -8,6 +8,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:csv/csv.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../app_config.dart';
 import '../../themes/app_theme.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/repositories/session_repository.dart';
@@ -198,6 +200,31 @@ class SettingsPage extends StatelessWidget {
               ),
             ],
           ),
+
+          _buildSettingsSection(
+            context,
+            header: 'About',
+            children: [
+              _buildSettingsTile(
+                context,
+                title: 'Join our Discord',
+                onTap: () => _launchUrl('https://discord.gg/cA6CDkUY4x'),
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'GitHub',
+                onTap: () => _launchUrl('https://github.com/tyshoe/ReadStats'),
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'App Version',
+                trailing: Text(
+                  (AppConfig.version),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -247,6 +274,13 @@ class SettingsPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
     );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri)) {
+      throw Exception('Could not launch $url');
+    }
   }
 
   void _confirmDeleteData(BuildContext context) {

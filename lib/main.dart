@@ -10,9 +10,11 @@ import 'ui/pages/sessions/sessions_page.dart';
 import 'ui/pages/statistics_page.dart';
 import 'ui/themes/app_theme.dart';
 import 'viewmodels/SettingsViewModel.dart';
+import 'app_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppConfig.init();
 
   // Initialize database and repositories
   final dbHelper = DatabaseHelper();
