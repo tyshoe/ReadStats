@@ -340,39 +340,113 @@ class _SessionFormPageState extends State<SessionFormPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Book Selection (only for adding new sessions)
+            // Book Selection
             if (!widget.isEditing) ...[
-              DropdownButtonFormField<Map<String, dynamic>>(
-                value: _selectedBook,
-                style: theme.textTheme.bodyLarge,
-                decoration: InputDecoration(
-                  labelText: 'Book',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                  hintText: 'Select a book',
-                ),
-                items: widget.availableBooks.map((book) {
-                  return DropdownMenuItem(
-                    value: book,
-                    child: Text(
-                      book['title'],
-                      overflow: TextOverflow.ellipsis,
+              Autocomplete<Map<String, dynamic>>(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text.isEmpty) {
+                    return widget.availableBooks;
+                  }
+                  return widget.availableBooks.where((book) =>
+                      book['title'].toLowerCase().contains(textEditingValue.text.toLowerCase())
+                  );
+                },
+                displayStringForOption: (option) => option['title'],
+                fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                  // Sync controller with selected book when focus changes
+                  focusNode.addListener(() {
+                    if (!focusNode.hasFocus && _selectedBook != null) {
+                      textEditingController.text = _selectedBook!['title'];
+                    }
+                  });
+
+                  return TextFieldTapRegion(
+                    child: TextFormField(
+                      controller: textEditingController,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        labelText: 'Book',
+                        hintText: 'Select a book',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        suffixIcon: _selectedBook != null
+                            ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            textEditingController.clear();
+                            setState(() {
+                              _selectedBook = null;
+                              _isFirstSession = false;
+                              _isFinalSession = false;
+                            });
+                            focusNode.requestFocus();
+                          },
+                        )
+                            : const Icon(Icons.search),
+                      ),
+                      style: theme.textTheme.bodyLarge,
+                      onChanged: (value) {
+                        if (value.isEmpty) {
+                          setState(() => _selectedBook = null);
+                        }
+                      },
+                      onTap: () {
+                        textEditingController.selection = TextSelection.fromPosition(
+                            TextPosition(offset: textEditingController.text.length));
+                      },
+                      onTapOutside: (event) {
+                        // Ensure selected book is shown when tapping outside
+                        if (_selectedBook != null) {
+                          textEditingController.text = _selectedBook!['title'];
+                        }
+                        focusNode.unfocus();
+                      },
                     ),
                   );
-                }).toList(),
-                onChanged: (value) {
+                },
+                onSelected: (option) {
                   setState(() {
-                    _selectedBook = value;
+                    _selectedBook = option;
                     _isFirstSession = false;
                     _isFinalSession = false;
                   });
-                  if (value != null) _checkIfFirstSession();
+                  _checkIfFirstSession();
                 },
-                // isExpanded: true,
-                dropdownColor: theme.colorScheme.surface,
-                menuMaxHeight: 200,
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4.0,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        child: Scrollbar(
+                          thumbVisibility: true,
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              final option = options.elementAt(index);
+                              return InkWell(
+                                onTap: () => onSelected(option),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Text(
+                                    option['title'],
+                                    style: theme.textTheme.bodyLarge,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 24),
             ] else ...[
@@ -386,7 +460,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                   suffixIcon: const Icon(Icons.lock, size: 20),
-                  focusedBorder: OutlineInputBorder( // Optional: Customize focus appearance
+                  focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: colors.onSurfaceVariant),
                   ),
