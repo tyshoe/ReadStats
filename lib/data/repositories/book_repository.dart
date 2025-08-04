@@ -76,5 +76,10 @@ class BookRepository {
     }
     return books.isNotEmpty;
   }
+
+  // Add to BookRepository class
+  Future<List<String>> getAuthorSuggestions(String query) async {
+    return await _databaseHelper.getAuthorSuggestions(query);
+  }
 }
 

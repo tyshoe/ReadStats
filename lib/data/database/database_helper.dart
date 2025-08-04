@@ -574,4 +574,18 @@ class DatabaseHelper {
       whereArgs: [title, author],
     );
   }
+
+  // Add to DatabaseHelper class
+  Future<List<String>> getAuthorSuggestions(String query) async {
+    final db = await database;
+    final result = await db.rawQuery('''
+    SELECT DISTINCT author FROM books 
+    WHERE author LIKE ? 
+    ORDER BY 
+      CASE WHEN author LIKE ? THEN 0 ELSE 1 END,  -- Exact matches first
+      author COLLATE NOCASE ASC
+    LIMIT 5  -- Limit suggestions for performance
+  ''', ['%$query%', '$query%']);
+    return result.map((row) => row['author'] as String).toList();
+  }
 }

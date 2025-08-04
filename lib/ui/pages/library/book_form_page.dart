@@ -40,7 +40,6 @@ class _BookFormPageState extends State<BookFormPage> {
   DateTime? _dateFinished;
   late bool _useStarRating;
   Set<int> _selectedTagIds = {};
-  List<Tag> _existingTags = [];
 
   @override
   void initState() {
@@ -75,7 +74,7 @@ class _BookFormPageState extends State<BookFormPage> {
 
     if (title.isEmpty || author.isEmpty) {
       final errorMessage =
-      title.isEmpty ? 'Please enter a book title' : 'Please enter an author name';
+          title.isEmpty ? 'Please enter a book title' : 'Please enter an author name';
       _showSnackBar(errorMessage);
       return;
     }
@@ -95,7 +94,7 @@ class _BookFormPageState extends State<BookFormPage> {
           title: const Text('Duplicate Book'),
           content: const Text(
             'A book with this title and author already exists. '
-                'Are you sure you want to add it anyway?',
+            'Are you sure you want to add it anyway?',
           ),
           actions: [
             TextButton(
@@ -121,16 +120,15 @@ class _BookFormPageState extends State<BookFormPage> {
       "author": author,
       "word_count": wordCount,
       "page_count": pageCount,
-      "rating": _rating?.toDouble(),  // Explicit null handling
+      "rating": _rating?.toDouble(),
       "is_completed": _isCompleted ? 1 : 0,
       "is_favorite": _isFavorite ? 1 : 0,
       "book_type_id": _selectedBookType + 1,
       "date_started": _dateStarted?.toIso8601String(),
       "date_finished": _dateFinished?.toIso8601String(),
       // Ensure date_added is never null
-      "date_added": widget.isEditing
-          ? widget.book!['date_added']
-          : DateTime.now().toIso8601String(),
+      "date_added":
+          widget.isEditing ? widget.book!['date_added'] : DateTime.now().toIso8601String(),
     };
 
     // Handle book saving and tag assignment
@@ -185,10 +183,8 @@ class _BookFormPageState extends State<BookFormPage> {
 
   Future<void> _loadExistingTags() async {
     try {
-      final tags = await TagRepository(DatabaseHelper())
-          .getTagsForBook(widget.book!['id']);
+      final tags = await TagRepository(DatabaseHelper()).getTagsForBook(widget.book!['id']);
       setState(() {
-        _existingTags = tags;
         _selectedTagIds = tags.map((tag) => tag.id!).toSet();
       });
     } catch (e) {
@@ -257,12 +253,9 @@ class _BookFormPageState extends State<BookFormPage> {
   Future<void> _selectDate(BuildContext context, bool isStartDate) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isStartDate
-          ? _dateStarted ?? _dateToday
-          : _dateFinished ?? _dateStarted ?? _dateToday,
-      firstDate: isStartDate
-          ? DateTime(1900)
-          : _dateStarted ?? DateTime(1900),
+      initialDate:
+          isStartDate ? _dateStarted ?? _dateToday : _dateFinished ?? _dateStarted ?? _dateToday,
+      firstDate: isStartDate ? DateTime(1900) : _dateStarted ?? DateTime(1900),
       lastDate: _dateToday,
       builder: (BuildContext context, Widget? child) {
         return Theme(
@@ -290,11 +283,6 @@ class _BookFormPageState extends State<BookFormPage> {
         }
       });
     }
-  }
-
-  Future<List<Tag>> _getBookTags() async {
-    if (!widget.isEditing) return [];
-    return await TagRepository(DatabaseHelper()).getTagsForBook(widget.book!['id']);
   }
 
   Future<List<Tag>> _getTagsByIds(List<int> tagIds) async {
@@ -339,9 +327,9 @@ class _BookFormPageState extends State<BookFormPage> {
                 ),
                 suffixIcon: _titleController.text.isNotEmpty
                     ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _clearField(_titleController),
-                )
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_titleController),
+                      )
                     : null,
               ),
               onChanged: (value) => setState(() {}), // Rebuild to update label
@@ -351,26 +339,98 @@ class _BookFormPageState extends State<BookFormPage> {
             ),
             const SizedBox(height: 16),
 
-            // Author Field
-            TextField(
-              controller: _authorController,
-              decoration: InputDecoration(
-                labelText: _authorController.text.isEmpty ? 'Author *' : 'Author',
-                hintText: 'Enter author name',
-                floatingLabelBehavior: FloatingLabelBehavior.auto,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                suffixIcon: _authorController.text.isNotEmpty
-                    ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _clearField(_authorController),
-                )
-                    : null,
-              ),
-              onChanged: (value) => setState(() {}), // Rebuild to update label
-              onTapOutside: (event) {
+            Autocomplete<String>(
+              optionsBuilder: (textEditingValue) {
+                if (textEditingValue.text.isEmpty) {
+                  return const Iterable<String>.empty();
+                }
+                return BookRepository(DatabaseHelper()).getAuthorSuggestions(textEditingValue.text);
+              },
+              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                // Sync author controller with Autocomplete's controller
+                if (_authorController.text != controller.text) {
+                  if (widget.isEditing && controller.text.isEmpty) {
+                    controller.text = _authorController.text;
+                  } else {
+                    _authorController.text = controller.text;
+                  }
+                }
+
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  decoration: InputDecoration(
+                    labelText: controller.text.isEmpty ? 'Author *' : 'Author',
+                    hintText: 'Enter author name',
+                    floatingLabelBehavior: FloatingLabelBehavior.auto,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    suffixIcon: controller.text.isNotEmpty
+                        ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        controller.clear();
+                        _authorController.clear();
+                        setState(() {});
+                        focusNode.requestFocus();
+                      },
+                    )
+                        : null,
+                  ),
+                  onChanged: (value) {
+                    _authorController.text = value;
+                    setState(() {});
+                  },
+                  onTapOutside: (event) {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                  },
+                );
+              },
+              onSelected: (selection) {
+                _authorController.text = selection;
+                setState(() {});
                 FocusManager.instance.primaryFocus?.unfocus();
+              },
+              optionsViewBuilder: (context, onSelected, options) {
+                final scrollController = ScrollController();
+
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    elevation: 4.0,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      child: Scrollbar(
+                        controller: scrollController,
+                        thumbVisibility: true,
+                        child: ListView.builder(
+                          controller: scrollController,
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          itemCount: options.length,
+                          itemBuilder: (context, index) {
+                            final option = options.elementAt(index);
+                            return InkWell(
+                              onTap: () {
+                                onSelected(option);
+                                FocusManager.instance.primaryFocus?.unfocus();
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Text(
+                                  option,
+                                  style: theme.textTheme.bodyLarge,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                );
               },
             ),
 
@@ -414,9 +474,9 @@ class _BookFormPageState extends State<BookFormPage> {
                 ),
                 suffixIcon: _pageCountController.text.isNotEmpty
                     ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _clearField(_pageCountController),
-                )
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_pageCountController),
+                      )
                     : null,
               ),
               keyboardType: TextInputType.number,
@@ -438,9 +498,9 @@ class _BookFormPageState extends State<BookFormPage> {
                 ),
                 suffixIcon: _wordCountController.text.isNotEmpty
                     ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _clearField(_wordCountController),
-                )
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_wordCountController),
+                      )
                     : null,
               ),
               keyboardType: TextInputType.number,
@@ -461,7 +521,7 @@ class _BookFormPageState extends State<BookFormPage> {
                     onTap: () => _selectDate(context, true),
                     controller: TextEditingController(
                       text:
-                      _dateStarted == null ? '' : DateFormat('MMM d, y').format(_dateStarted!),
+                          _dateStarted == null ? '' : DateFormat('MMM d, y').format(_dateStarted!),
                     ),
                     decoration: InputDecoration(
                       labelText: 'Start Date',
@@ -470,9 +530,9 @@ class _BookFormPageState extends State<BookFormPage> {
                       ),
                       suffixIcon: _dateStarted != null
                           ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: _clearStartDate,
-                      )
+                              icon: const Icon(Icons.clear),
+                              onPressed: _clearStartDate,
+                            )
                           : const Icon(Icons.calendar_today),
                     ),
                     onTapOutside: (event) {
@@ -497,9 +557,9 @@ class _BookFormPageState extends State<BookFormPage> {
                       ),
                       suffixIcon: _dateFinished != null
                           ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: _clearFinishDate,
-                      )
+                              icon: const Icon(Icons.clear),
+                              onPressed: _clearFinishDate,
+                            )
                           : const Icon(Icons.calendar_today),
                     ),
                     onTapOutside: (event) {
@@ -522,53 +582,52 @@ class _BookFormPageState extends State<BookFormPage> {
                   Expanded(
                     child: _useStarRating
                         ? RatingBar.builder(
-                      initialRating: _rating ?? 0,
-                      minRating: 0,
-                      direction: Axis.horizontal,
-                      allowHalfRating: true,
-                      itemCount: 5,
-                      itemSize: 32,
-                      itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      itemBuilder: (context, _) => const Icon(
-                        Icons.star,
-                        color: Colors.amber,
-                      ),
-                      glow: false,
-                      onRatingUpdate: (rating) {
-                        setState(() {
-                          _rating = rating;
-                        });
-                      },
-                    )
+                            initialRating: _rating ?? 0,
+                            minRating: 0,
+                            direction: Axis.horizontal,
+                            allowHalfRating: true,
+                            itemCount: 5,
+                            itemSize: 32,
+                            itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                            itemBuilder: (context, _) => const Icon(
+                              Icons.star,
+                              color: Colors.amber,
+                            ),
+                            glow: false,
+                            onRatingUpdate: (rating) {
+                              setState(() {
+                                _rating = rating;
+                              });
+                            },
+                          )
                         : TextField(
-                      decoration: InputDecoration(
-                        labelText: 'Rating',
-                        hintText: 'Enter rating (0-5)',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (value) {
-                        final parsed = double.tryParse(value);
-                        if (parsed != null && parsed >= 0 && parsed <= 5) {
-                          setState(() {
-                            _rating = parsed;
-                          });
-                        }
-                      },
-                      onTapOutside: (event) {
-                        FocusManager.instance.primaryFocus?.unfocus();
-                      },
-                    ),
+                            decoration: InputDecoration(
+                              labelText: 'Rating',
+                              hintText: 'Enter rating (0-5)',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            keyboardType: TextInputType.numberWithOptions(decimal: true),
+                            onChanged: (value) {
+                              final parsed = double.tryParse(value);
+                              if (parsed != null && parsed >= 0 && parsed <= 5) {
+                                setState(() {
+                                  _rating = parsed;
+                                });
+                              }
+                            },
+                            onTapOutside: (event) {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                            },
+                          ),
                   ),
                   const SizedBox(width: 16),
                   IconButton(
                     icon: Icon(
                       _isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: _isFavorite
-                          ? Colors.red
-                          : theme.colorScheme.onSurface.withOpacity(0.6),
+                      color:
+                          _isFavorite ? Colors.red : theme.colorScheme.onSurface.withOpacity(0.6),
                       size: 32,
                     ),
                     onPressed: () {
@@ -587,21 +646,18 @@ class _BookFormPageState extends State<BookFormPage> {
               onTap: () async {
                 final result = await Navigator.of(context).push<List<int>>(
                   PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) =>
-                        TagSelectorSheet(
-                          initialSelectedTagIds: _selectedTagIds,
-                          tagRepository: TagRepository(DatabaseHelper()),
-                          settingsViewModel: widget.settingsViewModel,
-                          isCreationMode: !widget.isEditing,
-                        ),
-                    transitionsBuilder:
-                        (context, animation, secondaryAnimation, child) {
+                    pageBuilder: (context, animation, secondaryAnimation) => TagSelectorSheet(
+                      initialSelectedTagIds: _selectedTagIds,
+                      tagRepository: TagRepository(DatabaseHelper()),
+                      settingsViewModel: widget.settingsViewModel,
+                      isCreationMode: !widget.isEditing,
+                    ),
+                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
                       const begin = Offset(1.0, 0.0);
                       const end = Offset.zero;
                       const curve = Curves.easeInOut;
 
-                      var tween = Tween(begin: begin, end: end)
-                          .chain(CurveTween(curve: curve));
+                      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
                       var offsetAnimation = animation.drive(tween);
 
                       return SlideTransition(
@@ -630,9 +686,7 @@ class _BookFormPageState extends State<BookFormPage> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.sell,
-                            color: theme.colorScheme.onSurface
-                                .withOpacity(0.6)),
+                        Icon(Icons.sell, color: theme.colorScheme.onSurface.withOpacity(0.6)),
                         const SizedBox(width: 8),
                         Text(
                           'Tags',
@@ -651,10 +705,9 @@ class _BookFormPageState extends State<BookFormPage> {
                             runSpacing: 8,
                             children: tags
                                 .map((tag) => Chip(
-                              label: Text(tag.name),
-                              backgroundColor:
-                              theme.colorScheme.surfaceVariant,
-                            ))
+                                      label: Text(tag.name),
+                                      backgroundColor: theme.colorScheme.surfaceVariant,
+                                    ))
                                 .toList(),
                           );
                         },
