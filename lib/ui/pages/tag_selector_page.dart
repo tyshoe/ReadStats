@@ -222,10 +222,6 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
                 ),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: _createNewTag,
-                ),
               ),
               onSubmitted: (_) => _createNewTag(),
             ),
@@ -240,8 +236,10 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
                 runSpacing: 8,
                 children: [
                   // "All" chip
-                  GestureDetector(
-                    onTap: () {
+                  FilterChip(
+                    label: const Text('All'),
+                    selected: _selectedTagIds.length == _allTags.length && _selectedTagIds.isNotEmpty,
+                    onSelected: (_) {
                       setState(() {
                         if (_selectedTagIds.length == _allTags.length) {
                           _selectedTagIds.clear();
@@ -250,15 +248,15 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
                         }
                       });
                     },
-                    child: Chip(
-                      label: const Text('All'),
-                      avatar: _selectedTagIds.length == _allTags.length
-                          ? const Icon(Icons.check, size: 18)
-                          : null,
-                      backgroundColor: _selectedTagIds.length == _allTags.length
-                          ? accentColor.withOpacity(0.3)
-                          : theme.colorScheme.surfaceVariant,
+                    selectedColor: Theme.of(context).colorScheme.primaryContainer,                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(
+                        color: (_selectedTagIds.length == _allTags.length && _selectedTagIds.isNotEmpty)
+                            ? Colors.transparent
+                            : theme.colorScheme.outline,
+                      ),
                     ),
+                    clipBehavior: Clip.none,
                   ),
                   // Tag chips
                   ..._allTags.map((tag) {
@@ -270,18 +268,24 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
                     }
 
                     return GestureDetector(
-                      onTap: () => _toggleTagSelection(tag),
                       onLongPress: () => _showTagOptions(tag),
-                      child: Chip(
+                      child: FilterChip(
                         label: Text(tag.name),
-                        avatar: isSelected
-                            ? const Icon(Icons.check, size: 18)
-                            : null,
-                        backgroundColor: isSelected
-                            ? accentColor.withOpacity(0.3)
-                            : theme.colorScheme.surfaceVariant,
+                        selected: isSelected,
+                        onSelected: (_) => _toggleTagSelection(tag),
+                        selectedColor: Theme.of(context).colorScheme.primaryContainer,                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(
+                            color: isSelected
+                                ? Colors.transparent
+                                : theme.colorScheme.outline,
+                          ),
+                        ),
+                        labelStyle: Theme.of(context).textTheme.bodyMedium,
+                        clipBehavior: Clip.none,
                       ),
                     );
+
                   }),
                 ],
               ),
