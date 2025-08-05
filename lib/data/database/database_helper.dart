@@ -588,4 +588,14 @@ class DatabaseHelper {
   ''', ['%$query%', '$query%']);
     return result.map((row) => row['author'] as String).toList();
   }
+
+  Future<void> updateBookFavoriteStatus(int bookId, int isFavorite) async {
+    final db = await database;
+    await db.update(
+      'books',
+      {'is_favorite': isFavorite},
+      where: 'id = ?',
+      whereArgs: [bookId],
+    );
+  }
 }

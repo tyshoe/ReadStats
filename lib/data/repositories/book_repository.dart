@@ -40,7 +40,7 @@ class BookRepository {
   }
 
   Future<Map<String, dynamic>> getAllBookStats(int yearFilter) async {
-      return await _databaseHelper.getAllBookStats(yearFilter);
+    return await _databaseHelper.getAllBookStats(yearFilter);
   }
 
   Future<List<int>> getBookYears() async {
@@ -48,11 +48,11 @@ class BookRepository {
   }
 
   Future<void> updateBookDates(
-      int bookId, {
-        required bool isFirstSession,
-        required bool isFinalSession,
-        required DateTime sessionDate,
-      }) async {
+    int bookId, {
+    required bool isFirstSession,
+    required bool isFinalSession,
+    required DateTime sessionDate,
+  }) async {
     final updates = <String, dynamic>{};
 
     if (isFirstSession) {
@@ -81,5 +81,9 @@ class BookRepository {
   Future<List<String>> getAuthorSuggestions(String query) async {
     return await _databaseHelper.getAuthorSuggestions(query);
   }
-}
 
+  // In your BookRepository class
+  Future<void> toggleFavoriteStatus(int bookId, bool isFavorite) async {
+    await _databaseHelper.updateBookFavoriteStatus(bookId, isFavorite ? 1 : 0);
+  }
+}
