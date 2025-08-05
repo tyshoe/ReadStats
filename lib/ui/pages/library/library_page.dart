@@ -48,6 +48,7 @@ class _LibraryPageState extends State<LibraryPage> {
   late TagRepository _tagRepository;
   List<String> _availableTags = [];
   Map<int, List<String>> _bookTagsCache = {};
+  bool _showFeedbackBanner = true;
 
   @override
   void initState() {
@@ -466,6 +467,35 @@ class _LibraryPageState extends State<LibraryPage> {
     _showBookPopup(context, randomBook);
   }
 
+  Widget _buildFeedbackBanner() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      color: Theme.of(context).colorScheme.surfaceContainer,
+      child: Row(
+        children: [
+          const Icon(Icons.feedback, color: Colors.blue),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Enjoying the app?',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const Text('Leave feedback in the TestFlight app'),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => setState(() => _showFeedbackBanner = false),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -512,82 +542,91 @@ class _LibraryPageState extends State<LibraryPage> {
       ),
       body: Stack(
         children: [
-          if (widget.books.isEmpty)
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset('assets/images/carl.png', width: 100, height: 100),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Carl is hungry, add a book to your library',
-                    style: theme.textTheme.bodyLarge,
-                  ),
-                ],
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            children: [
+              if (_showFeedbackBanner)
+                GestureDetector(
+                  child: _buildFeedbackBanner(),
+                ),
+              Expanded(
+                child: widget.books.isEmpty
+                    ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(
-                        height: 40,
-                        child: ToggleButtons(
-                          isSelected: [
-                            _libraryBookView == "row_expanded",
-                            _libraryBookView == "row_compact",
-                          ],
-                          onPressed: (index) {
-                            _toggleView(index == 0 ? "row_expanded" : "row_compact");
-                          },
-                          constraints: const BoxConstraints(
-                            minHeight: 30, // Match the SizedBox height
-                            minWidth: 40, // Make buttons square
-                          ),
-                          borderWidth: 1,
-                          borderColor: theme.colorScheme.outline,
-                          selectedBorderColor: theme.colorScheme.primary,
-                          borderRadius: BorderRadius.circular(8),
-                          children: const [
-                            Icon(Icons.density_medium, size: 16),
-                            Icon(Icons.density_small, size: 16),
-                          ],
-                        ),
+                      Image.asset('assets/images/carl.png', width: 100, height: 100),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Carl is hungry, add a book to your library',
+                        style: theme.textTheme.bodyLarge,
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 16),
-                        child: Text(
-                          '${_filteredBooks.length}/${widget.books.length}',
-                          style: theme.textTheme.bodyLarge,
+                    ],
+                  ),
+                )
+                    : Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          SizedBox(
+                            height: 40,
+                            child: ToggleButtons(
+                              isSelected: [
+                                _libraryBookView == "row_expanded",
+                                _libraryBookView == "row_compact",
+                              ],
+                              onPressed: (index) {
+                                _toggleView(index == 0 ? "row_expanded" : "row_compact");
+                              },
+                              constraints: const BoxConstraints(
+                                minHeight: 30,
+                                minWidth: 40,
+                              ),
+                              borderWidth: 1,
+                              borderColor: theme.colorScheme.outline,
+                              selectedBorderColor: theme.colorScheme.primary,
+                              borderRadius: BorderRadius.circular(8),
+                              children: const [
+                                Icon(Icons.density_medium, size: 16),
+                                Icon(Icons.density_small, size: 16),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 16),
+                            child: Text(
+                              '${_filteredBooks.length}/${widget.books.length}',
+                              style: theme.textTheme.bodyLarge,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Expanded(
+                        child: Scrollbar(
+                          child: ListView.builder(
+                            itemCount: _filteredBooks.length,
+                            itemBuilder: (context, index) {
+                              final book = _filteredBooks[index];
+                              return BookRow(
+                                book: book,
+                                textColor: theme.colorScheme.onSurface,
+                                isCompactView: _libraryBookView == "row_compact",
+                                showStars: widget.settingsViewModel.defaultRatingStyleNotifier.value == 0,
+                                dateFormatString: widget.settingsViewModel.defaultDateFormatNotifier.value,
+                                onTap: () => _showBookPopup(context, book),
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  Expanded(
-                    child: Scrollbar(
-                      child: ListView.builder(
-                        itemCount: _filteredBooks.length,
-                        itemBuilder: (context, index) {
-                          final book = _filteredBooks[index];
-                          return BookRow(
-                            book: book,
-                            textColor: theme.colorScheme.onSurface,
-                            isCompactView: _libraryBookView == "row_compact",
-                            showStars: widget.settingsViewModel.defaultRatingStyleNotifier.value == 0,
-                            dateFormatString: widget.settingsViewModel.defaultDateFormatNotifier.value,
-                            onTap: () => _showBookPopup(context, book),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
