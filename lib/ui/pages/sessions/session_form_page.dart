@@ -32,6 +32,8 @@ class SessionFormPage extends StatefulWidget {
 
 class _SessionFormPageState extends State<SessionFormPage> {
   final TextEditingController _pagesController = TextEditingController();
+  final TextEditingController _startPageController = TextEditingController();
+  final TextEditingController _finishPageController = TextEditingController();
   final TextEditingController _hoursController = TextEditingController();
   final TextEditingController _minutesController = TextEditingController();
   late DateTime _sessionDate;
@@ -57,6 +59,8 @@ class _SessionFormPageState extends State<SessionFormPage> {
     } else {
       // Adding new session
       _pagesController.text = '';
+      _startPageController.text = '';
+      _finishPageController.text = '';
       _hoursController.text = '0';
       _minutesController.text = '0';
       _sessionDate = DateTime.now();
@@ -314,6 +318,23 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
   }
 
+  void _calculatePagesRead() {
+    final startPage = int.tryParse(_startPageController.text) ?? 0;
+    final finishPage = int.tryParse(_finishPageController.text) ?? 0;
+
+    if (startPage > 0 && finishPage > 0 && finishPage >= startPage) {
+      final pagesRead = finishPage - startPage + 1; // +1 because both start and end pages are inclusive
+      _pagesController.text = pagesRead.toString();
+    } else {
+      _pagesController.clear();
+    }
+  }
+
+  void _clearField(TextEditingController controller) {
+    controller.clear();
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -472,6 +493,81 @@ class _SessionFormPageState extends State<SessionFormPage> {
               const SizedBox(height: 24),
             ],
 
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _startPageController,
+                    decoration: InputDecoration(
+                      labelText: 'Start Page',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      suffixIcon: _startPageController.text.isNotEmpty
+                          ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _clearField(_startPageController);
+                        },
+                      )
+                          : null,
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      _calculatePagesRead();
+                      setState(() {});
+                    },
+                    onTapOutside: (event) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Icon(Icons.arrow_forward, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _finishPageController,
+                    decoration: InputDecoration(
+                      labelText: 'Finish Page',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      suffixIcon: _finishPageController.text.isNotEmpty
+                          ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _clearField(_finishPageController);
+                        },
+                      )
+                          : null,
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      _calculatePagesRead();
+                      setState(() {});
+                    },
+                    onTapOutside: (event) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: Divider(thickness: 1)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('OR', style: theme.textTheme.labelSmall),
+                ),
+                Expanded(child: Divider(thickness: 1)),
+              ],
+            ),
+            const SizedBox(height: 8),
+
             // Pages Field
             TextField(
               controller: _pagesController,
@@ -484,7 +580,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 suffixIcon: _pagesController.text.isNotEmpty
                     ? IconButton(
                   icon: const Icon(Icons.clear),
-                  onPressed: () => _pagesController.clear(),
+                  onPressed: () => _clearField(_pagesController),
                 )
                     : null,
               ),
@@ -495,7 +591,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
               },
             ),
             const SizedBox(height: 24),
-
             // Duration Field
             TextFormField(
               readOnly: true,
