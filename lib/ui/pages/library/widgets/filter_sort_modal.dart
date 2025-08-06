@@ -8,6 +8,7 @@ class SortFilterOptions {
   final bool isFavorite;
   final List<String> finishedYears;
   final List<String> tags;
+  final String tagFilterMode; // Add this
 
   const SortFilterOptions({
     required this.sortOption,
@@ -16,6 +17,7 @@ class SortFilterOptions {
     required this.isFavorite,
     this.finishedYears = const [],
     this.tags = const [],
+    this.tagFilterMode = 'any',
   });
 
   SortFilterOptions copyWith({
@@ -25,6 +27,7 @@ class SortFilterOptions {
     bool? isFavorite,
     List<String>? finishedYears,
     List<String>? tags,
+    String? tagFilterMode,
   }) {
     return SortFilterOptions(
       sortOption: sortOption ?? this.sortOption,
@@ -33,6 +36,7 @@ class SortFilterOptions {
       isFavorite: isFavorite ?? this.isFavorite,
       finishedYears: finishedYears ?? this.finishedYears,
       tags: tags ?? this.tags,
+      tagFilterMode: tagFilterMode ?? this.tagFilterMode, // Include this in copyWith
     );
   }
 }
@@ -142,15 +146,14 @@ class _SortFilterViewState extends State<_SortFilterView> {
                       // Sort Section
                       _buildSectionHeader('Sort By'),
                       _buildSortControls(),
-                      const Divider(height: 32),
+                      const Divider(height: 24),
 
                       // Book Type Filter
                       _buildSectionHeader('Book Type'),
                       _buildFilterChips(
                         options: ['All', ...bookTypes],
-                        selected: currentOptions.bookTypes.isEmpty
-                            ? ['All']
-                            : currentOptions.bookTypes,
+                        selected:
+                            currentOptions.bookTypes.isEmpty ? ['All'] : currentOptions.bookTypes,
                         onChanged: (selected) {
                           setState(() {
                             currentOptions = currentOptions.copyWith(
@@ -159,17 +162,17 @@ class _SortFilterViewState extends State<_SortFilterView> {
                           });
                         },
                       ),
-                      const SizedBox(height: 16),
+                      // const SizedBox(height: 16),
 
                       // Favorite Filter
                       FilterChip(
                         label: Text(
-                          currentOptions.isFavorite ? 'Favorites Only' : 'All Books',
+                          currentOptions.isFavorite ? 'Favorites' : 'Favorites',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: currentOptions.isFavorite
-                                ? Theme.of(context).colorScheme.onPrimaryContainer
-                                : Theme.of(context).colorScheme.onSurface,
-                          ),
+                                color: currentOptions.isFavorite
+                                    ? Theme.of(context).colorScheme.onPrimaryContainer
+                                    : Theme.of(context).colorScheme.onSurface,
+                              ),
                         ),
                         selected: currentOptions.isFavorite,
                         onSelected: (value) {
@@ -195,10 +198,10 @@ class _SortFilterViewState extends State<_SortFilterView> {
                         ),
                         selectedColor: Theme.of(context).colorScheme.primaryContainer,
                         padding: const EdgeInsets.symmetric(horizontal: 12),
-                        labelPadding: const EdgeInsets.only(left: 4, right: 8),
+                        labelPadding: const EdgeInsets.only(right: 8),
                         showCheckmark: false,
                       ),
-                      const Divider(height: 32),
+                      const Divider(height: 24),
 
                       // Year Filter
                       if (widget.availableYears.isNotEmpty) ...[
@@ -216,11 +219,12 @@ class _SortFilterViewState extends State<_SortFilterView> {
                             });
                           },
                         ),
-                        const Divider(height: 32),
+                        const Divider(height: 24),
                       ],
 
                       // Tag Filter
                       if (widget.availableTags.isNotEmpty) ...[
+                        _buildTagFilterModeSelector(), // Add this above the chips
                         _buildSectionHeader('Tags'),
                         _buildFilterChips(
                           options: ['All', ...widget.availableTags],
@@ -233,7 +237,6 @@ class _SortFilterViewState extends State<_SortFilterView> {
                             });
                           },
                         ),
-                        const SizedBox(height: 16),
                       ],
                     ],
                   ),
@@ -255,12 +258,12 @@ class _SortFilterViewState extends State<_SortFilterView> {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 0),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
+              fontWeight: FontWeight.w600,
+            ),
       ),
     );
   }
@@ -338,15 +341,72 @@ class _SortFilterViewState extends State<_SortFilterView> {
     );
   }
 
+  Widget _buildTagFilterModeSelector() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Tag Filter Mode'),
+        Row(
+          children: [
+            Expanded(
+              child: SegmentedButton<String>(
+                segments: [
+                  ButtonSegment<String>(
+                    value: 'any',
+                    label: Text('Any'),
+                  ),
+                  ButtonSegment<String>(
+                    value: 'all',
+                    label: Text('All'),
+                  ),
+                  ButtonSegment<String>(
+                    value: 'exclude',
+                    label: Text('Exclude'),
+                  ),
+                ],
+                selected: {currentOptions.tagFilterMode},
+                onSelectionChanged: (Set<String> newSelection) {
+                  setState(() {
+                    currentOptions = currentOptions.copyWith(
+                      tagFilterMode: newSelection.first,
+                    );
+                  });
+                },
+                style: SegmentedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: theme.colorScheme.onSurface,
+                  selectedBackgroundColor: theme.colorScheme.primaryContainer,
+                  selectedForegroundColor: theme.colorScheme.onPrimaryContainer,
+                  side: BorderSide(
+                    color: theme.colorScheme.outline,
+                    width: 1,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                ),
+                showSelectedIcon: true,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
   Widget _buildFilterChips({
     required List<String> options,
     required List<String> selected,
     required Function(List<String>) onChanged,
   }) {
-
     return Wrap(
       spacing: 8,
-      runSpacing: 8,
+      runSpacing: 0,
       children: options.map((option) {
         final isSelected = selected.contains(option);
         return FilterChip(
@@ -369,9 +429,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
             side: BorderSide(
-              color: isSelected
-                  ? Colors.transparent
-                  : Theme.of(context).colorScheme.outline,
+              color: isSelected ? Colors.transparent : Theme.of(context).colorScheme.outline,
               width: 1,
             ),
           ),
@@ -381,6 +439,4 @@ class _SortFilterViewState extends State<_SortFilterView> {
       }).toList(),
     );
   }
-
-
 }

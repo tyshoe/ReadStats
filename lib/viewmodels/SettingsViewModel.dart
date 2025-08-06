@@ -18,6 +18,7 @@ class SettingsViewModel {
   final ValueNotifier<List<String>> libraryBookTypeFilterNotifier;
   final ValueNotifier<bool> libraryFavoriteFilterNotifier;
   final ValueNotifier<List<String>> libraryFinishedYearFilterNotifier;
+  final ValueNotifier<String> libraryTagFilterModeNotifier; // Changed to String
 
   SettingsViewModel({
     required ThemeMode themeMode,
@@ -34,6 +35,7 @@ class SettingsViewModel {
     required List<String> bookTypes,
     required bool isFavorite,
     required List<String> finishedYears,
+    required String tagFilterMode, // Changed to String
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
@@ -47,7 +49,8 @@ class SettingsViewModel {
         isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
         libraryBookTypeFilterNotifier = ValueNotifier(bookTypes),
         libraryFavoriteFilterNotifier = ValueNotifier(isFavorite),
-        libraryFinishedYearFilterNotifier = ValueNotifier(finishedYears);
+        libraryFinishedYearFilterNotifier = ValueNotifier(finishedYears),
+        libraryTagFilterModeNotifier = ValueNotifier(tagFilterMode);
 
   // Method to toggle theme mode (light, dark, system)
   Future<void> toggleTheme(ThemeMode themeMode) async {
@@ -269,5 +272,20 @@ class SettingsViewModel {
       default:
         return IconStyle.simple;
     }
+  }
+
+  Future<void> setLibraryTagFilterMode(String mode) async {
+    // Validate the mode is one of our expected values
+    if (!['any', 'all', 'exclude'].contains(mode)) {
+      mode = 'any'; // Default to 'any' if invalid
+    }
+    libraryTagFilterModeNotifier.value = mode;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('libraryTagFilterMode', mode);
+  }
+
+  static Future<String> getLibraryTagFilterMode() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('libraryTagFilterMode') ?? 'any'; // Default to 'any'
   }
 }

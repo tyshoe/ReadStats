@@ -81,6 +81,7 @@ class _MyAppState extends State<MyApp> {
     final bookTypes = await SettingsViewModel.getLibraryBookTypes();
     final isFavorite = await SettingsViewModel.getLibraryIsFavorite();
     final finishedYears = await SettingsViewModel.getLibraryFinishedYears();
+    final tagFilterMode = await SettingsViewModel.getLibraryTagFilterMode();
 
     if (kDebugMode) {
       final preferencesDebugMessage = '''
@@ -103,6 +104,7 @@ class _MyAppState extends State<MyApp> {
       • Favorite Filter: ${isFavorite ? 'ON' : 'OFF'}
       • Book Types: ${bookTypes.isEmpty ? 'All' : bookTypes.join(', ')}
       • Finished Years: ${finishedYears.isEmpty ? 'All' : finishedYears.join(', ')}
+      • Tag filter mode: $tagFilterMode
       ═══════════════════════════════════════════
       ''';
       debugPrint(preferencesDebugMessage);
@@ -122,7 +124,9 @@ class _MyAppState extends State<MyApp> {
         isAscending: isAscending,
         bookTypes: bookTypes,
         isFavorite: isFavorite,
-        finishedYears: finishedYears);
+        finishedYears: finishedYears,
+        tagFilterMode: tagFilterMode
+    );
   }
 
   Future<void> _loadBooks() async {

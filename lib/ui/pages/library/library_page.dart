@@ -45,6 +45,7 @@ class _LibraryPageState extends State<LibraryPage> {
   List<String> _selectedFinishedYears = [];
   List<String> _selectedBookTypes = [];
   List<String> _selectedTags = [];
+  String _selectedTagFilterMode = 'any';
   late TagRepository _tagRepository;
   List<String> _availableTags = [];
   Map<int, List<String>> _bookTagsCache = {};
@@ -63,15 +64,18 @@ class _LibraryPageState extends State<LibraryPage> {
     _isFavorite = widget.settingsViewModel.libraryFavoriteFilterNotifier.value;
     _libraryBookView = widget.settingsViewModel.libraryBookViewNotifier.value;
     _selectedFinishedYears = widget.settingsViewModel.libraryFinishedYearFilterNotifier.value;
+    _selectedTagFilterMode = widget.settingsViewModel.libraryTagFilterModeNotifier.value;
 
     _filteredBooks = _sortAndFilterBooks(
-        List<Map<String, dynamic>>.from(widget.books),
-        _selectedSortOption,
-        _isAscending,
-        _selectedBookTypes,
-        _isFavorite,
-        _selectedFinishedYears,
-        _selectedTags);
+      List<Map<String, dynamic>>.from(widget.books),
+      _selectedSortOption,
+      _isAscending,
+      _selectedBookTypes,
+      _isFavorite,
+      _selectedFinishedYears,
+      _selectedTags,
+      _selectedTagFilterMode,
+    );
     _searchController.addListener(_searchBooks);
   }
 
@@ -87,7 +91,8 @@ class _LibraryPageState extends State<LibraryPage> {
             _selectedBookTypes,
             _isFavorite,
             _selectedFinishedYears,
-            _selectedTags);
+            _selectedTags,
+            _selectedTagFilterMode);
       });
     }
   }
@@ -128,6 +133,7 @@ class _LibraryPageState extends State<LibraryPage> {
           _isFavorite,
           _selectedFinishedYears,
           _selectedTags,
+          _selectedTagFilterMode
         );
       }
     });
@@ -245,45 +251,51 @@ class _LibraryPageState extends State<LibraryPage> {
     bool isFavorite,
     List<String> finishedYears,
     List<String> tags,
+    String tagFilterMode
   ) {
     List<Map<String, dynamic>> filteredBooks =
-        _filterBooks(books, selectedBookTypes, isFavorite, finishedYears, tags);
+        _filterBooks(books, selectedBookTypes, isFavorite, finishedYears, tags, tagFilterMode);
 
     widget.settingsViewModel.setLibrarySortOption(selectedSortOption);
     widget.settingsViewModel.setLibrarySortAscending(isAscending);
     widget.settingsViewModel.setLibraryBookTypeFilter(selectedBookTypes);
     widget.settingsViewModel.setLibraryIsFavorite(isFavorite);
     widget.settingsViewModel.setLibraryFinishedYearFilter(finishedYears);
+    widget.settingsViewModel.setLibraryTagFilterMode(tagFilterMode);
 
     return _sortBooks(filteredBooks, selectedSortOption, isAscending);
   }
 
   List<Map<String, dynamic>> _filterBooks(
-    List<Map<String, dynamic>> books,
-    List<String> selectedBookTypes,
-    bool isFavorite,
-    List<String> finishedYears,
-    List<String> selectedTags,
-  ) {
+      List<Map<String, dynamic>> books,
+      List<String> selectedBookTypes,
+      bool isFavorite,
+      List<String> finishedYears,
+      List<String> selectedTags,
+      String tagFilterMode, // Changed to string
+      ) {
     final selectedTypeIds = selectedBookTypes
         .map((type) {
-          return bookTypeNames.entries
-              .firstWhere(
-                (entry) => entry.value == type,
-                orElse: () => const MapEntry(-1, ''),
-              )
-              .key;
-        })
+      return bookTypeNames.entries
+          .firstWhere(
+            (entry) => entry.value == type,
+        orElse: () => const MapEntry(-1, ''),
+      )
+          .key;
+    })
         .where((id) => id != -1)
         .toList();
 
     return books.where((book) {
+      // Book type filter
       final typeMatch = selectedTypeIds.isEmpty ||
           (book['book_type_id'] != null && selectedTypeIds.contains(book['book_type_id']));
 
+      // Favorite filter
       final favoriteMatch =
           !isFavorite || (book['is_favorite'] != null && book['is_favorite'] == 1);
 
+      // Year filter
       bool yearMatch = finishedYears.isEmpty;
       if (!yearMatch && book['date_finished'] != null) {
         try {
@@ -294,10 +306,24 @@ class _LibraryPageState extends State<LibraryPage> {
         }
       }
 
+      // Enhanced tag filter with multiple modes
       bool tagMatch = selectedTags.isEmpty;
       if (!tagMatch) {
         final bookTags = _extractBookTags(book);
-        tagMatch = selectedTags.any((tag) => bookTags.contains(tag));
+
+        switch (tagFilterMode) {
+          case 'any':
+            tagMatch = selectedTags.any((tag) => bookTags.contains(tag));
+            break;
+          case 'all':
+            tagMatch = selectedTags.every((tag) => bookTags.contains(tag));
+            break;
+          case 'exclude':
+            tagMatch = !selectedTags.any((tag) => bookTags.contains(tag));
+            break;
+          default: // Default to 'any' if invalid mode
+            tagMatch = selectedTags.any((tag) => bookTags.contains(tag));
+        }
       }
 
       return typeMatch && favoriteMatch && yearMatch && tagMatch;
@@ -381,6 +407,7 @@ class _LibraryPageState extends State<LibraryPage> {
       isFavorite: _isFavorite,
       finishedYears: _selectedFinishedYears,
       tags: _selectedTags,
+      tagFilterMode: _selectedTagFilterMode
     );
 
     SortFilterPopup.show(
@@ -394,6 +421,7 @@ class _LibraryPageState extends State<LibraryPage> {
             _isFavorite = newOptions.isFavorite;
             _selectedFinishedYears = newOptions.finishedYears;
             _selectedTags = newOptions.tags;
+            _selectedTagFilterMode = newOptions.tagFilterMode;
 
             _filteredBooks = _sortAndFilterBooks(
                 List<Map<String, dynamic>>.from(widget.books),
@@ -402,7 +430,8 @@ class _LibraryPageState extends State<LibraryPage> {
                 _selectedBookTypes,
                 _isFavorite,
                 _selectedFinishedYears,
-                _selectedTags);
+                _selectedTags,
+                _selectedTagFilterMode);
           });
         },
         availableYears: availableYears,
