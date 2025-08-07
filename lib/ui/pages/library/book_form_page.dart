@@ -32,7 +32,7 @@ class _BookFormPageState extends State<BookFormPage> {
   final TextEditingController _authorController = TextEditingController();
   final TextEditingController _wordCountController = TextEditingController();
   final TextEditingController _pageCountController = TextEditingController();
-  final TextEditingController _ratingController  = TextEditingController();
+  final TextEditingController _ratingController = TextEditingController();
   final DateTime _dateToday = DateTime.now();
   double? _rating;
   bool _isCompleted = false;
@@ -371,14 +371,14 @@ class _BookFormPageState extends State<BookFormPage> {
                     ),
                     suffixIcon: controller.text.isNotEmpty
                         ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        controller.clear();
-                        _authorController.clear();
-                        setState(() {});
-                        focusNode.requestFocus();
-                      },
-                    )
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              controller.clear();
+                              _authorController.clear();
+                              setState(() {});
+                              focusNode.requestFocus();
+                            },
+                          )
                         : null,
                   ),
                   onChanged: (value) {
@@ -574,102 +574,98 @@ class _BookFormPageState extends State<BookFormPage> {
             ),
 
             // Rating (only shown if completed)
-            if (_isCompleted) ...[
-              const SizedBox(height: 16),
-              if (_useStarRating) ...[
-                Text('Rating', style: theme.textTheme.bodyMedium),
-                // const SizedBox(height: 8),
-              ],
-              Row(
-                children: [
-                  Expanded(
+            const SizedBox(height: 16),
+            if (_useStarRating) ...[
+              Text('Rating', style: theme.textTheme.bodyMedium),
+              // const SizedBox(height: 8),
+            ],
+            Row(
+              children: [
+                Expanded(
                     child: _useStarRating
                         ? RatingBar.builder(
-                      initialRating: _rating ?? 0,
-                      minRating: 0,
-                      direction: Axis.horizontal,
-                      allowHalfRating: true,
-                      itemCount: 5,
-                      itemSize: 32,
-                      itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      itemBuilder: (context, _) => const Icon(
-                        Icons.star,
-                        color: Colors.amber,
-                      ),
-                      glow: false,
-                      onRatingUpdate: (rating) {
-                        setState(() {
-                          _rating = rating;
-                        });
-                      },
-                    )
-                    : TextField(
-                      controller: _ratingController,
-                      decoration: InputDecoration(
-                        labelText: 'Rating',
-                        hintText: 'Enter rating (0–5)',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        suffixIcon: _ratingController.text.isNotEmpty
-                            ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            setState(() {
-                              _rating = null;
-                              _ratingController.clear();
-                            });
-                          },
-                        )
-                            : null,
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d{0,1}(\.\d{0,2})?$')),
-                      ],
-                      onChanged: (value) {
-                        if (value.isEmpty) {
-                          setState(() {
-                            _rating = null;
-                          });
-                        } else {
-                          final parsed = double.tryParse(value);
-                          if (parsed != null) {
-                            if (parsed > 5.0) {
-                              _rating = 5.0;
-                              _ratingController.text = '5.00';
-                              _ratingController.selection = TextSelection.fromPosition(
-                                const TextPosition(offset: 4),
-                              );
-                            } else {
-                              _rating = parsed;
-                            }
-                            setState(() {}); // To reflect any value change
-                          }
-                        }
-                      },
-                      onTapOutside: (event) {
-                        FocusManager.instance.primaryFocus?.unfocus();
-                      },
-                    )
+                            initialRating: _rating ?? 0,
+                            minRating: 0,
+                            direction: Axis.horizontal,
+                            allowHalfRating: true,
+                            itemCount: 5,
+                            itemSize: 32,
+                            itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                            itemBuilder: (context, _) => const Icon(
+                              Icons.star,
+                              color: Colors.amber,
+                            ),
+                            glow: false,
+                            onRatingUpdate: (rating) {
+                              setState(() {
+                                _rating = rating;
+                              });
+                            },
+                          )
+                        : TextField(
+                            controller: _ratingController,
+                            decoration: InputDecoration(
+                              labelText: 'Rating',
+                              hintText: 'Enter rating (0–5)',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              suffixIcon: _ratingController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        setState(() {
+                                          _rating = null;
+                                          _ratingController.clear();
+                                        });
+                                      },
+                                    )
+                                  : null,
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'^\d{0,1}(\.\d{0,2})?$')),
+                            ],
+                            onChanged: (value) {
+                              if (value.isEmpty) {
+                                setState(() {
+                                  _rating = null;
+                                });
+                              } else {
+                                final parsed = double.tryParse(value);
+                                if (parsed != null) {
+                                  if (parsed > 5.0) {
+                                    _rating = 5.0;
+                                    _ratingController.text = '5.00';
+                                    _ratingController.selection = TextSelection.fromPosition(
+                                      const TextPosition(offset: 4),
+                                    );
+                                  } else {
+                                    _rating = parsed;
+                                  }
+                                  setState(() {}); // To reflect any value change
+                                }
+                              }
+                            },
+                            onTapOutside: (event) {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                            },
+                          )),
+                const SizedBox(width: 16),
+                IconButton(
+                  icon: Icon(
+                    _isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: _isFavorite ? Colors.red : theme.colorScheme.onSurface.withOpacity(0.6),
+                    size: 32,
                   ),
-                  const SizedBox(width: 16),
-                  IconButton(
-                    icon: Icon(
-                      _isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color:
-                          _isFavorite ? Colors.red : theme.colorScheme.onSurface.withOpacity(0.6),
-                      size: 32,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isFavorite = !_isFavorite;
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ],
+                  onPressed: () {
+                    setState(() {
+                      _isFavorite = !_isFavorite;
+                    });
+                  },
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
 
             // Tags Section

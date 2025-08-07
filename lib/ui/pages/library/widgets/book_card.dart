@@ -275,10 +275,8 @@ class BookPopup {
                                     ],
                                   ],
                                 ),
-                                if (book['is_completed'] == 1) ...[
-                                  const SizedBox(height: 5),
-                                  _buildRatingDisplay(ratingStyle, book['rating'] ?? 0),
-                                ],
+                                const SizedBox(height: 5),
+                                _buildRatingDisplay(ratingStyle, book['rating'] ?? 0),
                                 if (dateRangeString != '') ...[
                                   const SizedBox(height: 5),
                                   Text(
