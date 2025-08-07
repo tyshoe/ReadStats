@@ -156,13 +156,20 @@ class BookRow extends StatelessWidget {
                           itemSize: 20,
                           itemBuilder: (context, _) => const Icon(
                             Icons.star,
-                            color: Colors.amber,
+                            color: Color(0xFFFBCB04),
                           ),
                         )
                       else
-                        Text(
-                          "Rating: ${book['rating']?.toStringAsFixed(1) ?? '0'}",
-                          style: theme.textTheme.bodyMedium,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              book['rating'] != null ? book['rating'].toStringAsFixed(1) : '-',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.star, size: 16, color: Color(0xFFFBCB04),),
+                          ],
                         ),
 
                       // Date range

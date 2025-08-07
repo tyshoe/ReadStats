@@ -58,8 +58,8 @@ class Book {
       author: map['author'] ?? '', // Ensure non-null string
       wordCount: (map['word_count'] as int?) ?? 0,
       pageCount: (map['page_count'] as int?) ?? 0,
-      rating: map['rating'] != null ? double.tryParse(map['rating'].toString()) : null,
-      isCompleted: (map['is_completed'] as int?) == 1,
+        rating: map['rating'] != null ? (map['rating'] as num).toDouble() : null,
+        isCompleted: (map['is_completed'] as int?) == 1,
       isFavorite: (map['is_favorite'] as int?) == 1,
       bookTypeId: (map['book_type_id'] as int?) ?? 1, // Default value
       dateAdded: map['date_added'] ?? DateTime.now().toIso8601String(),

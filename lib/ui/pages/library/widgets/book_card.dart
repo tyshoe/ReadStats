@@ -276,7 +276,7 @@ class BookPopup {
                                   ],
                                 ),
                                 const SizedBox(height: 5),
-                                _buildRatingDisplay(ratingStyle, book['rating'] ?? 0),
+                                _buildRatingDisplay(ratingStyle, book['rating']),
                                 if (dateRangeString != '') ...[
                                   const SizedBox(height: 5),
                                   Text(
@@ -449,29 +449,38 @@ class BookPopup {
     return "$percentage% ($timeString)";
   }
 
-  static Widget _buildRatingStars(double rating) {
+  static Widget _buildRatingStars(double? rating) {
+    final safeRating = rating ?? 0.0;
+
     return Align(
       alignment: Alignment.centerLeft,
       child: RatingBarIndicator(
-        rating: rating, // Directly use the rating value
+        rating: safeRating,
         itemCount: 5,
         itemSize: 24.0,
-        physics: const NeverScrollableScrollPhysics(), // Prevent interaction
-        itemBuilder: (context, _) => const Icon(
+        physics: const NeverScrollableScrollPhysics(),
+        itemBuilder: (context, _) => Icon(
           Icons.star,
-          color: Colors.yellow,
+          color: rating == null ? Colors.grey.shade400 : Color(0xFFFBCB04),
         ),
       ),
     );
   }
 
-  static Widget _buildRatingDisplay(int ratingStyle, double rating) {
+  static Widget _buildRatingDisplay(int ratingStyle, double? rating) {
     if (ratingStyle == 0) {
       return _buildRatingStars(rating);
     } else {
-      return Text(
-        rating.toStringAsFixed(1),
-        style: const TextStyle(fontSize: 14),
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            rating != null ? rating.toStringAsFixed(1) : '-',
+            style: const TextStyle(fontSize: 14),
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.star, size: 16, color: Color(0xFFFBCB04)),
+        ],
       );
     }
   }
