@@ -24,9 +24,39 @@ class StatisticsPage extends StatefulWidget {
 class _StatisticsPageState extends State<StatisticsPage> {
   int selectedYear = 0;
 
+  Map<String, dynamic> _stats = {
+    'totalSessions': 0,
+    'booksCompleted': 0,
+    'highestRating': '-',
+    'highestRatingBookTitle': '',
+    'lowestRating': '-',
+    'lowestRatingBookTitle': '',
+    'averageRating': 0.0,
+    'totalTimeSpent': '0m',
+    'slowestReadTime': '0m',
+    'slowestReadBookTitle': '',
+    'fastestReadTime': '0m',
+    'fastestReadBookTitle': '',
+    'totalPagesRead': 0,
+    'avgPagesPerMinute': 0.0,
+    'averagePages': 0.0,
+    'highestPages': 0,
+    'highestPagesBookTitle': '',
+    'lowestPages': 0,
+    'lowestPagesBookTitle': '',
+  };
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => loadStats());
+  }
+
+  void loadStats() async {
+    final newStats = await calculateStats(selectedYear);
+    setState(() {
+      _stats = newStats;
+    });
   }
 
   Future<Map<String, dynamic>> calculateStats(int selectedYear) async {
@@ -124,7 +154,12 @@ class _StatisticsPageState extends State<StatisticsPage> {
                             borderRadius: BorderRadius.zero,
                           ),
                         ),
-                        onPressed: () => setState(() => selectedYear = year),
+                        onPressed: () {
+                          setState(() {
+                            selectedYear = year;
+                          });
+                          loadStats();
+                        },
                         child: Container(
                           decoration: BoxDecoration(
                             border: isSelected
@@ -154,73 +189,60 @@ class _StatisticsPageState extends State<StatisticsPage> {
           const Divider(height: 1),
           // Statistics content
           Expanded(
-            child: FutureBuilder<Map<String, dynamic>>(
-              future: calculateStats(selectedYear),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader('Overall'),
+                  _buildStatCard('Total Sessions', _stats['totalSessions'].toString()),
+                  _buildStatCard('Books Finished', _stats['booksCompleted'].toString()),
 
-                final stats = snapshot.data ?? {};
-
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionHeader('Overall'),
-                      _buildStatCard('Total Sessions', stats['totalSessions'].toString()),
-                      _buildStatCard('Books Finished', stats['booksCompleted'].toString()),
-
-                      _buildSectionHeader('Ratings'),
-                      _buildStatCardWithBook(
-                        'Highest Rating',
-                        stats['highestRating'].toString(),
-                        stats['highestRatingBookTitle'],
-                      ),
-                      _buildStatCardWithBook(
-                        'Lowest Rating',
-                        stats['lowestRating'].toString(),
-                        stats['lowestRatingBookTitle'],
-                      ),
-                      _buildStatCard('Average Rating', stats['averageRating'].toStringAsFixed(2)),
-
-                      _buildSectionHeader('Reading Time'),
-                      _buildStatCard('Total Time Spent', stats['totalTimeSpent']),
-                      _buildStatCardWithBook(
-                        'Slowest Read',
-                        stats['slowestReadTime'].toString(),
-                        stats['slowestReadBookTitle'],
-                      ),
-                      _buildStatCardWithBook(
-                        'Fastest Read',
-                        stats['fastestReadTime'].toString(),
-                        stats['fastestReadBookTitle'],
-                      ),
-
-                      _buildSectionHeader('Pages'),
-                      _buildStatCard('Total Pages Read', stats['totalPagesRead'].toString()),
-                      _buildStatCard('Avg Pages/Min', stats['avgPagesPerMinute'].toStringAsFixed(2)),
-                      _buildStatCard('Average Pages', stats['averagePages'].toStringAsFixed(2)),
-                      _buildStatCardWithBook(
-                        'Longest Book',
-                        stats['highestPages'].toString(),
-                        stats['highestPagesBookTitle'],
-                      ),
-                      _buildStatCardWithBook(
-                        'Shortest Book',
-                        stats['lowestPages'].toString(),
-                        stats['lowestPagesBookTitle'],
-                      ),
-                    ],
+                  _buildSectionHeader('Ratings'),
+                  _buildStatCardWithBook(
+                    'Highest Rating',
+                    _stats['highestRating'].toString(),
+                    _stats['highestRatingBookTitle'],
                   ),
-                );
-              },
+                  _buildStatCardWithBook(
+                    'Lowest Rating',
+                    _stats['lowestRating'].toString(),
+                    _stats['lowestRatingBookTitle'],
+                  ),
+                  _buildStatCard('Average Rating', _stats['averageRating'].toStringAsFixed(2)),
+
+                  _buildSectionHeader('Reading Time'),
+                  _buildStatCard('Total Time Spent', _stats['totalTimeSpent']),
+                  _buildStatCardWithBook(
+                    'Slowest Read',
+                    _stats['slowestReadTime'].toString(),
+                    _stats['slowestReadBookTitle'],
+                  ),
+                  _buildStatCardWithBook(
+                    'Fastest Read',
+                    _stats['fastestReadTime'].toString(),
+                    _stats['fastestReadBookTitle'],
+                  ),
+
+                  _buildSectionHeader('Pages'),
+                  _buildStatCard('Total Pages Read', _stats['totalPagesRead'].toString()),
+                  _buildStatCard('Avg Pages/Min', _stats['avgPagesPerMinute'].toStringAsFixed(2)),
+                  _buildStatCard('Average Pages', _stats['averagePages'].toStringAsFixed(2)),
+                  _buildStatCardWithBook(
+                    'Longest Book',
+                    _stats['highestPages'].toString(),
+                    _stats['highestPagesBookTitle'],
+                  ),
+                  _buildStatCardWithBook(
+                    'Shortest Book',
+                    _stats['lowestPages'].toString(),
+                    _stats['lowestPagesBookTitle'],
+                  ),
+                ],
+              ),
             ),
-          ),
+          )
+,
         ],
       ),
     );
