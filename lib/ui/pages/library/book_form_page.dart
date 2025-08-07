@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:read_stats/ui/pages/tag_selector_page.dart';
@@ -31,6 +32,7 @@ class _BookFormPageState extends State<BookFormPage> {
   final TextEditingController _authorController = TextEditingController();
   final TextEditingController _wordCountController = TextEditingController();
   final TextEditingController _pageCountController = TextEditingController();
+  final TextEditingController _ratingController  = TextEditingController();
   final DateTime _dateToday = DateTime.now();
   double? _rating;
   bool _isCompleted = false;
@@ -53,6 +55,7 @@ class _BookFormPageState extends State<BookFormPage> {
       _wordCountController.text = widget.book!['word_count'].toString();
       _pageCountController.text = widget.book!['page_count'].toString();
       _rating = widget.book!['rating']?.toDouble();
+      _ratingController.text = _rating?.toStringAsFixed(2) ?? '';
       _isCompleted = widget.book!['is_completed'] == 1;
       _isFavorite = widget.book!['is_favorite'] == 1;
       _selectedBookType = widget.book!['book_type_id'] - 1;
@@ -582,45 +585,73 @@ class _BookFormPageState extends State<BookFormPage> {
                   Expanded(
                     child: _useStarRating
                         ? RatingBar.builder(
-                            initialRating: _rating ?? 0,
-                            minRating: 0,
-                            direction: Axis.horizontal,
-                            allowHalfRating: true,
-                            itemCount: 5,
-                            itemSize: 32,
-                            itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                            itemBuilder: (context, _) => const Icon(
-                              Icons.star,
-                              color: Colors.amber,
-                            ),
-                            glow: false,
-                            onRatingUpdate: (rating) {
-                              setState(() {
-                                _rating = rating;
-                              });
-                            },
-                          )
-                        : TextField(
-                            decoration: InputDecoration(
-                              labelText: 'Rating',
-                              hintText: 'Enter rating (0-5)',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            keyboardType: TextInputType.numberWithOptions(decimal: true),
-                            onChanged: (value) {
-                              final parsed = double.tryParse(value);
-                              if (parsed != null && parsed >= 0 && parsed <= 5) {
-                                setState(() {
-                                  _rating = parsed;
-                                });
-                              }
-                            },
-                            onTapOutside: (event) {
-                              FocusManager.instance.primaryFocus?.unfocus();
-                            },
-                          ),
+                      initialRating: _rating ?? 0,
+                      minRating: 0,
+                      direction: Axis.horizontal,
+                      allowHalfRating: true,
+                      itemCount: 5,
+                      itemSize: 32,
+                      itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      itemBuilder: (context, _) => const Icon(
+                        Icons.star,
+                        color: Colors.amber,
+                      ),
+                      glow: false,
+                      onRatingUpdate: (rating) {
+                        setState(() {
+                          _rating = rating;
+                        });
+                      },
+                    )
+                    : TextField(
+                      controller: _ratingController,
+                      decoration: InputDecoration(
+                        labelText: 'Rating',
+                        hintText: 'Enter rating (0–5)',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        suffixIcon: _ratingController.text.isNotEmpty
+                            ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            setState(() {
+                              _rating = null;
+                              _ratingController.clear();
+                            });
+                          },
+                        )
+                            : null,
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d{0,1}(\.\d{0,2})?$')),
+                      ],
+                      onChanged: (value) {
+                        if (value.isEmpty) {
+                          setState(() {
+                            _rating = null;
+                          });
+                        } else {
+                          final parsed = double.tryParse(value);
+                          if (parsed != null) {
+                            if (parsed > 5.0) {
+                              _rating = 5.0;
+                              _ratingController.text = '5.00';
+                              _ratingController.selection = TextSelection.fromPosition(
+                                const TextPosition(offset: 4),
+                              );
+                            } else {
+                              _rating = parsed;
+                            }
+                            setState(() {}); // To reflect any value change
+                          }
+                        }
+                      },
+                      onTapOutside: (event) {
+                        FocusManager.instance.primaryFocus?.unfocus();
+                      },
+                    )
                   ),
                   const SizedBox(width: 16),
                   IconButton(
