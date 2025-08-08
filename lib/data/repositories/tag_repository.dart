@@ -120,6 +120,47 @@ class TagRepository {
       tagId: row['tag_id'] as int,
     )).toList();
   }
+
+  Future<void> addTagsBatch(List<Tag> tags) async {
+    final db = await _databaseHelper.database;
+    final batch = db.batch();
+
+    for (final tag in tags) {
+      batch.insert(
+        'tags',
+        tag.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.ignore, // skip duplicates
+      );
+    }
+
+    await batch.commit(noResult: true);
+  }
+
+  Future<void> addBookTagsBatch(List<BookTag> bookTags) async {
+    final db = await _databaseHelper.database;
+    final batch = db.batch();
+
+    for (final bt in bookTags) {
+      batch.insert(
+        'book_tags',
+        {
+          'book_id': bt.bookId,
+          'tag_id': bt.tagId,
+        },
+        conflictAlgorithm: ConflictAlgorithm.ignore, // skip duplicates
+      );
+    }
+
+    await batch.commit(noResult: true);
+  }
+
+  Future<void> deleteAllTags() async {
+    final db = await _databaseHelper.database;
+    await db.transaction((txn) async {
+      await txn.delete('book_tags'); // Remove tag relationships first
+      await txn.delete('tags');      // Then remove all tags
+    });
+  }
 }
 
 extension DatabaseExceptionExtensions on DatabaseException {

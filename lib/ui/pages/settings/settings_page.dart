@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -77,8 +76,7 @@ class SettingsPage extends StatelessWidget {
                   _getThemeModeString(themeMode),
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
-                onTap: () => showThemeModePicker(
-                    context, settingsViewModel, toggleTheme),
+                onTap: () => showThemeModePicker(context, settingsViewModel, toggleTheme),
               ),
               _buildSettingsTile(
                 context,
@@ -110,8 +108,7 @@ class SettingsPage extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        FontSelectionPage(settingsViewModel: settingsViewModel),
+                    builder: (context) => FontSelectionPage(settingsViewModel: settingsViewModel),
                   ),
                 ),
               ),
@@ -132,8 +129,10 @@ class SettingsPage extends StatelessWidget {
                 title: 'Navigation Style',
                 trailing: ValueListenableBuilder<IconStyle>(
                   valueListenable: settingsViewModel.navStyleNotifier,
-                  builder: (context, value, _) =>
-                      Text(_iconStyleToString(value), style: Theme.of(context).textTheme.bodyMedium,),
+                  builder: (context, value, _) => Text(
+                    _iconStyleToString(value),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ),
                 onTap: () => showNavStylePicker(context, settingsViewModel),
               ),
@@ -150,8 +149,10 @@ class SettingsPage extends StatelessWidget {
                 title: 'Default Book Format',
                 trailing: ValueListenableBuilder<int>(
                   valueListenable: settingsViewModel.defaultBookTypeNotifier,
-                  builder: (context, type, _) =>
-                      Text(bookTypeNames[type] ?? "Unknown", style: Theme.of(context).textTheme.bodyMedium,),
+                  builder: (context, type, _) => Text(
+                    bookTypeNames[type] ?? "Unknown",
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ),
                 onTap: () => showBookTypePicker(context, settingsViewModel),
               ),
@@ -160,8 +161,10 @@ class SettingsPage extends StatelessWidget {
                 title: 'Rating Style',
                 trailing: ValueListenableBuilder<int>(
                   valueListenable: settingsViewModel.defaultRatingStyleNotifier,
-                  builder: (context, style, _) =>
-                      Text(ratingStyleNames[style] ?? "Unknown", style: Theme.of(context).textTheme.bodyMedium,),
+                  builder: (context, style, _) => Text(
+                    ratingStyleNames[style] ?? "Unknown",
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ),
                 onTap: () => showRatingStylePicker(context, settingsViewModel),
               ),
@@ -170,7 +173,10 @@ class SettingsPage extends StatelessWidget {
                 title: 'Default Tab',
                 trailing: ValueListenableBuilder<int>(
                   valueListenable: settingsViewModel.defaultTabNotifier,
-                  builder: (context, index, _) => Text(_getTabName(index), style: Theme.of(context).textTheme.bodyMedium,),
+                  builder: (context, index, _) => Text(
+                    _getTabName(index),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ),
                 onTap: () => showDefaultTabPicker(context, settingsViewModel),
               ),
@@ -196,6 +202,16 @@ class SettingsPage extends StatelessWidget {
                 context,
                 title: 'Import Sessions from CSV',
                 onTap: _importSessionsFromCSV,
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'Import Tags from CSV',
+                onTap: _importTagsFromCSV,
+              ),
+              _buildSettingsTile(
+                context,
+                title: 'Import Book Tags from CSV',
+                onTap: _importBookTagsFromCSV,
               ),
               _buildSettingsTile(
                 context,
@@ -270,8 +286,7 @@ class SettingsPage extends StatelessWidget {
     return ListTile(
       title: Text(
         title,
-        style: TextStyle(
-            color: textColor ?? Theme.of(context).colorScheme.onSurface),
+        style: TextStyle(color: textColor ?? Theme.of(context).colorScheme.onSurface),
       ),
       trailing: trailing,
       onTap: onTap,
@@ -303,6 +318,7 @@ class SettingsPage extends StatelessWidget {
             onPressed: () async {
               Navigator.pop(ctx);
               await bookRepository.deleteAllBooks();
+              await tagRepository.deleteAllTags();
               refreshBooks();
               refreshSessions();
             },
@@ -369,33 +385,43 @@ class SettingsPage extends StatelessWidget {
     await _importCSV('sessions', _importSessions);
   }
 
-  Future<void> _importCSV(String type,
-      Future<void> Function(List<List<dynamic>>) importFunction) async {
+  Future<void> _importTagsFromCSV() async {
+    await _importCSV('tags', _importTags);
+  }
+
+  Future<void> _importBookTagsFromCSV() async {
+    await _importCSV('book_tags', _importBookTags);
+  }
+
+  Future<void> _importCSV(
+      String type, Future<void> Function(List<List<dynamic>>) importFunction) async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         // allowedExtensions: ['csv'],
       );
 
-      if (result != null) {
-        String filePath = result.files.single.path!;
-        final file = File(filePath);
-        String csvString = await file.readAsString();
+      if (result == null) return; // User canceled
 
-        List<List<dynamic>> csvData =
-            const CsvToListConverter().convert(csvString);
+      String filePath = result.files.single.path!;
+      final file = File(filePath);
+      String csvString = await file.readAsString();
 
-        if (csvData.isNotEmpty) {
-          if (type == 'books') {
-            await importFunction(csvData.skip(1).toList());
-          } else if (type == 'sessions') {
-            await importFunction(csvData.skip(1).toList());
-          }
-        }
+      List<List<dynamic>> csvData = const CsvToListConverter().convert(csvString);
+
+      if (csvData.length <= 1) {
+        throw Exception('CSV has no data rows.');
+      }
+
+      // Always skip header row for now
+      await importFunction(csvData.skip(1).toList());
+
+      if (kDebugMode) {
+        print('CSV import for $type completed. Rows: ${csvData.length - 1}');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error importing CSV: $e');
+        print('Error importing CSV for $type: $e');
       }
     }
   }
@@ -417,19 +443,13 @@ class SettingsPage extends StatelessWidget {
           isCompleted: row[6] == 1 || row[6] == 'true',
           isFavorite: row[7] == 1 || row[7] == 'true',
           bookTypeId: int.tryParse(row[8].toString()) ?? 0,
-          dateAdded: DateTime.tryParse(row[9].toString())
-                  ?.toIso8601String()
-                  .split('T')[0] ??
+          dateAdded: DateTime.tryParse(row[9].toString())?.toIso8601String().split('T')[0] ??
               DateTime.now().toIso8601String().split('T')[0],
           dateStarted: row[10]?.toString().isNotEmpty == true
-              ? DateTime.tryParse(row[10].toString())
-                  ?.toIso8601String()
-                  .split('T')[0]
+              ? DateTime.tryParse(row[10].toString())?.toIso8601String().split('T')[0]
               : null,
           dateFinished: row[11]?.toString().isNotEmpty == true
-              ? DateTime.tryParse(row[11].toString())
-                  ?.toIso8601String()
-                  .split('T')[0]
+              ? DateTime.tryParse(row[11].toString())?.toIso8601String().split('T')[0]
               : null,
         );
 
@@ -459,9 +479,7 @@ class SettingsPage extends StatelessWidget {
             bookId: int.tryParse(row[1].toString()) ?? 0,
             pagesRead: int.tryParse(row[2].toString()) ?? 0,
             durationMinutes: int.tryParse(row[3].toString()) ?? 0,
-            date: DateTime.tryParse(row[4].toString())
-                    ?.toIso8601String()
-                    .split('T')[0] ??
+            date: DateTime.tryParse(row[4].toString())?.toIso8601String().split('T')[0] ??
                 DateTime.now().toIso8601String().split('T')[0],
           ),
         );
@@ -478,17 +496,58 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
+  Future<void> _importTags(List<List<dynamic>> rows) async {
+    List<Tag> tagsToInsert = [];
+
+    for (var row in rows) {
+      if (row.length < 3) continue; // id, name, color
+      try {
+        tagsToInsert.add(
+          Tag(
+            id: int.tryParse(row[0].toString()),
+            name: row[1].toString(),
+            color: int.tryParse(row[2].toString()) ?? 0,
+          ),
+        );
+      } catch (e) {
+        if (kDebugMode) print('Error processing tag row: $row. Error: $e');
+      }
+    }
+
+    if (tagsToInsert.isNotEmpty) {
+      await tagRepository.addTagsBatch(tagsToInsert);
+    }
+  }
+
+  Future<void> _importBookTags(List<List<dynamic>> rows) async {
+    List<BookTag> bookTagsToInsert = [];
+
+    for (var row in rows) {
+      if (row.length < 2) continue; // book_id, tag_id
+      try {
+        bookTagsToInsert.add(
+          BookTag(
+            bookId: int.tryParse(row[0].toString()) ?? 0,
+            tagId: int.tryParse(row[1].toString()) ?? 0,
+          ),
+        );
+      } catch (e) {
+        if (kDebugMode) print('Error processing book_tag row: $row. Error: $e');
+      }
+    }
+
+    if (bookTagsToInsert.isNotEmpty) {
+      await tagRepository.addBookTagsBatch(bookTagsToInsert);
+    }
+  }
+
   Future<void> exportDataToCSV() async {
     try {
       // Call the export functions and store file paths
-      String booksFilePath =
-      await exportBooksToCSV(await bookRepository.getBooks());
-      String sessionsFilePath =
-      await exportSessionsToCSV(await sessionRepository.getSessions());
-      String tagsFilePath =
-      await exportTagsToCSV(await tagRepository.getAllTags());
-      String bookTagsFilePath =
-      await exportBookTagsToCSV(await tagRepository.getAllBookTags());
+      String booksFilePath = await exportBooksToCSV(await bookRepository.getBooks());
+      String sessionsFilePath = await exportSessionsToCSV(await sessionRepository.getSessions());
+      String tagsFilePath = await exportTagsToCSV(await tagRepository.getAllTags());
+      String bookTagsFilePath = await exportBookTagsToCSV(await tagRepository.getAllBookTags());
 
       if (kDebugMode) {
         print('Books data exported to: $booksFilePath');
@@ -496,13 +555,12 @@ class SettingsPage extends StatelessWidget {
         print('Tags data exported to: $tagsFilePath');
         print('Book-Tags data exported to: $bookTagsFilePath');
       }
-
-      await Share.shareXFiles([
+      await SharePlus.instance.share(ShareParams(files: [
         XFile(booksFilePath),
         XFile(sessionsFilePath),
         XFile(tagsFilePath),
         XFile(bookTagsFilePath),
-      ]);
+      ]));
 
       if (kDebugMode) {
         print('All data exported successfully!');
@@ -602,10 +660,10 @@ class SettingsPage extends StatelessWidget {
     List<List<String>> rows = [
       ['id', 'name', 'color'], // Column headers
       ...tagsData.map((tag) => [
-        tag.id?.toString() ?? '', // Handle nullable id
-        tag.name,
-        tag.color.toString(), // Or use toRadixString(16) for hex format
-      ])
+            tag.id?.toString() ?? '', // Handle nullable id
+            tag.name,
+            tag.color.toString(), // Or use toRadixString(16) for hex format
+          ])
     ];
 
     String csv = const ListToCsvConverter().convert(rows);
@@ -624,9 +682,9 @@ class SettingsPage extends StatelessWidget {
     List<List<String>> rows = [
       ['book_id', 'tag_id'], // Column headers
       ...bookTagsData.map((bookTag) => [
-        bookTag.bookId.toString(),
-        bookTag.tagId.toString(),
-      ])
+            bookTag.bookId.toString(),
+            bookTag.tagId.toString(),
+          ])
     ];
 
     String csv = const ListToCsvConverter().convert(rows);
