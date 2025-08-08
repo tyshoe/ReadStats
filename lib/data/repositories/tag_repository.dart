@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import '../database/database_helper.dart';
 import '../models/tag.dart';
+import '../models/book_tag.dart';
 
 class TagRepository {
   final DatabaseHelper _databaseHelper;
@@ -107,21 +108,17 @@ class TagRepository {
   }
 
   // In TagRepository
-  Future<Map<int, List<String>>> getAllBookTags() async {
+  Future<List<BookTag>> getAllBookTags() async {
     final db = await _databaseHelper.database;
-    final results = await db.rawQuery('''
-    SELECT book_tags.book_id, tags.name 
+    final List<Map<String, dynamic>> results = await db.rawQuery('''
+    SELECT book_id, tag_id 
     FROM book_tags
-    JOIN tags ON book_tags.tag_id = tags.id
   ''');
 
-    final bookTagsMap = <int, List<String>>{};
-    for (final row in results) {
-      final bookId = row['book_id'] as int;
-      final tagName = row['name'] as String;
-      bookTagsMap.putIfAbsent(bookId, () => []).add(tagName);
-    }
-    return bookTagsMap;
+    return results.map((row) => BookTag(
+      bookId: row['book_id'] as int,
+      tagId: row['tag_id'] as int,
+    )).toList();
   }
 }
 

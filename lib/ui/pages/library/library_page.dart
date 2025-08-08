@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../../data/models/book_tag.dart';
 import '../../../data/repositories/tag_repository.dart';
 import 'widgets/book_card.dart';
 import 'widgets/book_row.dart';
@@ -110,7 +111,19 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Future<void> _loadAllBookTags() async {
-    _bookTagsCache = await _tagRepository.getAllBookTags();
+    try {
+      final results = await _tagRepository.getAllBookTags();
+      _bookTagsCache = {}; // Clear existing cache
+
+      for (final bookTag in results) {
+        _bookTagsCache.putIfAbsent(bookTag.bookId, () => []).add(bookTag.tagId.toString());
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading book tags: $e');
+      }
+      _bookTagsCache = {}; // Fallback to empty cache
+    }
   }
 
   void _toggleView(String newView) {

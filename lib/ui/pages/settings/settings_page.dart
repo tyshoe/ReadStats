@@ -10,6 +10,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app_config.dart';
+import '../../../data/models/tag.dart';
+import '../../../data/models/book_tag.dart';
+import '../../../data/repositories/tag_repository.dart';
 import '../../themes/app_theme.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/repositories/session_repository.dart';
@@ -30,6 +33,7 @@ class SettingsPage extends StatelessWidget {
   final ThemeMode themeMode;
   final BookRepository bookRepository;
   final SessionRepository sessionRepository;
+  final TagRepository tagRepository;
   final Function() refreshBooks;
   final Function() refreshSessions;
   final SettingsViewModel settingsViewModel;
@@ -40,6 +44,7 @@ class SettingsPage extends StatelessWidget {
     required this.themeMode,
     required this.bookRepository,
     required this.sessionRepository,
+    required this.tagRepository,
     required this.refreshBooks,
     required this.refreshSessions,
     required this.settingsViewModel,
@@ -477,21 +482,30 @@ class SettingsPage extends StatelessWidget {
     try {
       // Call the export functions and store file paths
       String booksFilePath =
-          await exportBooksToCSV(await bookRepository.getBooks());
+      await exportBooksToCSV(await bookRepository.getBooks());
       String sessionsFilePath =
-          await exportSessionsToCSV(await sessionRepository.getSessions());
+      await exportSessionsToCSV(await sessionRepository.getSessions());
+      String tagsFilePath =
+      await exportTagsToCSV(await tagRepository.getAllTags());
+      String bookTagsFilePath =
+      await exportBookTagsToCSV(await tagRepository.getAllBookTags());
 
       if (kDebugMode) {
         print('Books data exported to: $booksFilePath');
-      }
-      if (kDebugMode) {
         print('Sessions data exported to: $sessionsFilePath');
+        print('Tags data exported to: $tagsFilePath');
+        print('Book-Tags data exported to: $bookTagsFilePath');
       }
 
-      await Share.shareXFiles([XFile(booksFilePath), XFile(sessionsFilePath)]);
+      await Share.shareXFiles([
+        XFile(booksFilePath),
+        XFile(sessionsFilePath),
+        XFile(tagsFilePath),
+        XFile(bookTagsFilePath),
+      ]);
 
       if (kDebugMode) {
-        print('Both books and sessions data exported successfully!');
+        print('All data exported successfully!');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -577,5 +591,48 @@ class SettingsPage extends StatelessWidget {
       default:
         return 'Simple';
     }
+  }
+
+  // Function to export tags data to CSV
+  Future<String> exportTagsToCSV(List<Tag> tagsData) async {
+    String formattedDate = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final directory = await getApplicationDocumentsDirectory();
+    final filePath = '${directory.path}/tags_data_$formattedDate.csv';
+
+    List<List<String>> rows = [
+      ['id', 'name', 'color'], // Column headers
+      ...tagsData.map((tag) => [
+        tag.id?.toString() ?? '', // Handle nullable id
+        tag.name,
+        tag.color.toString(), // Or use toRadixString(16) for hex format
+      ])
+    ];
+
+    String csv = const ListToCsvConverter().convert(rows);
+    final file = File(filePath);
+    await file.writeAsString(csv);
+
+    return filePath;
+  }
+
+// Function to export book_tags data to CSV
+  Future<String> exportBookTagsToCSV(List<BookTag> bookTagsData) async {
+    String formattedDate = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final directory = await getApplicationDocumentsDirectory();
+    final filePath = '${directory.path}/book_tags_data_$formattedDate.csv';
+
+    List<List<String>> rows = [
+      ['book_id', 'tag_id'], // Column headers
+      ...bookTagsData.map((bookTag) => [
+        bookTag.bookId.toString(),
+        bookTag.tagId.toString(),
+      ])
+    ];
+
+    String csv = const ListToCsvConverter().convert(rows);
+    final file = File(filePath);
+    await file.writeAsString(csv);
+
+    return filePath;
   }
 }

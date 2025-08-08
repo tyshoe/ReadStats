@@ -4,6 +4,7 @@ import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 import 'data/database/database_helper.dart';
 import 'data/repositories/book_repository.dart';
 import 'data/repositories/session_repository.dart';
+import 'data/repositories/tag_repository.dart';
 import 'ui/pages/library/library_page.dart';
 import 'ui/pages/settings/settings_page.dart';
 import 'ui/pages/sessions/sessions_page.dart';
@@ -22,6 +23,7 @@ void main() async {
 
   final bookRepository = BookRepository(dbHelper);
   final sessionRepository = SessionRepository(dbHelper);
+  final tagRepository = TagRepository(dbHelper);
 
   // Load saved theme preference
   final themeMode = await SettingsViewModel.loadSavedThemeMode();
@@ -31,6 +33,7 @@ void main() async {
     themeMode: themeMode,
     bookRepository: bookRepository,
     sessionRepository: sessionRepository,
+    tagRepository: tagRepository
   ));
 }
 
@@ -39,6 +42,7 @@ class MyApp extends StatefulWidget {
   final ThemeMode themeMode;
   final BookRepository bookRepository;
   final SessionRepository sessionRepository;
+  final TagRepository tagRepository;
 
   const MyApp({
     super.key,
@@ -46,6 +50,7 @@ class MyApp extends StatefulWidget {
     required this.themeMode,
     required this.bookRepository,
     required this.sessionRepository,
+    required this.tagRepository,
   });
 
   @override
@@ -185,6 +190,7 @@ class _MyAppState extends State<MyApp> {
                     sessions: _sessions,
                     bookRepository: widget.bookRepository,
                     sessionRepository: widget.sessionRepository,
+                    tagRepository: widget.tagRepository,
                     settingsViewModel: _settingsViewModel,
                   ),
                 );
@@ -207,6 +213,7 @@ class NavigationMenu extends StatefulWidget {
   final List<Map<String, dynamic>> sessions;
   final BookRepository bookRepository;
   final SessionRepository sessionRepository;
+  final TagRepository tagRepository;
   final SettingsViewModel settingsViewModel;
 
   const NavigationMenu({
@@ -220,6 +227,7 @@ class NavigationMenu extends StatefulWidget {
     required this.sessions,
     required this.bookRepository,
     required this.sessionRepository,
+    required this.tagRepository,
     required this.settingsViewModel,
   });
 
@@ -345,6 +353,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
           themeMode: widget.themeMode,
           bookRepository: widget.bookRepository,
           sessionRepository: widget.sessionRepository,
+          tagRepository: widget.tagRepository,
           refreshBooks: widget.refreshBooks,
           refreshSessions: widget.refreshSessions,
           settingsViewModel: widget.settingsViewModel,
