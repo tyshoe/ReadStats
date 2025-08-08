@@ -547,7 +547,7 @@ class SettingsPage extends StatelessWidget {
       String booksFilePath = await exportBooksToCSV(await bookRepository.getBooks());
       String sessionsFilePath = await exportSessionsToCSV(await sessionRepository.getSessions());
       String tagsFilePath = await exportTagsToCSV(await tagRepository.getAllTags());
-      String bookTagsFilePath = await exportBookTagsToCSV(await tagRepository.getAllBookTags());
+      String bookTagsFilePath = await exportBookTagsToCSV(await tagRepository.getAllBookTagsForExport());
 
       if (kDebugMode) {
         print('Books data exported to: $booksFilePath');

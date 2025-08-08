@@ -107,8 +107,24 @@ class TagRepository {
     return List.generate(maps.length, (i) => Tag.fromMap(maps[i]));
   }
 
-  // In TagRepository
-  Future<List<BookTag>> getAllBookTags() async {
+  Future<Map<int, List<String>>> getAllBookTags() async {
+    final db = await _databaseHelper.database;
+    final results = await db.rawQuery('''
+    SELECT book_tags.book_id, tags.name 
+    FROM book_tags
+    JOIN tags ON book_tags.tag_id = tags.id
+  ''');
+
+    final bookTagsMap = <int, List<String>>{};
+    for (final row in results) {
+      final bookId = row['book_id'] as int;
+      final tagName = row['name'] as String;
+      bookTagsMap.putIfAbsent(bookId, () => []).add(tagName);
+    }
+    return bookTagsMap;
+  }
+
+  Future<List<BookTag>> getAllBookTagsForExport() async {
     final db = await _databaseHelper.database;
     final List<Map<String, dynamic>> results = await db.rawQuery('''
     SELECT book_id, tag_id 

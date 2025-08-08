@@ -111,19 +111,7 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Future<void> _loadAllBookTags() async {
-    try {
-      final results = await _tagRepository.getAllBookTags();
-      _bookTagsCache = {}; // Clear existing cache
-
-      for (final bookTag in results) {
-        _bookTagsCache.putIfAbsent(bookTag.bookId, () => []).add(bookTag.tagId.toString());
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error loading book tags: $e');
-      }
-      _bookTagsCache = {}; // Fallback to empty cache
-    }
+    _bookTagsCache = await _tagRepository.getAllBookTags();
   }
 
   void _toggleView(String newView) {
