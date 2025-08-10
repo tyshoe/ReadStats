@@ -175,6 +175,8 @@ class _SessionFormPageState extends State<SessionFormPage> {
   void _resetInputs() {
     setState(() {
       _pagesController.clear();
+      _startPageController.clear();
+      _finishPageController.clear();
       _hoursController.text = '0';
       _minutesController.text = '0';
       _sessionDate = DateTime.now();
