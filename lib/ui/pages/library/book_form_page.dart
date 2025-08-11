@@ -69,6 +69,16 @@ class _BookFormPageState extends State<BookFormPage> {
     }
   }
 
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _authorController.dispose();
+    _wordCountController.dispose();
+    _pageCountController.dispose();
+    _ratingController.dispose();
+    super.dispose();
+  }
+
   void _saveBook() async {
     String title = _titleController.text.trim();
     String author = _authorController.text.trim();

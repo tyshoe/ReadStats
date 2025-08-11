@@ -37,6 +37,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
   final TextEditingController _hoursController = TextEditingController();
   final TextEditingController _minutesController = TextEditingController();
   final TextEditingController _bookController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   late DateTime _sessionDate;
   bool _isFirstSession = false;
   bool _isFinalSession = false;
@@ -80,6 +81,18 @@ class _SessionFormPageState extends State<SessionFormPage> {
         }
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _pagesController.dispose();
+    _startPageController.dispose();
+    _finishPageController.dispose();
+    _hoursController.dispose();
+    _minutesController.dispose();
+    _bookController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkIfFirstSession() async {
@@ -361,6 +374,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
         ],
       ),
       body: SingleChildScrollView(
+        controller: _scrollController,
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
