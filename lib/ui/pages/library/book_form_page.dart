@@ -360,7 +360,7 @@ class _BookFormPageState extends State<BookFormPage> {
                 return BookRepository(DatabaseHelper()).getAuthorSuggestions(textEditingValue.text);
               },
               fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                // Sync author controller with Autocomplete's controller
+                // Sync author controller with Autocomplete controller
                 if (_authorController.text != controller.text) {
                   if (widget.isEditing && controller.text.isEmpty) {
                     controller.text = _authorController.text;
@@ -665,7 +665,7 @@ class _BookFormPageState extends State<BookFormPage> {
                 IconButton(
                   icon: Icon(
                     _isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: _isFavorite ? Colors.red : theme.colorScheme.onSurface.withOpacity(0.6),
+                    color: _isFavorite ? Colors.red : theme.colorScheme.onSurface.withAlpha(153),
                     size: 32,
                   ),
                   onPressed: () {
@@ -723,7 +723,7 @@ class _BookFormPageState extends State<BookFormPage> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.sell, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                        Icon(Icons.sell, color: theme.colorScheme.onSurface.withAlpha(153)),
                         const SizedBox(width: 8),
                         Text(
                           'Tags',
@@ -743,7 +743,7 @@ class _BookFormPageState extends State<BookFormPage> {
                             children: tags
                                 .map((tag) => Chip(
                                       label: Text(tag.name),
-                                      backgroundColor: theme.colorScheme.surfaceVariant,
+                                      backgroundColor: theme.colorScheme.surfaceContainer,
                                     ))
                                 .toList(),
                           );

@@ -414,17 +414,6 @@ class BookPopup {
     );
   }
 
-  static Future<void> _toggleFavoriteStatus(
-    DatabaseHelper dbHelper,
-    Map<String, dynamic> book,
-    void Function() refreshCallback,
-  ) async {
-    final newStatus = book['is_favorite'] == 1 ? 0 : 1;
-    await dbHelper.updateBookFavoriteStatus(book['id'], newStatus);
-    book['is_favorite'] = newStatus; // Update local copy
-    refreshCallback(); // Refresh the UI
-  }
-
   static String _getTimeToFinishCompact(
     int pagesRead,
     int totalPages,

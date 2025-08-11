@@ -238,7 +238,7 @@ class _SessionsPageState extends State<SessionsPage> {
                     Text(
                       bookAuthor,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        color: theme.colorScheme.onSurface.withAlpha(153),
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -252,19 +252,19 @@ class _SessionsPageState extends State<SessionsPage> {
                   Text(
                     '$pagesRead pages',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withAlpha(153),
                     ),
                   ),
                   Text(
                     _formatDuration(minutes),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withAlpha(153),
                     ),
                   ),
                   Text(
                     date.isNotEmpty ? _formatDate(date) : 'No date',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      color: theme.colorScheme.onSurface.withAlpha(153),
                     ),
                   ),
                 ],
@@ -272,7 +272,7 @@ class _SessionsPageState extends State<SessionsPage> {
               const SizedBox(width: 8),
               Icon(
                 Icons.chevron_right,
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                color: theme.colorScheme.onSurface.withAlpha(153),
               ),
             ],
           ),

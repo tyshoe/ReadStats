@@ -12,7 +12,6 @@ import '../../../app_config.dart';
 import '../../../data/models/tag.dart';
 import '../../../data/models/book_tag.dart';
 import '../../../data/repositories/tag_repository.dart';
-import '../../themes/app_theme.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/repositories/session_repository.dart';
 import '/viewmodels/SettingsViewModel.dart';
@@ -53,7 +52,6 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final textTheme = theme.textTheme;
 
     return Scaffold(
       appBar: AppBar(

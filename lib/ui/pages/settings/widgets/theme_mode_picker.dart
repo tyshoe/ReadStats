@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
 void showThemeModePicker(
-    BuildContext context,
-    SettingsViewModel settingsViewModel,
-    Function(ThemeMode) toggleTheme,
-    ) {
+  BuildContext context,
+  SettingsViewModel settingsViewModel,
+  Function(ThemeMode) toggleTheme,
+) {
   final theme = Theme.of(context);
   final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
   final currentThemeMode = settingsViewModel.themeModeNotifier.value;

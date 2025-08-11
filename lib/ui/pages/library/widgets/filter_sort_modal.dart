@@ -8,7 +8,7 @@ class SortFilterOptions {
   final bool isFavorite;
   final List<String> finishedYears;
   final List<String> tags;
-  final String tagFilterMode; // Add this
+  final String tagFilterMode;
 
   const SortFilterOptions({
     required this.sortOption,
@@ -36,7 +36,7 @@ class SortFilterOptions {
       isFavorite: isFavorite ?? this.isFavorite,
       finishedYears: finishedYears ?? this.finishedYears,
       tags: tags ?? this.tags,
-      tagFilterMode: tagFilterMode ?? this.tagFilterMode, // Include this in copyWith
+      tagFilterMode: tagFilterMode ?? this.tagFilterMode,
     );
   }
 }
@@ -107,153 +107,6 @@ class _SortFilterViewState extends State<_SortFilterView> {
   void initState() {
     super.initState();
     currentOptions = widget.initialOptions;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppBar(
-              title: const Text('Filter & Sort'),
-              centerTitle: false,
-              automaticallyImplyLeading: false,
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            Flexible(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Sort Section
-                      _buildSectionHeader('Sort By'),
-                      _buildSortControls(),
-                      const Divider(height: 24),
-
-                      // Book Type Filter
-                      _buildSectionHeader('Book Type'),
-                      _buildFilterChips(
-                        options: ['All', ...bookTypes],
-                        selected:
-                            currentOptions.bookTypes.isEmpty ? ['All'] : currentOptions.bookTypes,
-                        onChanged: (selected) {
-                          setState(() {
-                            currentOptions = currentOptions.copyWith(
-                              bookTypes: selected.contains('All') ? [] : selected,
-                            );
-                          });
-                        },
-                      ),
-                      // const SizedBox(height: 16),
-
-                      // Favorite Filter
-                      FilterChip(
-                        label: Text(
-                          currentOptions.isFavorite ? 'Favorites' : 'Favorites',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: currentOptions.isFavorite
-                                    ? Theme.of(context).colorScheme.onPrimaryContainer
-                                    : Theme.of(context).colorScheme.onSurface,
-                              ),
-                        ),
-                        selected: currentOptions.isFavorite,
-                        onSelected: (value) {
-                          setState(() {
-                            currentOptions = currentOptions.copyWith(isFavorite: value);
-                          });
-                        },
-                        avatar: Icon(
-                          Icons.favorite,
-                          color: currentOptions.isFavorite
-                              ? Colors.red
-                              : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                          size: 20,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(
-                            color: currentOptions.isFavorite
-                                ? Colors.transparent
-                                : Theme.of(context).colorScheme.outline,
-                            width: 1,
-                          ),
-                        ),
-                        selectedColor: Theme.of(context).colorScheme.primaryContainer,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        labelPadding: const EdgeInsets.only(right: 8),
-                        showCheckmark: false,
-                      ),
-                      const Divider(height: 24),
-
-                      // Year Filter
-                      if (widget.availableYears.isNotEmpty) ...[
-                        _buildSectionHeader('Finished Year'),
-                        _buildFilterChips(
-                          options: ['All', ...widget.availableYears],
-                          selected: currentOptions.finishedYears.isEmpty
-                              ? ['All']
-                              : currentOptions.finishedYears,
-                          onChanged: (selected) {
-                            setState(() {
-                              currentOptions = currentOptions.copyWith(
-                                finishedYears: selected.contains('All') ? [] : selected,
-                              );
-                            });
-                          },
-                        ),
-                        const Divider(height: 24),
-                      ],
-
-                      // Tag Filter
-                      if (widget.availableTags.isNotEmpty) ...[
-                        _buildTagFilterModeSelector(), // Add this above the chips
-                        _buildSectionHeader('Tags'),
-                        _buildFilterChips(
-                          options: ['All', ...widget.availableTags],
-                          selected: currentOptions.tags.isEmpty ? ['All'] : currentOptions.tags,
-                          onChanged: (selected) {
-                            setState(() {
-                              currentOptions = currentOptions.copyWith(
-                                tags: selected.contains('All') ? [] : selected,
-                              );
-                            });
-                          },
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context, currentOptions),
-                child: const Text('Apply Filters'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildSectionHeader(String title) {
@@ -332,7 +185,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
               alignment: Alignment.center,
               child: Icon(
                 currentOptions.isAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                color: theme.colorScheme.onSurface.withOpacity(0.8),
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
               ),
             ),
           ),
@@ -343,7 +196,6 @@ class _SortFilterViewState extends State<_SortFilterView> {
 
   Widget _buildTagFilterModeSelector() {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -437,6 +289,150 @@ class _SortFilterViewState extends State<_SortFilterView> {
           labelStyle: Theme.of(context).textTheme.bodyMedium,
         );
       }).toList(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: const Text('Filter & Sort'),
+              centerTitle: false,
+              automaticallyImplyLeading: false,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Sort Section
+                      _buildSectionHeader('Sort By'),
+                      _buildSortControls(),
+                      const Divider(height: 24),
+
+                      // Book Type Filter
+                      _buildSectionHeader('Book Type'),
+                      _buildFilterChips(
+                        options: ['All', ...bookTypes],
+                        selected:
+                            currentOptions.bookTypes.isEmpty ? ['All'] : currentOptions.bookTypes,
+                        onChanged: (selected) {
+                          setState(() {
+                            currentOptions = currentOptions.copyWith(
+                              bookTypes: selected.contains('All') ? [] : selected,
+                            );
+                          });
+                        },
+                      ),
+
+                      // Favorite Filter
+                      FilterChip(
+                        label: Text(
+                          currentOptions.isFavorite ? 'Favorites' : 'Favorites',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: currentOptions.isFavorite
+                                    ? Theme.of(context).colorScheme.onPrimaryContainer
+                                    : Theme.of(context).colorScheme.onSurface,
+                              ),
+                        ),
+                        selected: currentOptions.isFavorite,
+                        onSelected: (value) {
+                          setState(() {
+                            currentOptions = currentOptions.copyWith(isFavorite: value);
+                          });
+                        },
+                        avatar: Icon(
+                          Icons.favorite,
+                          color: currentOptions.isFavorite
+                              ? Colors.red
+                              : Theme.of(context).colorScheme.onSurface.withAlpha(153),
+                          size: 20,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(
+                            color: currentOptions.isFavorite
+                                ? Colors.transparent
+                                : Theme.of(context).colorScheme.outline,
+                            width: 1,
+                          ),
+                        ),
+                        selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        labelPadding: const EdgeInsets.only(right: 8),
+                        showCheckmark: false,
+                      ),
+                      const Divider(height: 24),
+
+                      // Year Filter
+                      if (widget.availableYears.isNotEmpty) ...[
+                        _buildSectionHeader('Finished Year'),
+                        _buildFilterChips(
+                          options: ['All', ...widget.availableYears],
+                          selected: currentOptions.finishedYears.isEmpty
+                              ? ['All']
+                              : currentOptions.finishedYears,
+                          onChanged: (selected) {
+                            setState(() {
+                              currentOptions = currentOptions.copyWith(
+                                finishedYears: selected.contains('All') ? [] : selected,
+                              );
+                            });
+                          },
+                        ),
+                        const Divider(height: 24),
+                      ],
+
+                      // Tag Filter
+                      if (widget.availableTags.isNotEmpty) ...[
+                        _buildTagFilterModeSelector(),
+                        _buildSectionHeader('Tags'),
+                        _buildFilterChips(
+                          options: ['All', ...widget.availableTags],
+                          selected: currentOptions.tags.isEmpty ? ['All'] : currentOptions.tags,
+                          onChanged: (selected) {
+                            setState(() {
+                              currentOptions = currentOptions.copyWith(
+                                tags: selected.contains('All') ? [] : selected,
+                              );
+                            });
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, currentOptions),
+                child: const Text('Apply Filters'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

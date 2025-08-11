@@ -48,13 +48,13 @@ class FontSelectionPage extends StatelessWidget {
         backgroundColor: colors.surface,
         elevation: 0,
       ),
-      backgroundColor: colors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: Column(
         children: [
           // Preview section at the top
           Container(
             padding: const EdgeInsets.all(16),
-            color: colors.surfaceVariant.withOpacity(0.3),
+            color: theme.scaffoldBackgroundColor,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -118,13 +118,12 @@ class FontSelectionPage extends StatelessWidget {
   }) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final textTheme = theme.textTheme;
 
     return Material(
       borderRadius: BorderRadius.circular(12),
       color: isSelected
-          ? colors.primary.withOpacity(0.1)
-          : colors.surfaceVariant.withOpacity(0.5),
+          ? colors.primary.withAlpha(26)
+          : colors.surfaceContainer.withAlpha(128),
       elevation: 0,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),

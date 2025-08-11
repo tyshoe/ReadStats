@@ -10,30 +10,37 @@ class TagSelectorSheet extends StatefulWidget {
   final bool isCreationMode;
 
   const TagSelectorSheet({
-    Key? key,
+    super.key,
     required this.initialSelectedTagIds,
     required this.tagRepository,
     required this.settingsViewModel,
     this.isCreationMode = false,
-  }) : super(key: key);
+  });
 
   @override
   State<TagSelectorSheet> createState() => _TagSelectorSheetState();
 }
 
 class _TagSelectorSheetState extends State<TagSelectorSheet> {
+  final TextEditingController _newTagController = TextEditingController();
+  final TextEditingController _editTagController = TextEditingController();
   List<Tag> _allTags = [];
   late Set<int> _selectedTagIds;
-  final TextEditingController _newTagController = TextEditingController();
   bool _isLoading = true;
   int? _editingTagId;
-  final TextEditingController _editTagController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _selectedTagIds = Set.from(widget.initialSelectedTagIds);
     _loadTags();
+  }
+
+  @override
+  void dispose() {
+    _newTagController.dispose();
+    _editTagController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadTags() async {
@@ -82,7 +89,7 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
         title: const Text('Delete Tag'),
         content: Text(
           'This will remove the "${tag.name}" tag from all books. '
-              'Are you sure you want to delete it?',
+          'Are you sure you want to delete it?',
         ),
         actions: [
           TextButton(
@@ -117,12 +124,18 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
     setState(() => _editingTagId = tag.id);
 
     await Future.delayed(const Duration(milliseconds: 100));
+
+    if (!mounted) return;
+
     FocusScope.of(context).requestFocus(FocusNode());
+
     _editTagController.selection = TextSelection(
       baseOffset: 0,
       extentOffset: _editTagController.text.length,
     );
   }
+
+
 
   Future<void> _saveTagEdit(Tag tag) async {
     final newName = _editTagController.text.trim();
@@ -192,6 +205,27 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
     );
   }
 
+  Widget _buildEditTagInput(Tag tag, Color accentColor) {
+    return InputChip(
+      label: SizedBox(
+        width: 100,
+        child: TextField(
+          controller: _editTagController,
+          decoration: const InputDecoration(
+            isDense: true,
+            border: InputBorder.none,
+          ),
+          autofocus: true,
+          style: const TextStyle(fontSize: 16),
+        ),
+      ),
+      deleteIcon: const Icon(Icons.check, size: 18),
+      onDeleted: () => _saveTagEdit(tag),
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+      side: BorderSide(color: accentColor),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -211,116 +245,90 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
-        children: [
-          // New tag input
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _newTagController,
-              decoration: InputDecoration(
-                labelText: 'Create new tag',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                ),
-              ),
-              onSubmitted: (_) => _createNewTag(),
-            ),
-          ),
-
-          // Tags list
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  // "All" chip
-                  FilterChip(
-                    label: const Text('All'),
-                    selected: _selectedTagIds.length == _allTags.length && _selectedTagIds.isNotEmpty,
-                    onSelected: (_) {
-                      setState(() {
-                        if (_selectedTagIds.length == _allTags.length) {
-                          _selectedTagIds.clear();
-                        } else {
-                          _selectedTagIds = _allTags.map((t) => t.id!).toSet();
-                        }
-                      });
-                    },
-                    selectedColor: Theme.of(context).colorScheme.primaryContainer,                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(
-                        color: (_selectedTagIds.length == _allTags.length && _selectedTagIds.isNotEmpty)
-                            ? Colors.transparent
-                            : theme.colorScheme.outline,
+              children: [
+                // New tag input
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: TextField(
+                    controller: _newTagController,
+                    decoration: InputDecoration(
+                      labelText: 'Create new tag',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
                       ),
                     ),
-                    clipBehavior: Clip.none,
+                    onSubmitted: (_) => _createNewTag(),
                   ),
-                  // Tag chips
-                  ..._allTags.map((tag) {
-                    final isSelected = _selectedTagIds.contains(tag.id);
-                    final isEditing = _editingTagId == tag.id;
+                ),
 
-                    if (isEditing) {
-                      return _buildEditTagInput(tag, accentColor);
-                    }
-
-                    return GestureDetector(
-                      onLongPress: () => _showTagOptions(tag),
-                      child: FilterChip(
-                        label: Text(tag.name),
-                        selected: isSelected,
-                        onSelected: (_) => _toggleTagSelection(tag),
-                        selectedColor: Theme.of(context).colorScheme.primaryContainer,                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(
-                            color: isSelected
-                                ? Colors.transparent
-                                : theme.colorScheme.outline,
+                // Tags list
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        // "All" chip
+                        FilterChip(
+                          label: const Text('All'),
+                          selected: _selectedTagIds.length == _allTags.length &&
+                              _selectedTagIds.isNotEmpty,
+                          onSelected: (_) {
+                            setState(() {
+                              if (_selectedTagIds.length == _allTags.length) {
+                                _selectedTagIds.clear();
+                              } else {
+                                _selectedTagIds = _allTags.map((t) => t.id!).toSet();
+                              }
+                            });
+                          },
+                          selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(
+                              color: (_selectedTagIds.length == _allTags.length &&
+                                      _selectedTagIds.isNotEmpty)
+                                  ? Colors.transparent
+                                  : theme.colorScheme.outline,
+                            ),
                           ),
+                          clipBehavior: Clip.none,
                         ),
-                        labelStyle: Theme.of(context).textTheme.bodyMedium,
-                        clipBehavior: Clip.none,
-                      ),
-                    );
+                        // Tag chips
+                        ..._allTags.map((tag) {
+                          final isSelected = _selectedTagIds.contains(tag.id);
+                          final isEditing = _editingTagId == tag.id;
 
-                  }),
-                ],
-              ),
+                          if (isEditing) {
+                            return _buildEditTagInput(tag, accentColor);
+                          }
+
+                          return GestureDetector(
+                            onLongPress: () => _showTagOptions(tag),
+                            child: FilterChip(
+                              label: Text(tag.name),
+                              selected: isSelected,
+                              onSelected: (_) => _toggleTagSelection(tag),
+                              selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: BorderSide(
+                                  color:
+                                      isSelected ? Colors.transparent : theme.colorScheme.outline,
+                                ),
+                              ),
+                              labelStyle: Theme.of(context).textTheme.bodyMedium,
+                              clipBehavior: Clip.none,
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
-  }
-
-  Widget _buildEditTagInput(Tag tag, Color accentColor) {
-    return InputChip(
-      label: SizedBox(
-        width: 100,
-        child: TextField(
-          controller: _editTagController,
-          decoration: const InputDecoration(
-            isDense: true,
-            border: InputBorder.none,
-          ),
-          autofocus: true,
-          style: const TextStyle(fontSize: 16),
-        ),
-      ),
-      deleteIcon: const Icon(Icons.check, size: 18),
-      onDeleted: () => _saveTagEdit(tag),
-      backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
-      side: BorderSide(color: accentColor),
-    );
-  }
-
-  @override
-  void dispose() {
-    _newTagController.dispose();
-    _editTagController.dispose();
-    super.dispose();
   }
 }

@@ -48,7 +48,7 @@ class SessionsCalendar extends StatelessWidget {
         } else if (isToday && !isRead) {
           textColor = colorScheme.primary; // Today no session
         } else if (!isFuture) {
-          textColor = colorScheme.onSurface.withOpacity(0.6); // Past faded
+          textColor = Theme.of(context).colorScheme.onSurface.withAlpha(153); // Past faded
         } else {
           textColor = colorScheme.onSurface; // Future dark
         }
@@ -61,7 +61,7 @@ class SessionsCalendar extends StatelessWidget {
                 color: isToday && isRead
                     ? colorScheme.primary
                     : isRead
-                    ? colorScheme.primary.withOpacity(0.3)
+                    ? colorScheme.primary.withAlpha(77)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(6),
                 border: isToday && !isRead

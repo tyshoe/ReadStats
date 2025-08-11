@@ -120,7 +120,7 @@ class BookRow extends StatelessWidget {
                     padding: const EdgeInsets.only(left: 8),
                     child: Icon(
                       bookTypeIcon,
-                      color: theme.iconTheme.color?.withOpacity(0.6),
+                      color: theme.iconTheme.color?.withAlpha(153),
                       size: 16,
                     ),
                   ),
@@ -133,7 +133,7 @@ class BookRow extends StatelessWidget {
                 child: Text(
                   "by ${book['author']}",
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+                    color: theme.textTheme.bodyMedium?.color?.withAlpha(153),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -178,7 +178,7 @@ class BookRow extends StatelessWidget {
                         child: Text(
                           dateRangeString,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+                            color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 153),
                           ),
                         ),
                       ),

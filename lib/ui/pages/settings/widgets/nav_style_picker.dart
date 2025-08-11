@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
-
 void showNavStylePicker(BuildContext context, SettingsViewModel settingsViewModel) {
   final theme = Theme.of(context);
   final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
@@ -13,7 +12,7 @@ void showNavStylePicker(BuildContext context, SettingsViewModel settingsViewMode
     context: context,
     builder: (context) => Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      backgroundColor: theme.dialogBackgroundColor,
+      backgroundColor: theme.colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -82,9 +81,7 @@ class _TabVisibilityOption extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       contentPadding: EdgeInsets.zero,
-      leading: selected
-          ? Icon(Icons.check, color: accentColor)
-          : const SizedBox(width: 24),
+      leading: selected ? Icon(Icons.check, color: accentColor) : const SizedBox(width: 24),
       title: Text(
         label,
         style: TextStyle(

@@ -114,138 +114,17 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return formattedTime;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final textTheme = theme.textTheme;
+  Future<List<int>> getCombinedYears() async {
+    final sessionYears = await widget.sessionRepository.getSessionYears();
+    final bookYears = await widget.bookRepository.getBookYears();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Statistics'),
-        backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0,
-        centerTitle: false,
-      ),
-      body: Column(
-        children: [
-          // Year selection row
-          FutureBuilder<List<int>>(
-            future: getCombinedYears(),
-            builder: (context, yearSnapshot) {
-              if (!yearSnapshot.hasData) return const SizedBox.shrink();
+    if (kDebugMode) {
+      print('SessionYears: $sessionYears, bookYears: $bookYears');
+    }
 
-              final years = yearSnapshot.data!;
-              return SizedBox(
-                height: 48,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: years.length + 1,
-                  itemBuilder: (context, index) {
-                    final year = index == 0 ? 0 : years[index - 1];
-                    final isSelected = selectedYear == year;
-
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: TextButton(
-                        style: TextButton.styleFrom(
-                          foregroundColor: isSelected ? colors.primary : colors.onSurface,
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.zero,
-                          ),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            selectedYear = year;
-                          });
-                          loadStats();
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            border: isSelected
-                                ? Border(
-                              bottom: BorderSide(
-                                color: colors.primary,
-                                width: 2,
-                              ),
-                            )
-                                : null,
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Text(
-                            year == 0 ? 'All' : year.toString(),
-                            style: textTheme.bodyLarge?.copyWith(
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-          ),
-          const Divider(height: 1),
-          // Statistics content
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionHeader('Overall'),
-                  _buildStatCard('Total Sessions', _stats['totalSessions'].toString()),
-                  _buildStatCard('Books Finished', _stats['booksCompleted'].toString()),
-
-                  _buildSectionHeader('Ratings'),
-                  _buildStatCardWithBook(
-                    'Highest Rating',
-                    _stats['highestRating'].toString(),
-                    _stats['highestRatingBookTitle'],
-                  ),
-                  _buildStatCardWithBook(
-                    'Lowest Rating',
-                    _stats['lowestRating'].toString(),
-                    _stats['lowestRatingBookTitle'],
-                  ),
-                  _buildStatCard('Average Rating', _stats['averageRating'].toStringAsFixed(2)),
-
-                  _buildSectionHeader('Reading Time'),
-                  _buildStatCard('Total Time Spent', _stats['totalTimeSpent']),
-                  _buildStatCardWithBook(
-                    'Slowest Read',
-                    _stats['slowestReadTime'].toString(),
-                    _stats['slowestReadBookTitle'],
-                  ),
-                  _buildStatCardWithBook(
-                    'Fastest Read',
-                    _stats['fastestReadTime'].toString(),
-                    _stats['fastestReadBookTitle'],
-                  ),
-
-                  _buildSectionHeader('Pages'),
-                  _buildStatCard('Total Pages Read', _stats['totalPagesRead'].toString()),
-                  _buildStatCard('Avg Pages/Min', _stats['avgPagesPerMinute'].toStringAsFixed(2)),
-                  _buildStatCard('Average Pages', _stats['averagePages'].toStringAsFixed(2)),
-                  _buildStatCardWithBook(
-                    'Longest Book',
-                    _stats['highestPages'].toString(),
-                    _stats['highestPagesBookTitle'],
-                  ),
-                  _buildStatCardWithBook(
-                    'Shortest Book',
-                    _stats['lowestPages'].toString(),
-                    _stats['lowestPagesBookTitle'],
-                  ),
-                ],
-              ),
-            ),
-          )
-,
-        ],
-      ),
-    );
+    final combinedYears = {...sessionYears, ...bookYears}.toList();
+    combinedYears.sort((a, b) => b.compareTo(a));
+    return combinedYears;
   }
 
   Widget _buildSectionHeader(String title) {
@@ -254,8 +133,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.bold,
-        ),
+              fontWeight: FontWeight.bold,
+            ),
       ),
     );
   }
@@ -272,8 +151,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
             Text(
               value,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+                    fontWeight: FontWeight.bold,
+                  ),
             ),
           ],
         ),
@@ -303,16 +182,16 @@ class _StatisticsPageState extends State<StatisticsPage> {
                   Text(
                     value,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                   if (bookTitle != null && bookTitle.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
                       bookTitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                      ),
+                            color: Theme.of(context).colorScheme.onSurface.withAlpha(179),
+                          ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
@@ -327,16 +206,138 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
   }
 
-  Future<List<int>> getCombinedYears() async {
-    final sessionYears = await widget.sessionRepository.getSessionYears();
-    final bookYears = await widget.bookRepository.getBookYears();
+  Widget _buildYearFilter(List<int> years) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
-    if (kDebugMode) {
-      print('SessionYears: $sessionYears, bookYears: $bookYears');
-    }
+    return SizedBox(
+      height: 48,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: years.length + 1,
+        itemBuilder: (context, index) {
+          final year = index == 0 ? 0 : years[index - 1];
+          final isSelected = selectedYear == year;
 
-    final combinedYears = {...sessionYears, ...bookYears}.toList();
-    combinedYears.sort((a, b) => b.compareTo(a));
-    return combinedYears;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: isSelected ? colors.primary : colors.onSurface,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.zero,
+                ),
+              ),
+              onPressed: () {
+                setState(() {
+                  selectedYear = year;
+                });
+                loadStats();
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  border: isSelected
+                      ? Border(
+                          bottom: BorderSide(
+                            color: colors.primary,
+                            width: 2,
+                          ),
+                        )
+                      : null,
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  year == 0 ? 'All' : year.toString(),
+                  style: textTheme.bodyLarge?.copyWith(
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Statistics'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        elevation: 0,
+        centerTitle: false,
+      ),
+      body: Column(
+        children: [
+          // Year selection row
+          FutureBuilder<List<int>>(
+            future: getCombinedYears(),
+            builder: (context, yearSnapshot) {
+              if (!yearSnapshot.hasData) return const SizedBox.shrink();
+
+              final years = yearSnapshot.data!;
+              return _buildYearFilter(years);
+            },
+          ),
+          const Divider(height: 1),
+          // Statistics content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader('Overall'),
+                  _buildStatCard('Total Sessions', _stats['totalSessions'].toString()),
+                  _buildStatCard('Books Finished', _stats['booksCompleted'].toString()),
+                  _buildSectionHeader('Ratings'),
+                  _buildStatCardWithBook(
+                    'Highest Rating',
+                    _stats['highestRating'].toString(),
+                    _stats['highestRatingBookTitle'],
+                  ),
+                  _buildStatCardWithBook(
+                    'Lowest Rating',
+                    _stats['lowestRating'].toString(),
+                    _stats['lowestRatingBookTitle'],
+                  ),
+                  _buildStatCard('Average Rating', _stats['averageRating'].toStringAsFixed(2)),
+                  _buildSectionHeader('Reading Time'),
+                  _buildStatCard('Total Time Spent', _stats['totalTimeSpent']),
+                  _buildStatCardWithBook(
+                    'Slowest Read',
+                    _stats['slowestReadTime'].toString(),
+                    _stats['slowestReadBookTitle'],
+                  ),
+                  _buildStatCardWithBook(
+                    'Fastest Read',
+                    _stats['fastestReadTime'].toString(),
+                    _stats['fastestReadBookTitle'],
+                  ),
+                  _buildSectionHeader('Pages'),
+                  _buildStatCard('Total Pages Read', _stats['totalPagesRead'].toString()),
+                  _buildStatCard('Avg Pages/Min', _stats['avgPagesPerMinute'].toStringAsFixed(2)),
+                  _buildStatCard('Average Pages', _stats['averagePages'].toStringAsFixed(2)),
+                  _buildStatCardWithBook(
+                    'Longest Book',
+                    _stats['highestPages'].toString(),
+                    _stats['highestPagesBookTitle'],
+                  ),
+                  _buildStatCardWithBook(
+                    'Shortest Book',
+                    _stats['lowestPages'].toString(),
+                    _stats['lowestPagesBookTitle'],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

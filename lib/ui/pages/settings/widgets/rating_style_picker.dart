@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
-void showRatingStylePicker(
-    BuildContext context, SettingsViewModel settingsViewModel) {
+void showRatingStylePicker(BuildContext context, SettingsViewModel settingsViewModel) {
   final theme = Theme.of(context);
   final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
   final accentColor = settingsViewModel.accentColorNotifier.value;
@@ -12,7 +11,7 @@ void showRatingStylePicker(
     context: context,
     builder: (context) => Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      backgroundColor: theme.dialogBackgroundColor,
+      backgroundColor: theme.colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

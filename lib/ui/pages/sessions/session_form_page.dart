@@ -541,7 +541,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Icon(Icons.arrow_forward, color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                Icon(Icons.arrow_forward, color: theme.colorScheme.onSurface.withAlpha(153)),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(

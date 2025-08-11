@@ -8,8 +8,7 @@ const Map<int, String> bookTypeNames = {
   4: "Audiobook",
 };
 
-void showBookTypePicker(
-    BuildContext context, SettingsViewModel settingsViewModel) {
+void showBookTypePicker(BuildContext context, SettingsViewModel settingsViewModel) {
   final theme = Theme.of(context);
   final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
   final accentColor = settingsViewModel.accentColorNotifier.value;
@@ -19,7 +18,7 @@ void showBookTypePicker(
     context: context,
     builder: (context) => Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      backgroundColor: theme.dialogBackgroundColor,
+      backgroundColor: theme.colorScheme.surface,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -46,7 +45,7 @@ void showBookTypePicker(
                   Navigator.pop(context);
                 },
               );
-            }).toList(),
+            })
           ],
         ),
       ),
