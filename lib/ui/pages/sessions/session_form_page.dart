@@ -36,6 +36,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
   final TextEditingController _finishPageController = TextEditingController();
   final TextEditingController _hoursController = TextEditingController();
   final TextEditingController _minutesController = TextEditingController();
+  final TextEditingController _bookController = TextEditingController();
   late DateTime _sessionDate;
   bool _isFirstSession = false;
   bool _isFinalSession = false;
@@ -72,6 +73,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
               (book) => book['id'] == widget.book!['id'],
           orElse: () => widget.book!, // Fallback to the provided book if not found
         );
+        _bookController.text = _selectedBook!['title'];
 
         if (_selectedBook != null) {
           _checkIfFirstSession();
@@ -385,7 +387,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
                   return TextFieldTapRegion(
                     child: TextFormField(
-                      controller: textEditingController,
+                      controller: _bookController,
                       focusNode: focusNode,
                       decoration: InputDecoration(
                         labelText: 'Book',
