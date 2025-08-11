@@ -4,6 +4,7 @@ import 'session_form_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
+import 'widgets/session_calendar.dart';
 
 class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -50,18 +51,18 @@ class _SessionsPageState extends State<SessionsPage> {
   }
 
   @override
-  void dispose() {
-    widget.settingsViewModel.defaultDateFormatNotifier.removeListener(_formatListener);
-    super.dispose();
-  }
-
-  @override
   void didUpdateWidget(covariant SessionsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.books != widget.books) {
       _initializeBookMap();
       widget.refreshSessions();
     }
+  }
+
+  @override
+  void dispose() {
+    widget.settingsViewModel.defaultDateFormatNotifier.removeListener(_formatListener);
+    super.dispose();
   }
 
   void _initializeBookMap() {
@@ -114,7 +115,8 @@ class _SessionsPageState extends State<SessionsPage> {
           builder: (context) => SessionFormPage(
             session: session,
             book: book,
-            availableBooks: [], // Not used in edit mode
+            availableBooks: [],
+            // Not used in edit mode
             refreshSessions: () {
               widget.refreshSessions();
             },
@@ -156,6 +158,7 @@ class _SessionsPageState extends State<SessionsPage> {
     );
   }
 
+
   String _getMessageToDisplay() {
     if (widget.books.isEmpty) {
       return 'Add a book to your library';
@@ -165,11 +168,128 @@ class _SessionsPageState extends State<SessionsPage> {
     return '';
   }
 
+  Widget _buildStats(DateTime start, DateTime end) {
+    final sessionsInRange = widget.sessions.where((s) {
+      final date = DateTime.parse(s['date']);
+      return !date.isBefore(start) && !date.isAfter(end);
+    }).toList();
+
+    final totalSessions = sessionsInRange.length;
+    final totalMinutes = sessionsInRange.fold<int>(0, (sum, s) {
+      final minutes = int.tryParse(s['duration_minutes']?.toString() ?? '0') ?? 0;
+      return sum + minutes;
+    });
+
+    final totalPages = sessionsInRange.fold<int>(0, (sum, s) {
+      final pages = int.tryParse(s['pages_read']?.toString() ?? '0') ?? 0;
+      return sum + pages;
+    });
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatCard("Sessions", "$totalSessions"),
+          _buildStatCard("Time", _formatDuration(totalMinutes)),
+          _buildStatCard("Pages", "$totalPages"),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String label, String value) {
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(color: Colors.grey)),
+      ],
+    );
+  }
+
+  Widget _buildSessionCard(Map<String, dynamic> session) {
+    final theme = Theme.of(context); // use context from StatefulWidget
+    final book = session['book'];
+    final bookTitle = book?['title'] ?? 'Unknown Book';
+    final bookAuthor = book?['author'] ?? 'Unknown Author';
+    final pagesRead = session['pages_read'] ?? 0;
+    final minutes = session['duration_minutes'] ?? 0;
+    final date = session['date'] ?? '';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      elevation: 1,
+      child: InkWell(
+        onTap: () => _navigateToEditSessionsPage(session),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      bookTitle,
+                      style: theme.textTheme.bodyLarge,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      bookAuthor,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '$pagesRead pages',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                  Text(
+                    _formatDuration(minutes),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                  Text(
+                    date.isNotEmpty ? _formatDate(date) : 'No date',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right,
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final groupedSessions = _groupSessionsByMonth();
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
+
+    final now = DateTime.now();
+    final end = now.subtract(Duration(days: now.weekday % 7 - 6));
+    final start = end.subtract(const Duration(days: 34));
 
     return Scaffold(
       appBar: AppBar(
@@ -180,116 +300,66 @@ class _SessionsPageState extends State<SessionsPage> {
       ),
       body: widget.sessions.isEmpty
           ? Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            _getMessageToDisplay(),
-            style: theme.textTheme.bodyLarge,
-            textAlign: TextAlign.center,
-          ),
-        ),
-      )
-          : ListView.builder(
-        padding: const EdgeInsets.all(8),
-        itemCount: groupedSessions.length,
-        itemBuilder: (context, index) {
-          String monthYear = groupedSessions.keys.elementAt(index);
-          List<Map<String, dynamic>> sessions = groupedSessions[monthYear]!;
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Text(
-                  monthYear,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  _getMessageToDisplay(),
+                  style: theme.textTheme.bodyLarge,
+                  textAlign: TextAlign.center,
                 ),
               ),
-              ...sessions.map((session) {
-                final book = session['book'];
-                final bookTitle = book?['title'] ?? 'Unknown Book';
-                final bookAuthor = book?['author'] ?? 'Unknown Author';
-                final pagesRead = session['pages_read'] ?? 0;
-                final minutes = session['duration_minutes'] ?? 0;
-                final date = session['date'] ?? '';
-
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  elevation: 1,
-                  child: InkWell(
-                    onTap: () => _navigateToEditSessionsPage(session),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  bookTitle,
-                                  style: theme.textTheme.bodyLarge,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  bookAuthor,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '$pagesRead pages',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                ),
-                              ),
-                              Text(
-                                _formatDuration(minutes),
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                ),
-                              ),
-                              Text(
-                                date.isNotEmpty ? _formatDate(date) : 'No date',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.chevron_right,
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                        ],
-                      ),
+            )
+          : ListView(
+              padding: const EdgeInsets.all(8),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Text(
+                    'Monthly Review',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                );
-              }),
-            ],
-          );
-        },
-      ),
+                ),
+                SessionsCalendar(
+                  start: start,
+                  end: end,
+                  sessions: widget.sessions,
+                ),
+                const SizedBox(height: 8),
+                _buildStats(start, end),
+                Divider(
+                  color: Colors.grey[600],
+                  height: 1,
+                ),
+                ...groupedSessions.entries.map((entry) {
+                  final monthYear = entry.key;
+                  final sessions = entry.value;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16),
+                        child: Text(
+                          monthYear,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      ...sessions.map(_buildSessionCard),
+                    ],
+                  );
+                }),
+              ],
+            ),
       floatingActionButton: widget.books.isNotEmpty
           ? FloatingActionButton(
-        backgroundColor: accentColor,
-        onPressed: _navigateToAddSessionPage,
-        child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
-      )
+              backgroundColor: accentColor,
+              onPressed: _navigateToAddSessionPage,
+              child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
+            )
           : null,
     );
   }
