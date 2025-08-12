@@ -6,6 +6,8 @@ import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import 'widgets/session_calendar.dart';
 
+enum CalendarMode { thirtyDays, currentMonth }
+
 class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
   final List<Map<String, dynamic>> sessions;
@@ -32,6 +34,7 @@ class _SessionsPageState extends State<SessionsPage> {
   late Map<int, Map<String, dynamic>> _bookMap;
   late String _dateFormatString;
   late final VoidCallback _formatListener;
+  late CalendarMode _calendarMode;
 
   @override
   void initState() {
@@ -39,7 +42,11 @@ class _SessionsPageState extends State<SessionsPage> {
     _initializeBookMap();
     _dateFormatString = widget.settingsViewModel.defaultDateFormatNotifier.value;
 
-    // Add listener for date format changes
+    // Load calendar mode from settings
+    final isCurrentMonth = widget.settingsViewModel.calendarMonthModeNotifier.value;
+    _calendarMode = isCurrentMonth ? CalendarMode.currentMonth : CalendarMode.thirtyDays;
+
+    // Listen for date format changes
     _formatListener = () {
       if (mounted) {
         setState(() {
@@ -48,6 +55,17 @@ class _SessionsPageState extends State<SessionsPage> {
       }
     };
     widget.settingsViewModel.defaultDateFormatNotifier.addListener(_formatListener);
+
+    // Listen for calendar mode changes from outside if needed
+    widget.settingsViewModel.calendarMonthModeNotifier.addListener(() {
+      if (mounted) {
+        setState(() {
+          _calendarMode = widget.settingsViewModel.calendarMonthModeNotifier.value
+              ? CalendarMode.currentMonth
+              : CalendarMode.thirtyDays;
+        });
+      }
+    });
   }
 
   @override
@@ -84,14 +102,17 @@ class _SessionsPageState extends State<SessionsPage> {
     return DateFormat(_dateFormatString).format(date);
   }
 
-  Map<String, List<Map<String, dynamic>>> _groupSessionsByMonth() {
+  Map<String, List<Map<String, dynamic>>> _groupSessionsByMonth(DateTime start, DateTime end) {
     Map<String, List<Map<String, dynamic>>> groupedSessions = {};
 
+    // Only include sessions inside the displayed range
     for (var session in widget.sessions) {
       String date = session['date'] ?? '';
       if (date.isEmpty) continue;
 
       DateTime sessionDate = DateTime.parse(date);
+      if (sessionDate.isBefore(start) || sessionDate.isAfter(end)) continue;
+
       String monthYear = DateFormat('MMMM yyyy').format(sessionDate);
 
       int bookId = session['book_id'];
@@ -116,10 +137,7 @@ class _SessionsPageState extends State<SessionsPage> {
             session: session,
             book: book,
             availableBooks: [],
-            // Not used in edit mode
-            refreshSessions: () {
-              widget.refreshSessions();
-            },
+            refreshSessions: widget.refreshSessions,
             settingsViewModel: widget.settingsViewModel,
             sessionRepository: widget.sessionRepository,
             bookRepository: widget.bookRepository,
@@ -158,7 +176,6 @@ class _SessionsPageState extends State<SessionsPage> {
     );
   }
 
-
   String _getMessageToDisplay() {
     if (widget.books.isEmpty) {
       return 'Add a book to your library';
@@ -166,6 +183,13 @@ class _SessionsPageState extends State<SessionsPage> {
       return 'No sessions, time to get cozy and read a few pages';
     }
     return '';
+  }
+
+  Future<void> _updateCalendarMode(CalendarMode mode) async {
+    setState(() {
+      _calendarMode = mode;
+    });
+    await widget.settingsViewModel.setCalendarMonthMode(mode == CalendarMode.currentMonth);
   }
 
   Widget _buildStats(DateTime start, DateTime end) {
@@ -208,7 +232,7 @@ class _SessionsPageState extends State<SessionsPage> {
   }
 
   Widget _buildSessionCard(Map<String, dynamic> session) {
-    final theme = Theme.of(context); // use context from StatefulWidget
+    final theme = Theme.of(context);
     final book = session['book'];
     final bookTitle = book?['title'] ?? 'Unknown Book';
     final bookAuthor = book?['author'] ?? 'Unknown Author';
@@ -284,12 +308,23 @@ class _SessionsPageState extends State<SessionsPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final groupedSessions = _groupSessionsByMonth();
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
 
     final now = DateTime.now();
-    final end = now.subtract(Duration(days: now.weekday % 7 - 6));
-    final start = end.subtract(const Duration(days: 34));
+    late DateTime start;
+    late DateTime end;
+
+    if (_calendarMode == CalendarMode.thirtyDays) {
+      // Last 30 days aligned to week start and end
+      end = now.subtract(Duration(days: now.weekday % 7 - 6));
+      start = end.subtract(const Duration(days: 34));
+    } else {
+      // Current month start and end
+      start = DateTime(now.year, now.month, 1);
+      end = DateTime(now.year, now.month + 1, 0);
+    }
+
+    final groupedSessions = _groupSessionsByMonth(start, end);
 
     return Scaffold(
       appBar: AppBar(
@@ -300,66 +335,74 @@ class _SessionsPageState extends State<SessionsPage> {
       ),
       body: widget.sessions.isEmpty
           ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  _getMessageToDisplay(),
-                  style: theme.textTheme.bodyLarge,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            )
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            _getMessageToDisplay(),
+            style: theme.textTheme.bodyLarge,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      )
           : ListView(
-              padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(8),
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              ChoiceChip(
+                label: const Text("Last 30 Days"),
+                selected: _calendarMode == CalendarMode.thirtyDays,
+                onSelected: (_) => _updateCalendarMode(CalendarMode.thirtyDays),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text("Current Month"),
+                selected: _calendarMode == CalendarMode.currentMonth,
+                onSelected: (_) => _updateCalendarMode(CalendarMode.currentMonth),
+              ),
+            ],
+          ),
+          SessionsCalendar(
+            start: start,
+            end: end,
+            sessions: widget.sessions,
+            isCurrentMonth: _calendarMode == CalendarMode.currentMonth,
+          ),
+          const SizedBox(height: 8),
+          _buildStats(start, end),
+          Divider(
+            color: Colors.grey[600],
+            height: 1,
+          ),
+          ...groupedSessions.entries.map((entry) {
+            final monthYear = entry.key;
+            final sessions = entry.value;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16),
                   child: Text(
-                    'Monthly Review',
+                    monthYear,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                SessionsCalendar(
-                  start: start,
-                  end: end,
-                  sessions: widget.sessions,
-                ),
-                const SizedBox(height: 8),
-                _buildStats(start, end),
-                Divider(
-                  color: Colors.grey[600],
-                  height: 1,
-                ),
-                ...groupedSessions.entries.map((entry) {
-                  final monthYear = entry.key;
-                  final sessions = entry.value;
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16),
-                        child: Text(
-                          monthYear,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      ...sessions.map(_buildSessionCard),
-                    ],
-                  );
-                }),
+                ...sessions.map(_buildSessionCard),
               ],
-            ),
+            );
+          }),
+        ],
+      ),
       floatingActionButton: widget.books.isNotEmpty
           ? FloatingActionButton(
-              backgroundColor: accentColor,
-              onPressed: _navigateToAddSessionPage,
-              child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
-            )
+        backgroundColor: accentColor,
+        onPressed: _navigateToAddSessionPage,
+        child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
+      )
           : null,
     );
   }

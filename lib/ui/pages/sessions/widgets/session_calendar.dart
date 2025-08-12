@@ -5,12 +5,14 @@ class SessionsCalendar extends StatelessWidget {
   final DateTime start;
   final DateTime end;
   final List<Map<String, dynamic>> sessions;
+  final bool isCurrentMonth; // <-- new
 
   const SessionsCalendar({
     super.key,
     required this.start,
     required this.end,
     required this.sessions,
+    this.isCurrentMonth = false, // default false for 30-day mode
   });
 
   @override
@@ -21,11 +23,14 @@ class SessionsCalendar extends StatelessWidget {
         .map((s) => DateTime.parse(s['date']).toIso8601String().substring(0, 10))
         .toSet();
 
-    List<Widget> rows = [];
-    DateTime current = start;
+    // Align start/end to week boundaries
+    DateTime gridStart = start.subtract(Duration(days: start.weekday % 7));
+    DateTime gridEnd = end.add(Duration(days: 6 - (end.weekday % 7)));
 
-    // Calculate total number of weeks in range
-    int totalDays = end.difference(start).inDays + 1;
+    List<Widget> rows = [];
+    DateTime current = gridStart;
+
+    int totalDays = gridEnd.difference(gridStart).inDays + 1;
     int totalWeeks = (totalDays / 7).ceil();
 
     for (int week = 0; week < totalWeeks; week++) {
@@ -34,23 +39,38 @@ class SessionsCalendar extends StatelessWidget {
       for (int day = 0; day < 7; day++) {
         final dateStr = current.toIso8601String().substring(0, 10);
         final isRead = readDates.contains(dateStr);
-        final isToday = current.day == DateTime.now().day &&
+        final isToday = current.year == DateTime.now().year &&
             current.month == DateTime.now().month &&
-            current.year == DateTime.now().year;
+            current.day == DateTime.now().day;
         final isFuture = current.isAfter(DateTime.now());
 
-        // Decide text color adaptively
+        bool isOutsideCurrentMonth = isCurrentMonth &&
+            (current.month != start.month || current.year != start.year);
+
+        // Styling logic
         Color textColor;
-        if (isToday && isRead) {
-          textColor = colorScheme.onPrimary; // Today with session
+        if (isOutsideCurrentMonth) {
+          textColor = colorScheme.onSurface.withOpacity(0.3); // greyed out
+        } else if (isToday && isRead) {
+          textColor = colorScheme.onPrimary;
         } else if (isRead) {
-          textColor = colorScheme.primary; // Past with session
+          textColor = colorScheme.primary;
         } else if (isToday && !isRead) {
-          textColor = colorScheme.primary; // Today no session
+          textColor = colorScheme.primary;
         } else if (!isFuture) {
-          textColor = Theme.of(context).colorScheme.onSurface.withAlpha(153); // Past faded
+          textColor = colorScheme.onSurface.withOpacity(0.6);
         } else {
-          textColor = colorScheme.onSurface; // Future dark
+          textColor = colorScheme.onSurface;
+        }
+
+        Color? bgColor;
+        BoxBorder? border;
+        if (isToday && isRead && !isOutsideCurrentMonth) {
+          bgColor = colorScheme.primary;
+        } else if (isRead && !isOutsideCurrentMonth) {
+          bgColor = colorScheme.primary.withOpacity(0.3);
+        } else if (isToday && !isRead && !isOutsideCurrentMonth) {
+          border = Border.all(color: colorScheme.primary, width: 1.5);
         }
 
         days.add(
@@ -58,15 +78,9 @@ class SessionsCalendar extends StatelessWidget {
             child: Container(
               margin: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: isToday && isRead
-                    ? colorScheme.primary
-                    : isRead
-                    ? colorScheme.primary.withAlpha(77)
-                    : Colors.transparent,
+                color: bgColor ?? Colors.transparent,
                 borderRadius: BorderRadius.circular(6),
-                border: isToday && !isRead
-                    ? Border.all(color: colorScheme.primary, width: 1.5)
-                    : null,
+                border: border,
               ),
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Column(

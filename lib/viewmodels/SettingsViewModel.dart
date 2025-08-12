@@ -12,13 +12,14 @@ class SettingsViewModel {
   final ValueNotifier<int> defaultTabNotifier;
   final ValueNotifier<String> defaultDateFormatNotifier;
   final ValueNotifier<String> selectedFontNotifier;
+  final ValueNotifier<bool> calendarMonthModeNotifier;
   // Library Filters
   final ValueNotifier<String> librarySortOptionNotifier;
   final ValueNotifier<bool> isLibrarySortAscendingNotifier;
   final ValueNotifier<List<String>> libraryBookTypeFilterNotifier;
   final ValueNotifier<bool> libraryFavoriteFilterNotifier;
   final ValueNotifier<List<String>> libraryFinishedYearFilterNotifier;
-  final ValueNotifier<String> libraryTagFilterModeNotifier; // Changed to String
+  final ValueNotifier<String> libraryTagFilterModeNotifier;
 
   SettingsViewModel({
     required ThemeMode themeMode,
@@ -30,12 +31,13 @@ class SettingsViewModel {
     required int defaultTab,
     required String defaultDateFormat,
     required String selectedFont,
+    required bool calendarMonthModeNotifier,
     required String sortOption,
     required bool isAscending,
     required List<String> bookTypes,
     required bool isFavorite,
     required List<String> finishedYears,
-    required String tagFilterMode, // Changed to String
+    required String tagFilterMode,
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
@@ -45,12 +47,14 @@ class SettingsViewModel {
         defaultTabNotifier = ValueNotifier(defaultTab),
         defaultDateFormatNotifier = ValueNotifier(defaultDateFormat),
         selectedFontNotifier = ValueNotifier(selectedFont),
+        libraryTagFilterModeNotifier = ValueNotifier(tagFilterMode),
+        calendarMonthModeNotifier = ValueNotifier(calendarMonthModeNotifier),
         librarySortOptionNotifier = ValueNotifier(sortOption),
         isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
         libraryBookTypeFilterNotifier = ValueNotifier(bookTypes),
         libraryFavoriteFilterNotifier = ValueNotifier(isFavorite),
-        libraryFinishedYearFilterNotifier = ValueNotifier(finishedYears),
-        libraryTagFilterModeNotifier = ValueNotifier(tagFilterMode);
+        libraryFinishedYearFilterNotifier = ValueNotifier(finishedYears);
+
 
   // Method to toggle theme mode (light, dark, system)
   Future<void> toggleTheme(ThemeMode themeMode) async {
@@ -287,5 +291,16 @@ class SettingsViewModel {
   static Future<String> getLibraryTagFilterMode() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('libraryTagFilterMode') ?? 'any'; // Default to 'any'
+  }
+
+  Future<void> setCalendarMonthMode(bool isCurrentMonth) async {
+    calendarMonthModeNotifier.value = isCurrentMonth;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool('calendarMonthMode', isCurrentMonth);
+  }
+
+  static Future<bool> getCalendarMonthMode() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('calendarMonthMode') ?? false; // Default to false (30-day mode)
   }
 }
