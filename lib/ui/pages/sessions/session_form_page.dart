@@ -33,10 +33,12 @@ class SessionFormPage extends StatefulWidget {
 class _SessionFormPageState extends State<SessionFormPage> {
   final TextEditingController _pagesController = TextEditingController();
   final TextEditingController _startPageController = TextEditingController();
-  final TextEditingController _finishPageController = TextEditingController();
+  final TextEditingController _endPageController = TextEditingController();
   final TextEditingController _hoursController = TextEditingController();
   final TextEditingController _minutesController = TextEditingController();
   final TextEditingController _bookController = TextEditingController();
+  final TextEditingController _startTimeController = TextEditingController();
+  final TextEditingController _endTimeController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late DateTime _sessionDate;
   bool _isFirstSession = false;
@@ -62,10 +64,12 @@ class _SessionFormPageState extends State<SessionFormPage> {
       // Adding new session
       _pagesController.text = '';
       _startPageController.text = '';
-      _finishPageController.text = '';
+      _endPageController.text = '';
       _hoursController.text = '0';
       _minutesController.text = '0';
       _sessionDate = DateTime.now();
+      _startTimeController.text = '';
+      _endTimeController.text = '';
 
       // Pre-select book if provided
       if (widget.book != null) {
@@ -87,11 +91,13 @@ class _SessionFormPageState extends State<SessionFormPage> {
   void dispose() {
     _pagesController.dispose();
     _startPageController.dispose();
-    _finishPageController.dispose();
+    _endPageController.dispose();
     _hoursController.dispose();
     _minutesController.dispose();
     _bookController.dispose();
     _scrollController.dispose();
+    _startTimeController.dispose();
+    _endTimeController.dispose();
     super.dispose();
   }
 
@@ -110,18 +116,38 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
 
     final int? pagesRead = int.tryParse(_pagesController.text);
-    final int? hours = int.tryParse(_hoursController.text);
-    final int? minutes = int.tryParse(_minutesController.text);
+    int durationMinutes = 0;
 
-    if (pagesRead == null || hours == null || minutes == null) {
-      final errorMessage = pagesRead == null
-          ? 'Please enter pages read'
-          : 'Please enter a duration';
-      _showSnackBar(errorMessage);
+    // Check if we should calculate duration from time range
+    if (_startTimeController.text.isNotEmpty && _endTimeController.text.isNotEmpty) {
+      try {
+        durationMinutes = _calculateDurationFromTimeRange();
+        if (durationMinutes <= 0) {
+          _showSnackBar('End time must be after start time');
+          return;
+        }
+      } catch (e) {
+        _showSnackBar('Please enter valid times in the format "h:mm AM/PM"');
+        return;
+      }
+    } else {
+      // Use manual duration input
+      final int? hours = int.tryParse(_hoursController.text);
+      final int? minutes = int.tryParse(_minutesController.text);
+
+      if (hours == null || minutes == null) {
+        _showSnackBar('Please enter a valid duration');
+        return;
+      }
+
+      durationMinutes = (hours * 60) + minutes;
+    }
+
+    if (pagesRead == null) {
+      _showSnackBar('Please enter pages read');
       return;
     }
 
-    final int durationMinutes = (hours * 60) + minutes;
     if (pagesRead <= 0 || durationMinutes <= 0) {
       final errorMessage = pagesRead <= 0
           ? 'Pages should be above 0'
@@ -171,6 +197,42 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
   }
 
+  int _calculateDurationFromTimeRange() {
+    final startTime = DateFormat('h:mm a').parse(_startTimeController.text);
+    final endTime = DateFormat('h:mm a').parse(_endTimeController.text);
+
+    // Handle case where end time is on the next day
+    DateTime endDateTime = DateTime(_sessionDate.year, _sessionDate.month, _sessionDate.day,
+        endTime.hour, endTime.minute);
+    DateTime startDateTime = DateTime(_sessionDate.year, _sessionDate.month, _sessionDate.day,
+        startTime.hour, startTime.minute);
+
+    if (endDateTime.isBefore(startDateTime)) {
+      endDateTime = endDateTime.add(const Duration(days: 1));
+    }
+
+    return endDateTime.difference(startDateTime).inMinutes;
+  }
+
+  void _updateDurationFromTimeRange() {
+    if (_startTimeController.text.isNotEmpty && _endTimeController.text.isNotEmpty) {
+      try {
+        final durationMinutes = _calculateDurationFromTimeRange();
+        if (durationMinutes > 0) {
+          final hours = durationMinutes ~/ 60;
+          final minutes = durationMinutes % 60;
+
+          setState(() {
+            _hoursController.text = hours.toString();
+            _minutesController.text = minutes.toString();
+          });
+        }
+      } catch (e) {
+        // Ignore parsing errors, user might still be typing
+      }
+    }
+  }
+
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -191,13 +253,15 @@ class _SessionFormPageState extends State<SessionFormPage> {
     setState(() {
       _pagesController.clear();
       _startPageController.clear();
-      _finishPageController.clear();
+      _endPageController.clear();
       _hoursController.text = '0';
       _minutesController.text = '0';
       _sessionDate = DateTime.now();
       _isFirstSession = false;
       _isFinalSession = false;
       _selectedBook = null;
+      _startTimeController.clear();
+      _endTimeController.clear();
     });
   }
 
@@ -238,10 +302,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
   }
 
   String _formatSessionDuration(String hours, String minutes) {
-    // if (hours == '0' && minutes == '0') {
-    //   return 'Set duration';
-    // }
-
     String hourText = hours != '0' ? '$hours hour${hours == "1" ? "" : "s"}' : '';
     String minuteText = minutes != '0' ? '$minutes minute${minutes == "1" ? "" : "s"}' : '';
 
@@ -296,6 +356,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
               setState(() {
                 _hoursController.text = hours.toString();
                 _minutesController.text = minutes.toString();
+                // Clear time range when manually setting duration
+                _startTimeController.clear();
+                _endTimeController.clear();
               });
               Navigator.pop(context);
             },
@@ -304,6 +367,29 @@ class _SessionFormPageState extends State<SessionFormPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _showTimePicker(BuildContext context, bool isStartTime) async {
+    final initialTime = TimeOfDay.now();
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      initialEntryMode: TimePickerEntryMode.inputOnly,
+    );
+
+    if (pickedTime != null) {
+      final formattedTime = pickedTime.format(context);
+      setState(() {
+        if (isStartTime) {
+          _startTimeController.text = formattedTime;
+        } else {
+          _endTimeController.text = formattedTime;
+        }
+      });
+
+      // Update duration after selecting a time
+      _updateDurationFromTimeRange();
+    }
   }
 
   Future<void> _showDatePicker(BuildContext context) async {
@@ -337,10 +423,10 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
   void _calculatePagesRead() {
     final startPage = int.tryParse(_startPageController.text) ?? 0;
-    final finishPage = int.tryParse(_finishPageController.text) ?? 0;
+    final endPage = int.tryParse(_endPageController.text) ?? 0;
 
-    if (startPage > 0 && finishPage > 0 && finishPage >= startPage) {
-      final pagesRead = finishPage - startPage + 1; // +1 because both start and end pages are inclusive
+    if (startPage > 0 && endPage > 0 && endPage >= startPage) {
+      final pagesRead = endPage - startPage + 1; // +1 because both start and end pages are inclusive
       _pagesController.text = pagesRead.toString();
     } else {
       _pagesController.clear();
@@ -350,6 +436,18 @@ class _SessionFormPageState extends State<SessionFormPage> {
   void _clearField(TextEditingController controller) {
     controller.clear();
     setState(() {});
+
+    // If clearing time fields, also reset duration if needed
+    if (controller == _startTimeController || controller == _endTimeController) {
+      if (_startTimeController.text.isEmpty && _endTimeController.text.isEmpty) {
+        setState(() {
+          _hoursController.text = '0';
+          _minutesController.text = '0';
+        });
+      } else {
+        _updateDurationFromTimeRange();
+      }
+    }
   }
 
   @override
@@ -545,17 +643,17 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
-                    controller: _finishPageController,
+                    controller: _endPageController,
                     decoration: InputDecoration(
-                      labelText: 'Finish Page',
+                      labelText: 'End Page',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      suffixIcon: _finishPageController.text.isNotEmpty
+                      suffixIcon: _endPageController.text.isNotEmpty
                           ? IconButton(
                         icon: const Icon(Icons.clear),
                         onPressed: () {
-                          _clearField(_finishPageController);
+                          _clearField(_endPageController);
                         },
                       )
                           : null,
@@ -609,6 +707,75 @@ class _SessionFormPageState extends State<SessionFormPage> {
               },
             ),
             const SizedBox(height: 24),
+
+            // Time Range Input
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    readOnly: true,
+                    onTap: () => _showTimePicker(context, true),
+                    controller: _startTimeController,
+                    decoration: InputDecoration(
+                      labelText: 'Start Time',
+                      hintText: 'Select start time',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      suffixIcon: _startTimeController.text.isNotEmpty
+                          ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_startTimeController),
+                      )
+                          : null,
+                    ),
+                    onTapOutside: (event) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Icon(Icons.arrow_forward, color: theme.colorScheme.onSurface.withAlpha(153)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    readOnly: true,
+                    onTap: () => _showTimePicker(context, false),
+                    controller: _endTimeController,
+                    decoration: InputDecoration(
+                      labelText: 'End Time',
+                      hintText: 'Select end time',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      suffixIcon: _endTimeController.text.isNotEmpty
+                          ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_endTimeController),
+                      )
+                          : null,
+                    ),
+                    onTapOutside: (event) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: Divider(thickness: 1)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text('OR', style: theme.textTheme.labelSmall),
+                ),
+                Expanded(child: Divider(thickness: 1)),
+              ],
+            ),
+            const SizedBox(height: 8),
+
             // Duration Field
             TextFormField(
               readOnly: true,
@@ -629,6 +796,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
                     setState(() {
                       _hoursController.text = '0';
                       _minutesController.text = '0';
+                      // Clear time range when clearing duration
+                      _startTimeController.clear();
+                      _endTimeController.clear();
                     });
                   },
                 )
@@ -653,7 +823,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                suffixIcon: Icon(
+                suffixIcon: const Icon(
                     Icons.calendar_today
                 ),
               ),
@@ -669,14 +839,25 @@ class _SessionFormPageState extends State<SessionFormPage> {
               const SizedBox(height: 8),
               Column(
                 children: [
-                  CheckboxListTile(
-                    title: const Text('First session'),
-                    value: _isFirstSession,
-                    onChanged: (value) {
-                      setState(() => _isFirstSession = value ?? false);
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
+                  if (_selectedBook != null)
+                    FutureBuilder<List<Session>>(
+                      future: widget.sessionRepository.getSessionsByBookId(_selectedBook!['id']),
+                      builder: (context, snapshot) {
+                        final hasExistingSessions = snapshot.hasData && snapshot.data!.isNotEmpty;
+
+                        return Visibility(
+                          visible: !hasExistingSessions,
+                          child: CheckboxListTile(
+                            title: const Text('First session'),
+                            value: _isFirstSession,
+                            onChanged: (value) {
+                              setState(() => _isFirstSession = value ?? false);
+                            },
+                            controlAffinity: ListTileControlAffinity.leading,
+                          ),
+                        );
+                      },
+                    ),
                   CheckboxListTile(
                     title: const Text('Final session (book finished)'),
                     value: _isFinalSession,
