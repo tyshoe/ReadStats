@@ -1,4 +1,4 @@
-package com.example.read_stats
+package com.tyshoe.readstats
 
 import io.flutter.embedding.android.FlutterActivity
 
