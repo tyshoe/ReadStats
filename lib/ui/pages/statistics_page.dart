@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
+import 'dart:math';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/models/session.dart';
@@ -136,6 +139,300 @@ class _StatisticsPageState extends State<StatisticsPage> {
               fontWeight: FontWeight.bold,
             ),
       ),
+    );
+  }
+
+  String _formatMinutes(int minutes) {
+    if (minutes < 60) return "${minutes}m";
+
+    final hours = minutes ~/ 60;
+    final mins = minutes % 60;
+
+    if (hours < 24) {
+      return mins == 0 ? "${hours}h" : "${hours}h ${mins}m";
+    }
+
+    // Handle days
+    final days = hours ~/ 24;
+    final remainingHours = hours % 24;
+
+    String result = "${days}d";
+    if (remainingHours > 0) result += " ${remainingHours}h";
+    if (mins > 0) result += " ${mins}m";
+
+    return result;
+  }
+
+  Future<Map<String, int>> _getReadingTimeDistribution() async {
+    List<Session> sessions = await widget.sessionRepository.getSessions(
+      yearFilter: selectedYear,
+    );
+
+    Map<String, int> groupedMinutes = {};
+
+    for (var s in sessions) {
+      final date = DateTime.parse(s.date);
+      final key = selectedYear == 0
+          ? date.year.toString() // group by year
+          : DateFormat('MMM').format(date); // group by month
+
+      groupedMinutes[key] = (groupedMinutes[key] ?? 0) + s.durationMinutes;
+    }
+
+    return groupedMinutes;
+  }
+
+  Widget _buildReadingTimeChart() {
+    return FutureBuilder<Map<String, int>>(
+      future: _getReadingTimeDistribution(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final data = snapshot.data!;
+        List<String> keys = data.keys.toList();
+
+        // Sort keys depending on grouping
+        if (selectedYear != 0) {
+          // Monthly view → enforce Jan → Dec order
+          const monthOrder = [
+            'Jan','Feb','Mar','Apr','May','Jun',
+            'Jul','Aug','Sep','Oct','Nov','Dec'
+          ];
+
+          // Use a map for faster lookup and handle missing months
+          final monthIndexMap = {
+            for (var i = 0; i < monthOrder.length; i++) monthOrder[i]: i
+          };
+
+          keys.sort((a, b) {
+            final indexA = monthIndexMap[a] ?? 99; // Put unknown months at the end
+            final indexB = monthIndexMap[b] ?? 99; // Put unknown months at the end
+            return indexA.compareTo(indexB);
+          });
+        }
+
+        final values = keys.map((k) => data[k] ?? 0).toList();
+        final maxValue = values.isEmpty ? 0 : values.reduce(max);
+
+        return SizedBox(
+          height: 280,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: max(400, keys.length * 70).toDouble(),
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: (maxValue * 1.3).toDouble(),
+                  // Add BarTouchData for tooltips
+                  barTouchData: BarTouchData(
+                    enabled: true, // Enable touch interaction
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (group) => Colors.transparent,
+                      tooltipPadding: EdgeInsets.zero,
+                      tooltipMargin: 8,
+                      getTooltipItem: (
+                          BarChartGroupData group,
+                          int groupIndex,
+                          BarChartRodData rod,
+                          int rodIndex,
+                          ) {
+                        return BarTooltipItem(
+                          _formatMinutes(rod.toY.toInt()), // Format the minutes
+                          TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  barGroups: List.generate(keys.length, (i) {
+                    return BarChartGroupData(
+                      x: i,
+                      barRods: [
+                        BarChartRodData(
+                          toY: values[i].toDouble(),
+                          color: Theme.of(context).primaryColor,
+                          width: 36,
+                          borderRadius: BorderRadius.only(topLeft:Radius.circular(6), topRight:Radius.circular(6)),
+                        ),
+                      ],
+                      showingTooltipIndicators: [0], // Always show tooltip for first rod
+                    );
+                  }),
+                  titlesData: FlTitlesData(
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          if (value.toInt() < 0 || value.toInt() >= keys.length) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              keys[value.toInt()],
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  gridData: FlGridData(show: false),
+                  borderData: FlBorderData(show: false),
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Add this method to get pages distribution data
+  Future<Map<String, int>> _getPagesDistribution() async {
+    List<Session> sessions = await widget.sessionRepository.getSessions(
+      yearFilter: selectedYear,
+    );
+
+    Map<String, int> groupedPages = {};
+
+    for (var s in sessions) {
+      final date = DateTime.parse(s.date);
+      final key = selectedYear == 0
+          ? date.year.toString() // group by year
+          : DateFormat('MMM').format(date); // group by month
+
+      groupedPages[key] = (groupedPages[key] ?? 0) + s.pagesRead;
+    }
+
+    return groupedPages;
+  }
+
+
+
+// Build the pages chart widget
+  Widget _buildPagesChart() {
+    return FutureBuilder<Map<String, int>>(
+      future: _getPagesDistribution(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final data = snapshot.data!;
+        List<String> keys = data.keys.toList();
+
+        // Sort keys depending on grouping
+        if (selectedYear != 0) {
+          // Monthly view → enforce Jan → Dec order
+          const monthOrder = [
+            'Jan','Feb','Mar','Apr','May','Jun',
+            'Jul','Aug','Sep','Oct','Nov','Dec'
+          ];
+
+          // Use a map for faster lookup and handle missing months
+          final monthIndexMap = {
+            for (var i = 0; i < monthOrder.length; i++) monthOrder[i]: i
+          };
+
+          keys.sort((a, b) {
+            final indexA = monthIndexMap[a] ?? 99; // Put unknown months at the end
+            final indexB = monthIndexMap[b] ?? 99; // Put unknown months at the end
+            return indexA.compareTo(indexB);
+          });
+        }
+
+        final values = keys.map((k) => data[k] ?? 0).toList();
+        final maxValue = values.isEmpty ? 0 : values.reduce(max);
+
+        return SizedBox(
+          height: 280,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: max(400, keys.length * 70).toDouble(),
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: (maxValue * 1.3).toDouble(),
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (group) => Colors.transparent,
+                      tooltipPadding: EdgeInsets.zero,
+                      tooltipMargin: 8,
+                      getTooltipItem: (
+                          BarChartGroupData group,
+                          int groupIndex,
+                          BarChartRodData rod,
+                          int rodIndex,
+                          ) {
+                        return BarTooltipItem(
+                          NumberFormat('#,###').format(rod.toY.toInt()), // Format the pages
+                          TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  barGroups: List.generate(keys.length, (i) {
+                    return BarChartGroupData(
+                      x: i,
+                      barRods: [
+                        BarChartRodData(
+                          toY: values[i].toDouble(),
+                          color: Theme.of(context).primaryColor,
+                          width: 36,
+                          borderRadius: BorderRadius.only(topLeft:Radius.circular(6), topRight:Radius.circular(6)),
+                        ),
+                      ],
+                      showingTooltipIndicators: [0],
+                    );
+                  }),
+                  titlesData: FlTitlesData(
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          if (value.toInt() < 0 || value.toInt() >= keys.length) {
+                            return const SizedBox.shrink();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              keys[value.toInt()],
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  gridData: FlGridData(show: false),
+                  borderData: FlBorderData(show: false),
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -307,6 +604,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                   ),
                   _buildStatCard('Average Rating', _stats['averageRating'].toStringAsFixed(2)),
                   _buildSectionHeader('Reading Time'),
+                  _buildReadingTimeChart(),
                   _buildStatCard('Total Time Spent', _stats['totalTimeSpent']),
                   _buildStatCardWithBook(
                     'Slowest Read',
@@ -319,6 +617,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     _stats['fastestReadBookTitle'],
                   ),
                   _buildSectionHeader('Pages'),
+                  _buildPagesChart(),
                   _buildStatCard('Total Pages Read', _stats['totalPagesRead'].toString()),
                   _buildStatCard('Avg Pages/Min', _stats['avgPagesPerMinute'].toStringAsFixed(2)),
                   _buildStatCard('Average Pages', _stats['averagePages'].toStringAsFixed(2)),
