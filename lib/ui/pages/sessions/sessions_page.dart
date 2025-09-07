@@ -125,6 +125,27 @@ class _SessionsPageState extends State<SessionsPage> {
     return groupedSessions;
   }
 
+  Map<String, List<Map<String, dynamic>>> _groupSessionsByMonthAll() {
+    Map<String, List<Map<String, dynamic>>> groupedSessions = {};
+
+    for (var session in widget.sessions) {
+      String date = session['date'] ?? '';
+      if (date.isEmpty) continue;
+
+      DateTime sessionDate = DateTime.parse(date);
+      String monthYear = DateFormat('MMMM yyyy').format(sessionDate);
+
+      int bookId = session['book_id'];
+      Map<String, dynamic>? book = _bookMap[bookId];
+      var sessionWithBook = {...session, 'book': book};
+
+      groupedSessions.putIfAbsent(monthYear, () => []).add(sessionWithBook);
+    }
+
+    return groupedSessions;
+  }
+
+
   void _navigateToEditSessionsPage(Map<String, dynamic> session) async {
     int bookId = session['book_id'];
     Map<String, dynamic>? book = _bookMap[bookId];
@@ -324,7 +345,7 @@ class _SessionsPageState extends State<SessionsPage> {
       end = DateTime(now.year, now.month + 1, 0);
     }
 
-    final groupedSessions = _groupSessionsByMonth(start, end);
+    final groupedSessions = _groupSessionsByMonthAll();
 
     return Scaffold(
       appBar: AppBar(
