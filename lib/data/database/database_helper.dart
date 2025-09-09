@@ -535,6 +535,42 @@ class DatabaseHelper {
     }
   }
 
+  Future<Map<double, int>> getRatingDistribution({int selectedYear = 0}) async {
+    final db = await database;
+
+    String yearFilter = '';
+    if (selectedYear != 0) {
+      yearFilter = "AND strftime('%Y', date_finished) = '$selectedYear'";
+    }
+
+    final result = await db.rawQuery('''
+    SELECT rating, COUNT(*) as count
+    FROM books
+    WHERE is_completed = 1
+      AND rating IS NOT NULL
+      $yearFilter
+    GROUP BY rating
+    ORDER BY rating ASC
+  ''');
+
+    // Convert to Map<double, int>
+    Map<double, int> distribution = {};
+    for (var row in result) {
+      double rating = (row['rating'] as num).toDouble(); // cast safely
+      int count = row['count'] as int;
+      distribution[rating] = count;
+    }
+
+    // Fill missing ratings 0–5 (e.g., 0.0, 0.5, 1.0, ..., 5.0)
+    for (double i = 0; i <= 5; i += 0.5) {
+      distribution[i] = distribution[i] ?? 0;
+    }
+
+    return distribution;
+  }
+
+
+
   Future<Map<String, dynamic>> getCompleteBookStats(int bookId) async {
     final book = await getBookById(bookId);
     final stats = await getBookStats(bookId);

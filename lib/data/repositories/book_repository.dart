@@ -48,6 +48,10 @@ class BookRepository {
     return await _databaseHelper.getAllBookStats(yearFilter);
   }
 
+  Future<Map<double, int>> getRatingDistribution({int selectedYear = 0}) {
+    return _databaseHelper.getRatingDistribution(selectedYear: selectedYear);
+  }
+
   Future<List<int>> getBookYears() async {
     return await _databaseHelper.getBookYears();
   }

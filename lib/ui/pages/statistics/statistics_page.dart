@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_single.dart';
+import 'package:read_stats/ui/pages/statistics/widgets/rating_summary.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stat_card.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/year_filter.dart';
 import 'dart:math';
@@ -569,6 +570,10 @@ class _StatisticsPageState extends State<StatisticsPage> {
                   ),
 
                   _buildSectionHeader('Ratings'),
+                  RatingSummary(
+                    ratingDataFuture: widget.bookRepository.getRatingDistribution(selectedYear: selectedYear),
+                    selectedYear: selectedYear,
+                  ),
                   StatCard(
                     title: 'Highest Rating',
                     value: _stats['highestRating'].toString(),
