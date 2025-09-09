@@ -283,9 +283,37 @@ class DatabaseHelper {
     return await db.insert('books', book);
   }
 
-  Future<List<Map<String, dynamic>>> getBooks() async {
-    final db = await database;
-    return await db.query('books');
+  Future<List<Map<String, dynamic>>> getBooks({int yearFilter = 0}) async {
+    try {
+      final db = await database;
+
+      // Base query
+      String query = '''
+    SELECT * FROM books
+    ''';
+
+      if (yearFilter != 0) {
+        // Apply the year filter to the date_finished field
+        query += '''
+      WHERE strftime('%Y', date_finished) = ? 
+      ''';
+      }
+
+      // Append ordering of the results (you can adjust this as needed)
+      query += 'ORDER BY date_finished DESC';
+
+      // Prepare the arguments.
+      List<dynamic> arguments = yearFilter != 0 ? [yearFilter.toString()] : [];
+
+      final result = await db.rawQuery(query, arguments);
+
+      return result;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching books: $e');
+      }
+      return [];
+    }
   }
 
   Future<int> updateBook(Map<String, dynamic> book) async {

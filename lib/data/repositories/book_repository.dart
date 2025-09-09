@@ -14,9 +14,14 @@ class BookRepository {
     await _databaseHelper.addBooksBatch(books);
   }
 
-  Future<List<Book>> getBooks() async {
-    final booksData = await _databaseHelper.getBooks();
-    return booksData.map((book) => Book.fromMap(book)).toList();
+  // Future<List<Book>> getBooks() async {
+  //   final booksData = await _databaseHelper.getBooks();
+  //   return booksData.map((book) => Book.fromMap(book)).toList();
+  // }
+
+  Future<List<Book>> getBooks({int yearFilter = 0}) async {
+    final booksMap = await _databaseHelper.getBooks(yearFilter: yearFilter);
+    return booksMap.map((map) => Book.fromMap(map)).toList();
   }
 
   Future<int> updateBook(Book book) async {

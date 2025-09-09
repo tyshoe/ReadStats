@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'dart:math';
+import '../../data/models/book.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/models/session.dart';
@@ -197,14 +198,22 @@ class _StatisticsPageState extends State<StatisticsPage> {
         if (selectedYear != 0) {
           // Monthly view → enforce Jan → Dec order
           const monthOrder = [
-            'Jan','Feb','Mar','Apr','May','Jun',
-            'Jul','Aug','Sep','Oct','Nov','Dec'
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec'
           ];
 
           // Use a map for faster lookup and handle missing months
-          final monthIndexMap = {
-            for (var i = 0; i < monthOrder.length; i++) monthOrder[i]: i
-          };
+          final monthIndexMap = {for (var i = 0; i < monthOrder.length; i++) monthOrder[i]: i};
 
           keys.sort((a, b) {
             final indexA = monthIndexMap[a] ?? 99; // Put unknown months at the end
@@ -216,79 +225,85 @@ class _StatisticsPageState extends State<StatisticsPage> {
         final values = keys.map((k) => data[k] ?? 0).toList();
         final maxValue = values.isEmpty ? 0 : values.reduce(max);
 
-        return SizedBox(
-          height: 280,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: max(400, keys.length * 70).toDouble(),
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: (maxValue * 1.3).toDouble(),
-                  // Add BarTouchData for tooltips
-                  barTouchData: BarTouchData(
-                    enabled: true, // Enable touch interaction
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipColor: (group) => Colors.transparent,
-                      tooltipPadding: EdgeInsets.zero,
-                      tooltipMargin: 8,
-                      getTooltipItem: (
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: SizedBox(
+            height: 280,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: max(400, keys.length * 70).toDouble(),
+                key: ValueKey('chart_${selectedYear}_${keys.length}'),
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: (maxValue * 1.3).toDouble(),
+                    // Add BarTouchData for tooltips
+                    barTouchData: BarTouchData(
+                      enabled: true, // Enable touch interaction
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipColor: (group) => Colors.transparent,
+                        tooltipPadding: EdgeInsets.zero,
+                        tooltipMargin: 8,
+                        getTooltipItem: (
                           BarChartGroupData group,
                           int groupIndex,
                           BarChartRodData rod,
                           int rodIndex,
-                          ) {
-                        return BarTooltipItem(
-                          _formatMinutes(rod.toY.toInt()), // Format the minutes
-                          TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  barGroups: List.generate(keys.length, (i) {
-                    return BarChartGroupData(
-                      x: i,
-                      barRods: [
-                        BarChartRodData(
-                          toY: values[i].toDouble(),
-                          color: Theme.of(context).primaryColor,
-                          width: 36,
-                          borderRadius: BorderRadius.only(topLeft:Radius.circular(6), topRight:Radius.circular(6)),
-                        ),
-                      ],
-                      showingTooltipIndicators: [0], // Always show tooltip for first rod
-                    );
-                  }),
-                  titlesData: FlTitlesData(
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          if (value.toInt() < 0 || value.toInt() >= keys.length) {
-                            return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              keys[value.toInt()],
-                              style: Theme.of(context).textTheme.bodySmall,
+                        ) {
+                          return BarTooltipItem(
+                            _formatMinutes(rod.toY.toInt()), // Format the minutes
+                            TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
                             ),
                           );
                         },
                       ),
                     ),
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    barGroups: List.generate(keys.length, (i) {
+                      final rods = [
+                        BarChartRodData(
+                          toY: values[i].toDouble(),
+                          color: Theme.of(context).primaryColor,
+                          width: 36,
+                          borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(6), topRight: Radius.circular(6)),
+                        ),
+                      ];
+                      return BarChartGroupData(
+                        x: i,
+                        barRods: rods,
+                        showingTooltipIndicators: rods.isNotEmpty ? [0] : [],
+                      );
+                    }),
+                    titlesData: FlTitlesData(
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            if (value.toInt() < 0 || value.toInt() >= keys.length) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                keys[value.toInt()],
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    gridData: FlGridData(show: false),
+                    borderData: FlBorderData(show: false),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
                   ),
-                  gridData: FlGridData(show: false),
-                  borderData: FlBorderData(show: false),
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
                 ),
               ),
             ),
@@ -318,9 +333,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return groupedPages;
   }
 
-
-
-// Build the pages chart widget
+  // Build the pages chart widget
   Widget _buildPagesChart() {
     return FutureBuilder<Map<String, int>>(
       future: _getPagesDistribution(),
@@ -336,14 +349,22 @@ class _StatisticsPageState extends State<StatisticsPage> {
         if (selectedYear != 0) {
           // Monthly view → enforce Jan → Dec order
           const monthOrder = [
-            'Jan','Feb','Mar','Apr','May','Jun',
-            'Jul','Aug','Sep','Oct','Nov','Dec'
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec'
           ];
 
           // Use a map for faster lookup and handle missing months
-          final monthIndexMap = {
-            for (var i = 0; i < monthOrder.length; i++) monthOrder[i]: i
-          };
+          final monthIndexMap = {for (var i = 0; i < monthOrder.length; i++) monthOrder[i]: i};
 
           keys.sort((a, b) {
             final indexA = monthIndexMap[a] ?? 99; // Put unknown months at the end
@@ -355,84 +376,600 @@ class _StatisticsPageState extends State<StatisticsPage> {
         final values = keys.map((k) => data[k] ?? 0).toList();
         final maxValue = values.isEmpty ? 0 : values.reduce(max);
 
-        return SizedBox(
-          height: 280,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: max(400, keys.length * 70).toDouble(),
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: (maxValue * 1.3).toDouble(),
-                  barTouchData: BarTouchData(
-                    enabled: true,
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipColor: (group) => Colors.transparent,
-                      tooltipPadding: EdgeInsets.zero,
-                      tooltipMargin: 8,
-                      getTooltipItem: (
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: SizedBox(
+            height: 280,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: max(400, keys.length * 70).toDouble(),
+                child: BarChart(
+                  key: ValueKey('chart_${selectedYear}_${keys.length}'),
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: (maxValue * 1.3).toDouble(),
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipColor: (group) => Colors.transparent,
+                        tooltipPadding: EdgeInsets.zero,
+                        tooltipMargin: 8,
+                        getTooltipItem: (
                           BarChartGroupData group,
                           int groupIndex,
                           BarChartRodData rod,
                           int rodIndex,
-                          ) {
-                        return BarTooltipItem(
-                          NumberFormat('#,###').format(rod.toY.toInt()), // Format the pages
-                          TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  barGroups: List.generate(keys.length, (i) {
-                    return BarChartGroupData(
-                      x: i,
-                      barRods: [
-                        BarChartRodData(
-                          toY: values[i].toDouble(),
-                          color: Theme.of(context).primaryColor,
-                          width: 36,
-                          borderRadius: BorderRadius.only(topLeft:Radius.circular(6), topRight:Radius.circular(6)),
-                        ),
-                      ],
-                      showingTooltipIndicators: [0],
-                    );
-                  }),
-                  titlesData: FlTitlesData(
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          if (value.toInt() < 0 || value.toInt() >= keys.length) {
-                            return const SizedBox.shrink();
-                          }
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              keys[value.toInt()],
-                              style: Theme.of(context).textTheme.bodySmall,
+                        ) {
+                          return BarTooltipItem(
+                            NumberFormat('#,###').format(rod.toY.toInt()), // Format the pages
+                            TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
                             ),
                           );
                         },
                       ),
                     ),
-                    leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    barGroups: List.generate(keys.length, (i) {
+                      final rods = [
+                        BarChartRodData(
+                          toY: values[i].toDouble(),
+                          color: Theme.of(context).primaryColor,
+                          width: 36,
+                          borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(6), topRight: Radius.circular(6)),
+                        ),
+                      ];
+                      return BarChartGroupData(
+                        x: i,
+                        barRods: rods,
+                        showingTooltipIndicators: rods.isNotEmpty ? [0] : [],
+                      );
+                    }),
+                    titlesData: FlTitlesData(
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            if (value.toInt() < 0 || value.toInt() >= keys.length) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                keys[value.toInt()],
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    gridData: FlGridData(show: false),
+                    borderData: FlBorderData(show: false),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
                   ),
-                  gridData: FlGridData(show: false),
-                  borderData: FlBorderData(show: false),
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
                 ),
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Future<Map<String, int>> _getBooksDistribution() async {
+    List<Book> books = await widget.bookRepository.getBooks(
+      yearFilter: selectedYear,
+    );
+
+    Map<String, int> grouped = {};
+    for (var book in books) {
+      // Use date_finished for books (assuming books have a date_finished field)
+      if (book.dateFinished != null) {
+        final date = DateTime.parse(book.dateFinished!);
+        final key =
+            selectedYear == 0 ? date.year.toString() : DateFormat('MMM').format(date); // month name
+
+        grouped[key] = (grouped[key] ?? 0) + 1; // count per book
+      }
+    }
+    return grouped;
+  }
+
+  Future<Map<String, int>> _getSessionsDistribution() async {
+    List<Session> sessions = await widget.sessionRepository.getSessions(
+      yearFilter: selectedYear,
+    );
+
+    Map<String, int> grouped = {};
+    for (var s in sessions) {
+      final date = DateTime.parse(s.date);
+      final key =
+          selectedYear == 0 ? date.year.toString() : DateFormat('MMM').format(date); // month name
+
+      grouped[key] = (grouped[key] ?? 0) + 1; // count per session
+    }
+    return grouped;
+  }
+
+  Widget _buildBooksChart() {
+    return FutureBuilder<Map<String, int>>(
+      future: _getBooksDistribution(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final data = snapshot.data!;
+        List<String> keys = data.keys.toList();
+
+        // Sort keys depending on grouping
+        if (selectedYear != 0) {
+          // Monthly view → enforce Jan → Dec order
+          const monthOrder = [
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec'
+          ];
+
+          // Use a map for faster lookup and handle missing months
+          final monthIndexMap = {for (var i = 0; i < monthOrder.length; i++) monthOrder[i]: i};
+
+          keys.sort((a, b) {
+            final indexA = monthIndexMap[a] ?? 99; // Put unknown months at the end
+            final indexB = monthIndexMap[b] ?? 99; // Put unknown months at the end
+            return indexA.compareTo(indexB);
+          });
+        }
+
+        final values = keys.map((k) => data[k] ?? 0).toList();
+        final maxValue = values.isEmpty ? 0 : values.reduce(max);
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: SizedBox(
+            height: 280,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: max(400, keys.length * 70).toDouble(),
+                child: BarChart(
+                  key: ValueKey('chart_${selectedYear}_${keys.length}'),
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: (maxValue * 1.3).toDouble(),
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipColor: (group) => Colors.transparent,
+                        tooltipPadding: EdgeInsets.zero,
+                        tooltipMargin: 8,
+                        getTooltipItem: (
+                          BarChartGroupData group,
+                          int groupIndex,
+                          BarChartRodData rod,
+                          int rodIndex,
+                        ) {
+                          return BarTooltipItem(
+                            NumberFormat('#,###').format(rod.toY.toInt()),
+                            TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    barGroups: List.generate(keys.length, (i) {
+                      final rods = [
+                        BarChartRodData(
+                          toY: values[i].toDouble(),
+                          color: Theme.of(context).primaryColor,
+                          width: 36,
+                          borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(6), topRight: Radius.circular(6)),
+                        ),
+                      ];
+                      return BarChartGroupData(
+                        x: i,
+                        barRods: rods,
+                        showingTooltipIndicators: rods.isNotEmpty ? [0] : [],
+                      );
+                    }),
+                    titlesData: FlTitlesData(
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            if (value.toInt() < 0 || value.toInt() >= keys.length) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                keys[value.toInt()],
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    gridData: FlGridData(show: false),
+                    borderData: FlBorderData(show: false),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSessionsChart() {
+    return FutureBuilder<Map<String, int>>(
+      future: _getSessionsDistribution(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final data = snapshot.data!;
+        List<String> keys = data.keys.toList();
+
+        // Sort keys depending on grouping
+        if (selectedYear != 0) {
+          // Monthly view → enforce Jan → Dec order
+          const monthOrder = [
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec'
+          ];
+
+          // Use a map for faster lookup and handle missing months
+          final monthIndexMap = {for (var i = 0; i < monthOrder.length; i++) monthOrder[i]: i};
+
+          keys.sort((a, b) {
+            final indexA = monthIndexMap[a] ?? 99; // Put unknown months at the end
+            final indexB = monthIndexMap[b] ?? 99; // Put unknown months at the end
+            return indexA.compareTo(indexB);
+          });
+        }
+
+        final values = keys.map((k) => data[k] ?? 0).toList();
+        final maxValue = values.isEmpty ? 0 : values.reduce(max);
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: SizedBox(
+            height: 280,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: max(400, keys.length * 70).toDouble(),
+                key: ValueKey('chart_${selectedYear}_${keys.length}'),
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: (maxValue * 1.3).toDouble(),
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipColor: (group) => Colors.transparent,
+                        tooltipPadding: EdgeInsets.zero,
+                        tooltipMargin: 8,
+                        getTooltipItem: (
+                          BarChartGroupData group,
+                          int groupIndex,
+                          BarChartRodData rod,
+                          int rodIndex,
+                        ) {
+                          return BarTooltipItem(
+                            NumberFormat('#,###').format(rod.toY.toInt()),
+                            TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    barGroups: List.generate(keys.length, (i) {
+                      final rods = [
+                        BarChartRodData(
+                          toY: values[i].toDouble(),
+                          color: Theme.of(context).primaryColor,
+                          width: 36,
+                          borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(6), topRight: Radius.circular(6)),
+                        ),
+                      ];
+                      return BarChartGroupData(
+                        x: i,
+                        barRods: rods,
+                        showingTooltipIndicators: rods.isNotEmpty ? [0] : [],
+                      );
+                    }),
+                    titlesData: FlTitlesData(
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            if (value.toInt() < 0 || value.toInt() >= keys.length) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                keys[value.toInt()],
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    gridData: FlGridData(show: false),
+                    borderData: FlBorderData(show: false),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Map<String, Map<String, int>>> _getCombinedDistribution() async {
+    // Get both datasets
+    final booksData = await _getBooksDistribution();
+    final sessionsData = await _getSessionsDistribution();
+
+    // Get all unique keys from both datasets
+    final allKeys = {...booksData.keys, ...sessionsData.keys}.toList();
+
+    // Sort keys if monthly view
+    if (selectedYear != 0) {
+      const monthOrder = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ];
+      final monthIndexMap = {for (var i = 0; i < monthOrder.length; i++) monthOrder[i]: i};
+
+      allKeys.sort((a, b) {
+        final indexA = monthIndexMap[a] ?? 99;
+        final indexB = monthIndexMap[b] ?? 99;
+        return indexA.compareTo(indexB);
+      });
+    } else {
+      // Yearly view - sort descending
+      allKeys.sort((a, b) {
+        try {
+          final yearA = int.tryParse(a) ?? 0;
+          final yearB = int.tryParse(b) ?? 0;
+          return yearB.compareTo(yearA);
+        } catch (e) {
+          return b.compareTo(a);
+        }
+      });
+    }
+
+    // Create combined data structure
+    final combinedData = <String, Map<String, int>>{};
+    for (final key in allKeys) {
+      combinedData[key] = {
+        'books': booksData[key] ?? 0,
+        'sessions': sessionsData[key] ?? 0,
+      };
+    }
+
+    return combinedData;
+  }
+
+  Widget _buildCombinedChart() {
+    return FutureBuilder<Map<String, Map<String, int>>>(
+      future: _getCombinedDistribution(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting ||
+            !snapshot.hasData ||
+            snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final data = snapshot.data!;
+        final keys = data.keys.toList();
+        if (keys.isEmpty) return const SizedBox.shrink();
+
+        // Get max value for scaling
+        final maxBooks = data.values.map((v) => v['books'] ?? 0).reduce(max);
+        final maxSessions = data.values.map((v) => v['sessions'] ?? 0).reduce(max);
+        final maxValue = max(maxBooks, maxSessions);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SizedBox(
+                height: 280,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: max(400, keys.length * 70).toDouble(),
+                    child: BarChart(
+                      key: ValueKey('combined_chart_${selectedYear}_${keys.length}'),
+                      BarChartData(
+                        alignment: BarChartAlignment.spaceAround,
+                        maxY: (maxValue * 1.3).toDouble(),
+                        barTouchData: BarTouchData(
+                          enabled: true,
+                          touchTooltipData: BarTouchTooltipData(
+                            getTooltipColor: (group) => Colors.transparent,
+                            tooltipPadding: EdgeInsets.zero,
+                            tooltipMargin: 8,
+                            getTooltipItem: (
+                              BarChartGroupData group,
+                              int groupIndex,
+                              BarChartRodData rod,
+                              int rodIndex,
+                            ) {
+                              return BarTooltipItem(
+                                NumberFormat('#,###').format(rod.toY.toInt()), // Format the pages
+                                TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        barGroups: List.generate(keys.length, (i) {
+                          final key = keys[i];
+                          final booksValue = data[key]?['books'] ?? 0;
+                          final sessionsValue = data[key]?['sessions'] ?? 0;
+
+                          return BarChartGroupData(
+                            x: i,
+                            barsSpace: 12,
+                            barRods: [
+                              BarChartRodData(
+                                toY: booksValue.toDouble(),
+                                color: Theme.of(context).primaryColor,
+                                width: 16,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(6),
+                                  topRight: Radius.circular(6),
+                                ),
+                              ),
+                              BarChartRodData(
+                                toY: sessionsValue.toDouble(),
+                                color: Theme.of(context).colorScheme.secondary,
+                                width: 16,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(6),
+                                  topRight: Radius.circular(6),
+                                ),
+                              ),
+                            ],
+                            showingTooltipIndicators: [0, 1],
+                          );
+                        }),
+                        titlesData: FlTitlesData(
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (value, meta) {
+                                if (value.toInt() < 0 || value.toInt() >= keys.length) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    keys[value.toInt()],
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        ),
+                        gridData: FlGridData(show: false),
+                        borderData: FlBorderData(show: false),
+                        backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+                        groupsSpace: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Legend
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildLegendItem(
+                  color: Theme.of(context).primaryColor,
+                  label: 'Books',
+                ),
+                const SizedBox(width: 16),
+                _buildLegendItem(
+                  color: Theme.of(context).colorScheme.secondary,
+                  label: 'Sessions',
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Legend helper
+  Widget _buildLegendItem({required Color color, required String label}) {
+    return Row(
+      children: [
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+      ],
     );
   }
 
@@ -589,8 +1126,12 @@ class _StatisticsPageState extends State<StatisticsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildSectionHeader('Overall'),
-                  _buildStatCard('Total Sessions', _stats['totalSessions'].toString()),
+                  _buildCombinedChart(),
+                  // _buildBooksChart(),
                   _buildStatCard('Books Finished', _stats['booksCompleted'].toString()),
+                  // _buildSessionsChart(),
+                  _buildStatCard('Total Sessions', _stats['totalSessions'].toString()),
+
                   _buildSectionHeader('Ratings'),
                   _buildStatCardWithBook(
                     'Highest Rating',
