@@ -193,6 +193,11 @@ class SettingsPage extends StatelessWidget {
               ),
               _buildSettingsTile(
                 context,
+                title: 'Import Goodreads data',
+                onTap: _importBooksFromGoodreadsCSV,
+              ),
+              _buildSettingsTile(
+                context,
                 title: 'Import Books from CSV',
                 onTap: _importBooksFromCSV,
               ),
@@ -343,10 +348,8 @@ class SettingsPage extends StatelessWidget {
 
   String _getFormattedDate(DateTime date, String format) {
     try {
-      // Using DateFormat to format the date
       return DateFormat(format).format(date);
     } catch (e) {
-      // In case of an invalid format, return a fallback
       return DateFormat('yyyy-MM-dd').format(date);
     }
   }
@@ -363,7 +366,6 @@ class SettingsPage extends StatelessWidget {
       case ThemeMode.dark:
         return 'Dark';
       case ThemeMode.system:
-      default:
         return 'System';
     }
   }
@@ -389,6 +391,10 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _importBookTagsFromCSV() async {
     await _importCSV('book_tags', _importBookTags);
+  }
+
+  Future<void> _importBooksFromGoodreadsCSV() async {
+    await _importGoodreadsCSV('goodreads_books', _importGoodreadsBooks);
   }
 
   Future<void> _importCSV(
@@ -424,6 +430,55 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
+  Future<void> _importGoodreadsCSV(
+      String type, Future<void> Function(List<List<dynamic>>) importFunction) async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        // allowedExtensions: ['csv'],
+      );
+
+      if (result == null) return; // User canceled
+
+      String filePath = result.files.single.path!;
+      final file = File(filePath);
+      String csvString = await file.readAsString();
+
+      // Convert CSV
+      List<List<dynamic>> csvData = const CsvToListConverter(
+        eol: '\n',
+        fieldDelimiter: ',',
+        textDelimiter: '"',
+        shouldParseNumbers: false,
+      ).convert(csvString);
+
+      if (csvData.length <= 1) throw Exception('CSV has no data rows.');
+
+      // Clean rows: remove ="" wrapping (Goodreads export quirk)
+      List<List<dynamic>> cleanedData = csvData.map((row) {
+        return row.map((cell) {
+          if (cell is String) {
+            // Remove leading ="" and trailing ""
+            cell = cell.replaceAll(RegExp(r'^="|"$'), '');
+            cell = cell.replaceAll('""', '"'); // Replace double quotes with single
+          }
+          return cell;
+        }).toList();
+      }).toList();
+
+      // Skip header row
+      await importFunction(cleanedData.toList());
+
+      if (kDebugMode) {
+        print('Goodreads CSV import for $type completed. Rows: ${cleanedData.length - 1}');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error importing Goodreads CSV for $type: $e');
+      }
+    }
+  }
+
   Future<void> _importBooks(List<List<dynamic>> rows) async {
     List<Book> booksToInsert = [];
 
@@ -450,7 +505,6 @@ class SettingsPage extends StatelessWidget {
               ? DateTime.tryParse(row[11].toString())?.toIso8601String().split('T')[0]
               : null,
         );
-
         booksToInsert.add(book);
       } catch (e) {
         if (kDebugMode) print('Error processing row: $row. Error: $e');
@@ -459,6 +513,8 @@ class SettingsPage extends StatelessWidget {
 
     if (booksToInsert.isNotEmpty) {
       await bookRepository.addBooksBatch(booksToInsert); // Use batch insert
+      if (kDebugMode)
+        print('Batch book insert complete. ${booksToInsert.length} books added. $booksToInsert');
     }
 
     refreshBooks();
@@ -539,13 +595,177 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
+  Future<void> _importGoodreadsBooks(List<List<dynamic>> rows) async {
+    if (rows.isEmpty) return;
+
+    // Clean the header row
+    final cleanedHeader = rows.first.map((e) {
+      String header = e.toString();
+      header = header.replaceAll(RegExp(r'^="|"$'), '');
+      header = header.replaceAll('""', '"');
+      return header.trim();
+    }).toList();
+
+    final colIndex = <String, int>{};
+    for (var i = 0; i < cleanedHeader.length; i++) {
+      colIndex[cleanedHeader[i]] = i;
+    }
+
+    List<Book> booksToInsert = [];
+
+    String? getString(List<dynamic> row, String name) {
+      if (!colIndex.containsKey(name) || colIndex[name]! >= row.length) return null;
+      var value = row[colIndex[name]!]?.toString();
+      if (value != null) {
+        value = value.replaceAll(RegExp(r'^="|"$'), '');
+        value = value.replaceAll('""', '"');
+      }
+      return value;
+    }
+
+    int? getInt(List<dynamic> row, String name) {
+      final value = getString(row, name);
+      if (value == null || value.isEmpty) return null;
+      return int.tryParse(value);
+    }
+
+    double? getDouble(List<dynamic> row, String name) {
+      final value = getString(row, name);
+      if (value == null || value.isEmpty) return null;
+      return double.tryParse(value);
+    }
+
+    DateTime? parseGoodreadsDate(String? dateString) {
+      if (dateString == null || dateString.isEmpty) return null;
+      try {
+        final parts = dateString.split('/');
+        if (parts.length == 3) {
+          return DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    for (var row in rows.skip(1)) {
+      try {
+        final cleanedRow = row.map((cell) {
+          if (cell is String) {
+            String cleaned = cell.replaceAll(RegExp(r'^="|"$'), '');
+            cleaned = cleaned.replaceAll('""', '"');
+            return cleaned;
+          }
+          return cell;
+        }).toList();
+
+        bool isCompleted = (getString(cleanedRow, 'Date Read')?.isNotEmpty ?? false);
+        String? binding = getString(cleanedRow, 'Binding');
+        String? title = getString(cleanedRow, 'Title');
+        String? author = getString(cleanedRow, 'Author');
+
+        Book book = Book(
+          id: null,
+          title: title ?? 'Unknown',
+          author: author ?? 'Unknown',
+          wordCount: 0,
+          pageCount: getInt(cleanedRow, 'Number of Pages') ?? 0,
+          rating: getDouble(cleanedRow, 'My Rating') ?? 0.0,
+          isCompleted: isCompleted,
+          isFavorite: false,
+          bookTypeId: getBookTypeIdFromBinding(binding ?? ''),
+          dateAdded: parseGoodreadsDate(getString(cleanedRow, 'Date Added'))
+                  ?.toIso8601String()
+                  .split('T')[0] ??
+              DateTime.now().toIso8601String().split('T')[0],
+          dateStarted: isCompleted
+              ? parseGoodreadsDate(getString(cleanedRow, 'Date Read'))
+                  ?.toIso8601String()
+                  .split('T')[0]
+              : null,
+          dateFinished: isCompleted
+              ? parseGoodreadsDate(getString(cleanedRow, 'Date Read'))
+                  ?.toIso8601String()
+                  .split('T')[0]
+              : null,
+        );
+
+        booksToInsert.add(book);
+      } catch (e) {
+        if (kDebugMode) print('Error processing row: $e');
+      }
+    }
+
+    if (booksToInsert.isNotEmpty) {
+      await bookRepository.addBooksBatch(booksToInsert);
+      if (kDebugMode) print('Imported ${booksToInsert.length} books from Goodreads');
+    }
+
+    refreshBooks();
+  }
+
+  int getBookTypeIdFromBinding(String binding) {
+    final bindingLower = binding.toLowerCase();
+
+    // Audiobook formats
+    if (bindingLower == 'audible audio' ||
+        bindingLower == 'audio cassette' ||
+        bindingLower == 'audio cd' ||
+        bindingLower == 'audiobook') {
+      return 4; // Audiobook
+    }
+
+    // Ebook formats
+    else if (bindingLower == 'kindle edition' ||
+        bindingLower == 'nook' ||
+        bindingLower == 'ebook' ||
+        bindingLower == 'digital' ||
+        bindingLower == 'epub' ||
+        bindingLower == 'pdf' ||
+        bindingLower == 'mobi') {
+      return 3; // Ebook
+    }
+
+    // Paperback formats
+    else if (bindingLower == 'mass market paperback' ||
+        bindingLower == 'paperback' ||
+        bindingLower == 'chapbook' ||
+        bindingLower == 'trade paperback' ||
+        bindingLower == 'pocket book' ||
+        bindingLower == 'softcover') {
+      return 1; // Paperback
+    }
+
+    // Hardcover formats
+    else if (bindingLower == 'hardcover' ||
+        bindingLower == 'board book' ||
+        bindingLower == 'library binding' ||
+        bindingLower == 'leather bound' ||
+        bindingLower == 'hardback') {
+      return 2; // Hardcover
+    }
+
+    // Other physical formats
+    else if (bindingLower == 'spiral bound' ||
+        bindingLower == 'ring bound' ||
+        bindingLower == 'comic' ||
+        bindingLower == 'graphic novel' ||
+        bindingLower == 'magazine') {
+      return 1; // Default to paperback for other physical formats
+    }
+
+    // Default to paperback for unknown formats
+    else {
+      return 1; // Paperback
+    }
+  }
+
   Future<void> exportDataToCSV() async {
     try {
       // Call the export functions and store file paths
       String booksFilePath = await exportBooksToCSV(await bookRepository.getBooks());
       String sessionsFilePath = await exportSessionsToCSV(await sessionRepository.getSessions());
       String tagsFilePath = await exportTagsToCSV(await tagRepository.getAllTags());
-      String bookTagsFilePath = await exportBookTagsToCSV(await tagRepository.getAllBookTagsForExport());
+      String bookTagsFilePath =
+          await exportBookTagsToCSV(await tagRepository.getAllBookTagsForExport());
 
       if (kDebugMode) {
         print('Books data exported to: $booksFilePath');
