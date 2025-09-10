@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_double.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_single.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/rating_summary.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stat_card.dart';
@@ -135,9 +136,9 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return combinedYears;
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, double topPad) {
     return Padding(
-      padding: const EdgeInsets.only(top: 16),
+      padding: EdgeInsets.only(top: topPad),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -359,162 +360,50 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return FutureBuilder<Map<String, Map<String, int>>>(
       future: _getCombinedDistribution(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting ||
-            !snapshot.hasData ||
-            snapshot.data!.isEmpty) {
-          return const SizedBox.shrink();
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          // Show an "empty" chart while loading
+          return const CombinedBarChartWidget(
+            data: {},
+            selectedYear: 0,
+          );
         }
 
-        final data = snapshot.data!;
-        final keys = data.keys.toList();
-        if (keys.isEmpty) return const SizedBox.shrink();
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          // Still show an empty chart instead of shrinking
+          return const CombinedBarChartWidget(
+            data: {},
+            selectedYear: 0,
+          );
+        }
 
-        // Get max value for scaling
-        final maxBooks = data.values.map((v) => v['books'] ?? 0).reduce(max);
-        final maxSessions = data.values.map((v) => v['sessions'] ?? 0).reduce(max);
-        final maxValue = max(maxBooks, maxSessions);
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: SizedBox(
-                height: 280,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(
-                    width: max(400, keys.length * 70).toDouble(),
-                    child: BarChart(
-                      key: ValueKey('combined_chart_${selectedYear}_${keys.length}'),
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        maxY: (maxValue * 1.3).toDouble(),
-                        barTouchData: BarTouchData(
-                          enabled: true,
-                          touchTooltipData: BarTouchTooltipData(
-                            getTooltipColor: (group) => Colors.transparent,
-                            tooltipPadding: EdgeInsets.zero,
-                            tooltipMargin: 8,
-                            getTooltipItem: (
-                              BarChartGroupData group,
-                              int groupIndex,
-                              BarChartRodData rod,
-                              int rodIndex,
-                            ) {
-                              return BarTooltipItem(
-                                NumberFormat('#,###').format(rod.toY.toInt()), // Format the pages
-                                TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurface,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        barGroups: List.generate(keys.length, (i) {
-                          final key = keys[i];
-                          final booksValue = data[key]?['books'] ?? 0;
-                          final sessionsValue = data[key]?['sessions'] ?? 0;
-
-                          return BarChartGroupData(
-                            x: i,
-                            barsSpace: 12,
-                            barRods: [
-                              BarChartRodData(
-                                toY: booksValue.toDouble(),
-                                color: Theme.of(context).primaryColor,
-                                width: 16,
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(6),
-                                  topRight: Radius.circular(6),
-                                ),
-                              ),
-                              BarChartRodData(
-                                toY: sessionsValue.toDouble(),
-                                color: Theme.of(context).colorScheme.secondary,
-                                width: 16,
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(6),
-                                  topRight: Radius.circular(6),
-                                ),
-                              ),
-                            ],
-                            showingTooltipIndicators: [0, 1],
-                          );
-                        }),
-                        titlesData: FlTitlesData(
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, meta) {
-                                if (value.toInt() < 0 || value.toInt() >= keys.length) {
-                                  return const SizedBox.shrink();
-                                }
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    keys[value.toInt()],
-                                    style: Theme.of(context).textTheme.bodySmall,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        ),
-                        gridData: FlGridData(show: false),
-                        borderData: FlBorderData(show: false),
-                        backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
-                        groupsSpace: 12,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Legend
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildLegendItem(
-                  color: Theme.of(context).primaryColor,
-                  label: 'Books',
-                ),
-                const SizedBox(width: 16),
-                _buildLegendItem(
-                  color: Theme.of(context).colorScheme.secondary,
-                  label: 'Sessions',
-                ),
-              ],
-            ),
-          ],
+        return CombinedBarChartWidget(
+          data: snapshot.data!,
+          selectedYear: selectedYear,
         );
       },
     );
   }
 
-  /// Legend helper
-  Widget _buildLegendItem({required Color color, required String label}) {
-    return Row(
-      children: [
-        Container(
-          width: 14,
-          height: 14,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
-      ],
+  Widget _buildRatingSummary() {
+    return FutureBuilder<Map<double, int>>(
+      future: widget.bookRepository.getRatingDistribution(selectedYear: selectedYear),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return RatingSummaryWidget(ratingData: {}, selectedYear: selectedYear);
+        }
+
+        if (!snapshot.hasData) {
+          return RatingSummaryWidget(ratingData: {}, selectedYear: selectedYear);
+        }
+
+        return RatingSummaryWidget(
+          ratingData: snapshot.data!,
+          selectedYear: selectedYear,
+        );
+      },
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -556,7 +445,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionHeader('Overall'),
+                  _buildSectionHeader('Overall', 0),
                   _buildCombinedChart(),
                   // _buildBooksChart(),
                   StatCard(
@@ -569,11 +458,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     value: _stats['totalSessions'].toString(),
                   ),
 
-                  _buildSectionHeader('Ratings'),
-                  RatingSummary(
-                    ratingDataFuture: widget.bookRepository.getRatingDistribution(selectedYear: selectedYear),
-                    selectedYear: selectedYear,
-                  ),
+                  _buildSectionHeader('Ratings', 16),
+                  _buildRatingSummary(),
                   StatCard(
                     title: 'Highest Rating',
                     value: _stats['highestRating'].toString(),
@@ -589,7 +475,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     value: _stats['averageRating'].toStringAsFixed(2),
                   ),
 
-                  _buildSectionHeader('Reading Time'),
+                  _buildSectionHeader('Reading Time', 16),
                   _buildReadingTimeChart(),
                   StatCard(
                     title: 'Total Time Spent',
@@ -606,7 +492,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     bookTitle: _stats['fastestReadBookTitle'],
                   ),
 
-                  _buildSectionHeader('Pages'),
+                  _buildSectionHeader('Pages', 16),
                   _buildPagesChart(),
                   StatCard(
                     title: 'Total Pages Read',

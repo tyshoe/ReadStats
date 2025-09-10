@@ -495,35 +495,6 @@ class _LibraryPageState extends State<LibraryPage> {
     _showBookPopup(context, randomBook);
   }
 
-  Widget _buildFeedbackBanner() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      color: Theme.of(context).colorScheme.surfaceContainer,
-      child: Row(
-        children: [
-          const Icon(Icons.feedback, color: Colors.blue),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Enjoying the app?',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const Text('Leave feedback in the TestFlight app'),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => setState(() => _showFeedbackBanner = false),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -572,10 +543,6 @@ class _LibraryPageState extends State<LibraryPage> {
         children: [
           Column(
             children: [
-              if (_showFeedbackBanner)
-                GestureDetector(
-                  child: _buildFeedbackBanner(),
-                ),
               Expanded(
                 child: widget.books.isEmpty
                     ? Center(
