@@ -338,6 +338,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
           books: widget.books,
           sessions: widget.sessions,
           refreshSessions: widget.refreshSessions,
+          refreshBooks: widget.refreshBooks,
           settingsViewModel: widget.settingsViewModel,
           sessionRepository: widget.sessionRepository,
           bookRepository: widget.bookRepository,

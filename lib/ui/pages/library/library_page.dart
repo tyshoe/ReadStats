@@ -187,7 +187,7 @@ class _LibraryPageState extends State<LibraryPage> {
         builder: (context) => SessionFormPage(
           availableBooks: widget.books.where((book) => book['is_completed'] == 0).toList(),
           book: book,
-          refreshSessions: () {
+          onSave: () {
             widget.refreshSessions();
             widget.refreshBooks();
           },

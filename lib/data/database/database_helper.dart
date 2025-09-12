@@ -662,4 +662,14 @@ class DatabaseHelper {
       whereArgs: [bookId],
     );
   }
+
+  Future<void> updateBookRating(int bookId, double rating) async {
+    final db = await database;
+    await db.update(
+      'books',
+      {'rating': rating},
+      where: 'id = ?',
+      whereArgs: [bookId],
+    );
+  }
 }

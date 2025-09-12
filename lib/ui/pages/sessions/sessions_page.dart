@@ -12,6 +12,7 @@ class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
   final List<Map<String, dynamic>> sessions;
   final Function() refreshSessions;
+  final Function() refreshBooks;
   final SettingsViewModel settingsViewModel;
   final SessionRepository sessionRepository;
   final BookRepository bookRepository;
@@ -21,6 +22,7 @@ class SessionsPage extends StatefulWidget {
     required this.books,
     required this.sessions,
     required this.refreshSessions,
+    required this.refreshBooks,
     required this.settingsViewModel,
     required this.sessionRepository,
     required this.bookRepository,
@@ -158,7 +160,10 @@ class _SessionsPageState extends State<SessionsPage> {
             session: session,
             book: book,
             availableBooks: [],
-            refreshSessions: widget.refreshSessions,
+            onSave: () {
+              widget.refreshSessions();
+              widget.refreshBooks();
+            },
             settingsViewModel: widget.settingsViewModel,
             sessionRepository: widget.sessionRepository,
             bookRepository: widget.bookRepository,
@@ -188,7 +193,10 @@ class _SessionsPageState extends State<SessionsPage> {
       MaterialPageRoute(
         builder: (context) => SessionFormPage(
           availableBooks: widget.books.where((book) => book['is_completed'] == 0).toList(),
-          refreshSessions: widget.refreshSessions,
+          onSave: () {
+            widget.refreshSessions();
+            widget.refreshBooks();
+          },
           settingsViewModel: widget.settingsViewModel,
           sessionRepository: widget.sessionRepository,
           bookRepository: widget.bookRepository,

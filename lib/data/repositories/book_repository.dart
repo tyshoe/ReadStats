@@ -56,6 +56,10 @@ class BookRepository {
     return await _databaseHelper.getBookYears();
   }
 
+  Future<void> updateBookRating(int bookId, double rating) async {
+    await _databaseHelper.updateBookRating(bookId, rating);
+  }
+
   Future<void> updateBookDates(
     int bookId, {
     required bool isFirstSession,

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/rate_book_dialog.dart';
 import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
@@ -9,7 +12,7 @@ class SessionFormPage extends StatefulWidget {
   final Map<String, dynamic>? session;
   final Map<String, dynamic>? book;
   final List<Map<String, dynamic>> availableBooks;
-  final Function() refreshSessions;
+  final Function() onSave;
   final SettingsViewModel settingsViewModel;
   final SessionRepository sessionRepository;
   final BookRepository bookRepository;
@@ -20,7 +23,7 @@ class SessionFormPage extends StatefulWidget {
     this.session,
     this.book,
     required this.availableBooks,
-    required this.refreshSessions,
+    required this.onSave,
     required this.settingsViewModel,
     required this.sessionRepository,
     required this.bookRepository,
@@ -168,6 +171,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
       if (widget.isEditing) {
         await widget.sessionRepository.updateSession(session);
+        widget.onSave();
+        _showSnackBar('Session updated successfully!');
+        if (mounted) Navigator.pop(context);
       } else {
         await widget.sessionRepository.addSession(session);
 
@@ -180,21 +186,51 @@ class _SessionFormPageState extends State<SessionFormPage> {
             sessionDate: _sessionDate,
           );
         }
-      }
 
-      widget.refreshSessions();
-      _showSnackBar(widget.isEditing
-          ? 'Session updated successfully!'
-          : 'Session added successfully!');
+        _showSnackBar('Session added successfully!');
 
-      if (widget.isEditing && mounted) {
-        Navigator.pop(context);
-      } else {
-        _resetInputs();
+        if (_isFinalSession && mounted) {
+          await _showRatingDialog();
+          widget.onSave();
+          if (mounted) Navigator.pop(context);
+        } else {
+          widget.onSave();
+          _resetInputs();
+        }
       }
     } catch (e) {
       _showSnackBar('Failed to save session. Please try again.');
     }
+  }
+
+  Future<void> _showRatingDialog() async {
+    final completer = Completer<void>();
+
+    showRateBookDialog(
+      context: context,
+      bookTitle: _selectedBook!['title'],
+      accentColor: widget.settingsViewModel.accentColorNotifier.value,
+      onRate: (rating) async {
+        try {
+          await widget.bookRepository.updateBookRating(
+            _selectedBook!['id'],
+            rating,
+          );
+          _showSnackBar("Rating saved!");
+        } catch (e) {
+          _showSnackBar("Failed to save rating: ${e.toString()}");
+        } finally {
+          completer.complete();
+        }
+      },
+      onSkip: () {
+        _showSnackBar("Skipped rating.");
+        completer.complete();
+      },
+      useStarRating: widget.settingsViewModel.defaultRatingStyleNotifier.value == 0,
+    );
+
+    return completer.future;
   }
 
   int _calculateDurationFromTimeRange() {
@@ -268,7 +304,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
   void _deleteSession() async {
     try {
       await widget.sessionRepository.deleteSession(widget.session!['id']);
-      widget.refreshSessions();
+      widget.onSave();
       if (mounted) Navigator.pop(context);
     } catch (e) {
       _showSnackBar('Failed to delete session. Please try again.');
