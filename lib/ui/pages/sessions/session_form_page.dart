@@ -525,8 +525,14 @@ class _SessionFormPageState extends State<SessionFormPage> {
                   );
                 },
                 displayStringForOption: (option) => option['title'],
+                // Replace the Autocomplete widget's fieldViewBuilder with this corrected version:
                 fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-                  // Sync controller with selected book when focus changes
+                  // Sync the external _bookController with the internal textEditingController
+                  if (_selectedBook != null && textEditingController.text != _selectedBook!['title']) {
+                    textEditingController.text = _selectedBook!['title'];
+                  }
+
+                  // Listen for focus changes to keep the controllers in sync
                   focusNode.addListener(() {
                     if (!focusNode.hasFocus && _selectedBook != null) {
                       textEditingController.text = _selectedBook!['title'];
@@ -535,7 +541,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
                   return TextFieldTapRegion(
                     child: TextFormField(
-                      controller: _bookController,
+                      controller: textEditingController, // Use the internal controller
                       focusNode: focusNode,
                       decoration: InputDecoration(
                         labelText: 'Book',
