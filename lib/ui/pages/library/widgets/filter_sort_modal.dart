@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
@@ -125,6 +126,18 @@ class _SortFilterViewState extends State<_SortFilterView> {
     final theme = Theme.of(context);
     final borderColor = theme.colorScheme.outline;
 
+    // Decide which icon to show based on sort option
+    IconData sortIcon;
+    if (currentOptions.sortOption == 'Title' || currentOptions.sortOption == 'Author') {
+      sortIcon = currentOptions.isAscending
+          ? FluentIcons.text_sort_ascending_16_regular
+          : FluentIcons.text_sort_descending_16_regular;
+    } else {
+      sortIcon = currentOptions.isAscending
+          ? FluentIcons.arrow_sort_up_lines_20_regular
+          : FluentIcons.arrow_sort_down_lines_20_regular;
+    }
+
     return Row(
       children: [
         Expanded(
@@ -184,7 +197,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
               ),
               alignment: Alignment.center,
               child: Icon(
-                currentOptions.isAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                sortIcon,
                 color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
               ),
             ),
