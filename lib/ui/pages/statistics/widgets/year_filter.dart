@@ -27,7 +27,7 @@ class YearFilterWidget extends StatelessWidget {
           final isSelected = selectedYear == year;
 
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
             child: TextButton(
               style: TextButton.styleFrom(
                 foregroundColor: isSelected ? colors.primary : colors.onSurface,
