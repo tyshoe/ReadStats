@@ -374,7 +374,7 @@ class _SessionsPageState extends State<SessionsPage> {
         ),
       )
           : ListView(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.start,
