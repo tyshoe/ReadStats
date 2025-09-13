@@ -110,9 +110,23 @@ class _SortFilterViewState extends State<_SortFilterView> {
     currentOptions = widget.initialOptions;
   }
 
+  void _clearAllFilters() {
+    setState(() {
+      currentOptions = SortFilterOptions(
+        sortOption: currentOptions.sortOption,
+        isAscending: currentOptions.isAscending,
+        bookTypes: [],
+        isFavorite: false,
+        finishedYears: [],
+        tags: [],
+        tagFilterMode: 'any',
+      );
+    });
+  }
+
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 0),
+      padding: const EdgeInsets.only(bottom: 0, top: 4),
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -154,7 +168,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: borderColor, width: 1.5),
+                borderSide: BorderSide(color: borderColor),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
             ),
@@ -175,6 +189,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
             dropdownColor: theme.colorScheme.secondaryContainer,
             menuMaxHeight: 200,
             alignment: AlignmentDirectional.centerStart,
+            style: theme.textTheme.bodyLarge,
           ),
         ),
         const SizedBox(width: 8),
@@ -213,7 +228,6 @@ class _SortFilterViewState extends State<_SortFilterView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('Tag Filter Mode'),
         Row(
           children: [
             Expanded(
@@ -221,11 +235,11 @@ class _SortFilterViewState extends State<_SortFilterView> {
                 segments: [
                   ButtonSegment<String>(
                     value: 'any',
-                    label: Text('Any'),
+                    label: Text('Match Any'),
                   ),
                   ButtonSegment<String>(
                     value: 'all',
-                    label: Text('All'),
+                    label: Text('Match All'),
                   ),
                   ButtonSegment<String>(
                     value: 'exclude',
@@ -305,31 +319,54 @@ class _SortFilterViewState extends State<_SortFilterView> {
     );
   }
 
+  int _countActiveFilters() {
+    int count = 0;
+
+    if (currentOptions.bookTypes.isNotEmpty) {
+      count += 1;
+    }
+
+    if (currentOptions.isFavorite) {
+      count += 1;
+    }
+
+    if (currentOptions.finishedYears.isNotEmpty) {
+      count += 1;
+    }
+
+    if (currentOptions.tags.isNotEmpty) {
+      count += 1;
+    }
+
+    return count;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AppBar(
-              title: const Text('Filter & Sort'),
-              centerTitle: false,
-              automaticallyImplyLeading: false,
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
+            // Drag handle at the top
+            Container(
+              height: 24,
+              alignment: Alignment.center,
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
                 ),
-              ],
+              ),
             ),
+            const SizedBox(height: 8),
+
             Flexible(
               child: SingleChildScrollView(
                 child: Padding(
@@ -337,10 +374,31 @@ class _SortFilterViewState extends State<_SortFilterView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Sort Section
-                      _buildSectionHeader('Sort By'),
+                      // ===== SORT SECTION =====
+                      Center(
+                        child: Text(
+                          'Sort',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       _buildSortControls(),
-                      const Divider(height: 24),
+                      const SizedBox(height: 32),
+
+                      // ===== FILTERS SECTION =====
+                      Center(
+                        child: Text(
+                          'Filters',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
 
                       // Book Type Filter
                       _buildSectionHeader('Book Type'),
@@ -356,11 +414,13 @@ class _SortFilterViewState extends State<_SortFilterView> {
                           });
                         },
                       ),
+                      const SizedBox(height: 20),
 
-                      // Favorite Filter
+                      // Favorites Filter
+                      _buildSectionHeader('Favorites'),
                       FilterChip(
                         label: Text(
-                          currentOptions.isFavorite ? 'Favorites' : 'Favorites',
+                          'Favorites',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: currentOptions.isFavorite
                                     ? Theme.of(context).colorScheme.onPrimaryContainer
@@ -394,7 +454,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
                         labelPadding: const EdgeInsets.only(right: 8),
                         showCheckmark: false,
                       ),
-                      const Divider(height: 24),
+                      const SizedBox(height: 20),
 
                       // Year Filter
                       if (widget.availableYears.isNotEmpty) ...[
@@ -412,13 +472,13 @@ class _SortFilterViewState extends State<_SortFilterView> {
                             });
                           },
                         ),
-                        const Divider(height: 24),
+                        const SizedBox(height: 20),
                       ],
 
                       // Tag Filter
                       if (widget.availableTags.isNotEmpty) ...[
-                        _buildTagFilterModeSelector(),
                         _buildSectionHeader('Tags'),
+                        _buildTagFilterModeSelector(),
                         _buildFilterChips(
                           options: ['All', ...widget.availableTags],
                           selected: currentOptions.tags.isEmpty ? ['All'] : currentOptions.tags,
@@ -430,17 +490,60 @@ class _SortFilterViewState extends State<_SortFilterView> {
                             });
                           },
                         ),
+                        const SizedBox(height: 8),
                       ],
                     ],
                   ),
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context, currentOptions),
-                child: const Text('Apply Filters'),
+
+            // Bottom Buttons
+            Container(
+              padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 24),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                border: Border(
+                  top: BorderSide(
+                    color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: OutlinedButton(
+                      onPressed: () => _clearAllFilters(),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        side: BorderSide(color: Theme.of(context).colorScheme.outline),
+                      ),
+                      child: _countActiveFilters() > 0
+                          ? Text('Reset Filters (${_countActiveFilters()})')
+                          : const Text('Reset Filters'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context, currentOptions),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Apply'),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
