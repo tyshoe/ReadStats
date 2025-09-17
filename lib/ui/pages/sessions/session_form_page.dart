@@ -114,6 +114,129 @@ class _SessionFormPageState extends State<SessionFormPage> {
     setState(() => _isFirstSession = sessions.isEmpty);
   }
 
+  int _calculateDurationFromTimeRange() {
+    try {
+      if (_useElapsedTimeFormat) {
+        // Elapsed time format (HH:MM) - for audiobooks, podcasts, videos, etc.
+        final startParts = _startTimeController.text.split(':');
+        final endParts = _endTimeController.text.split(':');
+
+        if (startParts.length != 2 || endParts.length != 2) {
+          throw FormatException('Invalid time format');
+        }
+
+        final startHours = int.parse(startParts[0]);
+        final startMinutes = int.parse(startParts[1]);
+        final endHours = int.parse(endParts[0]);
+        final endMinutes = int.parse(endParts[1]);
+
+        // Calculate total minutes
+        final startTotalMinutes = (startHours * 60) + startMinutes;
+        final endTotalMinutes = (endHours * 60) + endMinutes;
+
+        if (endTotalMinutes < startTotalMinutes) {
+          _showSnackBar('End time must be after start time');
+          return 0;
+        }
+
+        return endTotalMinutes - startTotalMinutes;
+      } else {
+        // Clock time format (regular time with AM/PM)
+        final startTime = DateFormat('h:mm a').parse(_startTimeController.text);
+        final endTime = DateFormat('h:mm a').parse(_endTimeController.text);
+
+        DateTime endDateTime = DateTime(
+            _sessionDate.year, _sessionDate.month, _sessionDate.day, endTime.hour, endTime.minute);
+        DateTime startDateTime = DateTime(_sessionDate.year, _sessionDate.month, _sessionDate.day,
+            startTime.hour, startTime.minute);
+
+        if (endDateTime.isBefore(startDateTime)) {
+          endDateTime = endDateTime.add(const Duration(days: 1));
+        }
+
+        return endDateTime.difference(startDateTime).inMinutes;
+      }
+    } catch (e) {
+      final errorMessage = _useElapsedTimeFormat
+          ? 'Please enter valid times in the format HH:MM'
+          : 'Please enter valid times in the format h:mm AM/PM';
+
+      _showSnackBar(errorMessage);
+      return 0;
+    }
+  }
+
+  void _updateDurationFromTimeRange() {
+    if (_startTimeController.text.isNotEmpty && _endTimeController.text.isNotEmpty) {
+      try {
+        final durationMinutes = _calculateDurationFromTimeRange();
+        if (durationMinutes > 0) {
+          final hours = durationMinutes ~/ 60;
+          final minutes = durationMinutes % 60;
+
+          setState(() {
+            _hoursController.text = hours.toString();
+            _minutesController.text = minutes.toString();
+          });
+        }
+      } catch (e) {
+        // Ignore parsing errors, user might still be typing
+      }
+    }
+  }
+
+  void _calculatePagesRead() {
+    final startPage = int.tryParse(_startPageController.text) ?? 0;
+    final endPage = int.tryParse(_endPageController.text) ?? 0;
+
+    if (startPage > 0 && endPage > 0 && endPage >= startPage) {
+      final pagesRead =
+          endPage - startPage + 1; // +1 because both start and end pages are inclusive
+      _pagesController.text = pagesRead.toString();
+    } else {
+      _pagesController.clear();
+    }
+  }
+
+  String _formatSessionDuration(String hours, String minutes) {
+    String hourText = hours != '0' ? '$hours hour${hours == "1" ? "" : "s"}' : '';
+    String minuteText = minutes != '0' ? '$minutes minute${minutes == "1" ? "" : "s"}' : '';
+
+    return [hourText, minuteText].where((e) => e.isNotEmpty).join(' ');
+  }
+
+  void _clearField(TextEditingController controller) {
+    controller.clear();
+    setState(() {});
+
+    // If clearing time fields, also reset duration if needed
+    if (controller == _startTimeController || controller == _endTimeController) {
+      if (_startTimeController.text.isEmpty && _endTimeController.text.isEmpty) {
+        setState(() {
+          _hoursController.text = '0';
+          _minutesController.text = '0';
+        });
+      } else {
+        _updateDurationFromTimeRange();
+      }
+    }
+  }
+
+  void _resetInputs() {
+    setState(() {
+      _pagesController.clear();
+      _startPageController.clear();
+      _endPageController.clear();
+      _hoursController.text = '0';
+      _minutesController.text = '0';
+      _sessionDate = DateTime.now();
+      _isFirstSession = false;
+      _isFinalSession = false;
+      _startTimeController.clear();
+      _endTimeController.clear();
+    });
+  }
+
   void _saveSession() async {
     if (_selectedBook == null) {
       _showSnackBar('Please select a book.');
@@ -196,138 +319,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
   }
 
-  Future<void> _showRatingDialog() async {
-    final completer = Completer<void>();
-
-    showRateBookDialog(
-      context: context,
-      bookTitle: _selectedBook!['title'],
-      accentColor: widget.settingsViewModel.accentColorNotifier.value,
-      onRate: (rating) async {
-        try {
-          await widget.bookRepository.updateBookRating(
-            _selectedBook!['id'],
-            rating,
-          );
-          _showSnackBar("Rating saved!");
-        } catch (e) {
-          _showSnackBar("Failed to save rating: ${e.toString()}");
-        } finally {
-          completer.complete();
-        }
-      },
-      onSkip: () {
-        _showSnackBar("Skipped rating.");
-        completer.complete();
-      },
-      useStarRating: widget.settingsViewModel.defaultRatingStyleNotifier.value == 0,
-    );
-
-    return completer.future;
-  }
-
-  int _calculateDurationFromTimeRange() {
-    try {
-      if (_useElapsedTimeFormat) {
-        // Elapsed time format (HH:MM) - for audiobooks, podcasts, videos, etc.
-        final startParts = _startTimeController.text.split(':');
-        final endParts = _endTimeController.text.split(':');
-
-        if (startParts.length != 2 || endParts.length != 2) {
-          throw FormatException('Invalid time format');
-        }
-
-        final startHours = int.parse(startParts[0]);
-        final startMinutes = int.parse(startParts[1]);
-        final endHours = int.parse(endParts[0]);
-        final endMinutes = int.parse(endParts[1]);
-
-        // Calculate total minutes
-        final startTotalMinutes = (startHours * 60) + startMinutes;
-        final endTotalMinutes = (endHours * 60) + endMinutes;
-
-        if (endTotalMinutes < startTotalMinutes) {
-          _showSnackBar('End time must be after start time');
-          return 0;
-        }
-
-        return endTotalMinutes - startTotalMinutes;
-      } else {
-        // Clock time format (regular time with AM/PM)
-        final startTime = DateFormat('h:mm a').parse(_startTimeController.text);
-        final endTime = DateFormat('h:mm a').parse(_endTimeController.text);
-
-        DateTime endDateTime = DateTime(
-            _sessionDate.year, _sessionDate.month, _sessionDate.day, endTime.hour, endTime.minute);
-        DateTime startDateTime = DateTime(_sessionDate.year, _sessionDate.month, _sessionDate.day,
-            startTime.hour, startTime.minute);
-
-        if (endDateTime.isBefore(startDateTime)) {
-          endDateTime = endDateTime.add(const Duration(days: 1));
-        }
-
-        return endDateTime.difference(startDateTime).inMinutes;
-      }
-    } catch (e) {
-      final errorMessage = _useElapsedTimeFormat
-          ? 'Please enter valid times in the format HH:MM'
-          : 'Please enter valid times in the format h:mm AM/PM';
-
-      _showSnackBar(errorMessage);
-      return 0;
-    }
-  }
-
-  void _updateDurationFromTimeRange() {
-    if (_startTimeController.text.isNotEmpty && _endTimeController.text.isNotEmpty) {
-      try {
-        final durationMinutes = _calculateDurationFromTimeRange();
-        if (durationMinutes > 0) {
-          final hours = durationMinutes ~/ 60;
-          final minutes = durationMinutes % 60;
-
-          setState(() {
-            _hoursController.text = hours.toString();
-            _minutesController.text = minutes.toString();
-          });
-        }
-      } catch (e) {
-        // Ignore parsing errors, user might still be typing
-      }
-    }
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          margin: const EdgeInsets.only(left: 20, right: 20),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-  }
-
-  void _resetInputs() {
-    setState(() {
-      _pagesController.clear();
-      _startPageController.clear();
-      _endPageController.clear();
-      _hoursController.text = '0';
-      _minutesController.text = '0';
-      _sessionDate = DateTime.now();
-      _isFirstSession = false;
-      _isFinalSession = false;
-      _startTimeController.clear();
-      _endTimeController.clear();
-    });
-  }
-
   void _deleteSession() async {
     try {
       await widget.sessionRepository.deleteSession(widget.session!['id']);
@@ -364,11 +355,50 @@ class _SessionFormPageState extends State<SessionFormPage> {
     );
   }
 
-  String _formatSessionDuration(String hours, String minutes) {
-    String hourText = hours != '0' ? '$hours hour${hours == "1" ? "" : "s"}' : '';
-    String minuteText = minutes != '0' ? '$minutes minute${minutes == "1" ? "" : "s"}' : '';
+  Future<void> _showRatingDialog() async {
+    final completer = Completer<void>();
 
-    return [hourText, minuteText].where((e) => e.isNotEmpty).join(' ');
+    showRateBookDialog(
+      context: context,
+      bookTitle: _selectedBook!['title'],
+      accentColor: widget.settingsViewModel.accentColorNotifier.value,
+      onRate: (rating) async {
+        try {
+          await widget.bookRepository.updateBookRating(
+            _selectedBook!['id'],
+            rating,
+          );
+          _showSnackBar("Rating saved!");
+        } catch (e) {
+          _showSnackBar("Failed to save rating: ${e.toString()}");
+        } finally {
+          completer.complete();
+        }
+      },
+      onSkip: () {
+        _showSnackBar("Skipped rating.");
+        completer.complete();
+      },
+      useStarRating: widget.settingsViewModel.defaultRatingStyleNotifier.value == 0,
+    );
+
+    return completer.future;
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          margin: const EdgeInsets.only(left: 20, right: 20),
+          duration: const Duration(seconds: 2),
+        ),
+      );
   }
 
   Future<void> _showDurationPicker(BuildContext context) async {
@@ -712,36 +742,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
     if (date != null) {
       setState(() => _sessionDate = date);
-    }
-  }
-
-  void _calculatePagesRead() {
-    final startPage = int.tryParse(_startPageController.text) ?? 0;
-    final endPage = int.tryParse(_endPageController.text) ?? 0;
-
-    if (startPage > 0 && endPage > 0 && endPage >= startPage) {
-      final pagesRead =
-          endPage - startPage + 1; // +1 because both start and end pages are inclusive
-      _pagesController.text = pagesRead.toString();
-    } else {
-      _pagesController.clear();
-    }
-  }
-
-  void _clearField(TextEditingController controller) {
-    controller.clear();
-    setState(() {});
-
-    // If clearing time fields, also reset duration if needed
-    if (controller == _startTimeController || controller == _endTimeController) {
-      if (_startTimeController.text.isEmpty && _endTimeController.text.isEmpty) {
-        setState(() {
-          _hoursController.text = '0';
-          _minutesController.text = '0';
-        });
-      } else {
-        _updateDurationFromTimeRange();
-      }
     }
   }
 
