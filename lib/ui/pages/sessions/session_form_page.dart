@@ -88,6 +88,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
         if (_selectedBook != null) {
           _checkIfFirstSession();
+          _useElapsedTimeFormat = _selectedBook?['book_type_id'] == 4;
         }
       }
     }
