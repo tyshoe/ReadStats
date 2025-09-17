@@ -323,7 +323,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
       _sessionDate = DateTime.now();
       _isFirstSession = false;
       _isFinalSession = false;
-      _selectedBook = null;
       _startTimeController.clear();
       _endTimeController.clear();
     });
@@ -700,10 +699,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: widget.settingsViewModel.accentColorNotifier.value,
-              onPrimary: Colors.white,
-            ),
             dialogTheme: DialogThemeData(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
