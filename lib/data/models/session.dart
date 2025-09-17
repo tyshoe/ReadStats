@@ -1,8 +1,8 @@
 class Session {
   final int? id;
   final int bookId;
-  final int pagesRead;
-  final int durationMinutes;
+  final int? pagesRead;
+  final int? durationMinutes;
   final String date;
 
   Session({

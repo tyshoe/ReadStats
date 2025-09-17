@@ -43,9 +43,12 @@ class _SessionFormPageState extends State<SessionFormPage> {
   final TextEditingController _startTimeController = TextEditingController();
   final TextEditingController _endTimeController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FocusNode hoursFocusNode = FocusNode();
+  final FocusNode minutesFocusNode = FocusNode();
   late DateTime _sessionDate;
   bool _isFirstSession = false;
   bool _isFinalSession = false;
+  bool _useElapsedTimeFormat = false;
   Map<String, dynamic>? _selectedBook;
 
   @override
@@ -78,7 +81,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
       if (widget.book != null) {
         // Find the exact book object from availableBooks
         _selectedBook = widget.availableBooks.firstWhere(
-              (book) => book['id'] == widget.book!['id'],
+          (book) => book['id'] == widget.book!['id'],
           orElse: () => widget.book!, // Fallback to the provided book if not found
         );
         _bookController.text = _selectedBook!['title'];
@@ -107,8 +110,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
   Future<void> _checkIfFirstSession() async {
     if (_selectedBook == null) return;
 
-    final sessions = await widget.sessionRepository
-        .getSessionsByBookId(_selectedBook!['id']);
+    final sessions = await widget.sessionRepository.getSessionsByBookId(_selectedBook!['id']);
     setState(() => _isFirstSession = sessions.isEmpty);
   }
 
@@ -119,7 +121,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
 
     final int? pagesRead = int.tryParse(_pagesController.text);
-    int durationMinutes = 0;
+    int? durationMinutes;
 
     // Check if we should calculate duration from time range
     if (_startTimeController.text.isNotEmpty && _endTimeController.text.isNotEmpty) {
@@ -133,30 +135,21 @@ class _SessionFormPageState extends State<SessionFormPage> {
         _showSnackBar('Please enter valid times in the format "h:mm AM/PM"');
         return;
       }
-    } else {
+    } else if (_hoursController.text.isNotEmpty || _minutesController.text.isNotEmpty) {
       // Use manual duration input
       final int? hours = int.tryParse(_hoursController.text);
       final int? minutes = int.tryParse(_minutesController.text);
 
-      if (hours == null || minutes == null) {
-        _showSnackBar('Please enter a valid duration');
+      if ((hours != null && hours < 0) || (minutes != null && minutes < 0)) {
+        _showSnackBar('Duration values cannot be negative');
         return;
       }
 
-      durationMinutes = (hours * 60) + minutes;
-    }
-
-    if (pagesRead == null) {
-      _showSnackBar('Please enter pages read');
-      return;
-    }
-
-    if (pagesRead <= 0 || durationMinutes <= 0) {
-      final errorMessage = pagesRead <= 0
-          ? 'Pages should be above 0'
-          : 'Duration should be above 0 minutes';
-      _showSnackBar(errorMessage);
-      return;
+      // Only set duration if at least one field has a value greater than 0
+      final calculatedDuration = (hours ?? 0) * 60 + (minutes ?? 0);
+      if (calculatedDuration > 0) {
+        durationMinutes = calculatedDuration;
+      }
     }
 
     try {
@@ -234,20 +227,55 @@ class _SessionFormPageState extends State<SessionFormPage> {
   }
 
   int _calculateDurationFromTimeRange() {
-    final startTime = DateFormat('h:mm a').parse(_startTimeController.text);
-    final endTime = DateFormat('h:mm a').parse(_endTimeController.text);
+    try {
+      if (_useElapsedTimeFormat) {
+        // Elapsed time format (HH:MM) - for audiobooks, podcasts, videos, etc.
+        final startParts = _startTimeController.text.split(':');
+        final endParts = _endTimeController.text.split(':');
 
-    // Handle case where end time is on the next day
-    DateTime endDateTime = DateTime(_sessionDate.year, _sessionDate.month, _sessionDate.day,
-        endTime.hour, endTime.minute);
-    DateTime startDateTime = DateTime(_sessionDate.year, _sessionDate.month, _sessionDate.day,
-        startTime.hour, startTime.minute);
+        if (startParts.length != 2 || endParts.length != 2) {
+          throw FormatException('Invalid time format');
+        }
 
-    if (endDateTime.isBefore(startDateTime)) {
-      endDateTime = endDateTime.add(const Duration(days: 1));
+        final startHours = int.parse(startParts[0]);
+        final startMinutes = int.parse(startParts[1]);
+        final endHours = int.parse(endParts[0]);
+        final endMinutes = int.parse(endParts[1]);
+
+        // Calculate total minutes
+        final startTotalMinutes = (startHours * 60) + startMinutes;
+        final endTotalMinutes = (endHours * 60) + endMinutes;
+
+        if (endTotalMinutes < startTotalMinutes) {
+          _showSnackBar('End time must be after start time');
+          return 0;
+        }
+
+        return endTotalMinutes - startTotalMinutes;
+      } else {
+        // Clock time format (regular time with AM/PM)
+        final startTime = DateFormat('h:mm a').parse(_startTimeController.text);
+        final endTime = DateFormat('h:mm a').parse(_endTimeController.text);
+
+        DateTime endDateTime = DateTime(
+            _sessionDate.year, _sessionDate.month, _sessionDate.day, endTime.hour, endTime.minute);
+        DateTime startDateTime = DateTime(_sessionDate.year, _sessionDate.month, _sessionDate.day,
+            startTime.hour, startTime.minute);
+
+        if (endDateTime.isBefore(startDateTime)) {
+          endDateTime = endDateTime.add(const Duration(days: 1));
+        }
+
+        return endDateTime.difference(startDateTime).inMinutes;
+      }
+    } catch (e) {
+      final errorMessage = _useElapsedTimeFormat
+          ? 'Please enter valid times in the format HH:MM'
+          : 'Please enter valid times in the format h:mm AM/PM';
+
+      _showSnackBar(errorMessage);
+      return 0;
     }
-
-    return endDateTime.difference(startDateTime).inMinutes;
   }
 
   void _updateDurationFromTimeRange() {
@@ -350,58 +378,140 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Set Duration'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
+      builder: (context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final dialogWidth = screenWidth * 0.8;
+
+        return AlertDialog(
+          title: Text(
+            'Set Duration',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          content: SizedBox(
+            width: dialogWidth,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: TextFormField(
-                    initialValue: hours.toString(),
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Hours',
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: hours.toString(),
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          filled: true,
+                        ),
+                        onChanged: (value) {
+                          hours = int.tryParse(value) ?? 0;
+                          if (hours < 0) hours = 0;
+                        },
+                      ),
                     ),
-                    onChanged: (value) => hours = int.tryParse(value) ?? 0,
-                  ),
+                    const SizedBox(width: 8),
+                    // Vertically centered colon
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          ':',
+                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: minutes.toString(),
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          filled: true,
+                        ),
+                        onChanged: (value) {
+                          minutes = int.tryParse(value) ?? 0;
+                          if (minutes > 59) minutes = 59;
+                          if (minutes < 0) minutes = 0;
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    initialValue: minutes.toString(),
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Minutes',
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Hours',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
                     ),
-                    onChanged: (value) => minutes = int.tryParse(value) ?? 0,
-                  ),
+                    const SizedBox(width: 32),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Minutes',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _hoursController.text = hours.toString();
+                  _minutesController.text = minutes.toString();
+                  // Clear time range when manually setting duration
+                  _startTimeController.clear();
+                  _endTimeController.clear();
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('OK'),
+            ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              setState(() {
-                _hoursController.text = hours.toString();
-                _minutesController.text = minutes.toString();
-                // Clear time range when manually setting duration
-                _startTimeController.clear();
-                _endTimeController.clear();
-              });
-              Navigator.pop(context);
-            },
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -426,6 +536,159 @@ class _SessionFormPageState extends State<SessionFormPage> {
       // Update duration after selecting a time
       _updateDurationFromTimeRange();
     }
+  }
+
+  Future<void> _showElapsedTimePicker(BuildContext context, bool isStartTime) async {
+    final currentText = isStartTime ? _startTimeController.text : _endTimeController.text;
+    int initialHours = 0;
+    int initialMinutes = 0;
+
+    // Parse existing time if available
+    if (currentText.isNotEmpty) {
+      final parts = currentText.split(':');
+      if (parts.length == 2) {
+        initialHours = int.tryParse(parts[0]) ?? 0;
+        initialMinutes = int.tryParse(parts[1]) ?? 0;
+      }
+    }
+
+    int selectedHours = initialHours;
+    int selectedMinutes = initialMinutes;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final dialogWidth = screenWidth * 0.8;
+
+        return AlertDialog(
+          title: Text(
+            'Enter Time',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          content: SizedBox(
+            width: dialogWidth,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: initialHours.toString(),
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          filled: true,
+                        ),
+                        onChanged: (value) {
+                          selectedHours = int.tryParse(value) ?? 0;
+                          if (selectedHours < 0) selectedHours = 0;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      ':',
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: initialMinutes.toString(),
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          filled: true,
+                        ),
+                        onChanged: (value) {
+                          selectedMinutes = int.tryParse(value) ?? 0;
+                          if (selectedMinutes > 59) selectedMinutes = 59;
+                          if (selectedMinutes < 0) selectedMinutes = 0;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Hour',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 32),
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Minute',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final formattedTime =
+                    '${selectedHours.toString().padLeft(2, '0')}:${selectedMinutes.toString().padLeft(2, '0')}';
+                setState(() {
+                  if (isStartTime) {
+                    _startTimeController.text = formattedTime;
+                  } else {
+                    _endTimeController.text = formattedTime;
+                  }
+                });
+                Navigator.pop(context);
+                _updateDurationFromTimeRange();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _showDatePicker(BuildContext context) async {
@@ -462,7 +725,8 @@ class _SessionFormPageState extends State<SessionFormPage> {
     final endPage = int.tryParse(_endPageController.text) ?? 0;
 
     if (startPage > 0 && endPage > 0 && endPage >= startPage) {
-      final pagesRead = endPage - startPage + 1; // +1 because both start and end pages are inclusive
+      final pagesRead =
+          endPage - startPage + 1; // +1 because both start and end pages are inclusive
       _pagesController.text = pagesRead.toString();
     } else {
       _pagesController.clear();
@@ -484,6 +748,82 @@ class _SessionFormPageState extends State<SessionFormPage> {
         _updateDurationFromTimeRange();
       }
     }
+  }
+
+  Widget _buildShortDividerWithText(BuildContext context) {
+    final theme = Theme.of(context);
+    final dividerColor = theme.colorScheme.outline.withAlpha(77);
+    final labelStyle = theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurface.withAlpha(128),
+    );
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 80,
+          child: Divider(
+            thickness: 1,
+            color: dividerColor,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'OR',
+            style: labelStyle,
+          ),
+        ),
+        SizedBox(
+          width: 80,
+          child: Divider(
+            thickness: 1,
+            color: dividerColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeFormatToggle() {
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<bool>(
+        segments: const [
+          ButtonSegment(
+            value: false,
+            icon: Icon(Icons.access_time, size: 18),
+            label: Text('Clock Time'),
+          ),
+          ButtonSegment(
+            value: true,
+            icon: Icon(Icons.timer, size: 18),
+            label: Text('Elapsed Time'),
+          ),
+        ],
+        selected: {_useElapsedTimeFormat},
+        onSelectionChanged: (Set<bool> newSelection) {
+          setState(() {
+            _useElapsedTimeFormat = newSelection.first;
+          });
+        },
+        style: SegmentedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
+          selectedBackgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          selectedForegroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.outline,
+            width: 1,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          visualDensity: VisualDensity.compact,
+        ),
+      ),
+    );
   }
 
   @override
@@ -521,14 +861,14 @@ class _SessionFormPageState extends State<SessionFormPage> {
                     return widget.availableBooks;
                   }
                   return widget.availableBooks.where((book) =>
-                      book['title'].toLowerCase().contains(textEditingValue.text.toLowerCase())
-                  );
+                      book['title'].toLowerCase().contains(textEditingValue.text.toLowerCase()));
                 },
                 displayStringForOption: (option) => option['title'],
                 // Replace the Autocomplete widget's fieldViewBuilder with this corrected version:
                 fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
                   // Sync the external _bookController with the internal textEditingController
-                  if (_selectedBook != null && textEditingController.text != _selectedBook!['title']) {
+                  if (_selectedBook != null &&
+                      textEditingController.text != _selectedBook!['title']) {
                     textEditingController.text = _selectedBook!['title'];
                   }
 
@@ -552,17 +892,17 @@ class _SessionFormPageState extends State<SessionFormPage> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                         suffixIcon: _selectedBook != null
                             ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            textEditingController.clear();
-                            setState(() {
-                              _selectedBook = null;
-                              _isFirstSession = false;
-                              _isFinalSession = false;
-                            });
-                            focusNode.requestFocus();
-                          },
-                        )
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  textEditingController.clear();
+                                  setState(() {
+                                    _selectedBook = null;
+                                    _isFirstSession = false;
+                                    _isFinalSession = false;
+                                  });
+                                  focusNode.requestFocus();
+                                },
+                              )
                             : const Icon(Icons.search),
                       ),
                       style: theme.textTheme.bodyLarge,
@@ -590,6 +930,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                     _selectedBook = option;
                     _isFirstSession = false;
                     _isFinalSession = false;
+                    _useElapsedTimeFormat = option['book_type_id'] == 4;
                   });
                   _checkIfFirstSession();
                 },
@@ -627,7 +968,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
                   );
                 },
               ),
-              const SizedBox(height: 24),
             ] else ...[
               TextFormField(
                 readOnly: true,
@@ -648,8 +988,29 @@ class _SessionFormPageState extends State<SessionFormPage> {
                   text: widget.book!['title'],
                 ),
               ),
-              const SizedBox(height: 24),
             ],
+            const SizedBox(height: 16),
+
+            // Date Field
+            TextFormField(
+              readOnly: true,
+              onTap: () => _showDatePicker(context),
+              controller: TextEditingController(
+                text: DateFormat('MMMM d, y').format(_sessionDate),
+              ),
+              decoration: InputDecoration(
+                labelText: 'Date',
+                hintText: 'Select date *',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                suffixIcon: const Icon(Icons.calendar_today),
+              ),
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
+            ),
+            const Divider(height: 48),
 
             Row(
               children: [
@@ -663,11 +1024,11 @@ class _SessionFormPageState extends State<SessionFormPage> {
                       ),
                       suffixIcon: _startPageController.text.isNotEmpty
                           ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _clearField(_startPageController);
-                        },
-                      )
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _clearField(_startPageController);
+                              },
+                            )
                           : null,
                     ),
                     keyboardType: TextInputType.number,
@@ -693,11 +1054,11 @@ class _SessionFormPageState extends State<SessionFormPage> {
                       ),
                       suffixIcon: _endPageController.text.isNotEmpty
                           ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _clearField(_endPageController);
-                        },
-                      )
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _clearField(_endPageController);
+                              },
+                            )
                           : null,
                     ),
                     keyboardType: TextInputType.number,
@@ -714,16 +1075,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
             ),
 
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: Divider(thickness: 1)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('OR', style: theme.textTheme.labelSmall),
-                ),
-                Expanded(child: Divider(thickness: 1)),
-              ],
-            ),
+            _buildShortDividerWithText(context),
             const SizedBox(height: 8),
 
             // Pages Field
@@ -737,9 +1089,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 ),
                 suffixIcon: _pagesController.text.isNotEmpty
                     ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _clearField(_pagesController),
-                )
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_pagesController),
+                      )
                     : null,
               ),
               keyboardType: TextInputType.number,
@@ -748,15 +1100,20 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 FocusManager.instance.primaryFocus?.unfocus();
               },
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 36),
 
             // Time Range Input
+            _buildTimeFormatToggle(),
+            const SizedBox(height: 16),
+
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
                     readOnly: true,
-                    onTap: () => _showTimePicker(context, true),
+                    onTap: () => _useElapsedTimeFormat
+                        ? _showElapsedTimePicker(context, true)
+                        : _showTimePicker(context, true),
                     controller: _startTimeController,
                     decoration: InputDecoration(
                       labelText: 'Start Time',
@@ -766,9 +1123,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
                       ),
                       suffixIcon: _startTimeController.text.isNotEmpty
                           ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => _clearField(_startTimeController),
-                      )
+                              icon: const Icon(Icons.clear),
+                              onPressed: () => _clearField(_startTimeController),
+                            )
                           : null,
                     ),
                     onTapOutside: (event) {
@@ -782,7 +1139,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 Expanded(
                   child: TextFormField(
                     readOnly: true,
-                    onTap: () => _showTimePicker(context, false),
+                    onTap: () => _useElapsedTimeFormat
+                        ? _showElapsedTimePicker(context, false)
+                        : _showTimePicker(context, false),
                     controller: _endTimeController,
                     decoration: InputDecoration(
                       labelText: 'End Time',
@@ -792,9 +1151,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
                       ),
                       suffixIcon: _endTimeController.text.isNotEmpty
                           ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => _clearField(_endTimeController),
-                      )
+                              icon: const Icon(Icons.clear),
+                              onPressed: () => _clearField(_endTimeController),
+                            )
                           : null,
                     ),
                     onTapOutside: (event) {
@@ -806,16 +1165,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
             ),
 
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: Divider(thickness: 1)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text('OR', style: theme.textTheme.labelSmall),
-                ),
-                Expanded(child: Divider(thickness: 1)),
-              ],
-            ),
+            _buildShortDividerWithText(context),
             const SizedBox(height: 8),
 
             // Duration Field
@@ -833,47 +1183,24 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 ),
                 suffixIcon: (_hoursController.text != '0' || _minutesController.text != '0')
                     ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    setState(() {
-                      _hoursController.text = '0';
-                      _minutesController.text = '0';
-                      // Clear time range when clearing duration
-                      _startTimeController.clear();
-                      _endTimeController.clear();
-                    });
-                  },
-                )
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _hoursController.text = '0';
+                            _minutesController.text = '0';
+                            // Clear time range when clearing duration
+                            _startTimeController.clear();
+                            _endTimeController.clear();
+                          });
+                        },
+                      )
                     : const Icon(Icons.access_time),
               ),
               onTapOutside: (event) {
                 FocusManager.instance.primaryFocus?.unfocus();
               },
             ),
-            const SizedBox(height: 24),
-
-            // Date Field
-            TextFormField(
-              readOnly: true,
-              onTap: () => _showDatePicker(context),
-              controller: TextEditingController(
-                text: DateFormat('MMMM d, y').format(_sessionDate),
-              ),
-              decoration: InputDecoration(
-                labelText: 'Date',
-                hintText: 'Select date *',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                suffixIcon: const Icon(
-                    Icons.calendar_today
-                ),
-              ),
-              onTapOutside: (event) {
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
-            ),
-            const SizedBox(height: 16),
+            const Divider(height: 48),
 
             // Session Type Checkboxes (only for new sessions)
             if (!widget.isEditing) ...[

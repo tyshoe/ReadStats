@@ -77,8 +77,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
     int totalMinutes = 0;
 
     for (var session in sessions) {
-      totalPagesRead += session.pagesRead;
-      totalMinutes += session.durationMinutes;
+      totalPagesRead += session.pagesRead ?? 0;
+      totalMinutes += session.durationMinutes ?? 0;
     }
 
     double avgPagesPerMinute = totalMinutes > 0 ? totalPagesRead / totalMinutes : 0;
@@ -182,7 +182,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
           ? date.year.toString() // group by year
           : DateFormat('MMM').format(date); // group by month
 
-      groupedMinutes[key] = (groupedMinutes[key] ?? 0) + s.durationMinutes;
+      groupedMinutes[key] = (groupedMinutes[key] ?? 0) + (s.durationMinutes ?? 0);
     }
 
     return groupedMinutes;
@@ -217,7 +217,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
           ? date.year.toString() // group by year
           : DateFormat('MMM').format(date); // group by month
 
-      groupedPages[key] = (groupedPages[key] ?? 0) + s.pagesRead;
+      groupedPages[key] = (groupedPages[key] ?? 0) + (s.pagesRead ?? 0);
     }
 
     return groupedPages;
@@ -403,7 +403,6 @@ class _StatisticsPageState extends State<StatisticsPage> {
       },
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
