@@ -272,12 +272,7 @@ class _BookFormPageState extends State<BookFormPage> {
       lastDate: _dateToday,
       builder: (BuildContext context, Widget? child) {
         return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: widget.settingsViewModel.accentColorNotifier.value,
-              onPrimary: Colors.white,
-            ),
-          ),
+          data: Theme.of(context),
           child: child!,
         );
       },

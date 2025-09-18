@@ -727,15 +727,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
       initialDate: _sessionDate,
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
-      builder: (context, child) {
+      builder: (BuildContext context, Widget? child) {
         return Theme(
-          data: Theme.of(context).copyWith(
-            dialogTheme: DialogThemeData(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ),
+          data: Theme.of(context),
           child: child!,
         );
       },
