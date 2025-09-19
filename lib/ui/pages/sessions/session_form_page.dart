@@ -1002,95 +1002,98 @@ class _SessionFormPageState extends State<SessionFormPage> {
             ),
             const Divider(height: 48),
 
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _startPageController,
-                    decoration: InputDecoration(
-                      labelText: 'Start Page',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      suffixIcon: _startPageController.text.isNotEmpty
-                          ? IconButton(
+            if (_selectedBook?['book_type_id'] != 4)
+              Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _startPageController,
+                          decoration: InputDecoration(
+                            labelText: 'Start Page',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            suffixIcon: _startPageController.text.isNotEmpty
+                                ? IconButton(
                               icon: const Icon(Icons.clear),
                               onPressed: () {
                                 _clearField(_startPageController);
                               },
                             )
-                          : null,
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      _calculatePagesRead();
-                      setState(() {});
-                    },
-                    onTapOutside: (event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Icon(Icons.arrow_forward, color: theme.colorScheme.onSurface.withAlpha(153)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _endPageController,
-                    decoration: InputDecoration(
-                      labelText: 'End Page',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                                : null,
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            _calculatePagesRead();
+                            setState(() {});
+                          },
+                          onTapOutside: (event) {
+                            FocusManager.instance.primaryFocus?.unfocus();
+                          },
+                        ),
                       ),
-                      suffixIcon: _endPageController.text.isNotEmpty
-                          ? IconButton(
+                      const SizedBox(width: 12),
+                      Icon(Icons.arrow_forward, color: theme.colorScheme.onSurface.withAlpha(153)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _endPageController,
+                          decoration: InputDecoration(
+                            labelText: 'End Page',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            suffixIcon: _endPageController.text.isNotEmpty
+                                ? IconButton(
                               icon: const Icon(Icons.clear),
                               onPressed: () {
                                 _clearField(_endPageController);
                               },
                             )
+                                : null,
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            _calculatePagesRead();
+                            setState(() {});
+                          },
+                          onTapOutside: (event) {
+                            FocusManager.instance.primaryFocus?.unfocus();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _buildShortDividerWithText(context),
+                  const SizedBox(height: 8),
+                  // Pages Field
+                  TextField(
+                    controller: _pagesController,
+                    decoration: InputDecoration(
+                      labelText: 'Pages',
+                      hintText: 'Enter number of pages',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      suffixIcon: _pagesController.text.isNotEmpty
+                          ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_pagesController),
+                      )
                           : null,
                     ),
                     keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      _calculatePagesRead();
-                      setState(() {});
-                    },
+                    onChanged: (value) => setState(() {}), // Rebuild to update label
                     onTapOutside: (event) {
                       FocusManager.instance.primaryFocus?.unfocus();
                     },
                   ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-            _buildShortDividerWithText(context),
-            const SizedBox(height: 8),
-
-            // Pages Field
-            TextField(
-              controller: _pagesController,
-              decoration: InputDecoration(
-                labelText: 'Pages',
-                hintText: 'Enter number of pages',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                suffixIcon: _pagesController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => _clearField(_pagesController),
-                      )
-                    : null,
+                  const SizedBox(height: 36),
+                ],
               ),
-              keyboardType: TextInputType.number,
-              onChanged: (value) => setState(() {}), // Rebuild to update label
-              onTapOutside: (event) {
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
-            ),
-            const SizedBox(height: 36),
 
             // Time Range Input
             _buildTimeFormatToggle(),
