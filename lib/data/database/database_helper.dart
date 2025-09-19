@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/book.dart';
 import '../models/session.dart';
+import '../models/tag.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -671,5 +672,19 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [bookId],
     );
+  }
+
+  Future<List<Tag>> getAllTagsWithCount() async {
+    final db = await database;
+
+    final result = await db.rawQuery('''
+    SELECT t.id, t.name, t.color, COUNT(bt.book_id) as bookCount
+    FROM tags t
+    LEFT JOIN book_tags bt ON t.id = bt.tag_id
+    GROUP BY t.id
+    ORDER BY COUNT(bt.book_id) COLLATE NOCASE DESC
+  ''');
+
+    return result.map((row) => Tag.fromMap(row)).toList();
   }
 }

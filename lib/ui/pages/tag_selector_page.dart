@@ -267,7 +267,7 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Wrap(
                       spacing: 8,
-                      runSpacing: 8,
+                      runSpacing: 0,
                       children: [
                         // "All" chip
                         FilterChip(
@@ -307,7 +307,7 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
                           return GestureDetector(
                             onLongPress: () => _showTagOptions(tag),
                             child: FilterChip(
-                              label: Text(tag.name),
+                              label: Text('${tag.name} (${tag.bookCount})'),
                               selected: isSelected,
                               onSelected: (_) => _toggleTagSelection(tag),
                               selectedColor: Theme.of(context).colorScheme.primaryContainer,

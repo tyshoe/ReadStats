@@ -21,9 +21,7 @@ class TagRepository {
   }
 
   Future<List<Tag>> getAllTags() async {
-    final db = await _databaseHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query('tags');
-    return List.generate(maps.length, (i) => Tag.fromMap(maps[i]));
+    return await _databaseHelper.getAllTagsWithCount();
   }
 
   Future<int> updateTag(Tag tag) async {
