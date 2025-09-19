@@ -28,19 +28,34 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
   late Set<int> _selectedTagIds;
   bool _isLoading = true;
   int? _editingTagId;
+  bool _isDuplicateTag = false;
 
   @override
   void initState() {
     super.initState();
     _selectedTagIds = Set.from(widget.initialSelectedTagIds);
     _loadTags();
+
+    _newTagController.addListener(_checkForDuplicateTag);
   }
 
   @override
   void dispose() {
+    _newTagController.removeListener(_checkForDuplicateTag);
     _newTagController.dispose();
     _editTagController.dispose();
     super.dispose();
+  }
+
+  void _checkForDuplicateTag() {
+    final input = _newTagController.text.trim().toLowerCase();
+    final isDuplicate = _allTags.any((tag) => tag.name.toLowerCase() == input);
+
+    if (isDuplicate != _isDuplicateTag) {
+      setState(() {
+        _isDuplicateTag = isDuplicate;
+      });
+    }
   }
 
   Future<void> _loadTags() async {
@@ -57,7 +72,7 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
 
   Future<void> _createNewTag() async {
     final name = _newTagController.text.trim();
-    if (name.isEmpty) return;
+    if (name.isEmpty || _isDuplicateTag) return;
 
     setState(() => _isLoading = true);
     try {
@@ -134,8 +149,6 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
       extentOffset: _editTagController.text.length,
     );
   }
-
-
 
   Future<void> _saveTagEdit(Tag tag) async {
     final newName = _editTagController.text.trim();
@@ -246,18 +259,31 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // New tag input
                 Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: TextField(
-                    controller: _newTagController,
-                    decoration: InputDecoration(
-                      labelText: 'Create new tag',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _newTagController,
+                        decoration: InputDecoration(
+                          labelText: 'Create new tag',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          errorText: _isDuplicateTag ? 'Tag already exists' : null,
+                          errorStyle: const TextStyle(color: Colors.red),
+                          focusedBorder: _isDuplicateTag
+                              ? OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  borderSide: const BorderSide(color: Colors.red),
+                                )
+                              : null,
+                          labelStyle: _isDuplicateTag ? const TextStyle(color: Colors.red) : null,
+                        ),
+                        onSubmitted: (_) => _createNewTag(),
                       ),
-                    ),
-                    onSubmitted: (_) => _createNewTag(),
+                    ],
                   ),
                 ),
 
