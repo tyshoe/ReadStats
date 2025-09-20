@@ -42,6 +42,8 @@ class _BookFormPageState extends State<BookFormPage> {
   DateTime? _dateFinished;
   late bool _useStarRating;
   Set<int> _selectedTagIds = {};
+  bool _titleTitleCaseEnabled = true;
+  bool _authorTitleCaseEnabled = true;
 
   @override
   void initState() {
@@ -299,6 +301,231 @@ class _BookFormPageState extends State<BookFormPage> {
     return allTags.where((tag) => tagIds.contains(tag.id)).toList();
   }
 
+  String _toTitleCase(String text) {
+    if (text.isEmpty) return text;
+
+    final wordsToLowercase = {
+      'a', 'an', 'the', 'and', 'but', 'or',
+      'nor', 'as', 'at', 'by', 'for', 'from', 'in',
+      'into', 'near', 'of', 'on', 'onto', 'to', 'with'
+    };
+
+    final words = text.split(' ');
+    final result = StringBuffer();
+
+    for (int i = 0; i < words.length; i++) {
+      if (words[i].isNotEmpty) {
+        final currentWord = words[i].toLowerCase();
+
+        // Always capitalize first word, or if word is not in the exclusion list
+        if (i == 0 || !wordsToLowercase.contains(currentWord)) {
+          // Capitalize first letter and keep the rest lowercase
+          result.write(words[i][0].toUpperCase());
+          if (words[i].length > 1) {
+            result.write(words[i].substring(1).toLowerCase());
+          }
+        } else {
+          // Keep excluded words lowercase (except first word)
+          result.write(currentWord);
+        }
+
+        // Add space if not the last word
+        if (i < words.length - 1) {
+          result.write(' ');
+        }
+      }
+    }
+
+    return result.toString();
+  }
+
+  Widget _buildTitleField() {
+    final theme = Theme.of(context);
+    final borderColor = theme.colorScheme.outline;
+
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _titleController,
+            decoration: InputDecoration(
+              labelText: 'Title',
+              hintText: 'Enter book title',
+              floatingLabelBehavior: FloatingLabelBehavior.auto,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              suffixIcon: _titleController.text.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(Icons.clear),
+                      onPressed: () {
+                        _clearField(_titleController);
+                        setState(() {});
+                      },
+                    )
+                  : null,
+            ),
+            onChanged: (value) {
+              if (_titleTitleCaseEnabled && value.isNotEmpty) {
+                final formattedValue = _toTitleCase(value);
+                if (value != formattedValue) {
+                  _titleController.value = _titleController.value.copyWith(
+                    text: formattedValue,
+                    selection: TextSelection.collapsed(offset: formattedValue.length),
+                  );
+                }
+              }
+              setState(() {});
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 56,
+          height: 56,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              setState(() {
+                _titleTitleCaseEnabled = !_titleTitleCaseEnabled;
+                if (_titleController.text.isNotEmpty) {
+                  _titleController.text = _titleTitleCaseEnabled
+                      ? _toTitleCase(_titleController.text)
+                      : _titleController.text.toLowerCase();
+                }
+              });
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: borderColor),
+                borderRadius: BorderRadius.circular(12),
+                color: _titleTitleCaseEnabled
+                    ? theme.colorScheme.primaryContainer
+                    : Colors.transparent,
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                Icons.text_fields,
+                color: _titleTitleCaseEnabled
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurface
+                  ..withAlpha(153),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAuthorField() {
+    final theme = Theme.of(context);
+    final borderColor = theme.colorScheme.outline;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Autocomplete<String>(
+            optionsBuilder: (textEditingValue) {
+              if (textEditingValue.text.isEmpty) {
+                return const Iterable<String>.empty();
+              }
+              return BookRepository(DatabaseHelper()).getAuthorSuggestions(textEditingValue.text);
+            },
+            fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+              // keep external + internal controllers in sync
+              textEditingController.text = _authorController.text;
+              _authorController.addListener(() {
+                if (textEditingController.text != _authorController.text) {
+                  textEditingController.text = _authorController.text;
+                }
+              });
+
+              return TextField(
+                controller: _authorController,
+                focusNode: focusNode,
+                decoration: InputDecoration(
+                  labelText: 'Author',
+                  hintText: 'Enter author',
+                  floatingLabelBehavior: FloatingLabelBehavior.auto,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  suffixIcon: _authorController.text.isNotEmpty
+                      ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _clearField(_authorController);
+                      setState(() {});
+                    },
+                  )
+                      : null,
+                ),
+                onChanged: (value) {
+                  if (_authorTitleCaseEnabled && value.isNotEmpty) {
+                    final formattedValue = _toTitleCase(value);
+                    if (value != formattedValue) {
+                      _authorController.value = _authorController.value.copyWith(
+                        text: formattedValue,
+                        selection: TextSelection.collapsed(offset: formattedValue.length),
+                      );
+                    }
+                  }
+                  setState(() {});
+                },
+              );
+            },
+            onSelected: (selection) {
+              final formatted =
+              _authorTitleCaseEnabled ? _toTitleCase(selection) : selection;
+              _authorController.text = formatted;
+              _authorController.selection = TextSelection.fromPosition(
+                TextPosition(offset: formatted.length),
+              );
+              setState(() {});
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 56,
+          height: 56,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              setState(() {
+                _authorTitleCaseEnabled = !_authorTitleCaseEnabled;
+                if (_authorController.text.isNotEmpty) {
+                  _authorController.text = _authorTitleCaseEnabled
+                      ? _toTitleCase(_authorController.text)
+                      : _authorController.text.toLowerCase();
+                }
+              });
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: borderColor),
+                borderRadius: BorderRadius.circular(12),
+                color: _authorTitleCaseEnabled
+                    ? theme.colorScheme.primaryContainer
+                    : Colors.transparent,
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                Icons.text_fields,
+                color: _authorTitleCaseEnabled
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurface.withAlpha(153),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -323,124 +550,104 @@ class _BookFormPageState extends State<BookFormPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title Field
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                labelText: _titleController.text.isEmpty ? 'Title *' : 'Title',
-                hintText: 'Enter book title',
-                floatingLabelBehavior: FloatingLabelBehavior.auto,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                suffixIcon: _titleController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => _clearField(_titleController),
-                      )
-                    : null,
-              ),
-              onChanged: (value) => setState(() {}), // Rebuild to update label
-              onTapOutside: (event) {
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
-            ),
+            _buildTitleField(),
             const SizedBox(height: 16),
+            _buildAuthorField(),
 
-            Autocomplete<String>(
-              optionsBuilder: (textEditingValue) {
-                if (textEditingValue.text.isEmpty) {
-                  return const Iterable<String>.empty();
-                }
-                return BookRepository(DatabaseHelper()).getAuthorSuggestions(textEditingValue.text);
-              },
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                // Sync author controller with Autocomplete controller
-                if (_authorController.text != controller.text) {
-                  if (widget.isEditing && controller.text.isEmpty) {
-                    controller.text = _authorController.text;
-                  } else {
-                    _authorController.text = controller.text;
-                  }
-                }
-
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  decoration: InputDecoration(
-                    labelText: controller.text.isEmpty ? 'Author *' : 'Author',
-                    hintText: 'Enter author name',
-                    floatingLabelBehavior: FloatingLabelBehavior.auto,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    suffixIcon: controller.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              controller.clear();
-                              _authorController.clear();
-                              setState(() {});
-                              focusNode.requestFocus();
-                            },
-                          )
-                        : null,
-                  ),
-                  onChanged: (value) {
-                    _authorController.text = value;
-                    setState(() {});
-                  },
-                  onTapOutside: (event) {
-                    FocusManager.instance.primaryFocus?.unfocus();
-                  },
-                );
-              },
-              onSelected: (selection) {
-                _authorController.text = selection;
-                setState(() {});
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
-              optionsViewBuilder: (context, onSelected, options) {
-                final scrollController = ScrollController();
-
-                return Align(
-                  alignment: Alignment.topLeft,
-                  child: Material(
-                    elevation: 4.0,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 200),
-                      child: Scrollbar(
-                        controller: scrollController,
-                        thumbVisibility: true,
-                        child: ListView.builder(
-                          controller: scrollController,
-                          padding: EdgeInsets.zero,
-                          shrinkWrap: true,
-                          itemCount: options.length,
-                          itemBuilder: (context, index) {
-                            final option = options.elementAt(index);
-                            return InkWell(
-                              onTap: () {
-                                onSelected(option);
-                                FocusManager.instance.primaryFocus?.unfocus();
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Text(
-                                  option,
-                                  style: theme.textTheme.bodyLarge,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+            // Autocomplete<String>(
+            //   optionsBuilder: (textEditingValue) {
+            //     if (textEditingValue.text.isEmpty) {
+            //       return const Iterable<String>.empty();
+            //     }
+            //     return BookRepository(DatabaseHelper()).getAuthorSuggestions(textEditingValue.text);
+            //   },
+            //   fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+            //     // Sync author controller with Autocomplete controller
+            //     if (_authorController.text != controller.text) {
+            //       if (widget.isEditing && controller.text.isEmpty) {
+            //         controller.text = _authorController.text;
+            //       } else {
+            //         _authorController.text = controller.text;
+            //       }
+            //     }
+            //
+            //     return TextField(
+            //       controller: controller,
+            //       focusNode: focusNode,
+            //       decoration: InputDecoration(
+            //         labelText: controller.text.isEmpty ? 'Author *' : 'Author',
+            //         hintText: 'Enter author name',
+            //         floatingLabelBehavior: FloatingLabelBehavior.auto,
+            //         border: OutlineInputBorder(
+            //           borderRadius: BorderRadius.circular(12),
+            //         ),
+            //         suffixIcon: controller.text.isNotEmpty
+            //             ? IconButton(
+            //                 icon: const Icon(Icons.clear),
+            //                 onPressed: () {
+            //                   controller.clear();
+            //                   _authorController.clear();
+            //                   setState(() {});
+            //                   focusNode.requestFocus();
+            //                 },
+            //               )
+            //             : null,
+            //       ),
+            //       onChanged: (value) {
+            //         _authorController.text = value;
+            //         setState(() {});
+            //       },
+            //       onTapOutside: (event) {
+            //         FocusManager.instance.primaryFocus?.unfocus();
+            //       },
+            //     );
+            //   },
+            //   onSelected: (selection) {
+            //     _authorController.text = selection;
+            //     setState(() {});
+            //     FocusManager.instance.primaryFocus?.unfocus();
+            //   },
+            //   optionsViewBuilder: (context, onSelected, options) {
+            //     final scrollController = ScrollController();
+            //
+            //     return Align(
+            //       alignment: Alignment.topLeft,
+            //       child: Material(
+            //         elevation: 4.0,
+            //         child: ConstrainedBox(
+            //           constraints: const BoxConstraints(maxHeight: 200),
+            //           child: Scrollbar(
+            //             controller: scrollController,
+            //             thumbVisibility: true,
+            //             child: ListView.builder(
+            //               controller: scrollController,
+            //               padding: EdgeInsets.zero,
+            //               shrinkWrap: true,
+            //               itemCount: options.length,
+            //               itemBuilder: (context, index) {
+            //                 final option = options.elementAt(index);
+            //                 return InkWell(
+            //                   onTap: () {
+            //                     onSelected(option);
+            //                     FocusManager.instance.primaryFocus?.unfocus();
+            //                   },
+            //                   child: Padding(
+            //                     padding: const EdgeInsets.all(16.0),
+            //                     child: Text(
+            //                       option,
+            //                       style: theme.textTheme.bodyLarge,
+            //                       overflow: TextOverflow.ellipsis,
+            //                     ),
+            //                   ),
+            //                 );
+            //               },
+            //             ),
+            //           ),
+            //         ),
+            //       ),
+            //     );
+            //   },
+            // ),
 
             const Divider(height: 32),
 
