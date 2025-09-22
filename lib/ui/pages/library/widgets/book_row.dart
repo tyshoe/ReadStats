@@ -9,6 +9,8 @@ class BookRow extends StatelessWidget {
   final bool isCompactView;
   final bool showStars;
   final String dateFormatString;
+  final bool isSelected;
+  final Color selectionColor;
 
   const BookRow({
     super.key,
@@ -18,6 +20,8 @@ class BookRow extends StatelessWidget {
     required this.isCompactView,
     required this.showStars,
     required this.dateFormatString,
+    this.isSelected = false,
+    this.selectionColor = Colors.blue,
   });
 
   @override
@@ -83,9 +87,7 @@ class BookRow extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      color: isSelected ? selectionColor.withOpacity(0.45) : Theme.of(context).cardTheme.color,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),

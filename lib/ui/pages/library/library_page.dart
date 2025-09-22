@@ -49,7 +49,8 @@ class _LibraryPageState extends State<LibraryPage> {
   late TagRepository _tagRepository;
   List<String> _availableTags = [];
   Map<int, List<String>> _bookTagsCache = {};
-  bool _showFeedbackBanner = true;
+  bool _selectionMode = false;
+  final Set<int> _selectedBookIds = {};
 
   @override
   void initState() {
@@ -103,6 +104,33 @@ class _LibraryPageState extends State<LibraryPage> {
     super.dispose();
   }
 
+  void _startSelection(int bookId) {
+    setState(() {
+      _selectionMode = true;
+      _selectedBookIds.add(bookId);
+    });
+  }
+
+  void _toggleSelection(int bookId) {
+    setState(() {
+      if (_selectedBookIds.contains(bookId)) {
+        _selectedBookIds.remove(bookId);
+        if (_selectedBookIds.isEmpty) {
+          _selectionMode = false;
+        }
+      } else {
+        _selectedBookIds.add(bookId);
+      }
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectionMode = false;
+      _selectedBookIds.clear();
+    });
+  }
+
   Future<void> _refreshTags() async {
     await _loadAvailableTags();
     await _loadAllBookTags();
@@ -126,15 +154,14 @@ class _LibraryPageState extends State<LibraryPage> {
       if (!_isSearching) {
         _searchController.clear();
         _filteredBooks = _sortAndFilterBooks(
-          List<Map<String, dynamic>>.from(widget.books),
-          _selectedSortOption,
-          _isAscending,
-          _selectedBookTypes,
-          _isFavorite,
-          _selectedFinishedYears,
-          _selectedTags,
-          _selectedTagFilterMode
-        );
+            List<Map<String, dynamic>>.from(widget.books),
+            _selectedSortOption,
+            _isAscending,
+            _selectedBookTypes,
+            _isFavorite,
+            _selectedFinishedYears,
+            _selectedTags,
+            _selectedTagFilterMode);
       }
     });
   }
@@ -244,15 +271,14 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   List<Map<String, dynamic>> _sortAndFilterBooks(
-    List<Map<String, dynamic>> books,
-    String selectedSortOption,
-    bool isAscending,
-    List<String> selectedBookTypes,
-    bool isFavorite,
-    List<String> finishedYears,
-    List<String> tags,
-    String tagFilterMode
-  ) {
+      List<Map<String, dynamic>> books,
+      String selectedSortOption,
+      bool isAscending,
+      List<String> selectedBookTypes,
+      bool isFavorite,
+      List<String> finishedYears,
+      List<String> tags,
+      String tagFilterMode) {
     List<Map<String, dynamic>> filteredBooks =
         _filterBooks(books, selectedBookTypes, isFavorite, finishedYears, tags, tagFilterMode);
 
@@ -267,22 +293,22 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   List<Map<String, dynamic>> _filterBooks(
-      List<Map<String, dynamic>> books,
-      List<String> selectedBookTypes,
-      bool isFavorite,
-      List<String> finishedYears,
-      List<String> selectedTags,
-      String tagFilterMode, // Changed to string
-      ) {
+    List<Map<String, dynamic>> books,
+    List<String> selectedBookTypes,
+    bool isFavorite,
+    List<String> finishedYears,
+    List<String> selectedTags,
+    String tagFilterMode,
+  ) {
     final selectedTypeIds = selectedBookTypes
         .map((type) {
-      return bookTypeNames.entries
-          .firstWhere(
-            (entry) => entry.value == type,
-        orElse: () => const MapEntry(-1, ''),
-      )
-          .key;
-    })
+          return bookTypeNames.entries
+              .firstWhere(
+                (entry) => entry.value == type,
+                orElse: () => const MapEntry(-1, ''),
+              )
+              .key;
+        })
         .where((id) => id != -1)
         .toList();
 
@@ -401,14 +427,13 @@ class _LibraryPageState extends State<LibraryPage> {
     final availableYears = _getAvailableYears(widget.books);
 
     final currentOptions = SortFilterOptions(
-      sortOption: _selectedSortOption,
-      isAscending: _isAscending,
-      bookTypes: _selectedBookTypes,
-      isFavorite: _isFavorite,
-      finishedYears: _selectedFinishedYears,
-      tags: _selectedTags,
-      tagFilterMode: _selectedTagFilterMode
-    );
+        sortOption: _selectedSortOption,
+        isAscending: _isAscending,
+        bookTypes: _selectedBookTypes,
+        isFavorite: _isFavorite,
+        finishedYears: _selectedFinishedYears,
+        tags: _selectedTags,
+        tagFilterMode: _selectedTagFilterMode);
 
     SortFilterPopup.show(
         context: context,
@@ -495,6 +520,17 @@ class _LibraryPageState extends State<LibraryPage> {
     _showBookPopup(context, randomBook);
   }
 
+  void _deleteSelectedBooks() {
+    //TODO: Change this to batch delete
+    for (final id in _selectedBookIds) {
+      _dbHelper.deleteBook(id);
+    }
+
+    widget.refreshBooks();
+
+    _clearSelection();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -502,42 +538,52 @@ class _LibraryPageState extends State<LibraryPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: _isSearching
-            ? TextField(
-                controller: _searchController,
-                decoration: const InputDecoration(
-                  hintText: 'Search books...',
-                  border: InputBorder.none,
-                ),
-                autofocus: true,
-                style: TextStyle(color: theme.colorScheme.onSurface),
+        title: _selectionMode
+            ? Text("${_selectedBookIds.length} selected")
+            : _isSearching
+                ? TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      hintText: 'Search books...',
+                      border: InputBorder.none,
+                    ),
+                    autofocus: true,
+                    style: TextStyle(color: theme.colorScheme.onSurface),
+                  )
+                : const Text('Library'),
+        leading: _selectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _clearSelection,
               )
-            : const Text('Library'),
+            : null,
         backgroundColor: theme.scaffoldBackgroundColor,
-        actions: [
-          IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search),
-            onPressed: _toggleSearch,
-          ),
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: _showSortFilterModal,
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) {
-              if (value == 'random') {
-                _showRandomBook();
-              }
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(
-                value: 'random',
-                child: Text('Random Book'),
-              ),
-            ],
-          ),
-        ],
+        actions: _selectionMode
+            ? null
+            : [
+                IconButton(
+                  icon: Icon(_isSearching ? Icons.close : Icons.search),
+                  onPressed: _toggleSearch,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: _showSortFilterModal,
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) {
+                    if (value == 'random') {
+                      _showRandomBook();
+                    }
+                  },
+                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                    const PopupMenuItem<String>(
+                      value: 'random',
+                      child: Text('Random Book'),
+                    ),
+                  ],
+                ),
+              ],
       ),
       body: Stack(
         children: [
@@ -604,16 +650,36 @@ class _LibraryPageState extends State<LibraryPage> {
                                   itemCount: _filteredBooks.length,
                                   itemBuilder: (context, index) {
                                     final book = _filteredBooks[index];
-                                    return BookRow(
-                                      book: book,
-                                      textColor: theme.colorScheme.onSurface,
-                                      isCompactView: _libraryBookView == "row_compact",
-                                      showStars: widget
-                                              .settingsViewModel.defaultRatingStyleNotifier.value ==
-                                          0,
-                                      dateFormatString:
-                                          widget.settingsViewModel.defaultDateFormatNotifier.value,
-                                      onTap: () => _showBookPopup(context, book),
+                                    final isSelected = _selectedBookIds.contains(book['id']);
+                                    return GestureDetector(
+                                      onLongPress: () => _startSelection(book['id']),
+                                      onTap: () {
+                                        if (_selectionMode) {
+                                          _toggleSelection(book['id']);
+                                        } else {
+                                          _showBookPopup(context, book);
+                                        }
+                                      },
+                                      child: BookRow(
+                                        book: book,
+                                        textColor: theme.colorScheme.onSurface,
+                                        isCompactView: _libraryBookView == "row_compact",
+                                        showStars: widget.settingsViewModel
+                                                .defaultRatingStyleNotifier.value ==
+                                            0,
+                                        dateFormatString: widget
+                                            .settingsViewModel.defaultDateFormatNotifier.value,
+                                        isSelected: isSelected,
+                                        selectionColor: theme.colorScheme.primary,
+                                        onTap: () {
+                                          // This ensures the BookRow's onTap also triggers the selection
+                                          if (_selectionMode) {
+                                            _toggleSelection(book['id']);
+                                          } else {
+                                            _showBookPopup(context, book);
+                                          }
+                                        },
+                                      ),
                                     );
                                   },
                                 ),
@@ -628,9 +694,12 @@ class _LibraryPageState extends State<LibraryPage> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: accentColor,
-        onPressed: _navigateToAddBookPage,
-        child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
+        backgroundColor: _selectionMode ? Theme.of(context).colorScheme.error : accentColor,
+        onPressed: _selectionMode ? _deleteSelectedBooks : _navigateToAddBookPage,
+        child: Icon(
+          _selectionMode ? Icons.delete : Icons.add,
+          color: Theme.of(context).colorScheme.onPrimary,
+        ),
       ),
     );
   }
