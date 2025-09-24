@@ -130,7 +130,7 @@ class _BookFormPageState extends State<BookFormPage> {
     }
 
     final bookData = {
-      if (widget.isEditing) "id": widget.book!['id'],
+      if (widget.isEditing && widget.book!['id'] != null) "id": widget.book!['id'],
       "title": title,
       "author": author,
       "word_count": wordCount,
@@ -141,14 +141,13 @@ class _BookFormPageState extends State<BookFormPage> {
       "book_type_id": _selectedBookType + 1,
       "date_started": _dateStarted?.toIso8601String(),
       "date_finished": _dateFinished?.toIso8601String(),
-      // Ensure date_added is never null
       "date_added":
           widget.isEditing ? widget.book!['date_added'] : DateTime.now().toIso8601String(),
     };
 
     // Handle book saving and tag assignment
     try {
-      if (widget.isEditing) {
+      if (widget.isEditing && widget.book!['id'] != null) {
         // Update existing book
         await bookRepository.updateBook(Book.fromMap(bookData));
 
@@ -198,10 +197,12 @@ class _BookFormPageState extends State<BookFormPage> {
 
   Future<void> _loadExistingTags() async {
     try {
-      final tags = await TagRepository(DatabaseHelper()).getTagsForBook(widget.book!['id']);
-      setState(() {
-        _selectedTagIds = tags.map((tag) => tag.id!).toSet();
-      });
+      if (widget.book!['id'] != null) {
+        final tags = await TagRepository(DatabaseHelper()).getTagsForBook(widget.book!['id']);
+        setState(() {
+          _selectedTagIds = tags.map((tag) => tag.id!).toSet();
+        });
+      }
     } catch (e) {
       if (mounted) {
         _showSnackBar('Error loading tags: ${e.toString()}');
@@ -553,101 +554,6 @@ class _BookFormPageState extends State<BookFormPage> {
             _buildTitleField(),
             const SizedBox(height: 16),
             _buildAuthorField(),
-
-            // Autocomplete<String>(
-            //   optionsBuilder: (textEditingValue) {
-            //     if (textEditingValue.text.isEmpty) {
-            //       return const Iterable<String>.empty();
-            //     }
-            //     return BookRepository(DatabaseHelper()).getAuthorSuggestions(textEditingValue.text);
-            //   },
-            //   fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-            //     // Sync author controller with Autocomplete controller
-            //     if (_authorController.text != controller.text) {
-            //       if (widget.isEditing && controller.text.isEmpty) {
-            //         controller.text = _authorController.text;
-            //       } else {
-            //         _authorController.text = controller.text;
-            //       }
-            //     }
-            //
-            //     return TextField(
-            //       controller: controller,
-            //       focusNode: focusNode,
-            //       decoration: InputDecoration(
-            //         labelText: controller.text.isEmpty ? 'Author *' : 'Author',
-            //         hintText: 'Enter author name',
-            //         floatingLabelBehavior: FloatingLabelBehavior.auto,
-            //         border: OutlineInputBorder(
-            //           borderRadius: BorderRadius.circular(12),
-            //         ),
-            //         suffixIcon: controller.text.isNotEmpty
-            //             ? IconButton(
-            //                 icon: const Icon(Icons.clear),
-            //                 onPressed: () {
-            //                   controller.clear();
-            //                   _authorController.clear();
-            //                   setState(() {});
-            //                   focusNode.requestFocus();
-            //                 },
-            //               )
-            //             : null,
-            //       ),
-            //       onChanged: (value) {
-            //         _authorController.text = value;
-            //         setState(() {});
-            //       },
-            //       onTapOutside: (event) {
-            //         FocusManager.instance.primaryFocus?.unfocus();
-            //       },
-            //     );
-            //   },
-            //   onSelected: (selection) {
-            //     _authorController.text = selection;
-            //     setState(() {});
-            //     FocusManager.instance.primaryFocus?.unfocus();
-            //   },
-            //   optionsViewBuilder: (context, onSelected, options) {
-            //     final scrollController = ScrollController();
-            //
-            //     return Align(
-            //       alignment: Alignment.topLeft,
-            //       child: Material(
-            //         elevation: 4.0,
-            //         child: ConstrainedBox(
-            //           constraints: const BoxConstraints(maxHeight: 200),
-            //           child: Scrollbar(
-            //             controller: scrollController,
-            //             thumbVisibility: true,
-            //             child: ListView.builder(
-            //               controller: scrollController,
-            //               padding: EdgeInsets.zero,
-            //               shrinkWrap: true,
-            //               itemCount: options.length,
-            //               itemBuilder: (context, index) {
-            //                 final option = options.elementAt(index);
-            //                 return InkWell(
-            //                   onTap: () {
-            //                     onSelected(option);
-            //                     FocusManager.instance.primaryFocus?.unfocus();
-            //                   },
-            //                   child: Padding(
-            //                     padding: const EdgeInsets.all(16.0),
-            //                     child: Text(
-            //                       option,
-            //                       style: theme.textTheme.bodyLarge,
-            //                       overflow: TextOverflow.ellipsis,
-            //                     ),
-            //                   ),
-            //                 );
-            //               },
-            //             ),
-            //           ),
-            //         ),
-            //       ),
-            //     );
-            //   },
-            // ),
 
             const Divider(height: 32),
 

@@ -1,8 +1,11 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '../../../../data/repositories/book_repository.dart';
 import '../../../../data/repositories/tag_repository.dart';
+import '../../../../viewmodels/SettingsViewModel.dart';
+import '../book_form_page.dart';
 import '/data/database/database_helper.dart';
 
 class BookPopup {
@@ -16,6 +19,7 @@ class BookPopup {
       Function confirmDelete,
       TagRepository tagRepository,
       BookRepository bookRepository,
+      SettingsViewModel settingsViewModel,
       {required Function() refreshCallback}) async {
     final DatabaseHelper dbHelper = DatabaseHelper();
     final stats = await dbHelper.getBookStats(book['id']);
@@ -145,6 +149,38 @@ class BookPopup {
         break;
       default:
         bookTypeString = 'Paperback';
+    }
+
+    void duplicateBook(BuildContext context, Map<String, dynamic> book, Function refreshCallback,
+        dynamic settingsViewModel) {
+      Navigator.pop(context);
+      // Create a new book map with only the fields you want to duplicate
+      Map<String, dynamic> duplicatedBook = {
+        'title': '${book['title']} (Copy)', // Add "Copy" to title to distinguish
+        'author': book['author'],
+        'word_count': book['word_count'],
+        'page_count': book['page_count'],
+        'book_type_id': book['book_type_id'],
+        'rating': null, // Reset rating for new copy
+        'is_completed': 0, // New copy is not completed
+        'is_favorite': 0, // Reset favorite status
+        'date_started': null, // Reset start date
+        'date_finished': null, // Clear finished date
+        'date_added': DateTime.now().toIso8601String(),
+      };
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BookFormPage(
+            book: duplicatedBook,
+            onSave: (newBookData) {
+              refreshCallback();
+            },
+            settingsViewModel: settingsViewModel,
+          ),
+        ),
+      );
     }
 
     showModalBottomSheet(
@@ -369,36 +405,92 @@ class BookPopup {
                           stats['words_per_minute']?.toStringAsFixed(2) ?? '0'),
                       const SizedBox(height: 16),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
+                          // Add Session Button
                           _PopupAction(
-                            icon: Icons.delete,
-                            label: 'Delete',
-                            color: Colors.red,
-                            onTap: () {
-                              Navigator.pop(context);
-                              confirmDelete(book['id']);
-                            },
-                          ),
-                          _PopupAction(
-                            icon: Icons.edit,
-                            label: 'Edit',
-                            color: textColor,
-                            onTap: () {
-                              Navigator.pop(context);
-                              navigateToEditBookPage(book);
-                            },
-                          ),
-                          _PopupAction(
-                            icon: Icons.more_time,
-                            label: 'Add',
-                            color: book['is_completed'] == 1 ? Colors.grey : textColor,
+                            icon: FluentIcons.calendar_add_16_filled,
+                            label: 'Session',
+                            color: book['is_completed'] == 1
+                                ? Theme.of(context).colorScheme.onSurface.withOpacity(0.38)
+                                : Theme.of(context).colorScheme.onSurface,
                             onTap: book['is_completed'] == 1
                                 ? null
                                 : () {
                                     Navigator.pop(context);
                                     navigateToAddSessionPage(book);
                                   },
+                          ),
+
+                          // Edit Button
+                          _PopupAction(
+                            icon: Icons.edit,
+                            label: 'Edit',
+                            color: Theme.of(context).colorScheme.onSurface,
+                            onTap: () {
+                              Navigator.pop(context);
+                              navigateToEditBookPage(book);
+                            },
+                          ),
+
+                          SizedBox(
+                            width: 64,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                PopupMenuButton<String>(
+                                  icon: Icon(Icons.more_vert,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                      size: 32), // Match icon size
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  onSelected: (value) {
+                                    switch (value) {
+                                      case 'duplicate':
+                                        duplicateBook(
+                                            context, book, refreshCallback, settingsViewModel);
+                                        break;
+                                      case 'delete':
+                                        confirmDelete(book['id']);
+                                        break;
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    PopupMenuItem(
+                                      value: 'duplicate',
+                                      child: ListTile(
+                                        dense: true,
+                                        leading: Icon(Icons.copy,
+                                            size: 20,
+                                            color: Theme.of(context).colorScheme.onSurface),
+                                        title: Text('Duplicate',
+                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                  color: Theme.of(context).colorScheme.onSurface,
+                                                )),
+                                      ),
+                                    ),
+                                    const PopupMenuDivider(),
+                                    PopupMenuItem(
+                                      value: 'delete',
+                                      child: ListTile(
+                                        dense: true,
+                                        leading: Icon(Icons.delete, size: 20, color: Colors.red),
+                                        title: Text('Delete',
+                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                  color: Colors.red,
+                                                )),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                // const SizedBox(height: 2),
+                                Text('More',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    )),
+                              ],
+                            ),
                           ),
                         ],
                       ),

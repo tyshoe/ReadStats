@@ -244,7 +244,6 @@ class _LibraryPageState extends State<LibraryPage> {
             onPressed: () async {
               await _dbHelper.deleteBook(bookId);
               widget.refreshBooks();
-              Navigator.pop(context);
             },
             child: const Text('Delete'),
           ),
@@ -264,6 +263,7 @@ class _LibraryPageState extends State<LibraryPage> {
       _confirmDelete,
       TagRepository(DatabaseHelper()),
       BookRepository(DatabaseHelper()),
+      widget.settingsViewModel,
       refreshCallback: () {
         widget.refreshBooks();
       },
