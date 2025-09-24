@@ -1,3 +1,4 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
@@ -261,7 +262,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
                   border: Border(
                     top: BorderSide(
                       color: Theme.of(context)
-                          .dividerColor,
+                          .dividerColor.withAlpha(128),
                       width: .25,
                     ),
                   ),
@@ -292,29 +293,29 @@ class _NavigationMenuState extends State<NavigationMenu> {
   List<BottomBarItem> _buildBottomBarItems(Color accentColor) {
     return [
       BottomBarItem(
-        icon: Icon(Icons.import_contacts),
-        selectedIcon: Icon(Icons.import_contacts, color: accentColor),
+        icon: Icon(FluentIcons.library_16_filled),
+        selectedIcon: Icon(FluentIcons.library_16_filled, color: accentColor),
         title: Text('Library'),
         unSelectedColor: Colors.grey,
         selectedColor: accentColor,
       ),
       BottomBarItem(
-        icon: Icon(Icons.schedule),
-        selectedIcon: Icon(Icons.schedule, color: accentColor),
+        icon: Icon(FluentIcons.calendar_16_filled),
+        selectedIcon: Icon(FluentIcons.calendar_16_filled, color: accentColor),
         title: Text('Sessions'),
         unSelectedColor: Colors.grey,
         selectedColor: accentColor,
       ),
       BottomBarItem(
-        icon: Icon(Icons.bar_chart),
-        selectedIcon: Icon(Icons.bar_chart, color: accentColor),
+        icon: Icon(FluentIcons.data_pie_16_filled),
+        selectedIcon: Icon(FluentIcons.data_pie_16_filled, color: accentColor),
         title: Text('Stats'),
         unSelectedColor: Colors.grey,
         selectedColor: accentColor,
       ),
       BottomBarItem(
-        icon: Icon(Icons.settings),
-        selectedIcon: Icon(Icons.settings, color: accentColor),
+        icon: Icon(FluentIcons.settings_24_filled),
+        selectedIcon: Icon(FluentIcons.settings_24_filled, color: accentColor),
         title: Text('Settings'),
         unSelectedColor: Colors.grey,
         selectedColor: accentColor,
