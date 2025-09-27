@@ -535,6 +535,10 @@ class BookPopup {
     String? dateRangeString,
   ) {
     final theme = Theme.of(context);
+    final mediaQuery = MediaQuery.of(context);
+    final screenHeight = mediaQuery.size.height;
+    final safeAreaBottom = mediaQuery.padding.bottom;
+
     Future<void> saveImage(ScreenshotController controller) async {
       try {
         final Uint8List? imageBytes = await controller.capture();
@@ -592,6 +596,9 @@ class BookPopup {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12)), // Match first modal
+      ),
       builder: (context) {
         final ScreenshotController screenshotControllerMinimal = ScreenshotController();
         final ScreenshotController screenshotControllerCover = ScreenshotController();
@@ -601,172 +608,170 @@ class BookPopup {
 
         return StatefulBuilder(
           builder: (context, setState) {
-            return DraggableScrollableSheet(
-              expand: false,
-              initialChildSize: 0.75,
-              minChildSize: 0.2,
-              maxChildSize: 0.75,
-              builder: (context, scrollController) {
-                return Container(
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                  ),
-                  child: Column(
-                    children: [
-                      // draggable notch
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Container(
-                          height: 4,
-                          width: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[400],
-                            borderRadius: BorderRadius.circular(2),
-                          ),
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min, // Crucial for proper sizing
+                  children: [
+                    // draggable notch
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Container(
+                        height: 4,
+                        width: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[400],
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
+                    ),
 
-                      Column(
-                        children: [
-                          CarouselSlider(
-                            carouselController: carouselController,
-                            options: CarouselOptions(
-                                height: 525,
-                                enlargeCenterPage: false,
-                                viewportFraction: 0.8,
-                                enableInfiniteScroll: false,
-                                onPageChanged: (index, reason) {
-                                  setState(() {
-                                    currentPage = index;
-                                  });
-                                },
-                                padEnds: true),
-                            items: [
-                              Screenshot(
-                                controller: screenshotControllerCover,
-                                child: BookShareCard(
-                                  title: book['title'],
-                                  author: book['author'],
-                                  rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
-                                  totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
-                                  totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
-                                  daysToComplete: _calculateDaysToComplete(
-                                      book['date_started'], book['date_finished']),
-                                  pagesPerMinute:
-                                      (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
-                                  wordsPerMinute:
-                                      (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
-                                  totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
-                                  dateRangeString: dateRangeString,
-                                  allowCoverUpload: true,
-                                ),
+                    Column(
+                      children: [
+                        CarouselSlider(
+                          carouselController: carouselController,
+                          options: CarouselOptions(
+                              height: 525,
+                              enlargeCenterPage: false,
+                              viewportFraction: 0.8,
+                              enableInfiniteScroll: false,
+                              onPageChanged: (index, reason) {
+                                setState(() {
+                                  currentPage = index;
+                                });
+                              },
+                              padEnds: true),
+                          items: [
+                            Screenshot(
+                              controller: screenshotControllerCover,
+                              child: BookShareCard(
+                                title: book['title'],
+                                author: book['author'],
+                                rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
+                                totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
+                                totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
+                                daysToComplete: _calculateDaysToComplete(
+                                    book['date_started'], book['date_finished']),
+                                pagesPerMinute:
+                                    (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                wordsPerMinute:
+                                    (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
+                                dateRangeString: dateRangeString,
+                                allowCoverUpload: true,
                               ),
-                              Screenshot(
-                                controller: screenshotControllerMinimal,
-                                child: BookShareCard(
-                                  title: book['title'],
-                                  author: book['author'],
-                                  rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
-                                  totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
-                                  totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
-                                  daysToComplete: _calculateDaysToComplete(
-                                      book['date_started'], book['date_finished']),
-                                  pagesPerMinute:
-                                      (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
-                                  wordsPerMinute:
-                                      (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
-                                  totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
-                                  dateRangeString: dateRangeString,
-                                  allowCoverUpload: false,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          // Page indicator synced with Carousel
-                          AnimatedSmoothIndicator(
-                            activeIndex: currentPage,
-                            count: 2,
-                            effect: WormEffect(
-                              dotHeight: 8,
-                              dotWidth: 8,
-                              activeDotColor: theme.colorScheme.primary,
-                              dotColor: theme.colorScheme.onSurface.withOpacity(0.3),
                             ),
-                            onDotClicked: (index) {
-                              carouselController.animateToPage(index);
-                            },
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // ACTION BUTTONS
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          // Save
-                          Column(
-                            children: [
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.surfaceContainerHighest,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(FluentIcons.arrow_download_16_filled, size: 32),
-                                  color: theme.colorScheme.onSurface,
-                                  onPressed: () async {
-                                    final controller = currentPage == 0
-                                        ? screenshotControllerCover
-                                        : screenshotControllerMinimal;
-                                    await saveImage(controller);
-                                  },
-                                ),
+                            Screenshot(
+                              controller: screenshotControllerMinimal,
+                              child: BookShareCard(
+                                title: book['title'],
+                                author: book['author'],
+                                rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
+                                totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
+                                totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
+                                daysToComplete: _calculateDaysToComplete(
+                                    book['date_started'], book['date_finished']),
+                                pagesPerMinute:
+                                    (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                wordsPerMinute:
+                                    (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
+                                dateRangeString: dateRangeString,
+                                allowCoverUpload: false,
                               ),
-                              const SizedBox(height: 8),
-                              const Text("Save", style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
+                            ),
+                          ],
+                        ),
 
-                          // Share
-                          Column(
-                            children: [
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.surfaceContainerHighest,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(FluentIcons.share_16_filled, size: 32),
-                                  color: theme.colorScheme.onSurface,
-                                  onPressed: () async {
-                                    final controller = currentPage == 0
-                                        ? screenshotControllerCover
-                                        : screenshotControllerMinimal;
-                                    await shareImage(controller);
-                                  },
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text("Share", style: TextStyle(fontSize: 12)),
-                            ],
+                        const SizedBox(height: 8),
+
+                        // Page indicator synced with Carousel
+                        AnimatedSmoothIndicator(
+                          activeIndex: currentPage,
+                          count: 2,
+                          effect: WormEffect(
+                            dotHeight: 8,
+                            dotWidth: 8,
+                            activeDotColor: theme.colorScheme.primary,
+                            dotColor: theme.colorScheme.onSurface.withOpacity(0.3),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-                    ],
-                  ),
-                );
-              },
+                          onDotClicked: (index) {
+                            carouselController.animateToPage(index);
+                          },
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // ACTION BUTTONS
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // Save
+                        Column(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceContainerHighest,
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                icon: const Icon(FluentIcons.arrow_download_16_filled, size: 32),
+                                color: theme.colorScheme.onSurface,
+                                onPressed: () async {
+                                  final controller = currentPage == 0
+                                      ? screenshotControllerCover
+                                      : screenshotControllerMinimal;
+                                  await saveImage(controller);
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text("Save", style: TextStyle(fontSize: 12)),
+                          ],
+                        ),
+
+                        // Share
+                        Column(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceContainerHighest,
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                icon: const Icon(FluentIcons.share_16_filled, size: 32),
+                                color: theme.colorScheme.onSurface,
+                                onPressed: () async {
+                                  final controller = currentPage == 0
+                                      ? screenshotControllerCover
+                                      : screenshotControllerMinimal;
+                                  await shareImage(controller);
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text("Share", style: TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
             );
           },
         );
