@@ -536,19 +536,6 @@ class BookPopup {
   ) {
     final theme = Theme.of(context);
     Future<void> saveImage(ScreenshotController controller) async {
-      PermissionStatus status;
-      if (Platform.isIOS) {
-        status = await Permission.photosAddOnly.request(); // iOS uses photosAddOnly
-      } else {
-        status = await Permission.photos.request(); // Android uses storage
-      }
-      if (!status.isGranted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Permission denied")),
-        );
-        return;
-      }
-
       try {
         final Uint8List? imageBytes = await controller.capture();
         if (imageBytes == null) return;
@@ -640,82 +627,80 @@ class BookPopup {
                         ),
                       ),
 
-                      Expanded(
-                        child: Column(
-                          children: [
-                            CarouselSlider(
-                              carouselController: carouselController,
-                              options: CarouselOptions(
-                                  height: 525,
-                                  enlargeCenterPage: false,
-                                  viewportFraction: 0.8,
-                                  enableInfiniteScroll: false,
-                                  onPageChanged: (index, reason) {
-                                    setState(() {
-                                      currentPage = index;
-                                    });
-                                  },
-                                  padEnds: true),
-                              items: [
-                                Screenshot(
-                                  controller: screenshotControllerCover,
-                                  child: BookShareCard(
-                                    title: book['title'],
-                                    author: book['author'],
-                                    rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
-                                    totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
-                                    totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
-                                    daysToComplete: _calculateDaysToComplete(
-                                        book['date_started'], book['date_finished']),
-                                    pagesPerMinute:
-                                        (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
-                                    wordsPerMinute:
-                                        (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
-                                    totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
-                                    dateRangeString: dateRangeString,
-                                    allowCoverUpload: true,
-                                  ),
+                      Column(
+                        children: [
+                          CarouselSlider(
+                            carouselController: carouselController,
+                            options: CarouselOptions(
+                                height: 525,
+                                enlargeCenterPage: false,
+                                viewportFraction: 0.8,
+                                enableInfiniteScroll: false,
+                                onPageChanged: (index, reason) {
+                                  setState(() {
+                                    currentPage = index;
+                                  });
+                                },
+                                padEnds: true),
+                            items: [
+                              Screenshot(
+                                controller: screenshotControllerCover,
+                                child: BookShareCard(
+                                  title: book['title'],
+                                  author: book['author'],
+                                  rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
+                                  totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
+                                  totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
+                                  daysToComplete: _calculateDaysToComplete(
+                                      book['date_started'], book['date_finished']),
+                                  pagesPerMinute:
+                                      (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                  wordsPerMinute:
+                                      (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                  totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
+                                  dateRangeString: dateRangeString,
+                                  allowCoverUpload: true,
                                 ),
-                                Screenshot(
-                                  controller: screenshotControllerMinimal,
-                                  child: BookShareCard(
-                                    title: book['title'],
-                                    author: book['author'],
-                                    rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
-                                    totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
-                                    totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
-                                    daysToComplete: _calculateDaysToComplete(
-                                        book['date_started'], book['date_finished']),
-                                    pagesPerMinute:
-                                        (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
-                                    wordsPerMinute:
-                                        (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
-                                    totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
-                                    dateRangeString: dateRangeString,
-                                    allowCoverUpload: false,
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 8),
-
-                            // Page indicator synced with Carousel
-                            AnimatedSmoothIndicator(
-                              activeIndex: currentPage,
-                              count: 2,
-                              effect: WormEffect(
-                                dotHeight: 8,
-                                dotWidth: 8,
-                                activeDotColor: theme.colorScheme.primary,
-                                dotColor: theme.colorScheme.onSurface.withOpacity(0.3),
                               ),
-                              onDotClicked: (index) {
-                                carouselController.animateToPage(index);
-                              },
+                              Screenshot(
+                                controller: screenshotControllerMinimal,
+                                child: BookShareCard(
+                                  title: book['title'],
+                                  author: book['author'],
+                                  rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
+                                  totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
+                                  totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
+                                  daysToComplete: _calculateDaysToComplete(
+                                      book['date_started'], book['date_finished']),
+                                  pagesPerMinute:
+                                      (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                  wordsPerMinute:
+                                      (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                  totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
+                                  dateRangeString: dateRangeString,
+                                  allowCoverUpload: false,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          // Page indicator synced with Carousel
+                          AnimatedSmoothIndicator(
+                            activeIndex: currentPage,
+                            count: 2,
+                            effect: WormEffect(
+                              dotHeight: 8,
+                              dotWidth: 8,
+                              activeDotColor: theme.colorScheme.primary,
+                              dotColor: theme.colorScheme.onSurface.withOpacity(0.3),
                             ),
-                          ],
-                        ),
+                            onDotClicked: (index) {
+                              carouselController.animateToPage(index);
+                            },
+                          ),
+                        ],
                       ),
 
                       const SizedBox(height: 8),
