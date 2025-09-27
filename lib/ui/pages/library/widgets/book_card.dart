@@ -1,12 +1,22 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../../../data/repositories/book_repository.dart';
 import '../../../../data/repositories/tag_repository.dart';
 import '../../../../viewmodels/SettingsViewModel.dart';
 import '../book_form_page.dart';
 import '/data/database/database_helper.dart';
+import 'book_share_card.dart';
 
 class BookPopup {
   static void showBookPopup(
@@ -47,13 +57,13 @@ class BookPopup {
     if (startDateTime != null && finishDateTime != null) {
       int days = finishDateTime.difference(startDateTime).inDays;
       int adjustedDays = days == 0 ? 1 : days;
-      daysToCompleteString = "($adjustedDays ${adjustedDays == 1 ? 'day' : 'days'})";
+      daysToCompleteString = " ($adjustedDays ${adjustedDays == 1 ? 'day' : 'days'})";
     }
 
     String dateRangeString = "";
 
     if (startDate != null && finishDate != null) {
-      dateRangeString = "$startDate - $finishDate $daysToCompleteString";
+      dateRangeString = "$startDate - $finishDate";
     } else if (startDate != null) {
       dateRangeString = "Started $startDate";
     } else if (finishDate != null) {
@@ -316,7 +326,7 @@ class BookPopup {
                                 if (dateRangeString != '') ...[
                                   const SizedBox(height: 5),
                                   Text(
-                                    dateRangeString,
+                                    dateRangeString + daysToCompleteString,
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: textColor,
@@ -433,6 +443,17 @@ class BookPopup {
                             },
                           ),
 
+                          // Share Button
+                          _PopupAction(
+                            icon: FluentIcons.share_16_filled,
+                            label: 'Share',
+                            color: Theme.of(context).colorScheme.onSurface,
+                            onTap: () {
+                              // Navigator.pop(context);
+                              _showShareModal(context, book, stats, ratingStyle, dateRangeString);
+                            },
+                          ),
+
                           SizedBox(
                             width: 64,
                             child: Column(
@@ -504,6 +525,280 @@ class BookPopup {
         );
       },
     );
+  }
+
+  static void _showShareModal(
+    BuildContext context,
+    Map<String, dynamic> book,
+    Map<String, dynamic> stats,
+    int ratingStyle,
+    String? dateRangeString,
+  ) {
+    final theme = Theme.of(context);
+    Future<void> saveImage(ScreenshotController controller) async {
+      // Request permission (Android 13+ needs READ_MEDIA_IMAGES, iOS uses Photos)
+      final status = await Permission.photos.request();
+      if (!status.isGranted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Permission denied")),
+        );
+        return;
+      }
+
+      try {
+        final Uint8List? imageBytes = await controller.capture();
+        if (imageBytes == null) return;
+
+        final result = await ImageGallerySaverPlus.saveImage(
+          imageBytes,
+          quality: 100,
+          name: "book_share_${book['id']}_${DateTime.now().millisecondsSinceEpoch}",
+        );
+
+        final isSuccess = (result['isSuccess'] == true);
+        if (isSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Image saved to gallery!")),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to save image")),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
+    }
+
+    Future<void> shareImage(ScreenshotController controller) async {
+      try {
+        final Uint8List? imageBytes = await controller.capture();
+        if (imageBytes == null) return;
+
+        // Create a temporary file to share
+        final directory = await getTemporaryDirectory();
+        final imagePath = '${directory.path}/book_share_${book['id']}.png';
+        final File imageFile = File(imagePath);
+        await imageFile.writeAsBytes(imageBytes);
+
+        // Using ShareParams format
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(imagePath)],
+            text: 'Check out my reading stats!',
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error sharing: $e")),
+        );
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final ScreenshotController screenshotControllerMinimal = ScreenshotController();
+        final ScreenshotController screenshotControllerCover = ScreenshotController();
+        final CarouselSliderController carouselController = CarouselSliderController();
+
+        int currentPage = 0; // track active page
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.85,
+              minChildSize: 0.6,
+              maxChildSize: 0.85,
+              builder: (context, scrollController) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  child: Column(
+                    children: [
+                      // draggable notch
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Container(
+                          height: 4,
+                          width: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[400],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 0),
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: CarouselSlider(
+                                  carouselController: carouselController,
+                                  options: CarouselOptions(
+                                      height: 650,
+                                      enlargeCenterPage: false,
+                                      viewportFraction: 0.9,
+                                      enableInfiniteScroll: false,
+                                      onPageChanged: (index, reason) {
+                                        setState(() {
+                                          currentPage = index;
+                                        });
+                                      },
+                                      padEnds: true),
+                                  items: [
+                                    Screenshot(
+                                      controller: screenshotControllerCover,
+                                      child: BookShareCard(
+                                        title: book['title'],
+                                        author: book['author'],
+                                        rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
+                                        totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
+                                        totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
+                                        daysToComplete: _calculateDaysToComplete(
+                                            book['date_started'], book['date_finished']),
+                                        pagesPerMinute:
+                                            (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                        wordsPerMinute:
+                                            (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                        totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
+                                        dateRangeString: dateRangeString,
+                                        allowCoverUpload: true,
+                                      ),
+                                    ),
+                                    Screenshot(
+                                      controller: screenshotControllerMinimal,
+                                      child: BookShareCard(
+                                        title: book['title'],
+                                        author: book['author'],
+                                        rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
+                                        totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
+                                        totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
+                                        daysToComplete: _calculateDaysToComplete(
+                                            book['date_started'], book['date_finished']),
+                                        pagesPerMinute:
+                                            (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                        wordsPerMinute:
+                                            (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                        totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
+                                        dateRangeString: dateRangeString,
+                                        allowCoverUpload: false,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 8),
+
+                              // Page indicator synced with Carousel
+                              AnimatedSmoothIndicator(
+                                activeIndex: currentPage,
+                                count: 2,
+                                effect: WormEffect(
+                                  dotHeight: 8,
+                                  dotWidth: 8,
+                                  activeDotColor: theme.colorScheme.primary,
+                                  dotColor: theme.colorScheme.onSurface.withOpacity(0.3),
+                                ),
+                                onDotClicked: (index) {
+                                  carouselController.animateToPage(index);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // ACTION BUTTONS
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          // Save
+                          Column(
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(FluentIcons.arrow_download_16_filled, size: 24),
+                                  color: theme.colorScheme.onSurface,
+                                  onPressed: () async {
+                                    final controller = currentPage == 0
+                                        ? screenshotControllerMinimal
+                                        : screenshotControllerCover;
+                                    await saveImage(controller);
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text("Save", style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+
+                          // Share
+                          Column(
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(FluentIcons.share_16_filled, size: 24),
+                                  color: theme.colorScheme.onSurface,
+                                  onPressed: () async {
+                                    final controller = currentPage == 0
+                                        ? screenshotControllerMinimal
+                                        : screenshotControllerCover;
+                                    await shareImage(controller);
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text("Share", style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  static int _calculateDaysToComplete(String? startDate, String? finishDate) {
+    if (startDate != null && finishDate != null) {
+      DateTime startDateTime = DateTime.parse(startDate);
+      DateTime finishDateTime = DateTime.parse(finishDate);
+      int days = finishDateTime.difference(startDateTime).inDays;
+      int adjustedDays = days == 0 ? 1 : days;
+      return adjustedDays;
+    }
+    return 0;
   }
 
   static String _getTimeToFinishCompact(
