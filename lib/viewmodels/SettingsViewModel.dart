@@ -159,7 +159,7 @@ class SettingsViewModel {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? typesString = prefs.getString('libraryBookTypes');
 
-    if (typesString == null || typesString.isEmpty) {
+    if (typesString == null || typesString.isEmpty || typesString == 'All') {
       return []; // Empty list represents "All" types
     }
     return typesString.split(',');
