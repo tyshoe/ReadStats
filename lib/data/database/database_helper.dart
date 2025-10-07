@@ -368,7 +368,11 @@ class DatabaseHelper {
       SUM(sessions.pages_read) AS total_pages,
       SUM(sessions.duration_minutes) AS total_time,  -- Converts time to duration_minutes
       SUM(sessions.pages_read) * 1.0 / SUM(sessions.duration_minutes) AS pages_per_minute,
-      books.word_count * 1.0 / SUM(sessions.duration_minutes) AS words_per_minute,
+      CASE 
+        WHEN books.page_count IS NOT NULL AND books.page_count > 0 
+        THEN (books.word_count * (SUM(sessions.pages_read) * 1.0 / books.page_count)) * 1.0 / SUM(sessions.duration_minutes)
+        ELSE books.word_count * 1.0 / SUM(sessions.duration_minutes)
+      END AS words_per_minute,
       books.date_added,
       books.date_started,
       books.date_finished,
