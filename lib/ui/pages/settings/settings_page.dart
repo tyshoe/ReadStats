@@ -552,7 +552,7 @@ class SettingsPage extends StatelessWidget {
           author: row[2].toString(),
           wordCount: int.tryParse(row[3].toString()) ?? 0,
           pageCount: int.tryParse(row[4].toString()) ?? 0,
-          rating: double.tryParse(row[5].toString()) ?? 0.0,
+          rating: double.tryParse(row[5].toString()),
           isCompleted: row[6] == 1 || row[6] == 'true',
           isFavorite: row[7] == 1 || row[7] == 'true',
           bookTypeId: int.tryParse(row[8].toString()) ?? 0,
