@@ -479,6 +479,66 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
+  String parseAndFormatDate(String dateString) {
+    DateTime? parsedDate;
+
+    // Parse the date string
+    if (dateString.contains('T')) {
+      // Already in ISO format
+      parsedDate = DateTime.tryParse(dateString);
+    } else if (dateString.contains(' ')) {
+      // Format: "2025-02-08 0:00:00" or "2025-09-24 16:18:55"
+      // Convert space to 'T' and add milliseconds
+      String isoString = dateString.replaceFirst(' ', 'T');
+      if (!isoString.contains('.')) {
+        isoString += '.000';
+      }
+      parsedDate = DateTime.tryParse(isoString);
+    } else {
+      // Format: "2025-02-09" - add time and milliseconds
+      parsedDate = DateTime.tryParse('${dateString}T00:00:00.000');
+    }
+
+    // If parsing failed, try direct parsing as fallback
+    parsedDate ??= DateTime.tryParse(dateString);
+
+    // Return formatted date or current date if parsing fails
+    if (parsedDate != null) {
+      return parsedDate.toIso8601String();
+    } else {
+      return DateTime.now().toIso8601String();
+    }
+  }
+
+  String? parseAndFormatOptionalDate(String? dateString) {
+    if (dateString == null || dateString.isEmpty) return null;
+
+    DateTime? parsedDate;
+
+    // Parse the date string
+    if (dateString.contains('T')) {
+      // Already in ISO format
+      parsedDate = DateTime.tryParse(dateString);
+    } else if (dateString.contains(' ')) {
+      // Format: "2025-02-08 0:00:00" or "2025-09-24 16:18:55"
+      // Convert space to 'T' and add milliseconds
+      String isoString = dateString.replaceFirst(' ', 'T');
+      if (!isoString.contains('.')) {
+        isoString += '.000';
+      }
+      parsedDate = DateTime.tryParse(isoString);
+    } else {
+      // Format: "2025-02-09" - add time and milliseconds
+      parsedDate = DateTime.tryParse('${dateString}T00:00:00.000');
+    }
+
+    // If parsing failed, try direct parsing as fallback
+    parsedDate ??= DateTime.tryParse(dateString);
+
+    // Return formatted date or null if parsing fails
+    return parsedDate?.toIso8601String();
+  }
+
   Future<void> _importBooks(List<List<dynamic>> rows) async {
     List<Book> booksToInsert = [];
 
@@ -496,13 +556,12 @@ class SettingsPage extends StatelessWidget {
           isCompleted: row[6] == 1 || row[6] == 'true',
           isFavorite: row[7] == 1 || row[7] == 'true',
           bookTypeId: int.tryParse(row[8].toString()) ?? 0,
-          dateAdded: DateTime.tryParse(row[9].toString())?.toIso8601String().split('T')[0] ??
-              DateTime.now().toIso8601String().split('T')[0],
+          dateAdded: parseAndFormatDate(row[9].toString()),
           dateStarted: row[10]?.toString().isNotEmpty == true
-              ? DateTime.tryParse(row[10].toString())?.toIso8601String().split('T')[0]
+              ? parseAndFormatOptionalDate(row[10].toString())
               : null,
           dateFinished: row[11]?.toString().isNotEmpty == true
-              ? DateTime.tryParse(row[11].toString())?.toIso8601String().split('T')[0]
+              ? parseAndFormatOptionalDate(row[11].toString())
               : null,
         );
         booksToInsert.add(book);
@@ -513,8 +572,9 @@ class SettingsPage extends StatelessWidget {
 
     if (booksToInsert.isNotEmpty) {
       await bookRepository.addBooksBatch(booksToInsert); // Use batch insert
-      if (kDebugMode)
+      if (kDebugMode) {
         print('Batch book insert complete. ${booksToInsert.length} books added. $booksToInsert');
+      }
     }
 
     refreshBooks();
@@ -533,8 +593,7 @@ class SettingsPage extends StatelessWidget {
             bookId: int.tryParse(row[1].toString()) ?? 0,
             pagesRead: int.tryParse(row[2].toString()) ?? 0,
             durationMinutes: int.tryParse(row[3].toString()) ?? 0,
-            date: DateTime.tryParse(row[4].toString())?.toIso8601String().split('T')[0] ??
-                DateTime.now().toIso8601String().split('T')[0],
+            date: parseAndFormatDate(row[4].toString()),
           ),
         );
       }
