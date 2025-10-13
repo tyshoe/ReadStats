@@ -480,63 +480,59 @@ class SettingsPage extends StatelessWidget {
   }
 
   String parseAndFormatDate(String dateString) {
-    DateTime? parsedDate;
-
-    // Parse the date string
-    if (dateString.contains('T')) {
-      // Already in ISO format
-      parsedDate = DateTime.tryParse(dateString);
-    } else if (dateString.contains(' ')) {
-      // Format: "2025-02-08 0:00:00" or "2025-09-24 16:18:55"
-      // Convert space to 'T' and add milliseconds
-      String isoString = dateString.replaceFirst(' ', 'T');
-      if (!isoString.contains('.')) {
-        isoString += '.000';
-      }
-      parsedDate = DateTime.tryParse(isoString);
-    } else {
-      // Format: "2025-02-09" - add time and milliseconds
-      parsedDate = DateTime.tryParse('${dateString}T00:00:00.000');
-    }
-
-    // If parsing failed, try direct parsing as fallback
-    parsedDate ??= DateTime.tryParse(dateString);
-
-    // Return formatted date or current date if parsing fails
-    if (parsedDate != null) {
-      return parsedDate.toIso8601String();
-    } else {
+    if (dateString.trim().isEmpty) {
       return DateTime.now().toIso8601String();
     }
+
+    DateTime? parsedDate = _tryParseFlexible(dateString);
+
+    return (parsedDate ?? DateTime.now()).toIso8601String();
   }
 
   String? parseAndFormatOptionalDate(String? dateString) {
-    if (dateString == null || dateString.isEmpty) return null;
+    if (dateString == null || dateString.trim().isEmpty) {
+      return null;
+    }
+
+    DateTime? parsedDate = _tryParseFlexible(dateString);
+
+    return parsedDate?.toIso8601String();
+  }
+
+  DateTime? _tryParseFlexible(String input) {
+    final dateString = input.trim();
 
     DateTime? parsedDate;
 
-    // Parse the date string
-    if (dateString.contains('T')) {
-      // Already in ISO format
-      parsedDate = DateTime.tryParse(dateString);
-    } else if (dateString.contains(' ')) {
-      // Format: "2025-02-08 0:00:00" or "2025-09-24 16:18:55"
-      // Convert space to 'T' and add milliseconds
-      String isoString = dateString.replaceFirst(' ', 'T');
-      if (!isoString.contains('.')) {
-        isoString += '.000';
-      }
-      parsedDate = DateTime.tryParse(isoString);
-    } else {
-      // Format: "2025-02-09" - add time and milliseconds
-      parsedDate = DateTime.tryParse('${dateString}T00:00:00.000');
+    // 1. Try standard ISO formats first
+    parsedDate = DateTime.tryParse(dateString);
+    if (parsedDate != null) return parsedDate;
+
+    // 2. Try common variants (space-separated)
+    if (dateString.contains(' ')) {
+      final isoLike = dateString.replaceFirst(' ', 'T');
+      parsedDate = DateTime.tryParse(isoLike);
+      if (parsedDate != null) return parsedDate;
     }
 
-    // If parsing failed, try direct parsing as fallback
-    parsedDate ??= DateTime.tryParse(dateString);
+    // 3. Try U.S. short date/time formats
+    final formats = [
+      DateFormat("M/d/yyyy H:m:s"),   // e.g. 9/24/2025 16:18:26
+      DateFormat("M/d/yyyy HH:mm:ss"), // e.g. 9/24/2025 06:05:09
+      DateFormat("M/d/yyyy"),         // e.g. 9/24/2025
+    ];
 
-    // Return formatted date or null if parsing fails
-    return parsedDate?.toIso8601String();
+    for (final f in formats) {
+      try {
+        parsedDate = f.parseStrict(dateString);
+        if (parsedDate != null) return parsedDate;
+      } catch (_) {
+        // ignore and try next
+      }
+    }
+
+    // 4. Nothing matched
+    return null;
   }
 
   Future<void> _importBooks(List<List<dynamic>> rows) async {
