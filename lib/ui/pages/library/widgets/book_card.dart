@@ -791,10 +791,10 @@ class BookPopup {
   }
 
   static String _getTimeToFinishCompact(
-    int pagesRead,
-    int totalPages,
-    double pagesPerMinute,
-  ) {
+      int pagesRead,
+      int totalPages,
+      double pagesPerMinute,
+      ) {
     if (totalPages <= 0) return "";
 
     final percentage = ((pagesRead / totalPages) * 100).clamp(0, 100).toStringAsFixed(1);
@@ -809,9 +809,13 @@ class BookPopup {
     final hours = remainingMinutes ~/ 60;
     final minutes = remainingMinutes % 60;
 
-    final timeString = hours > 0 ? "${hours}h ${minutes}m left" : "${minutes}m left";
+    // Build time string
+    final timeString = hours > 0
+        ? "${hours}h ${minutes}m left"
+        : "${minutes}m left";
 
-    return "$percentage% ($timeString)";
+    // Include pages left if there are remaining pages
+    return "$percentage% (${remainingPages}p, $timeString)";
   }
 
   static Widget _buildRatingStars(double? rating) {
