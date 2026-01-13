@@ -92,12 +92,20 @@ class _SessionsPageState extends State<SessionsPage> {
   }
 
   String _formatDuration(int minutes) {
+    if (minutes < 60) {
+      return '$minutes\u00A0min';
+    }
+
     final int hours = minutes ~/ 60;
     final int remainingMinutes = minutes % 60;
-    final String hourText = hours > 0 ? '${hours}h ' : '';
-    final String minuteText = '${remainingMinutes}m';
-    return '$hourText$minuteText'.trim();
+
+    if (remainingMinutes == 0) {
+      return '${hours}h';
+    }
+
+    return '${hours}h\u00A0${remainingMinutes}m';
   }
+
 
   String _formatDate(String isoDate) {
     final date = DateTime.parse(isoDate);
