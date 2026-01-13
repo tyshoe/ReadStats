@@ -147,7 +147,6 @@ class _SessionsPageState extends State<SessionsPage> {
     return groupedSessions;
   }
 
-
   void _navigateToEditSessionsPage(Map<String, dynamic> session) async {
     int bookId = session['book_id'];
     Map<String, dynamic>? book = _bookMap[bookId];
@@ -263,21 +262,27 @@ class _SessionsPageState extends State<SessionsPage> {
   Widget _buildSessionCard(Map<String, dynamic> session) {
     final theme = Theme.of(context);
     final book = session['book'];
+
     final bookTitle = book?['title'] ?? 'Unknown Book';
     final bookAuthor = book?['author'] ?? 'Unknown Author';
-    final pagesRead = session['pages_read'] ?? 0;
-    final minutes = session['duration_minutes'] ?? 0;
-    final date = session['date'] ?? '';
+
+    final int pagesRead = int.tryParse(session['pages_read']?.toString() ?? '0') ?? 0;
+    final int minutes = int.tryParse(session['duration_minutes']?.toString() ?? '0') ?? 0;
+    final String date = session['date'] ?? '';
+
+    final double pagesPerMinute = (pagesRead > 0 && minutes > 0) ? pagesRead / minutes : 0;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () => _navigateToEditSessionsPage(session),
-        borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -285,47 +290,70 @@ class _SessionsPageState extends State<SessionsPage> {
                   children: [
                     Text(
                       bookTitle,
-                      style: theme.textTheme.bodyLarge,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       bookAuthor,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withAlpha(153),
-                      ),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withAlpha(160),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      date.isNotEmpty ? _formatDate(date) : 'No date',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withAlpha(120),
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '$pagesRead pages',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withAlpha(153),
-                    ),
-                  ),
-                  Text(
                     _formatDuration(minutes),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withAlpha(153),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Text(
-                    date.isNotEmpty ? _formatDate(date) : 'No date',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withAlpha(153),
+                  const SizedBox(height: 2),
+                  if (pagesRead > 0)
+                    Text(
+                      '$pagesRead pages',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
+                  if (pagesRead > 0 && minutes > 0) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.speed,
+                          size: 12,
+                          color: theme.colorScheme.onSurface.withAlpha(153),
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          '${pagesPerMinute.toStringAsFixed(1)}/min',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withAlpha(153),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.chevron_right,
-                color: theme.colorScheme.onSurface.withAlpha(153),
               ),
             ],
           ),
@@ -364,74 +392,74 @@ class _SessionsPageState extends State<SessionsPage> {
       ),
       body: widget.sessions.isEmpty
           ? Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            _getMessageToDisplay(),
-            style: theme.textTheme.bodyLarge,
-            textAlign: TextAlign.center,
-          ),
-        ),
-      )
-          : ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              ChoiceChip(
-                label: const Text("Last 30 Days"),
-                selected: _calendarMode == CalendarMode.thirtyDays,
-                onSelected: (_) => _updateCalendarMode(CalendarMode.thirtyDays),
-              ),
-              const SizedBox(width: 8),
-              ChoiceChip(
-                label: const Text("Current Month"),
-                selected: _calendarMode == CalendarMode.currentMonth,
-                onSelected: (_) => _updateCalendarMode(CalendarMode.currentMonth),
-              ),
-            ],
-          ),
-          SessionsCalendar(
-            start: start,
-            end: end,
-            sessions: widget.sessions,
-            isCurrentMonth: _calendarMode == CalendarMode.currentMonth,
-          ),
-          const SizedBox(height: 8),
-          _buildStats(start, end),
-          Divider(
-            color: Colors.grey[600],
-            height: 1,
-          ),
-          ...groupedSessions.entries.map((entry) {
-            final monthYear = entry.key;
-            final sessions = entry.value;
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16),
-                  child: Text(
-                    monthYear,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  _getMessageToDisplay(),
+                  style: theme.textTheme.bodyLarge,
+                  textAlign: TextAlign.center,
                 ),
-                ...sessions.map(_buildSessionCard),
+              ),
+            )
+          : ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    ChoiceChip(
+                      label: const Text("Last 30 Days"),
+                      selected: _calendarMode == CalendarMode.thirtyDays,
+                      onSelected: (_) => _updateCalendarMode(CalendarMode.thirtyDays),
+                    ),
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: const Text("Current Month"),
+                      selected: _calendarMode == CalendarMode.currentMonth,
+                      onSelected: (_) => _updateCalendarMode(CalendarMode.currentMonth),
+                    ),
+                  ],
+                ),
+                SessionsCalendar(
+                  start: start,
+                  end: end,
+                  sessions: widget.sessions,
+                  isCurrentMonth: _calendarMode == CalendarMode.currentMonth,
+                ),
+                const SizedBox(height: 8),
+                _buildStats(start, end),
+                Divider(
+                  color: Colors.grey[600],
+                  height: 1,
+                ),
+                ...groupedSessions.entries.map((entry) {
+                  final monthYear = entry.key;
+                  final sessions = entry.value;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16),
+                        child: Text(
+                          monthYear,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      ...sessions.map(_buildSessionCard),
+                    ],
+                  );
+                }),
               ],
-            );
-          }),
-        ],
-      ),
+            ),
       floatingActionButton: widget.books.isNotEmpty
           ? FloatingActionButton(
-        backgroundColor: accentColor,
-        onPressed: _navigateToAddSessionPage,
-        child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
-      )
+              backgroundColor: accentColor,
+              onPressed: _navigateToAddSessionPage,
+              child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
+            )
           : null,
     );
   }
