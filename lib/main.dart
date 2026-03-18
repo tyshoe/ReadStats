@@ -180,6 +180,7 @@ class _MyAppState extends State<MyApp> {
               builder: (context, fontName, _) {
                 return MaterialApp(
                   title: 'ReadStats',
+                  debugShowCheckedModeBanner: false,
                   theme: AppTheme.lightTheme(_settingsViewModel),
                   darkTheme: AppTheme.darkTheme(_settingsViewModel),
                   themeMode: themeMode,

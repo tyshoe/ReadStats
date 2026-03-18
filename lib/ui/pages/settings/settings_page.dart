@@ -445,7 +445,7 @@ class SettingsPage extends StatelessWidget {
       String csvString = await file.readAsString();
 
       // Convert CSV
-      List<List<dynamic>> csvData = const CsvToListConverter(
+      List<List<dynamic>> csvData = CsvToListConverter(
         eol: '\n',
         fieldDelimiter: ',',
         textDelimiter: '"',
