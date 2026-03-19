@@ -51,6 +51,7 @@ class _LibraryPageState extends State<LibraryPage> {
   Map<int, List<String>> _bookTagsCache = {};
   bool _selectionMode = false;
   final Set<int> _selectedBookIds = {};
+  Set<int> _pinnedBookIds = {};
 
   @override
   void initState() {
@@ -66,6 +67,7 @@ class _LibraryPageState extends State<LibraryPage> {
     _libraryBookView = widget.settingsViewModel.libraryBookViewNotifier.value;
     _selectedFinishedYears = widget.settingsViewModel.libraryFinishedYearFilterNotifier.value;
     _selectedTagFilterMode = widget.settingsViewModel.libraryTagFilterModeNotifier.value;
+    _pinnedBookIds = widget.settingsViewModel.pinnedBookIdsNotifier.value.toSet();
 
     _filteredBooks = _sortAndFilterBooks(
       List<Map<String, dynamic>>.from(widget.books),
@@ -129,6 +131,29 @@ class _LibraryPageState extends State<LibraryPage> {
       _selectionMode = false;
       _selectedBookIds.clear();
     });
+  }
+
+  void _pinSelectedBooks() {
+    setState(() {
+      for (final id in _selectedBookIds) {
+        if (_pinnedBookIds.contains(id)) {
+          _pinnedBookIds.remove(id);
+        } else {
+          _pinnedBookIds.add(id);
+        }
+      }
+      _filteredBooks = _sortAndFilterBooks(
+          List<Map<String, dynamic>>.from(widget.books),
+          _selectedSortOption,
+          _isAscending,
+          _selectedBookTypes,
+          _isFavorite,
+          _selectedFinishedYears,
+          _selectedTags,
+          _selectedTagFilterMode);
+    });
+    widget.settingsViewModel.setPinnedBookIds(_pinnedBookIds.toList());
+    _clearSelection();
   }
 
   Future<void> _refreshTags() async {
@@ -280,7 +305,7 @@ class _LibraryPageState extends State<LibraryPage> {
       List<String> tags,
       String tagFilterMode) {
     List<Map<String, dynamic>> filteredBooks =
-        _filterBooks(books, selectedBookTypes, isFavorite, finishedYears, tags, tagFilterMode);
+    _filterBooks(books, selectedBookTypes, isFavorite, finishedYears, tags, tagFilterMode);
 
     widget.settingsViewModel.setLibrarySortOption(selectedSortOption);
     widget.settingsViewModel.setLibrarySortAscending(isAscending);
@@ -293,22 +318,22 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   List<Map<String, dynamic>> _filterBooks(
-    List<Map<String, dynamic>> books,
-    List<String> selectedBookTypes,
-    bool isFavorite,
-    List<String> finishedYears,
-    List<String> selectedTags,
-    String tagFilterMode,
-  ) {
+      List<Map<String, dynamic>> books,
+      List<String> selectedBookTypes,
+      bool isFavorite,
+      List<String> finishedYears,
+      List<String> selectedTags,
+      String tagFilterMode,
+      ) {
     final selectedTypeIds = selectedBookTypes
         .map((type) {
-          return bookTypeNames.entries
-              .firstWhere(
-                (entry) => entry.value == type,
-                orElse: () => const MapEntry(-1, ''),
-              )
-              .key;
-        })
+      return bookTypeNames.entries
+          .firstWhere(
+            (entry) => entry.value == type,
+        orElse: () => const MapEntry(-1, ''),
+      )
+          .key;
+    })
         .where((id) => id != -1)
         .toList();
 
@@ -369,14 +394,16 @@ class _LibraryPageState extends State<LibraryPage> {
   };
 
   List<Map<String, dynamic>> _sortBooks(
-    List<Map<String, dynamic>> books,
-    String selectedSortOption,
-    bool isAscending,
-  ) {
-    // Create a new list to avoid modifying the original
+      List<Map<String, dynamic>> books,
+      String selectedSortOption,
+      bool isAscending,
+      ) {
     books = List.from(books);
 
-    books.sort((a, b) {
+    final pinned = books.where((b) => _pinnedBookIds.contains(b['id'])).toList();
+    final unpinned = books.where((b) => !_pinnedBookIds.contains(b['id'])).toList();
+
+    unpinned.sort((a, b) {
       int comparison = 0;
 
       if (selectedSortOption == 'Title') {
@@ -420,7 +447,7 @@ class _LibraryPageState extends State<LibraryPage> {
       return isAscending ? comparison : -comparison;
     });
 
-    return books;
+    return [...pinned, ...unpinned];
   }
 
   void _showSortFilterModal() {
@@ -541,49 +568,49 @@ class _LibraryPageState extends State<LibraryPage> {
         title: _selectionMode
             ? Text("${_selectedBookIds.length} selected")
             : _isSearching
-                ? TextField(
-                    controller: _searchController,
-                    decoration: const InputDecoration(
-                      hintText: 'Search books...',
-                      border: InputBorder.none,
-                    ),
-                    autofocus: true,
-                    style: TextStyle(color: theme.colorScheme.onSurface),
-                  )
-                : const Text('Library'),
+            ? TextField(
+          controller: _searchController,
+          decoration: const InputDecoration(
+            hintText: 'Search books...',
+            border: InputBorder.none,
+          ),
+          autofocus: true,
+          style: TextStyle(color: theme.colorScheme.onSurface),
+        )
+            : const Text('Library'),
         leading: _selectionMode
             ? IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: _clearSelection,
-              )
+          icon: const Icon(Icons.close),
+          onPressed: _clearSelection,
+        )
             : null,
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: _selectionMode
             ? null
             : [
-                IconButton(
-                  icon: Icon(_isSearching ? Icons.close : Icons.search),
-                  onPressed: _toggleSearch,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.filter_list),
-                  onPressed: _showSortFilterModal,
-                ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert),
-                  onSelected: (value) {
-                    if (value == 'random') {
-                      _showRandomBook();
-                    }
-                  },
-                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                    const PopupMenuItem<String>(
-                      value: 'random',
-                      child: Text('Random Book'),
-                    ),
-                  ],
-                ),
-              ],
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: _toggleSearch,
+          ),
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _showSortFilterModal,
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'random') {
+                _showRandomBook();
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'random',
+                child: Text('Random Book'),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -592,112 +619,138 @@ class _LibraryPageState extends State<LibraryPage> {
               Expanded(
                 child: widget.books.isEmpty
                     ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.asset('assets/images/carl.png', width: 100, height: 100),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Carl is hungry, add a book to your library',
-                              style: theme.textTheme.bodyLarge,
-                            ),
-                          ],
-                        ),
-                      )
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset('assets/images/carl.png', width: 100, height: 100),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Carl is hungry, add a book to your library',
+                        style: theme.textTheme.bodyLarge,
+                      ),
+                    ],
+                  ),
+                )
                     : Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                SizedBox(
-                                  height: 40,
-                                  child: ToggleButtons(
-                                    isSelected: [
-                                      _libraryBookView == "row_expanded",
-                                      _libraryBookView == "row_compact",
-                                    ],
-                                    onPressed: (index) {
-                                      _toggleView(index == 0 ? "row_expanded" : "row_compact");
-                                    },
-                                    constraints: const BoxConstraints(
-                                      minHeight: 30,
-                                      minWidth: 40,
-                                    ),
-                                    borderWidth: 1,
-                                    borderColor: theme.colorScheme.outline,
-                                    selectedBorderColor: theme.colorScheme.primary,
-                                    borderRadius: BorderRadius.circular(8),
-                                    children: const [
-                                      Icon(Icons.density_medium, size: 16),
-                                      Icon(Icons.density_small, size: 16),
-                                    ],
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 16),
-                                  child: Text(
-                                    '${_filteredBooks.length}/${widget.books.length}',
-                                    style: theme.textTheme.bodyLarge,
-                                  ),
-                                ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          SizedBox(
+                            height: 40,
+                            child: ToggleButtons(
+                              isSelected: [
+                                _libraryBookView == "row_expanded",
+                                _libraryBookView == "row_compact",
+                              ],
+                              onPressed: (index) {
+                                _toggleView(index == 0 ? "row_expanded" : "row_compact");
+                              },
+                              constraints: const BoxConstraints(
+                                minHeight: 30,
+                                minWidth: 40,
+                              ),
+                              borderWidth: 1,
+                              borderColor: theme.colorScheme.outline,
+                              selectedBorderColor: theme.colorScheme.primary,
+                              borderRadius: BorderRadius.circular(8),
+                              children: const [
+                                Icon(Icons.density_medium, size: 16),
+                                Icon(Icons.density_small, size: 16),
                               ],
                             ),
-                            Expanded(
-                              child: Scrollbar(
-                                child: ListView.builder(
-                                  itemCount: _filteredBooks.length,
-                                  itemBuilder: (context, index) {
-                                    final book = _filteredBooks[index];
-                                    final isSelected = _selectedBookIds.contains(book['id']);
-                                    return GestureDetector(
-                                      onLongPress: () => _startSelection(book['id']),
-                                      onTap: () {
-                                        if (_selectionMode) {
-                                          _toggleSelection(book['id']);
-                                        } else {
-                                          _showBookPopup(context, book);
-                                        }
-                                      },
-                                      child: BookRow(
-                                        book: book,
-                                        textColor: theme.colorScheme.onSurface,
-                                        isCompactView: _libraryBookView == "row_compact",
-                                        showStars: widget.settingsViewModel
-                                                .defaultRatingStyleNotifier.value ==
-                                            0,
-                                        dateFormatString: widget
-                                            .settingsViewModel.defaultDateFormatNotifier.value,
-                                        isSelected: isSelected,
-                                        selectionColor: theme.colorScheme.primary,
-                                        onTap: () {
-                                          // This ensures the BookRow's onTap also triggers the selection
-                                          if (_selectionMode) {
-                                            _toggleSelection(book['id']);
-                                          } else {
-                                            _showBookPopup(context, book);
-                                          }
-                                        },
-                                      ),
-                                    );
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 16),
+                            child: Text(
+                              '${_filteredBooks.length}/${widget.books.length}',
+                              style: theme.textTheme.bodyLarge,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Expanded(
+                        child: Scrollbar(
+                          child: ListView.builder(
+                            itemCount: _filteredBooks.length,
+                            itemBuilder: (context, index) {
+                              final book = _filteredBooks[index];
+                              final isSelected = _selectedBookIds.contains(book['id']);
+                              return GestureDetector(
+                                onLongPress: () => _startSelection(book['id']),
+                                onTap: () {
+                                  if (_selectionMode) {
+                                    _toggleSelection(book['id']);
+                                  } else {
+                                    _showBookPopup(context, book);
+                                  }
+                                },
+                                child: BookRow(
+                                  book: book,
+                                  textColor: theme.colorScheme.onSurface,
+                                  isCompactView: _libraryBookView == "row_compact",
+                                  showStars: widget.settingsViewModel
+                                      .defaultRatingStyleNotifier.value ==
+                                      0,
+                                  dateFormatString: widget
+                                      .settingsViewModel.defaultDateFormatNotifier.value,
+                                  isSelected: isSelected,
+                                  selectionColor: theme.colorScheme.primary,
+                                  isPinned: _pinnedBookIds.contains(book['id']),
+                                  onTap: () {
+                                    if (_selectionMode) {
+                                      _toggleSelection(book['id']);
+                                    } else {
+                                      _showBookPopup(context, book);
+                                    }
                                   },
                                 ),
-                              ),
-                            ),
-                          ],
+                              );
+                            },
+                          ),
                         ),
                       ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: _selectionMode ? Theme.of(context).colorScheme.error : accentColor,
-        onPressed: _selectionMode ? _deleteSelectedBooks : _navigateToAddBookPage,
+      floatingActionButton: _selectionMode
+          ? Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            heroTag: 'pin',
+            backgroundColor: accentColor,
+            onPressed: _pinSelectedBooks,
+            child: Icon(
+              Icons.push_pin,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            heroTag: 'delete',
+            backgroundColor: Theme.of(context).colorScheme.error,
+            onPressed: _deleteSelectedBooks,
+            child: Icon(
+              Icons.delete,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
+          ),
+        ],
+      )
+          : FloatingActionButton(
+        heroTag: 'add',
+        backgroundColor: accentColor,
+        onPressed: _navigateToAddBookPage,
         child: Icon(
-          _selectionMode ? Icons.delete : Icons.add,
+          Icons.add,
           color: Theme.of(context).colorScheme.onPrimary,
         ),
       ),

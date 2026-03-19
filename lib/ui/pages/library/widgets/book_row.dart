@@ -11,6 +11,7 @@ class BookRow extends StatelessWidget {
   final String dateFormatString;
   final bool isSelected;
   final Color selectionColor;
+  final bool isPinned;
 
   const BookRow({
     super.key,
@@ -22,6 +23,7 @@ class BookRow extends StatelessWidget {
     required this.dateFormatString,
     this.isSelected = false,
     this.selectionColor = Colors.blue,
+    this.isPinned = false,
   });
 
   @override
@@ -94,7 +96,7 @@ class BookRow extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
-            mainAxisSize: MainAxisSize.min, // This allows vertical expansion
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Title Row
@@ -109,6 +111,15 @@ class BookRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (isPinned)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Icon(
+                        Icons.push_pin,
+                        color: theme.iconTheme.color?.withAlpha(153),
+                        size: 16,
+                      ),
+                    ),
                   if (book["is_favorite"] == 1)
                     Padding(
                       padding: const EdgeInsets.only(left: 8),
@@ -170,7 +181,7 @@ class BookRow extends StatelessWidget {
                               style: theme.textTheme.bodyMedium,
                             ),
                             const SizedBox(width: 4),
-                            const Icon(Icons.star, size: 16, color: Color(0xFFFBCB04),),
+                            const Icon(Icons.star, size: 16, color: Color(0xFFFBCB04)),
                           ],
                         ),
 

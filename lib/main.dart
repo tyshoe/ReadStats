@@ -89,6 +89,7 @@ class _MyAppState extends State<MyApp> {
     final isFavorite = await SettingsViewModel.getLibraryIsFavorite();
     final finishedYears = await SettingsViewModel.getLibraryFinishedYears();
     final tagFilterMode = await SettingsViewModel.getLibraryTagFilterMode();
+    final pinnedBookIds = await SettingsViewModel.getPinnedBookIds();
 
     if (kDebugMode) {
       final preferencesDebugMessage = '''
@@ -133,7 +134,8 @@ class _MyAppState extends State<MyApp> {
         bookTypes: bookTypes,
         isFavorite: isFavorite,
         finishedYears: finishedYears,
-        tagFilterMode: tagFilterMode
+        tagFilterMode: tagFilterMode,
+        pinnedBookIds: pinnedBookIds
     );
   }
 

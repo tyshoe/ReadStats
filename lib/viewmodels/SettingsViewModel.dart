@@ -20,6 +20,8 @@ class SettingsViewModel {
   final ValueNotifier<bool> libraryFavoriteFilterNotifier;
   final ValueNotifier<List<String>> libraryFinishedYearFilterNotifier;
   final ValueNotifier<String> libraryTagFilterModeNotifier;
+  // Pinned Books
+  final ValueNotifier<List<int>> pinnedBookIdsNotifier;
 
   SettingsViewModel({
     required ThemeMode themeMode,
@@ -38,6 +40,7 @@ class SettingsViewModel {
     required bool isFavorite,
     required List<String> finishedYears,
     required String tagFilterMode,
+    required List<int> pinnedBookIds,
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
@@ -53,7 +56,8 @@ class SettingsViewModel {
         isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
         libraryBookTypeFilterNotifier = ValueNotifier(bookTypes),
         libraryFavoriteFilterNotifier = ValueNotifier(isFavorite),
-        libraryFinishedYearFilterNotifier = ValueNotifier(finishedYears);
+        libraryFinishedYearFilterNotifier = ValueNotifier(finishedYears),
+        pinnedBookIdsNotifier = ValueNotifier(pinnedBookIds);
 
 
   // Method to toggle theme mode (light, dark, system)
@@ -279,9 +283,8 @@ class SettingsViewModel {
   }
 
   Future<void> setLibraryTagFilterMode(String mode) async {
-    // Validate the mode is one of our expected values
     if (!['any', 'all', 'exclude'].contains(mode)) {
-      mode = 'any'; // Default to 'any' if invalid
+      mode = 'any';
     }
     libraryTagFilterModeNotifier.value = mode;
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -290,7 +293,7 @@ class SettingsViewModel {
 
   static Future<String> getLibraryTagFilterMode() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('libraryTagFilterMode') ?? 'any'; // Default to 'any'
+    return prefs.getString('libraryTagFilterMode') ?? 'any';
   }
 
   Future<void> setCalendarMonthMode(bool isCurrentMonth) async {
@@ -301,6 +304,27 @@ class SettingsViewModel {
 
   static Future<bool> getCalendarMonthMode() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('calendarMonthMode') ?? false; // Default to false (30-day mode)
+    return prefs.getBool('calendarMonthMode') ?? false;
+  }
+
+  // Save pinned book IDs
+  Future<void> setPinnedBookIds(List<int> ids) async {
+    pinnedBookIdsNotifier.value = ids;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (ids.isEmpty) {
+      await prefs.setString('pinnedBookIds', '');
+    } else {
+      await prefs.setString('pinnedBookIds', ids.join(','));
+    }
+  }
+
+  // Load pinned book IDs
+  static Future<List<int>> getPinnedBookIds() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? idsString = prefs.getString('pinnedBookIds');
+    if (idsString == null || idsString.isEmpty) {
+      return [];
+    }
+    return idsString.split(',').map((id) => int.parse(id)).toList();
   }
 }
