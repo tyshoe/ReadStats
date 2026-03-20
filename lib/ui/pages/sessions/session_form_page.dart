@@ -56,7 +56,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     super.initState();
 
     if (widget.isEditing) {
-      // Editing existing session
       int durationMinutes = widget.session!['duration_minutes'] ?? 0;
       int hours = durationMinutes ~/ 60;
       int minutes = durationMinutes % 60;
@@ -67,7 +66,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
       _sessionDate = DateTime.parse(widget.session!['date']);
       _selectedBook = widget.book;
     } else {
-      // Adding new session
       _pagesController.text = '';
       _startPageController.text = '';
       _endPageController.text = '';
@@ -77,12 +75,10 @@ class _SessionFormPageState extends State<SessionFormPage> {
       _startTimeController.text = '';
       _endTimeController.text = '';
 
-      // Pre-select book if provided
       if (widget.book != null) {
-        // Find the exact book object from availableBooks
         _selectedBook = widget.availableBooks.firstWhere(
-          (book) => book['id'] == widget.book!['id'],
-          orElse: () => widget.book!, // Fallback to the provided book if not found
+              (book) => book['id'] == widget.book!['id'],
+          orElse: () => widget.book!,
         );
         _bookController.text = _selectedBook!['title'];
 
@@ -118,7 +114,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
   int _calculateDurationFromTimeRange() {
     try {
       if (_useElapsedTimeFormat) {
-        // Elapsed time format (HH:MM) - for audiobooks, podcasts, videos, etc.
         final startParts = _startTimeController.text.split(':');
         final endParts = _endTimeController.text.split(':');
 
@@ -131,7 +126,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
         final endHours = int.parse(endParts[0]);
         final endMinutes = int.parse(endParts[1]);
 
-        // Calculate total minutes
         final startTotalMinutes = (startHours * 60) + startMinutes;
         final endTotalMinutes = (endHours * 60) + endMinutes;
 
@@ -142,7 +136,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
         return endTotalMinutes - startTotalMinutes;
       } else {
-        // Clock time format (regular time with AM/PM)
         final startTime = DateFormat('h:mm a').parse(_startTimeController.text);
         final endTime = DateFormat('h:mm a').parse(_endTimeController.text);
 
@@ -191,8 +184,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
     final endPage = int.tryParse(_endPageController.text) ?? 0;
 
     if (startPage > 0 && endPage > 0 && endPage >= startPage) {
-      final pagesRead =
-          endPage - startPage + 1; // +1 because both start and end pages are inclusive
+      final pagesRead = endPage - startPage + 1;
       _pagesController.text = pagesRead.toString();
     } else {
       _pagesController.clear();
@@ -202,7 +194,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
   String _formatSessionDuration(String hours, String minutes) {
     String hourText = hours != '0' ? '$hours hour${hours == "1" ? "" : "s"}' : '';
     String minuteText = minutes != '0' ? '$minutes minute${minutes == "1" ? "" : "s"}' : '';
-
     return [hourText, minuteText].where((e) => e.isNotEmpty).join(' ');
   }
 
@@ -210,7 +201,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     controller.clear();
     setState(() {});
 
-    // If clearing time fields, also reset duration if needed
     if (controller == _startTimeController || controller == _endTimeController) {
       if (_startTimeController.text.isEmpty && _endTimeController.text.isEmpty) {
         setState(() {
@@ -247,7 +237,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     final int? pagesRead = int.tryParse(_pagesController.text);
     int? durationMinutes;
 
-    // Check if we should calculate duration from time range
     if (_startTimeController.text.isNotEmpty && _endTimeController.text.isNotEmpty) {
       try {
         durationMinutes = _calculateDurationFromTimeRange();
@@ -260,7 +249,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
         return;
       }
     } else if (_hoursController.text.isNotEmpty || _minutesController.text.isNotEmpty) {
-      // Use manual duration input
       final int? hours = int.tryParse(_hoursController.text);
       final int? minutes = int.tryParse(_minutesController.text);
 
@@ -269,7 +257,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
         return;
       }
 
-      // Only set duration if at least one field has a value greater than 0
       final calculatedDuration = (hours ?? 0) * 60 + (minutes ?? 0);
       if (calculatedDuration > 0) {
         durationMinutes = calculatedDuration;
@@ -277,7 +264,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
 
     try {
-      // Create/update session
       final session = Session(
         id: widget.isEditing ? widget.session!['id'] : null,
         bookId: _selectedBook!['id'],
@@ -294,7 +280,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
       } else {
         await widget.sessionRepository.addSession(session);
 
-        // Update book dates if needed for new sessions
         if (_isFirstSession || _isFinalSession) {
           await widget.bookRepository.updateBookDates(
             _selectedBook!['id'],
@@ -403,6 +388,12 @@ class _SessionFormPageState extends State<SessionFormPage> {
   }
 
   Future<void> _showDurationPicker(BuildContext context) async {
+    final hoursController = TextEditingController(
+      text: (int.tryParse(_hoursController.text) ?? 0).toString(),
+    );
+    final minutesController = TextEditingController(
+      text: (int.tryParse(_minutesController.text) ?? 0).toString(),
+    );
     int hours = int.tryParse(_hoursController.text) ?? 0;
     int minutes = int.tryParse(_minutesController.text) ?? 0;
 
@@ -428,7 +419,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                   children: [
                     Expanded(
                       child: TextFormField(
-                        initialValue: hours.toString(),
+                        controller: hoursController,
                         keyboardType: TextInputType.number,
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -441,9 +432,14 @@ class _SessionFormPageState extends State<SessionFormPage> {
                             borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                           filled: true,
+                        ),
+                        onTap: () => hoursController.selection = TextSelection(
+                          baseOffset: 0,
+                          extentOffset: hoursController.text.length,
                         ),
                         onChanged: (value) {
                           hours = int.tryParse(value) ?? 0;
@@ -452,22 +448,21 @@ class _SessionFormPageState extends State<SessionFormPage> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Vertically centered colon
                     Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           ':',
                           style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextFormField(
-                        initialValue: minutes.toString(),
+                        controller: minutesController,
                         keyboardType: TextInputType.number,
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -480,9 +475,14 @@ class _SessionFormPageState extends State<SessionFormPage> {
                             borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                           filled: true,
+                        ),
+                        onTap: () => minutesController.selection = TextSelection(
+                          baseOffset: 0,
+                          extentOffset: minutesController.text.length,
                         ),
                         onChanged: (value) {
                           minutes = int.tryParse(value) ?? 0;
@@ -531,7 +531,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 setState(() {
                   _hoursController.text = hours.toString();
                   _minutesController.text = minutes.toString();
-                  // Clear time range when manually setting duration
                   _startTimeController.clear();
                   _endTimeController.clear();
                 });
@@ -563,7 +562,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
         }
       });
 
-      // Update duration after selecting a time
       _updateDurationFromTimeRange();
     }
   }
@@ -573,7 +571,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     int initialHours = 0;
     int initialMinutes = 0;
 
-    // Parse existing time if available
     if (currentText.isNotEmpty) {
       final parts = currentText.split(':');
       if (parts.length == 2) {
@@ -584,6 +581,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
     int selectedHours = initialHours;
     int selectedMinutes = initialMinutes;
+
+    final hoursController = TextEditingController(text: initialHours.toString());
+    final minutesController = TextEditingController(text: initialMinutes.toString());
 
     await showDialog(
       context: context,
@@ -607,7 +607,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                   children: [
                     Expanded(
                       child: TextFormField(
-                        initialValue: initialHours.toString(),
+                        controller: hoursController,
                         keyboardType: TextInputType.number,
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -620,9 +620,14 @@ class _SessionFormPageState extends State<SessionFormPage> {
                             borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                           filled: true,
+                        ),
+                        onTap: () => hoursController.selection = TextSelection(
+                          baseOffset: 0,
+                          extentOffset: hoursController.text.length,
                         ),
                         onChanged: (value) {
                           selectedHours = int.tryParse(value) ?? 0;
@@ -634,13 +639,13 @@ class _SessionFormPageState extends State<SessionFormPage> {
                     Text(
                       ':',
                       style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextFormField(
-                        initialValue: initialMinutes.toString(),
+                        controller: minutesController,
                         keyboardType: TextInputType.number,
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -653,9 +658,14 @@ class _SessionFormPageState extends State<SessionFormPage> {
                             borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                           filled: true,
+                        ),
+                        onTap: () => minutesController.selection = TextSelection(
+                          baseOffset: 0,
+                          extentOffset: minutesController.text.length,
                         ),
                         onChanged: (value) {
                           selectedMinutes = int.tryParse(value) ?? 0;
@@ -679,7 +689,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                         ),
                       ),
                     ),
-                    SizedBox(width: 32),
+                    const SizedBox(width: 32),
                     Expanded(
                       child: Align(
                         alignment: Alignment.centerLeft,
@@ -752,24 +762,15 @@ class _SessionFormPageState extends State<SessionFormPage> {
       children: [
         SizedBox(
           width: 80,
-          child: Divider(
-            thickness: 1,
-            color: dividerColor,
-          ),
+          child: Divider(thickness: 1, color: dividerColor),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'OR',
-            style: labelStyle,
-          ),
+          child: Text('OR', style: labelStyle),
         ),
         SizedBox(
           width: 80,
-          child: Divider(
-            thickness: 1,
-            color: dividerColor,
-          ),
+          child: Divider(thickness: 1, color: dividerColor),
         ),
       ],
     );
@@ -854,15 +855,12 @@ class _SessionFormPageState extends State<SessionFormPage> {
                       book['title'].toLowerCase().contains(textEditingValue.text.toLowerCase()));
                 },
                 displayStringForOption: (option) => option['title'],
-                // Replace the Autocomplete widget's fieldViewBuilder with this corrected version:
                 fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-                  // Sync the external _bookController with the internal textEditingController
                   if (_selectedBook != null &&
                       textEditingController.text != _selectedBook!['title']) {
                     textEditingController.text = _selectedBook!['title'];
                   }
 
-                  // Listen for focus changes to keep the controllers in sync
                   focusNode.addListener(() {
                     if (!focusNode.hasFocus && _selectedBook != null) {
                       textEditingController.text = _selectedBook!['title'];
@@ -871,7 +869,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
                   return TextFieldTapRegion(
                     child: TextFormField(
-                      controller: textEditingController, // Use the internal controller
+                      controller: textEditingController,
                       focusNode: focusNode,
                       decoration: InputDecoration(
                         labelText: 'Book',
@@ -879,20 +877,21 @@ class _SessionFormPageState extends State<SessionFormPage> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                         suffixIcon: _selectedBook != null
                             ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  textEditingController.clear();
-                                  setState(() {
-                                    _selectedBook = null;
-                                    _isFirstSession = false;
-                                    _isFinalSession = false;
-                                  });
-                                  focusNode.requestFocus();
-                                },
-                              )
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            textEditingController.clear();
+                            setState(() {
+                              _selectedBook = null;
+                              _isFirstSession = false;
+                              _isFinalSession = false;
+                            });
+                            focusNode.requestFocus();
+                          },
+                        )
                             : const Icon(Icons.search),
                       ),
                       style: theme.textTheme.bodyLarge,
@@ -906,7 +905,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
                             TextPosition(offset: textEditingController.text.length));
                       },
                       onTapOutside: (event) {
-                        // Ensure selected book is shown when tapping outside
                         if (_selectedBook != null) {
                           textEditingController.text = _selectedBook!['title'];
                         }
@@ -974,9 +972,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                     borderSide: BorderSide(color: colors.onSurfaceVariant),
                   ),
                 ),
-                controller: TextEditingController(
-                  text: widget.book!['title'],
-                ),
+                controller: TextEditingController(text: widget.book!['title']),
               ),
             ],
             const SizedBox(height: 16),
@@ -1018,9 +1014,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                             suffixIcon: _startPageController.text.isNotEmpty
                                 ? IconButton(
                               icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _clearField(_startPageController);
-                              },
+                              onPressed: () => _clearField(_startPageController),
                             )
                                 : null,
                           ),
@@ -1035,7 +1029,8 @@ class _SessionFormPageState extends State<SessionFormPage> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Icon(Icons.arrow_forward, color: theme.colorScheme.onSurface.withAlpha(153)),
+                      Icon(Icons.arrow_forward,
+                          color: theme.colorScheme.onSurface.withAlpha(153)),
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextField(
@@ -1048,9 +1043,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                             suffixIcon: _endPageController.text.isNotEmpty
                                 ? IconButton(
                               icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _clearField(_endPageController);
-                              },
+                              onPressed: () => _clearField(_endPageController),
                             )
                                 : null,
                           ),
@@ -1069,7 +1062,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
                   const SizedBox(height: 8),
                   _buildShortDividerWithText(context),
                   const SizedBox(height: 8),
-                  // Pages Field
                   TextField(
                     controller: _pagesController,
                     decoration: InputDecoration(
@@ -1086,7 +1078,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                           : null,
                     ),
                     keyboardType: TextInputType.number,
-                    onChanged: (value) => setState(() {}), // Rebuild to update label
+                    onChanged: (value) => setState(() {}),
                     onTapOutside: (event) {
                       FocusManager.instance.primaryFocus?.unfocus();
                     },
@@ -1116,9 +1108,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
                       ),
                       suffixIcon: _startTimeController.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () => _clearField(_startTimeController),
-                            )
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_startTimeController),
+                      )
                           : null,
                     ),
                     onTapOutside: (event) {
@@ -1144,9 +1136,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
                       ),
                       suffixIcon: _endTimeController.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () => _clearField(_endTimeController),
-                            )
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => _clearField(_endTimeController),
+                      )
                           : null,
                     ),
                     onTapOutside: (event) {
@@ -1176,17 +1168,16 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 ),
                 suffixIcon: (_hoursController.text != '0' || _minutesController.text != '0')
                     ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            _hoursController.text = '0';
-                            _minutesController.text = '0';
-                            // Clear time range when clearing duration
-                            _startTimeController.clear();
-                            _endTimeController.clear();
-                          });
-                        },
-                      )
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    setState(() {
+                      _hoursController.text = '0';
+                      _minutesController.text = '0';
+                      _startTimeController.clear();
+                      _endTimeController.clear();
+                    });
+                  },
+                )
                     : const Icon(Icons.access_time),
               ),
               onTapOutside: (event) {
@@ -1203,9 +1194,11 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 children: [
                   if (_selectedBook != null)
                     FutureBuilder<List<Session>>(
-                      future: widget.sessionRepository.getSessionsByBookId(_selectedBook!['id']),
+                      future:
+                      widget.sessionRepository.getSessionsByBookId(_selectedBook!['id']),
                       builder: (context, snapshot) {
-                        final hasExistingSessions = snapshot.hasData && snapshot.data!.isNotEmpty;
+                        final hasExistingSessions =
+                            snapshot.hasData && snapshot.data!.isNotEmpty;
 
                         return Visibility(
                           visible: !hasExistingSessions,
