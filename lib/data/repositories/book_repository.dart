@@ -14,11 +14,6 @@ class BookRepository {
     await _databaseHelper.addBooksBatch(books);
   }
 
-  // Future<List<Book>> getBooks() async {
-  //   final booksData = await _databaseHelper.getBooks();
-  //   return booksData.map((book) => Book.fromMap(book)).toList();
-  // }
-
   Future<List<Book>> getBooks({int yearFilter = 0}) async {
     final booksMap = await _databaseHelper.getBooks(yearFilter: yearFilter);
     return booksMap.map((map) => Book.fromMap(map)).toList();
@@ -99,4 +94,10 @@ class BookRepository {
   Future<void> toggleFavoriteStatus(int bookId, bool isFavorite) async {
     await _databaseHelper.updateBookFavoriteStatus(bookId, isFavorite ? 1 : 0);
   }
+
+  Future<void> toggleDnfStatus(int bookId, bool isDnf) async {
+    await _databaseHelper.updateBookDnfStatus(bookId, isDnf ? 1 : 0);
+  }
+
+
 }

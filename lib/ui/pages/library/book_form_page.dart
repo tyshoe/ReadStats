@@ -33,11 +33,15 @@ class _BookFormPageState extends State<BookFormPage> {
   final TextEditingController _wordCountController = TextEditingController();
   final TextEditingController _pageCountController = TextEditingController();
   final TextEditingController _ratingController = TextEditingController();
+  final TextEditingController _isbnController = TextEditingController();
+  final TextEditingController _userReviewController = TextEditingController();
   final DateTime _dateToday = DateTime.now();
   double? _rating;
   bool _isCompleted = false;
   bool _isFavorite = false;
+  bool _isDnf = false;
   int _selectedBookType = 0;
+  int _durationMinutes = 0;
   DateTime? _dateStarted;
   DateTime? _dateFinished;
   late bool _useStarRating;
@@ -60,7 +64,11 @@ class _BookFormPageState extends State<BookFormPage> {
       _ratingController.text = _rating?.toStringAsFixed(2) ?? '';
       _isCompleted = widget.book!['is_completed'] == 1;
       _isFavorite = widget.book!['is_favorite'] == 1;
+      _isDnf = widget.book!['is_dnf'] == 1;
       _selectedBookType = widget.book!['book_type_id'] - 1;
+      _durationMinutes = (widget.book!['duration_minutes'] as int?) ?? 0;
+      _isbnController.text = widget.book!['isbn'] ?? '';
+      _userReviewController.text = widget.book!['user_review'] ?? '';
       _dateStarted = widget.book!['date_started'] != null
           ? DateTime.parse(widget.book!['date_started'])
           : null;
@@ -78,7 +86,151 @@ class _BookFormPageState extends State<BookFormPage> {
     _wordCountController.dispose();
     _pageCountController.dispose();
     _ratingController.dispose();
+    _isbnController.dispose();
+    _userReviewController.dispose();
     super.dispose();
+  }
+
+  String _formatDuration(int totalMinutes) {
+    if (totalMinutes == 0) return '';
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
+    final hourText = hours > 0 ? '$hours hour${hours == 1 ? '' : 's'}' : '';
+    final minuteText = minutes > 0 ? '$minutes minute${minutes == 1 ? '' : 's'}' : '';
+    return [hourText, minuteText].where((e) => e.isNotEmpty).join(' ');
+  }
+
+  Future<void> _showDurationPicker(BuildContext context) async {
+    final hoursController = TextEditingController(text: (_durationMinutes ~/ 60).toString());
+    final minutesController = TextEditingController(text: (_durationMinutes % 60).toString());
+    int hours = _durationMinutes ~/ 60;
+    int minutes = _durationMinutes % 60;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final dialogWidth = screenWidth * 0.8;
+
+        return AlertDialog(
+          title: Text('Set Duration', style: Theme.of(context).textTheme.bodyMedium),
+          content: SizedBox(
+            width: dialogWidth,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: hoursController,
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          fillColor:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                          filled: true,
+                        ),
+                        onTap: () => hoursController.selection = TextSelection(
+                          baseOffset: 0,
+                          extentOffset: hoursController.text.length,
+                        ),
+                        onChanged: (value) {
+                          hours = int.tryParse(value) ?? 0;
+                          if (hours < 0) hours = 0;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      ':',
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        controller: minutesController,
+                        keyboardType: TextInputType.number,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          fillColor:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                          filled: true,
+                        ),
+                        onTap: () => minutesController.selection = TextSelection(
+                          baseOffset: 0,
+                          extentOffset: minutesController.text.length,
+                        ),
+                        onChanged: (value) {
+                          minutes = int.tryParse(value) ?? 0;
+                          if (minutes > 59) minutes = 59;
+                          if (minutes < 0) minutes = 0;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Hours',
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ),
+                    const SizedBox(width: 32),
+                    Expanded(
+                      child: Text('Minutes',
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _durationMinutes = (hours * 60) + minutes;
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _saveBook() async {
@@ -89,12 +241,11 @@ class _BookFormPageState extends State<BookFormPage> {
 
     if (title.isEmpty || author.isEmpty) {
       final errorMessage =
-          title.isEmpty ? 'Please enter a book title' : 'Please enter an author name';
+      title.isEmpty ? 'Please enter a book title' : 'Please enter an author name';
       _showSnackBar(errorMessage);
       return;
     }
 
-    // Check if book already exists
     final bookRepository = BookRepository(DatabaseHelper());
     final bookExists = await bookRepository.doesBookExist(
       title,
@@ -109,7 +260,7 @@ class _BookFormPageState extends State<BookFormPage> {
           title: const Text('Duplicate Book'),
           content: const Text(
             'A book with this title and author already exists. '
-            'Are you sure you want to add it anyway?',
+                'Are you sure you want to add it anyway?',
           ),
           actions: [
             TextButton(
@@ -125,7 +276,7 @@ class _BookFormPageState extends State<BookFormPage> {
       );
 
       if (shouldProceed != true) {
-        return; // User cancelled
+        return;
       }
     }
 
@@ -138,42 +289,42 @@ class _BookFormPageState extends State<BookFormPage> {
       "rating": _rating?.toDouble(),
       "is_completed": _isCompleted ? 1 : 0,
       "is_favorite": _isFavorite ? 1 : 0,
+      "is_dnf": _isDnf ? 1 : 0,
       "book_type_id": _selectedBookType + 1,
       "date_started": _dateStarted?.toIso8601String(),
       "date_finished": _dateFinished?.toIso8601String(),
       "date_added":
-          widget.isEditing ? widget.book!['date_added'] : DateTime.now().toIso8601String(),
+      widget.isEditing ? widget.book!['date_added'] : DateTime.now().toIso8601String(),
+      "isbn": _isbnController.text.trim().isEmpty
+          ? null
+          : _isbnController.text.replaceAll(RegExp(r'[\s-]'), ''),
+      "duration_minutes": _durationMinutes,
+      "user_review":
+      _userReviewController.text.trim().isEmpty ? null : _userReviewController.text.trim(),
     };
 
-    // Handle book saving and tag assignment
     try {
       if (widget.isEditing && widget.book!['id'] != null) {
-        // Update existing book
         await bookRepository.updateBook(Book.fromMap(bookData));
 
-        // Handle tags for existing book - always process tags even if empty
         final tagRepo = TagRepository(DatabaseHelper());
         final currentTags = await tagRepo.getTagsForBook(widget.book!['id']);
         final currentTagIds = currentTags.map((t) => t.id!).toSet();
 
-        // Add new tags
         for (final tagId in _selectedTagIds) {
           if (!currentTagIds.contains(tagId)) {
             await tagRepo.addTagToBook(widget.book!['id'], tagId);
           }
         }
 
-        // Remove deselected tags
         for (final tagId in currentTagIds) {
           if (!_selectedTagIds.contains(tagId)) {
             await tagRepo.removeTagFromBook(widget.book!['id'], tagId);
           }
         }
       } else {
-        // Create new book
         final newBookId = await bookRepository.addBook(Book.fromMap(bookData));
 
-        // Assign tags to new book (only if any selected)
         if (_selectedTagIds.isNotEmpty) {
           final tagRepo = TagRepository(DatabaseHelper());
           for (final tagId in _selectedTagIds) {
@@ -222,10 +373,14 @@ class _BookFormPageState extends State<BookFormPage> {
     _authorController.clear();
     _wordCountController.clear();
     _pageCountController.clear();
+    _isbnController.clear();
+    _userReviewController.clear();
     setState(() {
       _rating = 0;
       _isCompleted = false;
       _isFavorite = false;
+      _isDnf = false;
+      _durationMinutes = 0;
       _selectedBookType = widget.settingsViewModel.defaultBookTypeNotifier.value - 1;
       _dateStarted = null;
       _dateFinished = null;
@@ -270,7 +425,7 @@ class _BookFormPageState extends State<BookFormPage> {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate:
-          isStartDate ? _dateStarted ?? _dateToday : _dateFinished ?? _dateStarted ?? _dateToday,
+      isStartDate ? _dateStarted ?? _dateToday : _dateFinished ?? _dateStarted ?? _dateToday,
       firstDate: isStartDate ? DateTime(1900) : _dateStarted ?? DateTime(1900),
       lastDate: _dateToday,
       builder: (BuildContext context, Widget? child) {
@@ -318,19 +473,15 @@ class _BookFormPageState extends State<BookFormPage> {
       if (words[i].isNotEmpty) {
         final currentWord = words[i].toLowerCase();
 
-        // Always capitalize first word, or if word is not in the exclusion list
         if (i == 0 || !wordsToLowercase.contains(currentWord)) {
-          // Capitalize first letter and keep the rest lowercase
           result.write(words[i][0].toUpperCase());
           if (words[i].length > 1) {
             result.write(words[i].substring(1).toLowerCase());
           }
         } else {
-          // Keep excluded words lowercase (except first word)
           result.write(currentWord);
         }
 
-        // Add space if not the last word
         if (i < words.length - 1) {
           result.write(' ');
         }
@@ -359,12 +510,12 @@ class _BookFormPageState extends State<BookFormPage> {
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               suffixIcon: _titleController.text.isNotEmpty
                   ? IconButton(
-                      icon: Icon(Icons.clear),
-                      onPressed: () {
-                        _clearField(_titleController);
-                        setState(() {});
-                      },
-                    )
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  _clearField(_titleController);
+                  setState(() {});
+                },
+              )
                   : null,
             ),
             onChanged: (value) {
@@ -410,8 +561,7 @@ class _BookFormPageState extends State<BookFormPage> {
                 Icons.text_fields,
                 color: _titleTitleCaseEnabled
                     ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.onSurface
-                  ..withAlpha(153),
+                    : theme.colorScheme.onSurface..withAlpha(153),
               ),
             ),
           ),
@@ -435,7 +585,6 @@ class _BookFormPageState extends State<BookFormPage> {
               return BookRepository(DatabaseHelper()).getAuthorSuggestions(textEditingValue.text);
             },
             fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-              // keep external + internal controllers in sync
               textEditingController.text = _authorController.text;
               _authorController.addListener(() {
                 if (textEditingController.text != _authorController.text) {
@@ -531,6 +680,7 @@ class _BookFormPageState extends State<BookFormPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
+    final bool isAudiobook = _selectedBookType == 3;
 
     return Scaffold(
       appBar: AppBar(
@@ -584,48 +734,99 @@ class _BookFormPageState extends State<BookFormPage> {
             ),
             const SizedBox(height: 16),
 
-            // Page Count
-            TextField(
-              controller: _pageCountController,
-              decoration: InputDecoration(
-                labelText: 'Pages',
-                hintText: 'Enter number of pages',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+            // Pages and Words — hidden for audiobooks
+            if (!isAudiobook) ...[
+              TextField(
+                controller: _pageCountController,
+                decoration: InputDecoration(
+                  labelText: 'Pages',
+                  hintText: 'Enter number of pages',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  suffixIcon: _pageCountController.text.isNotEmpty
+                      ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () => _clearField(_pageCountController),
+                  )
+                      : null,
                 ),
-                suffixIcon: _pageCountController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => _clearField(_pageCountController),
-                      )
-                    : null,
+                keyboardType: TextInputType.number,
+                onChanged: (value) => setState(() {}),
+                onTapOutside: (event) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                },
               ),
-              keyboardType: TextInputType.number,
-              onChanged: (value) => setState(() {}), // Rebuild to update label
-              onTapOutside: (event) {
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _wordCountController,
+                decoration: InputDecoration(
+                  labelText: 'Words',
+                  hintText: 'Enter number of words',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  suffixIcon: _wordCountController.text.isNotEmpty
+                      ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () => _clearField(_wordCountController),
+                  )
+                      : null,
+                ),
+                keyboardType: TextInputType.number,
+                onChanged: (value) => setState(() {}),
+                onTapOutside: (event) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
 
-            // Word Count
+            // Duration — shown only for audiobooks
+            if (isAudiobook) ...[
+              TextFormField(
+                readOnly: true,
+                onTap: () => _showDurationPicker(context),
+                controller: TextEditingController(text: _formatDuration(_durationMinutes)),
+                decoration: InputDecoration(
+                  labelText: 'Duration',
+                  hintText: 'Set audiobook duration',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  suffixIcon: _durationMinutes > 0
+                      ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () => setState(() => _durationMinutes = 0),
+                  )
+                      : const Icon(Icons.access_time),
+                ),
+                onTapOutside: (event) {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // ISBN
             TextField(
-              controller: _wordCountController,
+              controller: _isbnController,
               decoration: InputDecoration(
-                labelText: 'Words',
-                hintText: 'Enter number of words',
+                labelText: 'ISBN',
+                hintText: '978-X-XX-XXXXXX-X',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                suffixIcon: _wordCountController.text.isNotEmpty
+                suffixIcon: _isbnController.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => _clearField(_wordCountController),
-                      )
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _clearField(_isbnController),
+                )
                     : null,
               ),
               keyboardType: TextInputType.number,
-              onChanged: (value) => setState(() {}), // Rebuild to update label
+              inputFormatters: [IsbnInputFormatter()],
+              onChanged: (value) => setState(() {}),
               onTapOutside: (event) {
                 FocusManager.instance.primaryFocus?.unfocus();
               },
@@ -641,8 +842,9 @@ class _BookFormPageState extends State<BookFormPage> {
                     readOnly: true,
                     onTap: () => _selectDate(context, true),
                     controller: TextEditingController(
-                      text:
-                          _dateStarted == null ? '' : DateFormat('MMM d, y').format(_dateStarted!),
+                      text: _dateStarted == null
+                          ? ''
+                          : DateFormat('MMM d, y').format(_dateStarted!),
                     ),
                     decoration: InputDecoration(
                       labelText: 'Start Date',
@@ -651,9 +853,9 @@ class _BookFormPageState extends State<BookFormPage> {
                       ),
                       suffixIcon: _dateStarted != null
                           ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: _clearStartDate,
-                            )
+                        icon: const Icon(Icons.clear),
+                        onPressed: _clearStartDate,
+                      )
                           : const Icon(Icons.calendar_today),
                     ),
                     onTapOutside: (event) {
@@ -678,9 +880,9 @@ class _BookFormPageState extends State<BookFormPage> {
                       ),
                       suffixIcon: _dateFinished != null
                           ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: _clearFinishDate,
-                            )
+                        icon: const Icon(Icons.clear),
+                        onPressed: _clearFinishDate,
+                      )
                           : const Icon(Icons.calendar_today),
                     ),
                     onTapOutside: (event) {
@@ -691,84 +893,84 @@ class _BookFormPageState extends State<BookFormPage> {
               ],
             ),
 
-            // Rating (only shown if completed)
+            // Rating
             const SizedBox(height: 16),
             if (_useStarRating) ...[
               Text('Rating', style: theme.textTheme.bodyMedium),
-              // const SizedBox(height: 8),
             ],
             Row(
               children: [
                 Expanded(
-                    child: _useStarRating
-                        ? RatingBar.builder(
-                            initialRating: _rating ?? 0,
-                            minRating: 0,
-                            direction: Axis.horizontal,
-                            allowHalfRating: true,
-                            itemCount: 5,
-                            itemSize: 32,
-                            itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                            itemBuilder: (context, _) => const Icon(
-                              Icons.star,
-                              color: Colors.amber,
-                            ),
-                            glow: false,
-                            onRatingUpdate: (rating) {
-                              setState(() {
-                                _rating = rating;
-                              });
-                            },
-                          )
-                        : TextField(
-                            controller: _ratingController,
-                            decoration: InputDecoration(
-                              labelText: 'Rating',
-                              hintText: 'Enter rating (0–5)',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              suffixIcon: _ratingController.text.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear),
-                                      onPressed: () {
-                                        setState(() {
-                                          _rating = null;
-                                          _ratingController.clear();
-                                        });
-                                      },
-                                    )
-                                  : null,
-                            ),
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(RegExp(r'^\d{0,1}(\.\d{0,2})?$')),
-                            ],
-                            onChanged: (value) {
-                              if (value.isEmpty) {
-                                setState(() {
-                                  _rating = null;
-                                });
-                              } else {
-                                final parsed = double.tryParse(value);
-                                if (parsed != null) {
-                                  if (parsed > 5.0) {
-                                    _rating = 5.0;
-                                    _ratingController.text = '5.00';
-                                    _ratingController.selection = TextSelection.fromPosition(
-                                      const TextPosition(offset: 4),
-                                    );
-                                  } else {
-                                    _rating = parsed;
-                                  }
-                                  setState(() {}); // To reflect any value change
-                                }
-                              }
-                            },
-                            onTapOutside: (event) {
-                              FocusManager.instance.primaryFocus?.unfocus();
-                            },
-                          )),
+                  child: _useStarRating
+                      ? RatingBar.builder(
+                    initialRating: _rating ?? 0,
+                    minRating: 0,
+                    direction: Axis.horizontal,
+                    allowHalfRating: true,
+                    itemCount: 5,
+                    itemSize: 32,
+                    itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    itemBuilder: (context, _) => const Icon(
+                      Icons.star,
+                      color: Colors.amber,
+                    ),
+                    glow: false,
+                    onRatingUpdate: (rating) {
+                      setState(() {
+                        _rating = rating;
+                      });
+                    },
+                  )
+                      : TextField(
+                    controller: _ratingController,
+                    decoration: InputDecoration(
+                      labelText: 'Rating',
+                      hintText: 'Enter rating (0–5)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      suffixIcon: _ratingController.text.isNotEmpty
+                          ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _rating = null;
+                            _ratingController.clear();
+                          });
+                        },
+                      )
+                          : null,
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d{0,1}(\.\d{0,2})?$')),
+                    ],
+                    onChanged: (value) {
+                      if (value.isEmpty) {
+                        setState(() {
+                          _rating = null;
+                        });
+                      } else {
+                        final parsed = double.tryParse(value);
+                        if (parsed != null) {
+                          if (parsed > 5.0) {
+                            _rating = 5.0;
+                            _ratingController.text = '5.00';
+                            _ratingController.selection = TextSelection.fromPosition(
+                              const TextPosition(offset: 4),
+                            );
+                          } else {
+                            _rating = parsed;
+                          }
+                          setState(() {});
+                        }
+                      }
+                    },
+                    onTapOutside: (event) {
+                      FocusManager.instance.primaryFocus?.unfocus();
+                    },
+                  ),
+                ),
                 const SizedBox(width: 16),
                 IconButton(
                   icon: Icon(
@@ -785,6 +987,38 @@ class _BookFormPageState extends State<BookFormPage> {
               ],
             ),
             const SizedBox(height: 16),
+
+            // User Review
+            TextField(
+              controller: _userReviewController,
+              decoration: InputDecoration(
+                labelText: 'Review',
+                hintText: 'Write your thoughts on this book...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignLabelWithHint: true,
+              ),
+              maxLines: 4,
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
+            ),
+            const SizedBox(height: 8),
+
+            // DNF Switch
+            SwitchListTile(
+              title: const Text('Did Not Finish'),
+              subtitle: const Text('Mark this book as DNF'),
+              value: _isDnf,
+              onChanged: (value) {
+                setState(() {
+                  _isDnf = value;
+                });
+              },
+              contentPadding: EdgeInsets.zero,
+            ),
+            const SizedBox(height: 8),
 
             // Tags Section
             InkWell(
@@ -850,9 +1084,9 @@ class _BookFormPageState extends State<BookFormPage> {
                             runSpacing: 8,
                             children: tags
                                 .map((tag) => Chip(
-                                      label: Text(tag.name),
-                                      backgroundColor: theme.colorScheme.surfaceContainer,
-                                    ))
+                              label: Text(tag.name),
+                              backgroundColor: theme.colorScheme.surfaceContainer,
+                            ))
                                 .toList(),
                           );
                         },
@@ -881,6 +1115,29 @@ class _BookFormPageState extends State<BookFormPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class IsbnInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue,
+      TextEditingValue newValue,
+      ) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+    final capped = digits.length > 13 ? digits.substring(0, 13) : digits;
+
+    final buffer = StringBuffer();
+    for (int i = 0; i < capped.length; i++) {
+      if (i == 3 || i == 4 || i == 6) buffer.write('-');
+      buffer.write(capped[i]);
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

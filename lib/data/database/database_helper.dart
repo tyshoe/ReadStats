@@ -9,7 +9,7 @@ class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
 
   factory DatabaseHelper() {
     return _instance;
@@ -68,7 +68,11 @@ class DatabaseHelper {
         date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
         date_started DATETIME,
         date_finished DATETIME,
-        FOREIGN KEY(book_type_id) REFERENCES book_types(id)
+        FOREIGN KEY(book_type_id) REFERENCES book_types(id),
+        isbn TEXT,
+        user_review TEXT,
+        duration_minutes INTEGER DEFAULT 0,
+        is_dnf INTEGER DEFAULT 0,
       )
     ''');
 
@@ -110,6 +114,13 @@ class DatabaseHelper {
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (kDebugMode) {
       print("Database upgrade called from version $oldVersion to $newVersion");
+    }
+
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE books ADD COLUMN isbn TEXT');
+      await db.execute('ALTER TABLE books ADD COLUMN user_review TEXT');
+      await db.execute('ALTER TABLE books ADD COLUMN duration_minutes INTEGER DEFAULT 0');
+      await db.execute('ALTER TABLE books ADD COLUMN is_dnf INTEGER DEFAULT 0');
     }
   }
 
@@ -690,5 +701,15 @@ class DatabaseHelper {
   ''');
 
     return result.map((row) => Tag.fromMap(row)).toList();
+  }
+
+  Future<void> updateBookDnfStatus(int bookId, int isDnf) async {
+    final db = await database;
+    await db.update(
+      'books',
+      {'is_dnf': isDnf},
+      where: 'id = ?',
+      whereArgs: [bookId],
+    );
   }
 }

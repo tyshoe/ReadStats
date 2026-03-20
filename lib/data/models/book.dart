@@ -14,6 +14,10 @@ class Book {
   final String? dateStarted;
   final String? dateFinished;
   List<Tag> tags;
+  String? isbn;
+  String? userReview;
+  int durationMinutes;
+  bool isDnf;
 
   Book({
     this.id,
@@ -29,6 +33,10 @@ class Book {
     this.dateStarted,
     this.dateFinished,
     this.tags = const [], // Initialize empty list by default
+    this.isbn,
+    this.userReview,
+    this.durationMinutes = 0,
+    this.isDnf = false,
   });
 
   // Convert a Book object into a Map for database operations
@@ -45,7 +53,10 @@ class Book {
       'book_type_id': bookTypeId,
       'date_added': dateAdded,
       'date_started': dateStarted,
-      'date_finished': dateFinished,
+      'date_finished': dateFinished,'isbn': isbn,
+      'user_review': userReview,
+      'duration_minutes': durationMinutes,
+      'is_dnf': isDnf ? 1 : 0,
       // Note: tags are not included here as they're stored separately
     };
   }
@@ -64,7 +75,11 @@ class Book {
       bookTypeId: (map['book_type_id'] as int?) ?? 1, // Default value
       dateAdded: map['date_added'] ?? DateTime.now().toIso8601String(),
       dateStarted: map['date_started'],
-      dateFinished: map['date_finished']
+      dateFinished: map['date_finished'],
+      isbn: map['isbn'],
+      userReview: map['user_review'],
+      durationMinutes: (map['duration_minutes'] as int?) ?? 0,
+      isDnf: (map['is_dnf'] as int?) == 1,
     );
   }
 
