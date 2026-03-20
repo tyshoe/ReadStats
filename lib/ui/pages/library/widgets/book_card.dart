@@ -44,10 +44,10 @@ class BookPopup {
     final mutableBook = Map<String, dynamic>.from(book);
 
     DateTime? startDateTime =
-        book['date_started'] != null ? DateTime.parse(book['date_started']) : null;
+    book['date_started'] != null ? DateTime.parse(book['date_started']) : null;
 
     DateTime? finishDateTime =
-        book['date_finished'] != null ? DateTime.parse(book['date_finished']) : null;
+    book['date_finished'] != null ? DateTime.parse(book['date_finished']) : null;
 
     String? startDate = startDateTime != null ? dateFormat.format(startDateTime) : null;
     String? finishDate = finishDateTime != null ? dateFormat.format(finishDateTime) : null;
@@ -73,12 +73,13 @@ class BookPopup {
     // Format counts
     int pageCount = book['page_count'] ?? 0;
     int wordCount = book['word_count'] ?? 0;
+    final bool isAudiobook = book['book_type_id'] == 4;
 
     String formatNumberWithCommas(int number) {
       return number.toString().replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
             (Match m) => '${m[1]},',
-          );
+      );
     }
 
     String pageCountString = pageCount == 0
@@ -88,6 +89,15 @@ class BookPopup {
     String wordCountString = wordCount == 0
         ? ""
         : "${formatNumberWithCommas(wordCount)} ${wordCount == 1 ? 'word' : 'words'}";
+
+    // Audiobook duration string for top-right display
+    String durationString = '';
+    if (isAudiobook && (book['duration_minutes'] ?? 0) > 0) {
+      final totalMins = book['duration_minutes'] as int;
+      final hours = totalMins ~/ 60;
+      final mins = totalMins % 60;
+      durationString = hours > 0 ? '${hours}h ${mins}m' : '${mins}m';
+    }
 
     String formatTime(int totalTimeInMinutes) {
       int days = totalTimeInMinutes ~/ (24 * 60);
@@ -164,18 +174,17 @@ class BookPopup {
     void duplicateBook(BuildContext context, Map<String, dynamic> book, Function refreshCallback,
         dynamic settingsViewModel) {
       Navigator.pop(context);
-      // Create a new book map with only the fields you want to duplicate
       Map<String, dynamic> duplicatedBook = {
-        'title': '${book['title']} (Copy)', // Add "Copy" to title to distinguish
+        'title': '${book['title']} (Copy)',
         'author': book['author'],
         'word_count': book['word_count'],
         'page_count': book['page_count'],
         'book_type_id': book['book_type_id'],
-        'rating': null, // Reset rating for new copy
-        'is_completed': 0, // New copy is not completed
-        'is_favorite': 0, // Reset favorite status
-        'date_started': null, // Reset start date
-        'date_finished': null, // Clear finished date
+        'rating': null,
+        'is_completed': 0,
+        'is_favorite': 0,
+        'date_started': null,
+        'date_finished': null,
         'date_added': DateTime.now().toIso8601String(),
       };
 
@@ -247,42 +256,29 @@ class BookPopup {
                       const SizedBox(height: 3),
                       Text(
                         "by ${book['author']}",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: subtitleColor,
-                        ),
+                        style: TextStyle(fontSize: 14, color: subtitleColor),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
-                          Icon(
-                            bookTypeIcon,
-                            size: 18,
-                            color: textColor,
-                          ),
+                          Icon(bookTypeIcon, size: 18, color: textColor),
                           const SizedBox(width: 5),
                           Text(
                             bookTypeString,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: textColor,
-                            ),
+                            style: TextStyle(fontSize: 14, color: textColor),
                           ),
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Divider(
-                        color: Colors.grey[300],
-                        height: 1,
-                      ),
+                      Divider(color: Colors.grey[300], height: 1),
                       const SizedBox(height: 10),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Book Completion Statuses
+                          // Book Completion Status
                           Expanded(
                             flex: 7,
                             child: Column(
@@ -290,33 +286,31 @@ class BookPopup {
                               children: [
                                 Row(
                                   children: [
-                                    Icon(
-                                      completionIcon,
-                                      color: completionColor,
-                                      size: 18,
-                                    ),
+                                    Icon(completionIcon, color: completionColor, size: 18),
                                     const SizedBox(width: 5),
                                     Text(
                                       completionStatus,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: textColor,
-                                      ),
+                                      style: TextStyle(fontSize: 14, color: textColor),
                                     ),
                                     if (book['is_completed'] == 0 &&
-                                        (stats['total_pages'] ?? 0) > 0 &&
-                                        (book['page_count'] ?? 0) > 0) ...[
+                                        (isAudiobook
+                                            ? (stats['total_time'] ?? 0) > 0 &&
+                                            (book['duration_minutes'] ?? 0) > 0
+                                            : (stats['total_pages'] ?? 0) > 0 &&
+                                            (book['page_count'] ?? 0) > 0)) ...[
                                       const SizedBox(width: 8),
                                       Text(
-                                        _getTimeToFinishCompact(
+                                        isAudiobook
+                                            ? _getAudiobookProgressCompact(
+                                          stats['total_time'] ?? 0,
+                                          book['duration_minutes'] ?? 0,
+                                        )
+                                            : _getTimeToFinishCompact(
                                           stats['total_pages'] ?? 0,
                                           book['page_count'] ?? 0,
                                           stats['pages_per_minute'] ?? 0,
                                         ),
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: subtitleColor,
-                                        ),
+                                        style: TextStyle(fontSize: 14, color: subtitleColor),
                                       ),
                                     ],
                                   ],
@@ -327,37 +321,33 @@ class BookPopup {
                                   const SizedBox(height: 5),
                                   Text(
                                     dateRangeString + daysToCompleteString,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: textColor,
-                                    ),
+                                    style: TextStyle(fontSize: 14, color: textColor),
                                   ),
                                 ],
                               ],
                             ),
                           ),
-                          // Pages and words
+                          // Pages/words or duration
                           Expanded(
                             flex: 3,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                if (pageCountString != '') ...[
-                                  Text(
-                                    pageCountString,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: textColor,
+                                if (!isAudiobook) ...[
+                                  if (pageCountString != '')
+                                    Text(
+                                      pageCountString,
+                                      style: TextStyle(fontSize: 14, color: textColor),
                                     ),
-                                  ),
-                                ],
-                                if (wordCountString != '') ...[
-                                  Text(
-                                    wordCountString,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: textColor,
+                                  if (wordCountString != '')
+                                    Text(
+                                      wordCountString,
+                                      style: TextStyle(fontSize: 14, color: textColor),
                                     ),
+                                ] else if (durationString != '') ...[
+                                  Text(
+                                    durationString,
+                                    style: TextStyle(fontSize: 14, color: textColor),
                                   ),
                                 ],
                               ],
@@ -383,18 +373,11 @@ class BookPopup {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(
-                                      Icons.sell,
-                                      size: 16,
-                                      color: Colors.grey[600],
-                                    ),
+                                    Icon(Icons.sell, size: 16, color: Colors.grey[600]),
                                     const SizedBox(width: 4),
                                     Text(
                                       tags[index].name,
-                                      style: TextStyle(
-                                        color: textColor,
-                                        fontSize: 12,
-                                      ),
+                                      style: TextStyle(color: textColor, fontSize: 12),
                                     ),
                                   ],
                                 ),
@@ -404,15 +387,22 @@ class BookPopup {
                         ),
                         const SizedBox(height: 8),
                       ],
+
+                      // Stat cards — Read Time moved above Pages Read,
+                      // pages/speed stats hidden for audiobooks
                       _buildStatCard(
                           context, 'Sessions', stats['session_count']?.toString() ?? '0'),
                       _buildStatCard(
-                          context, 'Pages Read', stats['total_pages']?.toString() ?? '0'),
-                      _buildStatCard(context, 'Read Time', formatTime(stats['total_time'] ?? 0)),
-                      _buildStatCard(context, 'Pages/Min',
-                          stats['pages_per_minute']?.toStringAsFixed(2) ?? '0'),
-                      _buildStatCard(context, 'Words/Min',
-                          stats['words_per_minute']?.toStringAsFixed(2) ?? '0'),
+                          context, 'Read Time', formatTime(stats['total_time'] ?? 0)),
+                      if (!isAudiobook) ...[
+                        _buildStatCard(
+                            context, 'Pages Read', stats['total_pages']?.toString() ?? '0'),
+                        _buildStatCard(context, 'Pages/Min',
+                            stats['pages_per_minute']?.toStringAsFixed(2) ?? '0'),
+                        _buildStatCard(context, 'Words/Min',
+                            stats['words_per_minute']?.toStringAsFixed(2) ?? '0'),
+                      ],
+
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -427,9 +417,9 @@ class BookPopup {
                             onTap: book['is_completed'] == 1
                                 ? null
                                 : () {
-                                    Navigator.pop(context);
-                                    navigateToAddSessionPage(book);
-                                  },
+                              Navigator.pop(context);
+                              navigateToAddSessionPage(book);
+                            },
                           ),
 
                           // Edit Button
@@ -449,8 +439,8 @@ class BookPopup {
                             label: 'Share',
                             color: Theme.of(context).colorScheme.onSurface,
                             onTap: () {
-                              // Navigator.pop(context);
-                              _showShareModal(context, book, stats, ratingStyle, dateRangeString);
+                              _showShareModal(
+                                  context, book, stats, ratingStyle, dateRangeString);
                             },
                           ),
 
@@ -461,8 +451,7 @@ class BookPopup {
                               children: [
                                 PopupMenuButton<String>(
                                   icon: Icon(Icons.more_vert,
-                                      color: Theme.of(context).colorScheme.onSurface,
-                                      size: 32), // Match icon size
+                                      color: Theme.of(context).colorScheme.onSurface, size: 32),
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12)),
                                   onSelected: (value) {
@@ -485,9 +474,13 @@ class BookPopup {
                                             size: 20,
                                             color: Theme.of(context).colorScheme.onSurface),
                                         title: Text('Duplicate',
-                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                  color: Theme.of(context).colorScheme.onSurface,
-                                                )),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(
+                                              color:
+                                              Theme.of(context).colorScheme.onSurface,
+                                            )),
                                       ),
                                     ),
                                     const PopupMenuDivider(),
@@ -495,16 +488,17 @@ class BookPopup {
                                       value: 'delete',
                                       child: ListTile(
                                         dense: true,
-                                        leading: Icon(Icons.delete, size: 20, color: Colors.red),
+                                        leading:
+                                        Icon(Icons.delete, size: 20, color: Colors.red),
                                         title: Text('Delete',
-                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                                  color: Colors.red,
-                                                )),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodyMedium
+                                                ?.copyWith(color: Colors.red)),
                                       ),
                                     ),
                                   ],
                                 ),
-                                // const SizedBox(height: 2),
                                 Text('More',
                                     style: TextStyle(
                                       fontSize: 14,
@@ -528,16 +522,13 @@ class BookPopup {
   }
 
   static void _showShareModal(
-    BuildContext context,
-    Map<String, dynamic> book,
-    Map<String, dynamic> stats,
-    int ratingStyle,
-    String? dateRangeString,
-  ) {
+      BuildContext context,
+      Map<String, dynamic> book,
+      Map<String, dynamic> stats,
+      int ratingStyle,
+      String? dateRangeString,
+      ) {
     final theme = Theme.of(context);
-    final mediaQuery = MediaQuery.of(context);
-    final screenHeight = mediaQuery.size.height;
-    final safeAreaBottom = mediaQuery.padding.bottom;
 
     Future<void> saveImage(ScreenshotController controller) async {
       try {
@@ -572,13 +563,11 @@ class BookPopup {
         final Uint8List? imageBytes = await controller.capture();
         if (imageBytes == null) return;
 
-        // Create a temporary file to share
         final directory = await getTemporaryDirectory();
         final imagePath = '${directory.path}/book_share_${book['id']}.png';
         final File imageFile = File(imagePath);
         await imageFile.writeAsBytes(imageBytes);
 
-        // Using ShareParams format
         await SharePlus.instance.share(
           ShareParams(
             files: [XFile(imagePath)],
@@ -597,14 +586,14 @@ class BookPopup {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)), // Match first modal
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
       builder: (context) {
         final ScreenshotController screenshotControllerMinimal = ScreenshotController();
         final ScreenshotController screenshotControllerCover = ScreenshotController();
         final CarouselSliderController carouselController = CarouselSliderController();
 
-        int currentPage = 0; // track active page
+        int currentPage = 0;
 
         return StatefulBuilder(
           builder: (context, setState) {
@@ -618,9 +607,8 @@ class BookPopup {
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min, // Crucial for proper sizing
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // draggable notch
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Container(
@@ -632,22 +620,22 @@ class BookPopup {
                         ),
                       ),
                     ),
-
                     Column(
                       children: [
                         CarouselSlider(
                           carouselController: carouselController,
                           options: CarouselOptions(
-                              height: 525,
-                              enlargeCenterPage: false,
-                              viewportFraction: 0.8,
-                              enableInfiniteScroll: false,
-                              onPageChanged: (index, reason) {
-                                setState(() {
-                                  currentPage = index;
-                                });
-                              },
-                              padEnds: true),
+                            height: 525,
+                            enlargeCenterPage: false,
+                            viewportFraction: 0.8,
+                            enableInfiniteScroll: false,
+                            onPageChanged: (index, reason) {
+                              setState(() {
+                                currentPage = index;
+                              });
+                            },
+                            padEnds: true,
+                          ),
                           items: [
                             Screenshot(
                               controller: screenshotControllerCover,
@@ -660,9 +648,9 @@ class BookPopup {
                                 daysToComplete: _calculateDaysToComplete(
                                     book['date_started'], book['date_finished']),
                                 pagesPerMinute:
-                                    (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
                                 wordsPerMinute:
-                                    (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
                                 totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
                                 dateRangeString: dateRangeString,
                                 allowCoverUpload: true,
@@ -679,9 +667,9 @@ class BookPopup {
                                 daysToComplete: _calculateDaysToComplete(
                                     book['date_started'], book['date_finished']),
                                 pagesPerMinute:
-                                    (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
                                 wordsPerMinute:
-                                    (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
+                                (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
                                 totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
                                 dateRangeString: dateRangeString,
                                 allowCoverUpload: false,
@@ -689,10 +677,7 @@ class BookPopup {
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 8),
-
-                        // Page indicator synced with Carousel
                         AnimatedSmoothIndicator(
                           activeIndex: currentPage,
                           count: 2,
@@ -708,14 +693,10 @@ class BookPopup {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 8),
-
-                    // ACTION BUTTONS
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        // Save
                         Column(
                           children: [
                             Container(
@@ -740,8 +721,6 @@ class BookPopup {
                             const Text("Save", style: TextStyle(fontSize: 12)),
                           ],
                         ),
-
-                        // Share
                         Column(
                           children: [
                             Container(
@@ -809,13 +788,31 @@ class BookPopup {
     final hours = remainingMinutes ~/ 60;
     final minutes = remainingMinutes % 60;
 
-    // Build time string
-    final timeString = hours > 0
-        ? "${hours}h ${minutes}m left"
-        : "${minutes}m left";
+    final timeString = hours > 0 ? "${hours}h ${minutes}m left" : "${minutes}m left";
 
-    // Include pages left if there are remaining pages
     return "$percentage% (${remainingPages}p, $timeString)";
+  }
+
+  static String _getAudiobookProgressCompact(
+      int timeListened,
+      int totalDuration,
+      ) {
+    if (totalDuration <= 0) return "";
+
+    final percentage =
+    ((timeListened / totalDuration) * 100).clamp(0, 100).toStringAsFixed(1);
+
+    if (timeListened >= totalDuration) {
+      return "$percentage% complete";
+    }
+
+    final remainingMinutes = totalDuration - timeListened;
+    final hours = remainingMinutes ~/ 60;
+    final minutes = remainingMinutes % 60;
+
+    final timeString = hours > 0 ? "${hours}h ${minutes}m left" : "${minutes}m left";
+
+    return "$percentage% ($timeString)";
   }
 
   static Widget _buildRatingStars(double? rating) {
@@ -866,8 +863,8 @@ class BookPopup {
             Text(
               value,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -900,10 +897,7 @@ class _PopupAction extends StatelessWidget {
         ),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 14,
-            color: color,
-          ),
+          style: TextStyle(fontSize: 14, color: color),
         ),
       ],
     );
