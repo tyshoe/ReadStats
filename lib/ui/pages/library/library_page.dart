@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:read_stats/ui/pages/library/widgets/book_grid.dart';
 import '../../../data/repositories/tag_repository.dart';
 import 'widgets/book_card.dart';
 import 'widgets/book_row.dart';
@@ -644,9 +645,14 @@ class _LibraryPageState extends State<LibraryPage> {
                               isSelected: [
                                 _libraryBookView == "row_expanded",
                                 _libraryBookView == "row_compact",
+                                _libraryBookView == "grid",
                               ],
                               onPressed: (index) {
-                                _toggleView(index == 0 ? "row_expanded" : "row_compact");
+                                _toggleView(index == 0
+                                    ? "row_expanded"
+                                    : index == 1
+                                    ? "row_compact"
+                                    : "grid");
                               },
                               constraints: const BoxConstraints(
                                 minHeight: 30,
@@ -659,11 +665,12 @@ class _LibraryPageState extends State<LibraryPage> {
                               children: const [
                                 Icon(Icons.density_medium, size: 16),
                                 Icon(Icons.density_small, size: 16),
+                                Icon(Icons.grid_view, size: 16),
                               ],
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.only(top: 16),
+                            padding: const EdgeInsets.only(top: 1),
                             child: Text(
                               '${_filteredBooks.length}/${widget.books.length}',
                               style: theme.textTheme.bodyLarge,
@@ -673,7 +680,45 @@ class _LibraryPageState extends State<LibraryPage> {
                       ),
                       Expanded(
                         child: Scrollbar(
-                          child: ListView.builder(
+                          child: Scrollbar(
+                            child: _libraryBookView == "grid"
+                                ? GridView.builder(
+                              padding: const EdgeInsets.only(top: 0),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                childAspectRatio: 0.58,
+                                crossAxisSpacing: 0,
+                                mainAxisSpacing: 0,
+                              ),
+                              itemCount: _filteredBooks.length,
+                              itemBuilder: (context, index) {
+                                final book = _filteredBooks[index];
+                                return GestureDetector(
+                                  onLongPress: () => _startSelection(book['id']),
+                                  onTap: () {
+                                    if (_selectionMode) {
+                                      _toggleSelection(book['id']);
+                                    } else {
+                                      _showBookPopup(context, book);
+                                    }
+                                  },
+                                  child: BookGridItem(
+                                    book: book,
+                                    onTap: () {
+                                      if (_selectionMode) {
+                                        _toggleSelection(book['id']);
+                                      } else {
+                                        _showBookPopup(context, book);
+                                      }
+                                    },
+                                    isPinned: _pinnedBookIds.contains(book['id']),
+                                    isSelected: _selectedBookIds.contains(book['id']),
+                                    selectionColor: theme.colorScheme.primary,
+                                  ),
+                                );
+                              },
+                            )
+                                : ListView.builder(
                             itemCount: _filteredBooks.length,
                             itemBuilder: (context, index) {
                               final book = _filteredBooks[index];
@@ -711,6 +756,7 @@ class _LibraryPageState extends State<LibraryPage> {
                             },
                           ),
                         ),
+                      ),
                       ),
                     ],
                   ),

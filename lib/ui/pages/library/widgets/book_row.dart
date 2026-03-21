@@ -87,7 +87,7 @@ class BookRow extends StatelessWidget {
     }
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       elevation: 0,
       color: isSelected ? selectionColor.withOpacity(0.45) : Theme.of(context).cardTheme.color,
       child: InkWell(
