@@ -728,19 +728,21 @@ class SettingsPage extends StatelessWidget {
           isFavorite: false,
           bookTypeId: getBookTypeIdFromBinding(binding ?? ''),
           dateAdded: parseGoodreadsDate(getString(cleanedRow, 'Date Added'))
-                  ?.toIso8601String()
-                  .split('T')[0] ??
+              ?.toIso8601String()
+              .split('T')[0] ??
               DateTime.now().toIso8601String().split('T')[0],
           dateStarted: isCompleted
               ? parseGoodreadsDate(getString(cleanedRow, 'Date Read'))
-                  ?.toIso8601String()
-                  .split('T')[0]
+              ?.toIso8601String()
+              .split('T')[0]
               : null,
           dateFinished: isCompleted
               ? parseGoodreadsDate(getString(cleanedRow, 'Date Read'))
-                  ?.toIso8601String()
-                  .split('T')[0]
+              ?.toIso8601String()
+              .split('T')[0]
               : null,
+          isbn: getString(cleanedRow, 'ISBN13'),
+          userReview: getString(cleanedRow, 'My Review'),
         );
 
         booksToInsert.add(book);
