@@ -6,6 +6,7 @@ import 'data/database/database_helper.dart';
 import 'data/repositories/book_repository.dart';
 import 'data/repositories/session_repository.dart';
 import 'data/repositories/tag_repository.dart';
+import 'data/services/import_export_service.dart';
 import 'ui/pages/library/library_page.dart';
 import 'ui/pages/settings/settings_page.dart';
 import 'ui/pages/sessions/sessions_page.dart';
@@ -18,7 +19,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppConfig.init();
 
-  // Initialize database and repositories
   final dbHelper = DatabaseHelper();
   await dbHelper.database;
 
@@ -26,7 +26,12 @@ void main() async {
   final sessionRepository = SessionRepository(dbHelper);
   final tagRepository = TagRepository(dbHelper);
 
-  // Load saved theme preference
+  final importExportService = ImportExportService(
+    bookRepository: bookRepository,
+    sessionRepository: sessionRepository,
+    tagRepository: tagRepository,
+  );
+
   final themeMode = await SettingsViewModel.loadSavedThemeMode();
 
   runApp(MyApp(
@@ -34,7 +39,8 @@ void main() async {
     themeMode: themeMode,
     bookRepository: bookRepository,
     sessionRepository: sessionRepository,
-    tagRepository: tagRepository
+    tagRepository: tagRepository,
+    importExportService: importExportService,
   ));
 }
 
@@ -44,6 +50,7 @@ class MyApp extends StatefulWidget {
   final BookRepository bookRepository;
   final SessionRepository sessionRepository;
   final TagRepository tagRepository;
+  final ImportExportService importExportService;
 
   const MyApp({
     super.key,
@@ -52,6 +59,7 @@ class MyApp extends StatefulWidget {
     required this.bookRepository,
     required this.sessionRepository,
     required this.tagRepository,
+    required this.importExportService,
   });
 
   @override
@@ -81,8 +89,6 @@ class _MyAppState extends State<MyApp> {
     final defaultDateFormat = await SettingsViewModel.getDefaultDateFormat();
     final selectedFont = await SettingsViewModel.getSelectedFont();
     final calendarMonthMode = await SettingsViewModel.getCalendarMonthMode();
-
-    // Library Filters
     final sortOption = await SettingsViewModel.getLibrarySortOption();
     final isAscending = await SettingsViewModel.getLibrarySortAscending();
     final bookTypes = await SettingsViewModel.getLibraryBookTypes();
@@ -118,7 +124,8 @@ class _MyAppState extends State<MyApp> {
       debugPrint(preferencesDebugMessage);
     }
 
-    _settingsViewModel = SettingsViewModel(
+    setState(() {
+      _settingsViewModel = SettingsViewModel(
         themeMode: widget.themeMode,
         accentColor: accentColor,
         defaultBookType: defaultBookType,
@@ -135,8 +142,9 @@ class _MyAppState extends State<MyApp> {
         isFavorite: isFavorite,
         finishedYears: finishedYears,
         tagFilterMode: tagFilterMode,
-        pinnedBookIds: pinnedBookIds
-    );
+        pinnedBookIds: pinnedBookIds,
+      );
+    });
   }
 
   Future<void> _loadBooks() async {
@@ -144,9 +152,7 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _books = books;
     });
-    if (kDebugMode) {
-      print('Books: $_books');
-    }
+    if (kDebugMode) print('Books: $_books');
   }
 
   Future<void> _addBook(Map<String, dynamic> book) async {
@@ -161,13 +167,8 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  Future<void> _refreshBooks() async {
-    await _loadBooks();
-  }
-
-  Future<void> _refreshSessions() async {
-    await _loadSessions();
-  }
+  Future<void> _refreshBooks() async => await _loadBooks();
+  Future<void> _refreshSessions() async => await _loadSessions();
 
   @override
   Widget build(BuildContext context) {
@@ -197,6 +198,7 @@ class _MyAppState extends State<MyApp> {
                     bookRepository: widget.bookRepository,
                     sessionRepository: widget.sessionRepository,
                     tagRepository: widget.tagRepository,
+                    importExportService: widget.importExportService,
                     settingsViewModel: _settingsViewModel,
                   ),
                 );
@@ -220,6 +222,7 @@ class NavigationMenu extends StatefulWidget {
   final BookRepository bookRepository;
   final SessionRepository sessionRepository;
   final TagRepository tagRepository;
+  final ImportExportService importExportService;
   final SettingsViewModel settingsViewModel;
 
   const NavigationMenu({
@@ -234,6 +237,7 @@ class NavigationMenu extends StatefulWidget {
     required this.bookRepository,
     required this.sessionRepository,
     required this.tagRepository,
+    required this.importExportService,
     required this.settingsViewModel,
   });
 
@@ -264,8 +268,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                      color: Theme.of(context)
-                          .dividerColor.withAlpha(128),
+                      color: Theme.of(context).dividerColor.withAlpha(128),
                       width: .25,
                     ),
                   ),
@@ -358,9 +361,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
         return SettingsPage(
           toggleTheme: widget.toggleTheme,
           themeMode: widget.themeMode,
-          bookRepository: widget.bookRepository,
-          sessionRepository: widget.sessionRepository,
-          tagRepository: widget.tagRepository,
+          importExportService: widget.importExportService,
           refreshBooks: widget.refreshBooks,
           refreshSessions: widget.refreshSessions,
           settingsViewModel: widget.settingsViewModel,
