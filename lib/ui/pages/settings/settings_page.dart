@@ -539,7 +539,7 @@ class SettingsPage extends StatelessWidget {
     List<Book> booksToInsert = [];
 
     for (var row in rows) {
-      if (row.length < 12) continue; // Skip invalid rows
+      if (row.length < 15) continue; // Skip invalid rows
 
       try {
         Book book = Book(
@@ -559,6 +559,12 @@ class SettingsPage extends StatelessWidget {
           dateFinished: row[11]?.toString().isNotEmpty == true
               ? parseAndFormatOptionalDate(row[11].toString())
               : null,
+          isbn: row.length > 12 ? row[12]?.toString() : null,
+          userReview: row.length > 13 ? row[13]?.toString() : null,
+          durationMinutes: row.length > 14 ? int.tryParse(row[14].toString()) ?? 0 : 0,
+          isDnf: row.length > 15
+              ? row[15] == 1 || row[15].toString().toLowerCase() == 'true'
+              : false,
         );
         booksToInsert.add(book);
       } catch (e) {
@@ -866,7 +872,11 @@ class SettingsPage extends StatelessWidget {
         'book_type_id',
         'date_added',
         'date_started',
-        'date_finished'
+        'date_finished',
+        'isbn',
+        'user_review',
+        'duration_minutes',
+        "is_dnf"
       ],
       ...booksData.map((book) => [
             book.id.toString(),
@@ -881,6 +891,10 @@ class SettingsPage extends StatelessWidget {
             book.dateAdded.toString(),
             book.dateStarted.toString(),
             book.dateFinished.toString(),
+            book.isbn.toString(),
+            book.userReview.toString(),
+            book.durationMinutes.toString(),
+            book.isDnf.toString()
           ])
     ];
 
