@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:read_stats/ui/pages/library/widgets/book_grid.dart';
 import '../../../data/repositories/tag_repository.dart';
+import 'widgets/bulk_tag_sheet.dart';
 import 'widgets/book_card.dart';
 import 'widgets/book_row.dart';
 import 'widgets/filter_sort_modal.dart';
@@ -154,6 +155,37 @@ class _LibraryPageState extends State<LibraryPage> {
           _selectedTagFilterMode);
     });
     widget.settingsViewModel.setPinnedBookIds(_pinnedBookIds.toList());
+    _clearSelection();
+  }
+
+  Future<void> _tagSelectedBooks() async {
+    final updatedCount = await showBulkTagSheet(
+      context: context,
+      selectedBookIds: _selectedBookIds.toList(),
+      tagRepository: TagRepository(DatabaseHelper()),
+    );
+
+    if (updatedCount == null || updatedCount == 0 || !mounted) return;
+
+    await _refreshTags();
+
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final bookWord = updatedCount == 1 ? 'book' : 'books';
+
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Tags updated for $updatedCount $bookWord'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
     _clearSelection();
   }
 
@@ -339,15 +371,12 @@ class _LibraryPageState extends State<LibraryPage> {
         .toList();
 
     return books.where((book) {
-      // Book type filter
       final typeMatch = selectedTypeIds.isEmpty ||
           (book['book_type_id'] != null && selectedTypeIds.contains(book['book_type_id']));
 
-      // Favorite filter
       final favoriteMatch =
           !isFavorite || (book['is_favorite'] != null && book['is_favorite'] == 1);
 
-      // Year filter
       bool yearMatch = finishedYears.isEmpty;
       if (!yearMatch && book['date_finished'] != null) {
         try {
@@ -358,7 +387,6 @@ class _LibraryPageState extends State<LibraryPage> {
         }
       }
 
-      // Enhanced tag filter with multiple modes
       bool tagMatch = selectedTags.isEmpty;
       if (!tagMatch) {
         final bookTags = _extractBookTags(book);
@@ -373,7 +401,7 @@ class _LibraryPageState extends State<LibraryPage> {
           case 'exclude':
             tagMatch = !selectedTags.any((tag) => bookTags.contains(tag));
             break;
-          default: // Default to 'any' if invalid mode
+          default:
             tagMatch = selectedTags.any((tag) => bookTags.contains(tag));
         }
       }
@@ -679,7 +707,6 @@ class _LibraryPageState extends State<LibraryPage> {
                         ],
                       ),
                       Expanded(
-                        child: Scrollbar(
                           child: Scrollbar(
                             child: _libraryBookView == "grid"
                                 ? GridView.builder(
@@ -719,31 +746,12 @@ class _LibraryPageState extends State<LibraryPage> {
                               },
                             )
                                 : ListView.builder(
-                            itemCount: _filteredBooks.length,
-                            itemBuilder: (context, index) {
-                              final book = _filteredBooks[index];
-                              final isSelected = _selectedBookIds.contains(book['id']);
-                              return GestureDetector(
-                                onLongPress: () => _startSelection(book['id']),
-                                onTap: () {
-                                  if (_selectionMode) {
-                                    _toggleSelection(book['id']);
-                                  } else {
-                                    _showBookPopup(context, book);
-                                  }
-                                },
-                                child: BookRow(
-                                  book: book,
-                                  textColor: theme.colorScheme.onSurface,
-                                  isCompactView: _libraryBookView == "row_compact",
-                                  showStars: widget.settingsViewModel
-                                      .defaultRatingStyleNotifier.value ==
-                                      0,
-                                  dateFormatString: widget
-                                      .settingsViewModel.defaultDateFormatNotifier.value,
-                                  isSelected: isSelected,
-                                  selectionColor: theme.colorScheme.primary,
-                                  isPinned: _pinnedBookIds.contains(book['id']),
+                              itemCount: _filteredBooks.length,
+                              itemBuilder: (context, index) {
+                                final book = _filteredBooks[index];
+                                final isSelected = _selectedBookIds.contains(book['id']);
+                                return GestureDetector(
+                                  onLongPress: () => _startSelection(book['id']),
                                   onTap: () {
                                     if (_selectionMode) {
                                       _toggleSelection(book['id']);
@@ -751,13 +759,31 @@ class _LibraryPageState extends State<LibraryPage> {
                                       _showBookPopup(context, book);
                                     }
                                   },
-                                ),
-                              );
-                            },
+                                  child: BookRow(
+                                    book: book,
+                                    textColor: theme.colorScheme.onSurface,
+                                    isCompactView: _libraryBookView == "row_compact",
+                                    showStars: widget.settingsViewModel
+                                        .defaultRatingStyleNotifier.value ==
+                                        0,
+                                    dateFormatString: widget
+                                        .settingsViewModel.defaultDateFormatNotifier.value,
+                                    isSelected: isSelected,
+                                    selectionColor: theme.colorScheme.primary,
+                                    isPinned: _pinnedBookIds.contains(book['id']),
+                                    onTap: () {
+                                      if (_selectionMode) {
+                                        _toggleSelection(book['id']);
+                                      } else {
+                                        _showBookPopup(context, book);
+                                      }
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ),
-                      ),
-                      ),
                     ],
                   ),
                 ),
@@ -771,6 +797,16 @@ class _LibraryPageState extends State<LibraryPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           FloatingActionButton(
+            heroTag: 'delete',
+            backgroundColor: Theme.of(context).colorScheme.error,
+            onPressed: _deleteSelectedBooks,
+            child: Icon(
+              Icons.delete,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
             heroTag: 'pin',
             backgroundColor: accentColor,
             onPressed: _pinSelectedBooks,
@@ -781,11 +817,11 @@ class _LibraryPageState extends State<LibraryPage> {
           ),
           const SizedBox(height: 16),
           FloatingActionButton(
-            heroTag: 'delete',
-            backgroundColor: Theme.of(context).colorScheme.error,
-            onPressed: _deleteSelectedBooks,
+            heroTag: 'tag',
+            backgroundColor: accentColor,
+            onPressed: _tagSelectedBooks,
             child: Icon(
-              Icons.delete,
+              Icons.sell,
               color: Theme.of(context).colorScheme.onPrimary,
             ),
           ),
