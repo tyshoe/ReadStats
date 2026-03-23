@@ -576,15 +576,51 @@ class _LibraryPageState extends State<LibraryPage> {
     _showBookPopup(context, randomBook);
   }
 
-  void _deleteSelectedBooks() {
-    //TODO: Change this to batch delete
-    for (final id in _selectedBookIds) {
-      _dbHelper.deleteBook(id);
-    }
+  Future<void> _deleteSelectedBooks() async {
+    final count = _selectedBookIds.length;
+    final bookWord = count == 1 ? 'book' : 'books';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete $count $bookWord?'),
+        content: const Text('This will also delete all sessions for these books. This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final bookRepository = BookRepository(DatabaseHelper());
+    await bookRepository.deleteBooksBatch(_selectedBookIds.toList());
 
     widget.refreshBooks();
-
     _clearSelection();
+
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('$count $bookWord deleted'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+          duration: const Duration(seconds: 2),
+        ),
+      );
   }
 
   @override

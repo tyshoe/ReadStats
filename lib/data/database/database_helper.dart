@@ -357,6 +357,16 @@ class DatabaseHelper {
     );
   }
 
+  Future<void> deleteBooksBatch(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final db = await database;
+    final placeholders = ids.map((_) => '?').join(', ');
+    await db.rawDelete(
+      'DELETE FROM books WHERE id IN ($placeholders)',
+      ids,
+    );
+  }
+
   Future<int> deleteAllBooks() async {
     final db = await database;
     return await db.delete('books');

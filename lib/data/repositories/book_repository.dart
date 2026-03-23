@@ -27,6 +27,10 @@ class BookRepository {
     return await _databaseHelper.deleteBook(id);
   }
 
+  Future<void> deleteBooksBatch(List<int> ids) async {
+    await _databaseHelper.deleteBooksBatch(ids);
+  }
+
   Future<int> deleteAllBooks() async {
     return await _databaseHelper.deleteAllBooks();
   }
