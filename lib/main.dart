@@ -68,6 +68,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late SettingsViewModel _settingsViewModel;
+  bool _isReady = false;
   List<Map<String, dynamic>> _books = [];
   List<Map<String, dynamic>> _sessions = [];
 
@@ -144,6 +145,7 @@ class _MyAppState extends State<MyApp> {
         tagFilterMode: tagFilterMode,
         pinnedBookIds: pinnedBookIds,
       );
+      _isReady = true;
     });
   }
 
@@ -172,6 +174,14 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_isReady) {
+      return const MaterialApp(
+        home: Scaffold(
+          body: SizedBox.shrink(),
+        ),
+      );
+    }
+
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: _settingsViewModel.themeModeNotifier,
       builder: (context, themeMode, _) {
