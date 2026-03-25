@@ -94,6 +94,7 @@ class _MyAppState extends State<MyApp> {
     final isAscending = await SettingsViewModel.getLibrarySortAscending();
     final bookTypes = await SettingsViewModel.getLibraryBookTypes();
     final isFavorite = await SettingsViewModel.getLibraryIsFavorite();
+    final isDnf = await SettingsViewModel.getLibraryIsDnf();
     final finishedYears = await SettingsViewModel.getLibraryFinishedYears();
     final tagFilterMode = await SettingsViewModel.getLibraryTagFilterMode();
     final pinnedBookIds = await SettingsViewModel.getPinnedBookIds();
@@ -141,6 +142,7 @@ class _MyAppState extends State<MyApp> {
         isAscending: isAscending,
         bookTypes: bookTypes,
         isFavorite: isFavorite,
+        isDnf: isDnf,
         finishedYears: finishedYears,
         tagFilterMode: tagFilterMode,
         pinnedBookIds: pinnedBookIds,

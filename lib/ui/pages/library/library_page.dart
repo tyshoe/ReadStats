@@ -44,6 +44,7 @@ class _LibraryPageState extends State<LibraryPage> {
   String _selectedSortOption = 'Date added';
   bool _isAscending = false;
   bool _isFavorite = false;
+  bool _isDnf = false;
   List<String> _selectedFinishedYears = [];
   List<String> _selectedBookTypes = [];
   List<String> _selectedTags = [];
@@ -66,6 +67,7 @@ class _LibraryPageState extends State<LibraryPage> {
     _isAscending = widget.settingsViewModel.isLibrarySortAscendingNotifier.value;
     _selectedBookTypes = widget.settingsViewModel.libraryBookTypeFilterNotifier.value;
     _isFavorite = widget.settingsViewModel.libraryFavoriteFilterNotifier.value;
+    _isDnf = widget.settingsViewModel.libraryDnfFilterNotifier.value;
     _libraryBookView = widget.settingsViewModel.libraryBookViewNotifier.value;
     _selectedFinishedYears = widget.settingsViewModel.libraryFinishedYearFilterNotifier.value;
     _selectedTagFilterMode = widget.settingsViewModel.libraryTagFilterModeNotifier.value;
@@ -77,6 +79,7 @@ class _LibraryPageState extends State<LibraryPage> {
       _isAscending,
       _selectedBookTypes,
       _isFavorite,
+      _isDnf,
       _selectedFinishedYears,
       _selectedTags,
       _selectedTagFilterMode,
@@ -95,6 +98,7 @@ class _LibraryPageState extends State<LibraryPage> {
             _isAscending,
             _selectedBookTypes,
             _isFavorite,
+            _isDnf,
             _selectedFinishedYears,
             _selectedTags,
             _selectedTagFilterMode);
@@ -150,6 +154,7 @@ class _LibraryPageState extends State<LibraryPage> {
           _isAscending,
           _selectedBookTypes,
           _isFavorite,
+          _isDnf,
           _selectedFinishedYears,
           _selectedTags,
           _selectedTagFilterMode);
@@ -217,6 +222,7 @@ class _LibraryPageState extends State<LibraryPage> {
             _isAscending,
             _selectedBookTypes,
             _isFavorite,
+            _isDnf,
             _selectedFinishedYears,
             _selectedTags,
             _selectedTagFilterMode);
@@ -334,16 +340,18 @@ class _LibraryPageState extends State<LibraryPage> {
       bool isAscending,
       List<String> selectedBookTypes,
       bool isFavorite,
+      bool isDnf,
       List<String> finishedYears,
       List<String> tags,
       String tagFilterMode) {
     List<Map<String, dynamic>> filteredBooks =
-    _filterBooks(books, selectedBookTypes, isFavorite, finishedYears, tags, tagFilterMode);
+    _filterBooks(books, selectedBookTypes, isFavorite, isDnf, finishedYears, tags, tagFilterMode);
 
     widget.settingsViewModel.setLibrarySortOption(selectedSortOption);
     widget.settingsViewModel.setLibrarySortAscending(isAscending);
     widget.settingsViewModel.setLibraryBookTypeFilter(selectedBookTypes);
     widget.settingsViewModel.setLibraryIsFavorite(isFavorite);
+    widget.settingsViewModel.setLibraryIsDnf(isDnf);
     widget.settingsViewModel.setLibraryFinishedYearFilter(finishedYears);
     widget.settingsViewModel.setLibraryTagFilterMode(tagFilterMode);
 
@@ -354,6 +362,7 @@ class _LibraryPageState extends State<LibraryPage> {
       List<Map<String, dynamic>> books,
       List<String> selectedBookTypes,
       bool isFavorite,
+      bool isDnf,
       List<String> finishedYears,
       List<String> selectedTags,
       String tagFilterMode,
@@ -376,6 +385,9 @@ class _LibraryPageState extends State<LibraryPage> {
 
       final favoriteMatch =
           !isFavorite || (book['is_favorite'] != null && book['is_favorite'] == 1);
+
+      final dnfMatch =
+          !isDnf || (book['is_dnf'] != null && book['is_dnf'] == 1);
 
       bool yearMatch = finishedYears.isEmpty;
       if (!yearMatch && book['date_finished'] != null) {
@@ -406,7 +418,7 @@ class _LibraryPageState extends State<LibraryPage> {
         }
       }
 
-      return typeMatch && favoriteMatch && yearMatch && tagMatch;
+      return typeMatch && favoriteMatch && dnfMatch && yearMatch && tagMatch;
     }).toList();
   }
 
@@ -487,6 +499,7 @@ class _LibraryPageState extends State<LibraryPage> {
         isAscending: _isAscending,
         bookTypes: _selectedBookTypes,
         isFavorite: _isFavorite,
+        isDnf: _isDnf,
         finishedYears: _selectedFinishedYears,
         tags: _selectedTags,
         tagFilterMode: _selectedTagFilterMode);
@@ -500,6 +513,7 @@ class _LibraryPageState extends State<LibraryPage> {
             _isAscending = newOptions.isAscending;
             _selectedBookTypes = newOptions.bookTypes;
             _isFavorite = newOptions.isFavorite;
+            _isDnf = newOptions.isDnf;
             _selectedFinishedYears = newOptions.finishedYears;
             _selectedTags = newOptions.tags;
             _selectedTagFilterMode = newOptions.tagFilterMode;
@@ -510,6 +524,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 _isAscending,
                 _selectedBookTypes,
                 _isFavorite,
+                _isDnf,
                 _selectedFinishedYears,
                 _selectedTags,
                 _selectedTagFilterMode);
@@ -743,83 +758,83 @@ class _LibraryPageState extends State<LibraryPage> {
                         ],
                       ),
                       Expanded(
-                          child: Scrollbar(
-                            child: _libraryBookView == "grid"
-                                ? GridView.builder(
-                              padding: const EdgeInsets.only(top: 0),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                childAspectRatio: 0.58,
-                                crossAxisSpacing: 0,
-                                mainAxisSpacing: 0,
-                              ),
-                              itemCount: _filteredBooks.length,
-                              itemBuilder: (context, index) {
-                                final book = _filteredBooks[index];
-                                return GestureDetector(
-                                  onLongPress: () => _startSelection(book['id']),
-                                  onTap: () {
-                                    if (_selectionMode) {
-                                      _toggleSelection(book['id']);
-                                    } else {
-                                      _showBookPopup(context, book);
-                                    }
-                                  },
-                                  child: BookGridItem(
-                                    book: book,
-                                    onTap: () {
-                                      if (_selectionMode) {
-                                        _toggleSelection(book['id']);
-                                      } else {
-                                        _showBookPopup(context, book);
-                                      }
-                                    },
-                                    isPinned: _pinnedBookIds.contains(book['id']),
-                                    isSelected: _selectedBookIds.contains(book['id']),
-                                    selectionColor: theme.colorScheme.primary,
-                                  ),
-                                );
-                              },
-                            )
-                                : ListView.builder(
-                              itemCount: _filteredBooks.length,
-                              itemBuilder: (context, index) {
-                                final book = _filteredBooks[index];
-                                final isSelected = _selectedBookIds.contains(book['id']);
-                                return GestureDetector(
-                                  onLongPress: () => _startSelection(book['id']),
-                                  onTap: () {
-                                    if (_selectionMode) {
-                                      _toggleSelection(book['id']);
-                                    } else {
-                                      _showBookPopup(context, book);
-                                    }
-                                  },
-                                  child: BookRow(
-                                    book: book,
-                                    textColor: theme.colorScheme.onSurface,
-                                    isCompactView: _libraryBookView == "row_compact",
-                                    showStars: widget.settingsViewModel
-                                        .defaultRatingStyleNotifier.value ==
-                                        0,
-                                    dateFormatString: widget
-                                        .settingsViewModel.defaultDateFormatNotifier.value,
-                                    isSelected: isSelected,
-                                    selectionColor: theme.colorScheme.primary,
-                                    isPinned: _pinnedBookIds.contains(book['id']),
-                                    onTap: () {
-                                      if (_selectionMode) {
-                                        _toggleSelection(book['id']);
-                                      } else {
-                                        _showBookPopup(context, book);
-                                      }
-                                    },
-                                  ),
-                                );
-                              },
+                        child: Scrollbar(
+                          child: _libraryBookView == "grid"
+                              ? GridView.builder(
+                            padding: const EdgeInsets.only(top: 0),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              childAspectRatio: 0.58,
+                              crossAxisSpacing: 0,
+                              mainAxisSpacing: 0,
                             ),
+                            itemCount: _filteredBooks.length,
+                            itemBuilder: (context, index) {
+                              final book = _filteredBooks[index];
+                              return GestureDetector(
+                                onLongPress: () => _startSelection(book['id']),
+                                onTap: () {
+                                  if (_selectionMode) {
+                                    _toggleSelection(book['id']);
+                                  } else {
+                                    _showBookPopup(context, book);
+                                  }
+                                },
+                                child: BookGridItem(
+                                  book: book,
+                                  onTap: () {
+                                    if (_selectionMode) {
+                                      _toggleSelection(book['id']);
+                                    } else {
+                                      _showBookPopup(context, book);
+                                    }
+                                  },
+                                  isPinned: _pinnedBookIds.contains(book['id']),
+                                  isSelected: _selectedBookIds.contains(book['id']),
+                                  selectionColor: theme.colorScheme.primary,
+                                ),
+                              );
+                            },
+                          )
+                              : ListView.builder(
+                            itemCount: _filteredBooks.length,
+                            itemBuilder: (context, index) {
+                              final book = _filteredBooks[index];
+                              final isSelected = _selectedBookIds.contains(book['id']);
+                              return GestureDetector(
+                                onLongPress: () => _startSelection(book['id']),
+                                onTap: () {
+                                  if (_selectionMode) {
+                                    _toggleSelection(book['id']);
+                                  } else {
+                                    _showBookPopup(context, book);
+                                  }
+                                },
+                                child: BookRow(
+                                  book: book,
+                                  textColor: theme.colorScheme.onSurface,
+                                  isCompactView: _libraryBookView == "row_compact",
+                                  showStars: widget.settingsViewModel
+                                      .defaultRatingStyleNotifier.value ==
+                                      0,
+                                  dateFormatString: widget
+                                      .settingsViewModel.defaultDateFormatNotifier.value,
+                                  isSelected: isSelected,
+                                  selectionColor: theme.colorScheme.primary,
+                                  isPinned: _pinnedBookIds.contains(book['id']),
+                                  onTap: () {
+                                    if (_selectionMode) {
+                                      _toggleSelection(book['id']);
+                                    } else {
+                                      _showBookPopup(context, book);
+                                    }
+                                  },
+                                ),
+                              );
+                            },
                           ),
                         ),
+                      ),
                     ],
                   ),
                 ),

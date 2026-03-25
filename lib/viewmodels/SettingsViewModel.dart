@@ -18,6 +18,7 @@ class SettingsViewModel {
   final ValueNotifier<bool> isLibrarySortAscendingNotifier;
   final ValueNotifier<List<String>> libraryBookTypeFilterNotifier;
   final ValueNotifier<bool> libraryFavoriteFilterNotifier;
+  final ValueNotifier<bool> libraryDnfFilterNotifier;
   final ValueNotifier<List<String>> libraryFinishedYearFilterNotifier;
   final ValueNotifier<String> libraryTagFilterModeNotifier;
   // Pinned Books
@@ -38,6 +39,7 @@ class SettingsViewModel {
     required bool isAscending,
     required List<String> bookTypes,
     required bool isFavorite,
+    required bool isDnf,
     required List<String> finishedYears,
     required String tagFilterMode,
     required List<int> pinnedBookIds,
@@ -56,6 +58,7 @@ class SettingsViewModel {
         isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
         libraryBookTypeFilterNotifier = ValueNotifier(bookTypes),
         libraryFavoriteFilterNotifier = ValueNotifier(isFavorite),
+        libraryDnfFilterNotifier = ValueNotifier(isDnf),
         libraryFinishedYearFilterNotifier = ValueNotifier(finishedYears),
         pinnedBookIdsNotifier = ValueNotifier(pinnedBookIds);
 
@@ -145,6 +148,17 @@ class SettingsViewModel {
   static Future<bool> getLibraryIsFavorite() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getBool('libraryIsFavorite') ?? false;
+  }
+
+  Future<void> setLibraryIsDnf(bool isDnf) async {
+    libraryDnfFilterNotifier.value = isDnf;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool('libraryIsDnf', isDnf);
+  }
+
+  static Future<bool> getLibraryIsDnf() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('libraryIsDnf') ?? false;
   }
 
   // Save book format filter

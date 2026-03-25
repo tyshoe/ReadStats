@@ -7,6 +7,7 @@ class SortFilterOptions {
   final bool isAscending;
   final List<String> bookTypes;
   final bool isFavorite;
+  final bool isDnf;
   final List<String> finishedYears;
   final List<String> tags;
   final String tagFilterMode;
@@ -16,6 +17,7 @@ class SortFilterOptions {
     required this.isAscending,
     required this.bookTypes,
     required this.isFavorite,
+    this.isDnf = false,
     this.finishedYears = const [],
     this.tags = const [],
     this.tagFilterMode = 'any',
@@ -26,6 +28,7 @@ class SortFilterOptions {
     bool? isAscending,
     List<String>? bookTypes,
     bool? isFavorite,
+    bool? isDnf,
     List<String>? finishedYears,
     List<String>? tags,
     String? tagFilterMode,
@@ -35,6 +38,7 @@ class SortFilterOptions {
       isAscending: isAscending ?? this.isAscending,
       bookTypes: bookTypes ?? this.bookTypes,
       isFavorite: isFavorite ?? this.isFavorite,
+      isDnf: isDnf ?? this.isDnf,
       finishedYears: finishedYears ?? this.finishedYears,
       tags: tags ?? this.tags,
       tagFilterMode: tagFilterMode ?? this.tagFilterMode,
@@ -117,6 +121,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
         isAscending: currentOptions.isAscending,
         bookTypes: [],
         isFavorite: false,
+        isDnf: false,
         finishedYears: [],
         tags: [],
         tagFilterMode: 'any',
@@ -130,8 +135,8 @@ class _SortFilterViewState extends State<_SortFilterView> {
       child: Text(
         title,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -330,6 +335,10 @@ class _SortFilterViewState extends State<_SortFilterView> {
       count += 1;
     }
 
+    if (currentOptions.isDnf) {
+      count += 1;
+    }
+
     if (currentOptions.finishedYears.isNotEmpty) {
       count += 1;
     }
@@ -405,7 +414,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
                       _buildFilterChips(
                         options: ['All', ...bookTypes],
                         selected:
-                            currentOptions.bookTypes.isEmpty ? ['All'] : currentOptions.bookTypes,
+                        currentOptions.bookTypes.isEmpty ? ['All'] : currentOptions.bookTypes,
                         onChanged: (selected) {
                           setState(() {
                             currentOptions = currentOptions.copyWith(
@@ -416,43 +425,85 @@ class _SortFilterViewState extends State<_SortFilterView> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Favorites Filter
-                      _buildSectionHeader('Favorites'),
-                      FilterChip(
-                        label: Text(
-                          'Favorites',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      // Status Filter
+                      _buildSectionHeader('Status'),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 0,
+                        children: [
+                          FilterChip(
+                            label: Text(
+                              'Favorites',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: currentOptions.isFavorite
                                     ? Theme.of(context).colorScheme.onPrimaryContainer
                                     : Theme.of(context).colorScheme.onSurface,
                               ),
-                        ),
-                        selected: currentOptions.isFavorite,
-                        onSelected: (value) {
-                          setState(() {
-                            currentOptions = currentOptions.copyWith(isFavorite: value);
-                          });
-                        },
-                        avatar: Icon(
-                          Icons.favorite,
-                          color: currentOptions.isFavorite
-                              ? Colors.red
-                              : Theme.of(context).colorScheme.onSurface.withAlpha(153),
-                          size: 20,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(
-                            color: currentOptions.isFavorite
-                                ? Colors.transparent
-                                : Theme.of(context).colorScheme.outline,
-                            width: 1,
+                            ),
+                            selected: currentOptions.isFavorite,
+                            onSelected: (value) {
+                              setState(() {
+                                currentOptions = currentOptions.copyWith(isFavorite: value);
+                              });
+                            },
+                            avatar: Icon(
+                              Icons.favorite,
+                              color: currentOptions.isFavorite
+                                  ? Colors.red
+                                  : Theme.of(context).colorScheme.onSurface.withAlpha(153),
+                              size: 20,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: BorderSide(
+                                color: currentOptions.isFavorite
+                                    ? Colors.transparent
+                                    : Theme.of(context).colorScheme.outline,
+                                width: 1,
+                              ),
+                            ),
+                            selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            labelPadding: const EdgeInsets.only(right: 8),
+                            showCheckmark: false,
                           ),
-                        ),
-                        selectedColor: Theme.of(context).colorScheme.primaryContainer,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        labelPadding: const EdgeInsets.only(right: 8),
-                        showCheckmark: false,
+                          FilterChip(
+                            label: Text(
+                              'Did Not Finish',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: currentOptions.isDnf
+                                    ? Theme.of(context).colorScheme.onPrimaryContainer
+                                    : Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            selected: currentOptions.isDnf,
+                            onSelected: (value) {
+                              setState(() {
+                                currentOptions = currentOptions.copyWith(isDnf: value);
+                              });
+                            },
+                            avatar: Icon(
+                              Icons.not_interested,
+                              color: currentOptions.isDnf
+                                  ? Theme.of(context).colorScheme.onPrimaryContainer
+                                  : Theme.of(context).colorScheme.onSurface.withAlpha(153),
+                              size: 20,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: BorderSide(
+                                color: currentOptions.isDnf
+                                    ? Colors.transparent
+                                    : Theme.of(context).colorScheme.outline,
+                                width: 1,
+                              ),
+                            ),
+                            selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            labelPadding: const EdgeInsets.only(right: 8),
+                            showCheckmark: false,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 20),
 
