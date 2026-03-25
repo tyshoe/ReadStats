@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:read_stats/ui/pages/tag_selector_page.dart';
+import 'package:read_stats/ui/pages/library/widgets/book_tag_editor_page.dart';
 import '../../../data/database/database_helper.dart';
 import '../../../data/models/book.dart';
 import '../../../data/models/tag.dart';
