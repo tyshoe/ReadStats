@@ -14,8 +14,11 @@ class BookRepository {
     await _databaseHelper.addBooksBatch(books);
   }
 
-  Future<List<Book>> getBooks({int yearFilter = 0}) async {
-    final booksMap = await _databaseHelper.getBooks(yearFilter: yearFilter);
+  Future<List<Book>> getBooks({int yearFilter = 0, int? shelfId}) async {
+    final booksMap = await _databaseHelper.getBooks(
+      yearFilter: yearFilter,
+      shelfId: shelfId,
+    );
     return booksMap.map((map) => Book.fromMap(map)).toList();
   }
 
@@ -60,11 +63,12 @@ class BookRepository {
   }
 
   Future<void> updateBookDates(
-    int bookId, {
-    required bool isFirstSession,
-    required bool isFinalSession,
-    required DateTime sessionDate,
-  }) async {
+      int bookId, {
+        required bool isFirstSession,
+        required bool isFinalSession,
+        required DateTime sessionDate,
+        int? finishedShelfId,
+      }) async {
     final updates = <String, dynamic>{};
 
     if (isFirstSession) {
@@ -74,6 +78,10 @@ class BookRepository {
     if (isFinalSession) {
       updates['date_finished'] = sessionDate.toIso8601String();
       updates['is_completed'] = 1;
+      // Move to Finished shelf if caller provides its id, otherwise look it up
+      if (finishedShelfId != null) {
+        updates['shelf_id'] = finishedShelfId;
+      }
     }
 
     if (updates.isNotEmpty) {
@@ -89,19 +97,37 @@ class BookRepository {
     return books.isNotEmpty;
   }
 
-  // Add to BookRepository class
   Future<List<String>> getAuthorSuggestions(String query) async {
     return await _databaseHelper.getAuthorSuggestions(query);
   }
 
-  // In your BookRepository class
   Future<void> toggleFavoriteStatus(int bookId, bool isFavorite) async {
     await _databaseHelper.updateBookFavoriteStatus(bookId, isFavorite ? 1 : 0);
   }
 
-  Future<void> toggleDnfStatus(int bookId, bool isDnf) async {
-    await _databaseHelper.updateBookDnfStatus(bookId, isDnf ? 1 : 0);
+  Future<void> updateBookShelf(int bookId, int shelfId) async {
+    await _databaseHelper.updateBookShelf(bookId, shelfId);
   }
 
+  // --- Shelf passthrough ---
 
+  Future<List<Map<String, dynamic>>> getShelves() async {
+    return await _databaseHelper.getShelves();
+  }
+
+  Future<int> insertShelf(Map<String, dynamic> shelf) async {
+    return await _databaseHelper.insertShelf(shelf);
+  }
+
+  Future<int> updateShelf(Map<String, dynamic> shelf) async {
+    return await _databaseHelper.updateShelf(shelf);
+  }
+
+  Future<void> deleteShelf(int shelfId) async {
+    await _databaseHelper.deleteShelf(shelfId);
+  }
+
+  Future<void> updateShelfSortOrders(List<Map<String, dynamic>> shelves) async {
+    await _databaseHelper.updateShelfSortOrders(shelves);
+  }
 }

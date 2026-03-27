@@ -1,7 +1,8 @@
+import 'package:read_stats/data/database/database_helper.dart';
 import 'package:read_stats/data/models/tag.dart';
 
 class Book {
-  int? id; // Nullable because it's auto-generated
+  int? id;
   String title;
   String author;
   int wordCount;
@@ -17,7 +18,9 @@ class Book {
   String? isbn;
   String? userReview;
   int durationMinutes;
-  bool isDnf;
+  int shelfId;
+  // Denormalized from JOIN — populated when loaded from DB, not written back
+  final String? shelfName;
 
   Book({
     this.id,
@@ -32,14 +35,16 @@ class Book {
     required this.dateAdded,
     this.dateStarted,
     this.dateFinished,
-    this.tags = const [], // Initialize empty list by default
+    this.tags = const [],
     this.isbn,
     this.userReview,
     this.durationMinutes = 0,
-    this.isDnf = false,
+    this.shelfId = DatabaseHelper.shelfWantToRead,
+    this.shelfName,
   });
 
-  // Convert a Book object into a Map for database operations
+  /// Convert to Map for database writes.
+  /// shelfKey / shelfName are read-only JOIN fields — excluded from writes.
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -57,50 +62,37 @@ class Book {
       'isbn': isbn,
       'user_review': userReview,
       'duration_minutes': durationMinutes,
-      'is_dnf': isDnf ? 1 : 0,
-      // Note: tags are not included here as they're stored separately
+      'shelf_id': shelfId,
+      // tags stored separately in book_tags
     };
   }
 
-  // Create a Book object from a Map (retrieved from database)
   factory Book.fromMap(Map<String, dynamic> map) {
     return Book(
       id: map['id'],
-      title: map['title'] ?? '', // Ensure non-null string
-      author: map['author'] ?? '', // Ensure non-null string
+      title: map['title'] ?? '',
+      author: map['author'] ?? '',
       wordCount: (map['word_count'] as int?) ?? 0,
       pageCount: (map['page_count'] as int?) ?? 0,
-        rating: map['rating'] != null ? (map['rating'] as num).toDouble() : null,
-        isCompleted: (map['is_completed'] as int?) == 1,
+      rating: map['rating'] != null ? (map['rating'] as num).toDouble() : null,
+      isCompleted: (map['is_completed'] as int?) == 1,
       isFavorite: (map['is_favorite'] as int?) == 1,
-      bookTypeId: (map['book_type_id'] as int?) ?? 1, // Default value
+      bookTypeId: (map['book_type_id'] as int?) ?? 1,
       dateAdded: map['date_added'] ?? DateTime.now().toIso8601String(),
       dateStarted: map['date_started'],
       dateFinished: map['date_finished'],
       isbn: map['isbn'],
       userReview: map['user_review'],
       durationMinutes: (map['duration_minutes'] as int?) ?? 0,
-      isDnf: (map['is_dnf'] as int?) == 1,
+      shelfId: (map['shelf_id'] as int?) ?? DatabaseHelper.shelfWantToRead,
+      shelfName: map['shelf_name'] as String?,
     );
   }
 
-  // Helper method to add a tag
-  void addTag(Tag tag) {
-    tags.add(tag);
-  }
-
-  // Helper method to remove a tag
-  void removeTag(Tag tag) {
-    tags.remove(tag);
-  }
-
-  // Helper method to check if book has a specific tag
-  bool hasTag(Tag tag) {
-    return tags.any((t) => t.id == tag.id);
-  }
+  void addTag(Tag tag) => tags.add(tag);
+  void removeTag(Tag tag) => tags.remove(tag);
+  bool hasTag(Tag tag) => tags.any((t) => t.id == tag.id);
 
   @override
-  String toString() {
-    return 'Book(id: $id, title: $title, tags: ${tags.length})';
-  }
+  String toString() => 'Book(id: $id, title: $title, shelfId: $shelfId, tags: ${tags.length})';
 }

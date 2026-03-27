@@ -37,9 +37,9 @@ class _BookFormPageState extends State<BookFormPage> {
   final TextEditingController _userReviewController = TextEditingController();
   final DateTime _dateToday = DateTime.now();
   double? _rating;
-  bool _isCompleted = false;
   bool _isFavorite = false;
-  bool _isDnf = false;
+  int _shelfId = 1; // Default: "Want to Read"
+  List<Map<String, dynamic>> _shelves = [];
   int _selectedBookType = 0;
   int _durationMinutes = 0;
   DateTime? _dateStarted;
@@ -54,6 +54,7 @@ class _BookFormPageState extends State<BookFormPage> {
     super.initState();
     _useStarRating = widget.settingsViewModel.defaultRatingStyleNotifier.value == 0;
     _selectedBookType = widget.settingsViewModel.defaultBookTypeNotifier.value - 1;
+    _loadShelves();
 
     if (widget.isEditing) {
       _titleController.text = widget.book!['title'];
@@ -62,9 +63,8 @@ class _BookFormPageState extends State<BookFormPage> {
       _pageCountController.text = widget.book!['page_count'].toString();
       _rating = widget.book!['rating']?.toDouble();
       _ratingController.text = _rating?.toStringAsFixed(2) ?? '';
-      _isCompleted = widget.book!['is_completed'] == 1;
+      _shelfId = (widget.book!['shelf_id'] as int?) ?? 1;
       _isFavorite = widget.book!['is_favorite'] == 1;
-      _isDnf = widget.book!['is_dnf'] == 1;
       _selectedBookType = widget.book!['book_type_id'] - 1;
       _durationMinutes = (widget.book!['duration_minutes'] as int?) ?? 0;
       _isbnController.text = widget.book!['isbn'] ?? '';
@@ -76,6 +76,20 @@ class _BookFormPageState extends State<BookFormPage> {
           ? DateTime.parse(widget.book!['date_finished'])
           : null;
       _loadExistingTags();
+    }
+  }
+
+  Future<void> _loadShelves() async {
+    final shelves = await DatabaseHelper().getShelves();
+    if (mounted) {
+      setState(() {
+        _shelves = shelves;
+        // Guard: if current shelfId isn't in the loaded list, fall back to first
+        if (_shelves.isNotEmpty &&
+            !_shelves.any((s) => s['id'] == _shelfId)) {
+          _shelfId = DatabaseHelper.shelfWantToRead;
+        }
+      });
     }
   }
 
@@ -280,6 +294,8 @@ class _BookFormPageState extends State<BookFormPage> {
       }
     }
 
+    const finishedShelfId = DatabaseHelper.shelfFinished;
+
     final bookData = {
       if (widget.isEditing && widget.book!['id'] != null) "id": widget.book!['id'],
       "title": title,
@@ -287,9 +303,9 @@ class _BookFormPageState extends State<BookFormPage> {
       "word_count": wordCount,
       "page_count": pageCount,
       "rating": _rating?.toDouble(),
-      "is_completed": _isCompleted ? 1 : 0,
+      "is_completed": _shelfId == finishedShelfId ? 1 : 0,
       "is_favorite": _isFavorite ? 1 : 0,
-      "is_dnf": _isDnf ? 1 : 0,
+      "shelf_id": _shelfId,
       "book_type_id": _selectedBookType + 1,
       "date_started": _dateStarted?.toIso8601String(),
       "date_finished": _dateFinished?.toIso8601String(),
@@ -377,9 +393,8 @@ class _BookFormPageState extends State<BookFormPage> {
     _userReviewController.clear();
     setState(() {
       _rating = 0;
-      _isCompleted = false;
       _isFavorite = false;
-      _isDnf = false;
+      _shelfId = DatabaseHelper.shelfWantToRead;
       _durationMinutes = 0;
       _selectedBookType = widget.settingsViewModel.defaultBookTypeNotifier.value - 1;
       _dateStarted = null;
@@ -417,7 +432,7 @@ class _BookFormPageState extends State<BookFormPage> {
   void _clearFinishDate() {
     setState(() {
       _dateFinished = null;
-      _isCompleted = false;
+      // _isCompleted = false;
     });
   }
 
@@ -443,9 +458,13 @@ class _BookFormPageState extends State<BookFormPage> {
           if (_dateFinished != null && _dateFinished!.isBefore(picked)) {
             _dateFinished = null;
           }
+          // Auto-advance to Currently Reading only if currently on Want to Read
+          if (_shelfId == DatabaseHelper.shelfWantToRead) {
+            _shelfId = DatabaseHelper.shelfCurrentlyReading;
+          }
         } else {
           _dateFinished = picked;
-          _isCompleted = true;
+          _shelfId = DatabaseHelper.shelfFinished;
         }
       });
     }
@@ -834,6 +853,35 @@ class _BookFormPageState extends State<BookFormPage> {
 
             const Divider(height: 32),
 
+            // Shelf selector
+            if (_shelves.isNotEmpty) ...[
+              DropdownButtonFormField<int>(
+                value: _shelfId,
+                style: theme.textTheme.bodyLarge,
+                decoration: InputDecoration(
+                  labelText: 'Shelf',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                ),
+                items: _shelves.map((shelf) {
+                  return DropdownMenuItem<int>(
+                    value: shelf['id'] as int,
+                    child: Text(shelf['name'] as String),
+                  );
+                }).toList(),
+                onChanged: (int? newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      _shelfId = newValue;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+
             // Date Selection
             Row(
               children: [
@@ -1003,20 +1051,6 @@ class _BookFormPageState extends State<BookFormPage> {
               onTapOutside: (event) {
                 FocusManager.instance.primaryFocus?.unfocus();
               },
-            ),
-            const SizedBox(height: 8),
-
-            // DNF Switch
-            SwitchListTile(
-              title: const Text('Did Not Finish'),
-              subtitle: const Text('Mark this book as DNF'),
-              value: _isDnf,
-              onChanged: (value) {
-                setState(() {
-                  _isDnf = value;
-                });
-              },
-              contentPadding: EdgeInsets.zero,
             ),
             const SizedBox(height: 8),
 

@@ -11,6 +11,13 @@ class DatabaseHelper {
 
   static const int _databaseVersion = 2;
 
+  // System shelf IDs — stable because shelves are seeded in a fixed order
+  // and only exist from v2 onwards (v1 had no shelves).
+  static const int shelfCurrentlyReading = 1;
+  static const int shelfWantToRead       = 2;
+  static const int shelfFinished         = 3;
+  static const int shelfUnfinished       = 4;
+
   factory DatabaseHelper() {
     return _instance;
   }
@@ -55,6 +62,21 @@ class DatabaseHelper {
       ''');
 
     await db.execute('''
+      CREATE TABLE shelves(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        is_system INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
+    // Seed the 4 system shelves — IDs 1–4 are fixed constants (see shelfXxx above)
+    await db.insert('shelves', {'name': 'Currently Reading', 'is_system': 1, 'sort_order': 0});
+    await db.insert('shelves', {'name': 'Want to Read',      'is_system': 1, 'sort_order': 1});
+    await db.insert('shelves', {'name': 'Finished',          'is_system': 1, 'sort_order': 2});
+    await db.insert('shelves', {'name': 'Unfinished',        'is_system': 1, 'sort_order': 3});
+
+    await db.execute('''
       CREATE TABLE books(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT,
@@ -68,11 +90,12 @@ class DatabaseHelper {
         date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
         date_started DATETIME,
         date_finished DATETIME,
-        FOREIGN KEY(book_type_id) REFERENCES book_types(id),
         isbn TEXT,
         user_review TEXT,
         duration_minutes INTEGER DEFAULT 0,
-        is_dnf INTEGER DEFAULT 0,
+        shelf_id INTEGER NOT NULL DEFAULT 1,
+        FOREIGN KEY(book_type_id) REFERENCES book_types(id),
+        FOREIGN KEY(shelf_id) REFERENCES shelves(id)
       )
     ''');
 
@@ -109,6 +132,16 @@ class DatabaseHelper {
     await db.insert('book_types', {'name': 'Hardback'});
     await db.insert('book_types', {'name': 'EBook'});
     await db.insert('book_types', {'name': 'Audiobook'});
+
+    await db.execute('''
+      CREATE TABLE planner_books(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        book_id INTEGER NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        date_added TEXT NOT NULL,
+        FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -117,11 +150,81 @@ class DatabaseHelper {
     }
 
     if (oldVersion < 2) {
+      // Add new columns to books
       await db.execute('ALTER TABLE books ADD COLUMN isbn TEXT');
       await db.execute('ALTER TABLE books ADD COLUMN user_review TEXT');
       await db.execute('ALTER TABLE books ADD COLUMN duration_minutes INTEGER DEFAULT 0');
-      await db.execute('ALTER TABLE books ADD COLUMN is_dnf INTEGER DEFAULT 0');
+
+      // Create shelves table and seed system shelves
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS shelves(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          is_system INTEGER NOT NULL DEFAULT 0,
+          sort_order INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+      await db.insert('shelves', {'name': 'Currently Reading', 'is_system': 1, 'sort_order': 0});
+      await db.insert('shelves', {'name': 'Want to Read',      'is_system': 1, 'sort_order': 1});
+      await db.insert('shelves', {'name': 'Finished',          'is_system': 1, 'sort_order': 2});
+      await db.insert('shelves', {'name': 'Unfinished',        'is_system': 1, 'sort_order': 3});
+
+      // Rebuild books table to add shelf_id
+      await db.execute('''
+        CREATE TABLE books_new(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT,
+          author TEXT,
+          word_count INTEGER DEFAULT 0,
+          page_count INTEGER DEFAULT 0,
+          rating REAL DEFAULT NULL,
+          is_completed INTEGER DEFAULT 0,
+          is_favorite INTEGER DEFAULT 0,
+          book_type_id INTEGER,
+          date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
+          date_started DATETIME,
+          date_finished DATETIME,
+          isbn TEXT,
+          user_review TEXT,
+          duration_minutes INTEGER DEFAULT 0,
+          shelf_id INTEGER NOT NULL DEFAULT 2,
+          FOREIGN KEY(book_type_id) REFERENCES book_types(id),
+          FOREIGN KEY(shelf_id) REFERENCES shelves(id)
+        )
+      ''');
+
+      // Backfill shelf from legacy is_completed / date_started flags
+      // 1=Currently Reading, 2=Want to Read, 3=Finished, 4=Unfinished
+      await db.execute('''
+        INSERT INTO books_new
+          SELECT
+            b.id, b.title, b.author, b.word_count, b.page_count,
+            b.rating, b.is_completed, b.is_favorite, b.book_type_id,
+            b.date_added, b.date_started, b.date_finished,
+            b.isbn, b.user_review, b.duration_minutes,
+            CASE
+              WHEN b.is_completed = 1 THEN 3
+              WHEN b.date_started IS NOT NULL THEN 1
+              ELSE 2
+            END
+          FROM books b
+      ''');
+
+      await db.execute('DROP TABLE books');
+      await db.execute('ALTER TABLE books_new RENAME TO books');
+
+      // Create planner list
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS planner_books(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          book_id INTEGER NOT NULL,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          date_added TEXT NOT NULL,
+          FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
+        )
+      ''');
     }
+
   }
 
   Future<void> printDatabaseVersion() async {
@@ -275,11 +378,12 @@ class DatabaseHelper {
 
   Future<Map<String, dynamic>?> getBookById(int bookId) async {
     final db = await database;
-    List<Map<String, dynamic>> result = await db.query(
-      'books',
-      where: 'id = ?',
-      whereArgs: [bookId],
-    );
+    final result = await db.rawQuery('''
+      SELECT b.*, s.name as shelf_name
+      FROM books b
+      LEFT JOIN shelves s ON b.shelf_id = s.id
+      WHERE b.id = ?
+    ''', [bookId]);
 
     if (result.isNotEmpty) {
       return result.first;
@@ -295,30 +399,35 @@ class DatabaseHelper {
     return await db.insert('books', book);
   }
 
-  Future<List<Map<String, dynamic>>> getBooks({int yearFilter = 0}) async {
+  Future<List<Map<String, dynamic>>> getBooks({int yearFilter = 0, int? shelfId}) async {
     try {
       final db = await database;
 
-      // Base query
-      String query = '''
-    SELECT * FROM books
-    ''';
+      final List<String> conditions = [];
+      final List<dynamic> arguments = [];
 
       if (yearFilter != 0) {
-        // Apply the year filter to the date_finished field
-        query += '''
-      WHERE strftime('%Y', date_finished) = ? 
-      ''';
+        conditions.add("strftime('%Y', b.date_finished) = ?");
+        arguments.add(yearFilter.toString());
       }
 
-      // Append ordering of the results (you can adjust this as needed)
-      query += 'ORDER BY date_finished DESC';
+      if (shelfId != null) {
+        conditions.add('b.shelf_id = ?');
+        arguments.add(shelfId);
+      }
 
-      // Prepare the arguments.
-      List<dynamic> arguments = yearFilter != 0 ? [yearFilter.toString()] : [];
+      String query = '''
+        SELECT b.*, s.name as shelf_name
+        FROM books b
+        LEFT JOIN shelves s ON b.shelf_id = s.id
+      ''';
+
+      if (conditions.isNotEmpty) {
+        query += ' WHERE ${conditions.join(' AND ')}';
+      }
+      query += ' ORDER BY b.date_finished DESC';
 
       final result = await db.rawQuery(query, arguments);
-
       return result;
     } catch (e) {
       if (kDebugMode) {
@@ -713,13 +822,105 @@ class DatabaseHelper {
     return result.map((row) => Tag.fromMap(row)).toList();
   }
 
-  Future<void> updateBookDnfStatus(int bookId, int isDnf) async {
+  Future<void> updateBookShelf(int bookId, int shelfId) async {
     final db = await database;
     await db.update(
       'books',
-      {'is_dnf': isDnf},
+      {'shelf_id': shelfId},
       where: 'id = ?',
       whereArgs: [bookId],
     );
+  }
+
+  // --- Shelf CRUD ---
+
+  Future<List<Map<String, dynamic>>> getShelves() async {
+    final db = await database;
+    return await db.query('shelves', orderBy: 'sort_order ASC');
+  }
+
+  Future<int> insertShelf(Map<String, dynamic> shelf) async {
+    final db = await database;
+    return await db.insert('shelves', shelf);
+  }
+
+  Future<int> updateShelf(Map<String, dynamic> shelf) async {
+    final db = await database;
+    return await db.update(
+      'shelves',
+      shelf,
+      where: 'id = ?',
+      whereArgs: [shelf['id']],
+    );
+  }
+
+  /// Only non-system shelves can be deleted. Books on a deleted shelf
+  /// are moved to "Want to Read" (id = 1, the first seeded shelf).
+  Future<void> deleteShelf(int shelfId) async {
+    final db = await database;
+    final rows = await db.query('shelves',
+        where: 'id = ?', whereArgs: [shelfId], limit: 1);
+    if (rows.isEmpty || rows.first['is_system'] == 1) return;
+
+    const fallbackId = DatabaseHelper.shelfWantToRead;
+
+    await db.update('books', {'shelf_id': fallbackId},
+        where: 'shelf_id = ?', whereArgs: [shelfId]);
+    await db.delete('shelves', where: 'id = ?', whereArgs: [shelfId]);
+  }
+
+  Future<void> updateShelfSortOrders(List<Map<String, dynamic>> shelves) async {
+    final db = await database;
+    final batch = db.batch();
+    for (final shelf in shelves) {
+      batch.update(
+        'shelves',
+        {'sort_order': shelf['sort_order']},
+        where: 'id = ?',
+        whereArgs: [shelf['id']],
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<int> insertPlannerBook(Map<String, dynamic> plannerBook) async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM planner_books');
+    final sortOrder = (result.first['count'] as int?) ?? 0;
+    return await db.insert('planner_books', {
+      'book_id': plannerBook['book_id'],
+      'sort_order': sortOrder,
+      'date_added': plannerBook['date_added'],
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getPlannerBooks() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT t.id, t.book_id, t.sort_order, t.date_added,
+             b.title, b.author, b.page_count, b.book_type_id, b.duration_minutes
+      FROM planner_books t
+      INNER JOIN books b ON t.book_id = b.id
+      ORDER BY t.sort_order ASC
+    ''');
+  }
+
+  Future<int> deletePlannerBook(int id) async {
+    final db = await database;
+    return await db.delete('planner_books', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> updatePlannerSortOrders(List<Map<String, dynamic>> books) async {
+    final db = await database;
+    final batch = db.batch();
+    for (final book in books) {
+      batch.update(
+        'planner_books',
+        {'sort_order': book['sort_order']},
+        where: 'id = ?',
+        whereArgs: [book['id']],
+      );
+    }
+    await batch.commit(noResult: true);
   }
 }

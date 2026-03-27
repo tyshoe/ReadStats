@@ -7,7 +7,6 @@ class SortFilterOptions {
   final bool isAscending;
   final List<String> bookTypes;
   final bool isFavorite;
-  final bool isDnf;
   final List<String> finishedYears;
   final List<String> tags;
   final String tagFilterMode;
@@ -17,7 +16,6 @@ class SortFilterOptions {
     required this.isAscending,
     required this.bookTypes,
     required this.isFavorite,
-    this.isDnf = false,
     this.finishedYears = const [],
     this.tags = const [],
     this.tagFilterMode = 'any',
@@ -28,7 +26,6 @@ class SortFilterOptions {
     bool? isAscending,
     List<String>? bookTypes,
     bool? isFavorite,
-    bool? isDnf,
     List<String>? finishedYears,
     List<String>? tags,
     String? tagFilterMode,
@@ -38,7 +35,6 @@ class SortFilterOptions {
       isAscending: isAscending ?? this.isAscending,
       bookTypes: bookTypes ?? this.bookTypes,
       isFavorite: isFavorite ?? this.isFavorite,
-      isDnf: isDnf ?? this.isDnf,
       finishedYears: finishedYears ?? this.finishedYears,
       tags: tags ?? this.tags,
       tagFilterMode: tagFilterMode ?? this.tagFilterMode,
@@ -97,7 +93,12 @@ class _SortFilterView extends StatefulWidget {
 
 class _SortFilterViewState extends State<_SortFilterView> {
   late SortFilterOptions currentOptions;
-  final List<String> bookTypes = ['Paperback', 'Hardback', 'eBook', 'Audiobook'];
+  final List<String> bookTypes = [
+    'Paperback',
+    'Hardback',
+    'eBook',
+    'Audiobook',
+  ];
   final List<String> sortOptions = [
     'Title',
     'Author',
@@ -105,7 +106,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
     'Pages',
     'Date started',
     'Date finished',
-    'Date added'
+    'Date added',
   ];
 
   @override
@@ -121,7 +122,6 @@ class _SortFilterViewState extends State<_SortFilterView> {
         isAscending: currentOptions.isAscending,
         bookTypes: [],
         isFavorite: false,
-        isDnf: false,
         finishedYears: [],
         tags: [],
         tagFilterMode: 'any',
@@ -134,9 +134,9 @@ class _SortFilterViewState extends State<_SortFilterView> {
       padding: const EdgeInsets.only(bottom: 0, top: 4),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w600,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -147,7 +147,8 @@ class _SortFilterViewState extends State<_SortFilterView> {
 
     // Decide which icon to show based on sort option
     IconData sortIcon;
-    if (currentOptions.sortOption == 'Title' || currentOptions.sortOption == 'Author') {
+    if (currentOptions.sortOption == 'Title' ||
+        currentOptions.sortOption == 'Author') {
       sortIcon = currentOptions.isAscending
           ? FluentIcons.text_sort_ascending_16_regular
           : FluentIcons.text_sort_descending_16_regular;
@@ -238,14 +239,8 @@ class _SortFilterViewState extends State<_SortFilterView> {
             Expanded(
               child: SegmentedButton<String>(
                 segments: [
-                  ButtonSegment<String>(
-                    value: 'any',
-                    label: Text('Match Any'),
-                  ),
-                  ButtonSegment<String>(
-                    value: 'all',
-                    label: Text('Match All'),
-                  ),
+                  ButtonSegment<String>(value: 'any', label: Text('Match Any')),
+                  ButtonSegment<String>(value: 'all', label: Text('Match All')),
                   ButtonSegment<String>(
                     value: 'exclude',
                     label: Text('Exclude'),
@@ -264,10 +259,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
                   foregroundColor: theme.colorScheme.onSurface,
                   selectedBackgroundColor: theme.colorScheme.primaryContainer,
                   selectedForegroundColor: theme.colorScheme.onPrimaryContainer,
-                  side: BorderSide(
-                    color: theme.colorScheme.outline,
-                    width: 1,
-                  ),
+                  side: BorderSide(color: theme.colorScheme.outline, width: 1),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -313,7 +305,9 @@ class _SortFilterViewState extends State<_SortFilterView> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
             side: BorderSide(
-              color: isSelected ? Colors.transparent : Theme.of(context).colorScheme.outline,
+              color: isSelected
+                  ? Colors.transparent
+                  : Theme.of(context).colorScheme.outline,
               width: 1,
             ),
           ),
@@ -335,10 +329,6 @@ class _SortFilterViewState extends State<_SortFilterView> {
       count += 1;
     }
 
-    if (currentOptions.isDnf) {
-      count += 1;
-    }
-
     if (currentOptions.finishedYears.isNotEmpty) {
       count += 1;
     }
@@ -353,7 +343,9 @@ class _SortFilterViewState extends State<_SortFilterView> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.75,
@@ -369,7 +361,9 @@ class _SortFilterViewState extends State<_SortFilterView> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -387,9 +381,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
                       Center(
                         child: Text(
                           'Sort',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
+                          style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -401,9 +393,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
                       Center(
                         child: Text(
                           'Filters',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
+                          style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                       ),
@@ -413,12 +403,15 @@ class _SortFilterViewState extends State<_SortFilterView> {
                       _buildSectionHeader('Book Type'),
                       _buildFilterChips(
                         options: ['All', ...bookTypes],
-                        selected:
-                        currentOptions.bookTypes.isEmpty ? ['All'] : currentOptions.bookTypes,
+                        selected: currentOptions.bookTypes.isEmpty
+                            ? ['All']
+                            : currentOptions.bookTypes,
                         onChanged: (selected) {
                           setState(() {
                             currentOptions = currentOptions.copyWith(
-                              bookTypes: selected.contains('All') ? [] : selected,
+                              bookTypes: selected.contains('All')
+                                  ? []
+                                  : selected,
                             );
                           });
                         },
@@ -434,23 +427,32 @@ class _SortFilterViewState extends State<_SortFilterView> {
                           FilterChip(
                             label: Text(
                               'Favorites',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: currentOptions.isFavorite
-                                    ? Theme.of(context).colorScheme.onPrimaryContainer
-                                    : Theme.of(context).colorScheme.onSurface,
-                              ),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: currentOptions.isFavorite
+                                        ? Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimaryContainer
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
+                                  ),
                             ),
                             selected: currentOptions.isFavorite,
                             onSelected: (value) {
                               setState(() {
-                                currentOptions = currentOptions.copyWith(isFavorite: value);
+                                currentOptions = currentOptions.copyWith(
+                                  isFavorite: value,
+                                );
                               });
                             },
                             avatar: Icon(
                               Icons.favorite,
                               color: currentOptions.isFavorite
                                   ? Colors.red
-                                  : Theme.of(context).colorScheme.onSurface.withAlpha(153),
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface.withAlpha(153),
                               size: 20,
                             ),
                             shape: RoundedRectangleBorder(
@@ -462,43 +464,9 @@ class _SortFilterViewState extends State<_SortFilterView> {
                                 width: 1,
                               ),
                             ),
-                            selectedColor: Theme.of(context).colorScheme.primaryContainer,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            labelPadding: const EdgeInsets.only(right: 8),
-                            showCheckmark: false,
-                          ),
-                          FilterChip(
-                            label: Text(
-                              'Did Not Finish',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: currentOptions.isDnf
-                                    ? Theme.of(context).colorScheme.onPrimaryContainer
-                                    : Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ),
-                            selected: currentOptions.isDnf,
-                            onSelected: (value) {
-                              setState(() {
-                                currentOptions = currentOptions.copyWith(isDnf: value);
-                              });
-                            },
-                            avatar: Icon(
-                              Icons.not_interested,
-                              color: currentOptions.isDnf
-                                  ? Theme.of(context).colorScheme.onPrimaryContainer
-                                  : Theme.of(context).colorScheme.onSurface.withAlpha(153),
-                              size: 20,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              side: BorderSide(
-                                color: currentOptions.isDnf
-                                    ? Colors.transparent
-                                    : Theme.of(context).colorScheme.outline,
-                                width: 1,
-                              ),
-                            ),
-                            selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                            selectedColor: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             labelPadding: const EdgeInsets.only(right: 8),
                             showCheckmark: false,
@@ -518,7 +486,9 @@ class _SortFilterViewState extends State<_SortFilterView> {
                           onChanged: (selected) {
                             setState(() {
                               currentOptions = currentOptions.copyWith(
-                                finishedYears: selected.contains('All') ? [] : selected,
+                                finishedYears: selected.contains('All')
+                                    ? []
+                                    : selected,
                               );
                             });
                           },
@@ -532,7 +502,9 @@ class _SortFilterViewState extends State<_SortFilterView> {
                         _buildTagFilterModeSelector(),
                         _buildFilterChips(
                           options: ['All', ...widget.availableTags],
-                          selected: currentOptions.tags.isEmpty ? ['All'] : currentOptions.tags,
+                          selected: currentOptions.tags.isEmpty
+                              ? ['All']
+                              : currentOptions.tags,
                           onChanged: (selected) {
                             setState(() {
                               currentOptions = currentOptions.copyWith(
@@ -551,12 +523,19 @@ class _SortFilterViewState extends State<_SortFilterView> {
 
             // Bottom Buttons
             Container(
-              padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 24),
+              padding: const EdgeInsets.only(
+                top: 16,
+                left: 16,
+                right: 16,
+                bottom: 24,
+              ),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
                 border: Border(
                   top: BorderSide(
-                    color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.outline.withOpacity(0.2),
                     width: 1,
                   ),
                 ),
@@ -572,7 +551,9 @@ class _SortFilterViewState extends State<_SortFilterView> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        side: BorderSide(color: Theme.of(context).colorScheme.outline),
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
                       ),
                       child: _countActiveFilters() > 0
                           ? Text('Reset Filters (${_countActiveFilters()})')

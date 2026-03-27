@@ -78,7 +78,7 @@ class ImportExportService {
         'id', 'title', 'author', 'word_count', 'page_count', 'rating',
         'is_complete', 'is_favorite', 'book_type_id', 'date_added',
         'date_started', 'date_finished', 'isbn', 'user_review',
-        'duration_minutes', 'is_dnf',
+        'duration_minutes',
       ],
       ...books.map((b) => [
         b.id.toString(),
@@ -96,7 +96,6 @@ class ImportExportService {
         b.isbn.toString(),
         b.userReview.toString(),
         b.durationMinutes.toString(),
-        b.isDnf.toString(),
       ]),
     ];
     await _writeCSV(path, rows);
@@ -251,9 +250,6 @@ class ImportExportService {
           durationMinutes: row.length > 14
               ? int.tryParse(row[14].toString()) ?? 0
               : 0,
-          isDnf: row.length > 15
-              ? row[15] == 1 || row[15].toString().toLowerCase() == 'true'
-              : false,
         ));
       } catch (e) {
         if (kDebugMode) print('Skipping book row: $e');

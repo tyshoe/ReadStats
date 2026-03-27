@@ -12,6 +12,7 @@ import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
+import '../planner/planner_page.dart';
 
 class LibraryPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -44,7 +45,8 @@ class _LibraryPageState extends State<LibraryPage> {
   String _selectedSortOption = 'Date added';
   bool _isAscending = false;
   bool _isFavorite = false;
-  bool _isDnf = false;
+  int? _selectedShelfId; // null = All shelves
+  List<Map<String, dynamic>> _shelves = [];
   List<String> _selectedFinishedYears = [];
   List<String> _selectedBookTypes = [];
   List<String> _selectedTags = [];
@@ -62,12 +64,12 @@ class _LibraryPageState extends State<LibraryPage> {
     _tagRepository = TagRepository(DatabaseHelper());
     _loadAvailableTags();
     _loadAllBookTags();
+    _loadShelves();
 
     _selectedSortOption = widget.settingsViewModel.librarySortOptionNotifier.value;
     _isAscending = widget.settingsViewModel.isLibrarySortAscendingNotifier.value;
     _selectedBookTypes = widget.settingsViewModel.libraryBookTypeFilterNotifier.value;
     _isFavorite = widget.settingsViewModel.libraryFavoriteFilterNotifier.value;
-    _isDnf = widget.settingsViewModel.libraryDnfFilterNotifier.value;
     _libraryBookView = widget.settingsViewModel.libraryBookViewNotifier.value;
     _selectedFinishedYears = widget.settingsViewModel.libraryFinishedYearFilterNotifier.value;
     _selectedTagFilterMode = widget.settingsViewModel.libraryTagFilterModeNotifier.value;
@@ -79,12 +81,21 @@ class _LibraryPageState extends State<LibraryPage> {
       _isAscending,
       _selectedBookTypes,
       _isFavorite,
-      _isDnf,
+      _selectedShelfId,
       _selectedFinishedYears,
       _selectedTags,
       _selectedTagFilterMode,
     );
     _searchController.addListener(_searchBooks);
+  }
+
+  Future<void> _loadShelves() async {
+    final shelves = await DatabaseHelper().getShelves();
+    if (mounted) {
+      setState(() {
+        _shelves = shelves;
+      });
+    }
   }
 
   @override
@@ -98,7 +109,7 @@ class _LibraryPageState extends State<LibraryPage> {
             _isAscending,
             _selectedBookTypes,
             _isFavorite,
-            _isDnf,
+            _selectedShelfId,
             _selectedFinishedYears,
             _selectedTags,
             _selectedTagFilterMode);
@@ -154,7 +165,7 @@ class _LibraryPageState extends State<LibraryPage> {
           _isAscending,
           _selectedBookTypes,
           _isFavorite,
-          _isDnf,
+          _selectedShelfId,
           _selectedFinishedYears,
           _selectedTags,
           _selectedTagFilterMode);
@@ -222,7 +233,7 @@ class _LibraryPageState extends State<LibraryPage> {
             _isAscending,
             _selectedBookTypes,
             _isFavorite,
-            _isDnf,
+            _selectedShelfId,
             _selectedFinishedYears,
             _selectedTags,
             _selectedTagFilterMode);
@@ -241,18 +252,29 @@ class _LibraryPageState extends State<LibraryPage> {
     });
   }
 
-  void _navigateToAddBookPage() async {
-    await Navigator.push(
+  void _navigateToPlannerPage() {
+    final wantToReadBooks = widget.books
+        .where((b) => b['shelf_id'] == DatabaseHelper.shelfWantToRead)
+        .toList();
+    Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BookFormPage(
-          onSave: (book) async {
-            widget.refreshBooks();
-          },
-          settingsViewModel: widget.settingsViewModel,
-        ),
+        builder: (_) => PlannerPage(wantToReadBooks: wantToReadBooks),
       ),
     );
+  }
+
+  void _navigateToAddBookPage() async {    await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => BookFormPage(
+        onSave: (book) async {
+          widget.refreshBooks();
+        },
+        settingsViewModel: widget.settingsViewModel,
+      ),
+    ),
+  );
   }
 
   void _navigateToEditBookPage(Map<String, dynamic>? book) async {
@@ -340,18 +362,17 @@ class _LibraryPageState extends State<LibraryPage> {
       bool isAscending,
       List<String> selectedBookTypes,
       bool isFavorite,
-      bool isDnf,
+      int? selectedShelfId,
       List<String> finishedYears,
       List<String> tags,
       String tagFilterMode) {
     List<Map<String, dynamic>> filteredBooks =
-    _filterBooks(books, selectedBookTypes, isFavorite, isDnf, finishedYears, tags, tagFilterMode);
+    _filterBooks(books, selectedBookTypes, isFavorite, selectedShelfId, finishedYears, tags, tagFilterMode);
 
     widget.settingsViewModel.setLibrarySortOption(selectedSortOption);
     widget.settingsViewModel.setLibrarySortAscending(isAscending);
     widget.settingsViewModel.setLibraryBookTypeFilter(selectedBookTypes);
     widget.settingsViewModel.setLibraryIsFavorite(isFavorite);
-    widget.settingsViewModel.setLibraryIsDnf(isDnf);
     widget.settingsViewModel.setLibraryFinishedYearFilter(finishedYears);
     widget.settingsViewModel.setLibraryTagFilterMode(tagFilterMode);
 
@@ -362,7 +383,7 @@ class _LibraryPageState extends State<LibraryPage> {
       List<Map<String, dynamic>> books,
       List<String> selectedBookTypes,
       bool isFavorite,
-      bool isDnf,
+      int? selectedShelfId,
       List<String> finishedYears,
       List<String> selectedTags,
       String tagFilterMode,
@@ -386,8 +407,8 @@ class _LibraryPageState extends State<LibraryPage> {
       final favoriteMatch =
           !isFavorite || (book['is_favorite'] != null && book['is_favorite'] == 1);
 
-      final dnfMatch =
-          !isDnf || (book['is_dnf'] != null && book['is_dnf'] == 1);
+      final shelfMatch = selectedShelfId == null ||
+          (book['shelf_id'] as int?) == selectedShelfId;
 
       bool yearMatch = finishedYears.isEmpty;
       if (!yearMatch && book['date_finished'] != null) {
@@ -418,7 +439,7 @@ class _LibraryPageState extends State<LibraryPage> {
         }
       }
 
-      return typeMatch && favoriteMatch && dnfMatch && yearMatch && tagMatch;
+      return typeMatch && favoriteMatch && shelfMatch && yearMatch && tagMatch;
     }).toList();
   }
 
@@ -499,7 +520,6 @@ class _LibraryPageState extends State<LibraryPage> {
         isAscending: _isAscending,
         bookTypes: _selectedBookTypes,
         isFavorite: _isFavorite,
-        isDnf: _isDnf,
         finishedYears: _selectedFinishedYears,
         tags: _selectedTags,
         tagFilterMode: _selectedTagFilterMode);
@@ -513,7 +533,6 @@ class _LibraryPageState extends State<LibraryPage> {
             _isAscending = newOptions.isAscending;
             _selectedBookTypes = newOptions.bookTypes;
             _isFavorite = newOptions.isFavorite;
-            _isDnf = newOptions.isDnf;
             _selectedFinishedYears = newOptions.finishedYears;
             _selectedTags = newOptions.tags;
             _selectedTagFilterMode = newOptions.tagFilterMode;
@@ -524,7 +543,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 _isAscending,
                 _selectedBookTypes,
                 _isFavorite,
-                _isDnf,
+                _selectedShelfId,
                 _selectedFinishedYears,
                 _selectedTags,
                 _selectedTagFilterMode);
@@ -715,6 +734,94 @@ class _LibraryPageState extends State<LibraryPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Column(
                     children: [
+                      // Shelf filter chips
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 36,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            // "All" chip — null selectedShelfId means no filter
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: FilterChip(
+                                label: const Text('All'),
+                                selected: _selectedShelfId == null,
+                                onSelected: (_) {
+                                  setState(() {
+                                    _selectedShelfId = null;
+                                    _filteredBooks = _sortAndFilterBooks(
+                                      List<Map<String, dynamic>>.from(widget.books),
+                                      _selectedSortOption,
+                                      _isAscending,
+                                      _selectedBookTypes,
+                                      _isFavorite,
+                                      _selectedShelfId,
+                                      _selectedFinishedYears,
+                                      _selectedTags,
+                                      _selectedTagFilterMode,
+                                    );
+                                  });
+                                },
+                                showCheckmark: false,
+                                labelStyle: theme.textTheme.bodyMedium,
+                                selectedColor: theme.colorScheme.primaryContainer,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  side: BorderSide(
+                                    color: _selectedShelfId == null
+                                        ? Colors.transparent
+                                        : theme.colorScheme.outlineVariant,
+                                    width: 1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // One chip per shelf, built from the DB
+                            ..._shelves.map((shelf) {
+                              final id = shelf['id'] as int;
+                              final name = shelf['name'] as String;
+                              final isSelected = _selectedShelfId == id;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: FilterChip(
+                                  label: Text(name),
+                                  selected: isSelected,
+                                  onSelected: (_) {
+                                    setState(() {
+                                      _selectedShelfId = isSelected ? null : id;
+                                      _filteredBooks = _sortAndFilterBooks(
+                                        List<Map<String, dynamic>>.from(widget.books),
+                                        _selectedSortOption,
+                                        _isAscending,
+                                        _selectedBookTypes,
+                                        _isFavorite,
+                                        _selectedShelfId,
+                                        _selectedFinishedYears,
+                                        _selectedTags,
+                                        _selectedTagFilterMode,
+                                      );
+                                    });
+                                  },
+                                  showCheckmark: false,
+                                  labelStyle: theme.textTheme.bodyMedium,
+                                  selectedColor: theme.colorScheme.primaryContainer,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    side: BorderSide(
+                                      color: isSelected
+                                          ? Colors.transparent
+                                          : theme.colorScheme.outlineVariant,
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -757,6 +864,57 @@ class _LibraryPageState extends State<LibraryPage> {
                           ),
                         ],
                       ),
+                      if (_selectedShelfId == DatabaseHelper.shelfWantToRead) ...[
+                        const SizedBox(height: 8),
+                        InkWell(
+                          onTap: _navigateToPlannerPage,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Ink(
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.secondaryContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.menu_book_rounded,
+                                    color: theme.colorScheme.onSecondaryContainer,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Reading Planner',
+                                          style: theme.textTheme.titleMedium?.copyWith(
+                                            color: theme.colorScheme.onSecondaryContainer,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Plan and prioritize your reading order',
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            color: theme.colorScheme.onSecondaryContainer,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right,
+                                    color: theme.colorScheme.onSecondaryContainer,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                       Expanded(
                         child: Scrollbar(
                           child: _libraryBookView == "grid"
