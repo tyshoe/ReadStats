@@ -57,6 +57,7 @@ class _LibraryPageState extends State<LibraryPage> {
   bool _selectionMode = false;
   final Set<int> _selectedBookIds = {};
   Set<int> _pinnedBookIds = {};
+  final GlobalKey _selectedShelfChipKey = GlobalKey();
 
   @override
   void initState() {
@@ -96,6 +97,15 @@ class _LibraryPageState extends State<LibraryPage> {
       setState(() {
         _shelves = shelves;
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedChip());
+    }
+  }
+
+  void _scrollToSelectedChip() {
+    final ctx = _selectedShelfChipKey.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(ctx,
+          alignment: 0.5, duration: const Duration(milliseconds: 300));
     }
   }
 
@@ -206,6 +216,60 @@ class _LibraryPageState extends State<LibraryPage> {
     _clearSelection();
   }
 
+  Future<void> _moveSelectedBooksToShelf() async {
+    final shelf = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+      ),
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text('Move to shelf', style: theme.textTheme.titleMedium),
+              ),
+              const Divider(height: 1),
+              ..._shelves.map((shelf) => ListTile(
+                    leading: const Icon(Icons.bookmarks_outlined),
+                    title: Text(shelf['name'] as String),
+                    onTap: () => Navigator.pop(ctx, shelf),
+                  )),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (shelf == null || !mounted) return;
+
+    final shelfId = shelf['id'] as int;
+    final bookRepository = BookRepository(DatabaseHelper());
+    for (final id in _selectedBookIds) {
+      await bookRepository.updateBookShelf(id, shelfId);
+    }
+
+    final count = _selectedBookIds.length;
+    widget.refreshBooks();
+    _clearSelection();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text('${count == 1 ? '1 book' : '$count books'} moved to ${shelf['name']}'),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+        duration: const Duration(seconds: 2),
+      ));
+  }
+
   Future<void> _refreshTags() async {
     await _loadAvailableTags();
     await _loadAllBookTags();
@@ -244,12 +308,23 @@ class _LibraryPageState extends State<LibraryPage> {
 
   void _searchBooks() {
     setState(() {
-      String query = _searchController.text.toLowerCase();
-      _filteredBooks = widget.books.where((book) {
-        String title = book['title'].toLowerCase();
-        String author = book['author'].toLowerCase();
-        return title.contains(query) || author.contains(query);
-      }).toList();
+      final query = _searchController.text.toLowerCase();
+      final baseFiltered = _filterBooks(
+        List<Map<String, dynamic>>.from(widget.books),
+        _selectedBookTypes,
+        _isFavorite,
+        _selectedShelfId,
+        _selectedFinishedYears,
+        _selectedTags,
+        _selectedTagFilterMode,
+      );
+      _filteredBooks = query.isEmpty
+          ? _sortBooks(baseFiltered, _selectedSortOption, _isAscending)
+          : baseFiltered.where((book) {
+              final title = (book['title'] as String? ?? '').toLowerCase();
+              final author = (book['author'] as String? ?? '').toLowerCase();
+              return title.contains(query) || author.contains(query);
+            }).toList();
     });
   }
 
@@ -670,9 +745,10 @@ class _LibraryPageState extends State<LibraryPage> {
             : _isSearching
             ? TextField(
           controller: _searchController,
-          decoration: const InputDecoration(
-            hintText: 'Search books...',
+          decoration: InputDecoration(
+            hintText: 'Search your library',
             border: InputBorder.none,
+            hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
           ),
           autofocus: true,
           style: TextStyle(color: theme.colorScheme.onSurface),
@@ -684,7 +760,9 @@ class _LibraryPageState extends State<LibraryPage> {
           onPressed: _clearSelection,
         )
             : null,
-        backgroundColor: theme.scaffoldBackgroundColor,
+        backgroundColor: _isSearching
+            ? theme.colorScheme.surfaceContainerHighest
+            : theme.scaffoldBackgroundColor,
         actions: _selectionMode
             ? null
             : [
@@ -693,7 +771,15 @@ class _LibraryPageState extends State<LibraryPage> {
             onPressed: _toggleSearch,
           ),
           IconButton(
-            icon: const Icon(Icons.filter_list),
+            icon: Badge(
+              isLabelVisible: _isFavorite ||
+                  _selectedBookTypes.isNotEmpty ||
+                  _selectedFinishedYears.isNotEmpty ||
+                  _selectedTags.isNotEmpty,
+              smallSize: 8,
+              backgroundColor: theme.colorScheme.primary,
+              child: const Icon(Icons.filter_list),
+            ),
             onPressed: _showSortFilterModal,
           ),
           PopupMenuButton<String>(
@@ -701,12 +787,53 @@ class _LibraryPageState extends State<LibraryPage> {
             onSelected: (value) {
               if (value == 'random') {
                 _showRandomBook();
+              } else if (value == 'view_row_expanded' ||
+                  value == 'view_row_compact' ||
+                  value == 'view_grid') {
+                _toggleView(value.replaceFirst('view_', ''));
               }
             },
             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
               const PopupMenuItem<String>(
                 value: 'random',
                 child: Text('Random Book'),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem<String>(
+                value: 'view_row_expanded',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.density_medium, size: 20),
+                  title: const Text('Expanded rows'),
+                  trailing: _libraryBookView == 'row_expanded'
+                      ? Icon(Icons.check, size: 18, color: theme.colorScheme.primary)
+                      : null,
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'view_row_compact',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.density_small, size: 20),
+                  title: const Text('Compact rows'),
+                  trailing: _libraryBookView == 'row_compact'
+                      ? Icon(Icons.check, size: 18, color: theme.colorScheme.primary)
+                      : null,
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'view_grid',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.grid_view, size: 20),
+                  title: const Text('Grid'),
+                  trailing: _libraryBookView == 'grid'
+                      ? Icon(Icons.check, size: 18, color: theme.colorScheme.primary)
+                      : null,
+                ),
               ),
             ],
           ),
@@ -738,54 +865,18 @@ class _LibraryPageState extends State<LibraryPage> {
                       // Shelf filter chips
                       const SizedBox(height: 8),
                       SizedBox(
-                        height: 36,
+                        height: 32,
                         child: ListView(
                           scrollDirection: Axis.horizontal,
                           children: [
-                            // "All" chip — null selectedShelfId means no filter
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: FilterChip(
-                                label: const Text('All'),
-                                selected: _selectedShelfId == null,
-                                onSelected: (_) {
-                                  setState(() {
-                                    _selectedShelfId = null;
-                                    _filteredBooks = _sortAndFilterBooks(
-                                      List<Map<String, dynamic>>.from(widget.books),
-                                      _selectedSortOption,
-                                      _isAscending,
-                                      _selectedBookTypes,
-                                      _isFavorite,
-                                      _selectedShelfId,
-                                      _selectedFinishedYears,
-                                      _selectedTags,
-                                      _selectedTagFilterMode,
-                                    );
-                                  });
-                                  widget.settingsViewModel.setLibraryShelfFilter(null);
-                                },
-                                showCheckmark: false,
-                                labelStyle: theme.textTheme.bodyMedium,
-                                selectedColor: theme.colorScheme.primaryContainer,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  side: BorderSide(
-                                    color: _selectedShelfId == null
-                                        ? Colors.transparent
-                                        : theme.colorScheme.outlineVariant,
-                                    width: 1,
-                                  ),
-                                ),
-                              ),
-                            ),
                             // One chip per shelf, built from the DB
                             ..._shelves.map((shelf) {
                               final id = shelf['id'] as int;
                               final name = shelf['name'] as String;
                               final isSelected = _selectedShelfId == id;
                               return Padding(
-                                padding: const EdgeInsets.only(right: 8),
+                                key: isSelected ? _selectedShelfChipKey : null,
+                                padding: const EdgeInsets.only(right: 6),
                                 child: FilterChip(
                                   label: Text(name),
                                   selected: isSelected,
@@ -805,19 +896,17 @@ class _LibraryPageState extends State<LibraryPage> {
                                       );
                                     });
                                     widget.settingsViewModel.setLibraryShelfFilter(_selectedShelfId);
+                                    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedChip());
                                   },
                                   showCheckmark: false,
-                                  labelStyle: theme.textTheme.bodyMedium,
+                                  labelStyle: theme.textTheme.bodySmall,
+                                  labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
                                   selectedColor: theme.colorScheme.primaryContainer,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    side: BorderSide(
-                                      color: isSelected
-                                          ? Colors.transparent
-                                          : theme.colorScheme.outlineVariant,
-                                      width: 1,
-                                    ),
-                                  ),
+                                  elevation: 0,
+                                  pressElevation: 0,
+                                  side: BorderSide.none,
+                                shape: const StadiumBorder(),
                                 ),
                               );
                             }),
@@ -825,47 +914,12 @@ class _LibraryPageState extends State<LibraryPage> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          SizedBox(
-                            height: 40,
-                            child: ToggleButtons(
-                              isSelected: [
-                                _libraryBookView == "row_expanded",
-                                _libraryBookView == "row_compact",
-                                _libraryBookView == "grid",
-                              ],
-                              onPressed: (index) {
-                                _toggleView(index == 0
-                                    ? "row_expanded"
-                                    : index == 1
-                                    ? "row_compact"
-                                    : "grid");
-                              },
-                              constraints: const BoxConstraints(
-                                minHeight: 30,
-                                minWidth: 40,
-                              ),
-                              borderWidth: 1,
-                              borderColor: theme.colorScheme.outline,
-                              selectedBorderColor: theme.colorScheme.primary,
-                              borderRadius: BorderRadius.circular(8),
-                              children: const [
-                                Icon(Icons.density_medium, size: 16),
-                                Icon(Icons.density_small, size: 16),
-                                Icon(Icons.grid_view, size: 16),
-                              ],
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 1),
-                            child: Text(
-                              '${_filteredBooks.length}/${widget.books.length}',
-                              style: theme.textTheme.bodyLarge,
-                            ),
-                          ),
-                        ],
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          '${_filteredBooks.length}/${widget.books.length}',
+                          style: theme.textTheme.bodyLarge,
+                        ),
                       ),
                       if (_selectedShelfId == DatabaseHelper.shelfWantToRead) ...[
                         const SizedBox(height: 8),
@@ -919,7 +973,45 @@ class _LibraryPageState extends State<LibraryPage> {
                         const SizedBox(height: 8),
                       ],
                       Expanded(
-                        child: Scrollbar(
+                        child: _filteredBooks.isEmpty
+                            ? Center(
+                                child: Builder(builder: (context) {
+                                  final bool isShelfEmpty = _selectedShelfId != null &&
+                                      !_isSearching &&
+                                      !_isFavorite &&
+                                      _selectedBookTypes.isEmpty &&
+                                      _selectedFinishedYears.isEmpty &&
+                                      _selectedTags.isEmpty;
+                                  final IconData emptyIcon = _isSearching
+                                      ? Icons.search_off_rounded
+                                      : isShelfEmpty
+                                          ? Icons.library_books_outlined
+                                          : Icons.filter_list_off_rounded;
+                                  final String emptyMessage = _isSearching
+                                      ? 'No books match your search.'
+                                      : isShelfEmpty
+                                          ? 'No books on this shelf yet.'
+                                          : 'No books match the active filters.';
+                                  return Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        emptyIcon,
+                                        size: 48,
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        emptyMessage,
+                                        style: theme.textTheme.bodyLarge?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }),
+                              )
+                            : Scrollbar(
                           child: _libraryBookView == "grid"
                               ? GridView.builder(
                             padding: const EdgeInsets.only(top: 0),
@@ -952,6 +1044,7 @@ class _LibraryPageState extends State<LibraryPage> {
                                   },
                                   isPinned: _pinnedBookIds.contains(book['id']),
                                   isSelected: _selectedBookIds.contains(book['id']),
+                                  selectionMode: _selectionMode,
                                   selectionColor: theme.colorScheme.primary,
                                 ),
                               );
@@ -1005,6 +1098,7 @@ class _LibraryPageState extends State<LibraryPage> {
         ],
       ),
       floatingActionButton: _selectionMode
+
           ? Column(
         mainAxisSize: MainAxisSize.min,
         children: [
