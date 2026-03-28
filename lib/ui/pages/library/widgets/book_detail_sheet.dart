@@ -1,14 +1,14 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../../../data/repositories/book_repository.dart';
@@ -412,7 +412,7 @@ class BookPopup {
                             icon: FluentIcons.calendar_add_16_filled,
                             label: 'Session',
                             color: book['is_completed'] == 1
-                                ? Theme.of(context).colorScheme.onSurface.withOpacity(0.38)
+                                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)
                                 : Theme.of(context).colorScheme.onSurface,
                             onTap: book['is_completed'] == 1
                                 ? null
@@ -529,55 +529,57 @@ class BookPopup {
       String? dateRangeString,
       ) {
     final theme = Theme.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-    Future<void> saveImage(ScreenshotController controller) async {
+    Future<Uint8List?> captureKey(GlobalKey key) async {
+      final boundary =
+          key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    }
+
+    Future<void> saveImage(GlobalKey key) async {
       try {
-        final Uint8List? imageBytes = await controller.capture();
+        final imageBytes = await captureKey(key);
         if (imageBytes == null) return;
 
         final result = await ImageGallerySaverPlus.saveImage(
           imageBytes,
           quality: 100,
-          name: "book_share_${book['id']}_${DateTime.now().millisecondsSinceEpoch}",
+          name: 'book_share_${book['id']}_${DateTime.now().millisecondsSinceEpoch}',
         );
 
-        final isSuccess = (result['isSuccess'] == true);
-        if (isSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Image saved to gallery!")),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Failed to save image")),
-          );
-        }
+        scaffoldMessenger.showSnackBar(SnackBar(
+          content: Text(result['isSuccess'] == true
+              ? 'Image saved to gallery!'
+              : 'Failed to save image'),
+        ));
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
-        );
+        scaffoldMessenger
+            .showSnackBar(SnackBar(content: Text('Error saving: $e')));
       }
     }
 
-    Future<void> shareImage(ScreenshotController controller) async {
+    Future<void> shareImage(GlobalKey key) async {
       try {
-        final Uint8List? imageBytes = await controller.capture();
+        final imageBytes = await captureKey(key);
         if (imageBytes == null) return;
 
         final directory = await getTemporaryDirectory();
         final imagePath = '${directory.path}/book_share_${book['id']}.png';
-        final File imageFile = File(imagePath);
-        await imageFile.writeAsBytes(imageBytes);
+        await File(imagePath).writeAsBytes(imageBytes);
 
         await SharePlus.instance.share(
           ShareParams(
             files: [XFile(imagePath)],
-            text: 'Check out my reading stats!',
+            text: 'Just finished "${book['title']}" — here are my reading stats!',
           ),
         );
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error sharing: $e")),
-        );
+        scaffoldMessenger
+            .showSnackBar(SnackBar(content: Text('Error sharing: $e')));
       }
     }
 
@@ -585,171 +587,184 @@ class BookPopup {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
       builder: (context) {
-        final ScreenshotController screenshotControllerMinimal = ScreenshotController();
-        final ScreenshotController screenshotControllerCover = ScreenshotController();
+        final GlobalKey coverKey = GlobalKey();
+        final GlobalKey minimalKey = GlobalKey();
         final CarouselSliderController carouselController = CarouselSliderController();
-
         int currentPage = 0;
+        _ShareCardTheme selectedTheme = _ShareCardTheme.dark;
+
+        final args = (
+          title: book['title'] as String,
+          author: book['author'] as String,
+          rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
+          totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
+          totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
+          daysToComplete:
+              _calculateDaysToComplete(book['date_started'], book['date_finished']),
+          pagesPerMinute: (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
+          wordsPerMinute: (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
+          totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
+          dateRangeString: dateRangeString,
+        );
 
         return StatefulBuilder(
           builder: (context, setState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
+            final isTransparent = selectedTheme == _ShareCardTheme.transparent;
+            final isDark = selectedTheme == _ShareCardTheme.dark;
+
+            Widget buildCard(GlobalKey key, bool allowCoverUpload) {
+              final card = BookShareCard(
+                title: args.title,
+                author: args.author,
+                rating: args.rating,
+                totalWords: args.totalWords,
+                totalPages: args.totalPages,
+                daysToComplete: args.daysToComplete,
+                pagesPerMinute: args.pagesPerMinute,
+                wordsPerMinute: args.wordsPerMinute,
+                totalTime: args.totalTime,
+                dateRangeString: args.dateRangeString,
+                allowCoverUpload: allowCoverUpload,
+                isTransparent: isTransparent,
+                isDark: isDark,
+              );
+
+              if (isTransparent) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Stack(
+                    children: [
+                      const Positioned.fill(child: CheckerboardBackground()),
+                      RepaintBoundary(key: key, child: card),
+                    ],
+                  ),
+                );
+              }
+              return RepaintBoundary(key: key, child: card);
+            }
+
+            return Container(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Container(
-                        height: 4,
-                        width: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[400],
-                          borderRadius: BorderRadius.circular(2),
-                        ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Drag handle
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Container(
+                      height: 4,
+                      width: 40,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    Column(
-                      children: [
-                        CarouselSlider(
-                          carouselController: carouselController,
-                          options: CarouselOptions(
-                            height: 525,
-                            enlargeCenterPage: false,
-                            viewportFraction: 0.8,
-                            enableInfiniteScroll: false,
-                            onPageChanged: (index, reason) {
-                              setState(() {
-                                currentPage = index;
-                              });
-                            },
-                            padEnds: true,
-                          ),
-                          items: [
-                            Screenshot(
-                              controller: screenshotControllerCover,
-                              child: BookShareCard(
-                                title: book['title'],
-                                author: book['author'],
-                                rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
-                                totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
-                                totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
-                                daysToComplete: _calculateDaysToComplete(
-                                    book['date_started'], book['date_finished']),
-                                pagesPerMinute:
-                                (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
-                                wordsPerMinute:
-                                (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
-                                totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
-                                dateRangeString: dateRangeString,
-                                allowCoverUpload: true,
-                              ),
-                            ),
-                            Screenshot(
-                              controller: screenshotControllerMinimal,
-                              child: BookShareCard(
-                                title: book['title'],
-                                author: book['author'],
-                                rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
-                                totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
-                                totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
-                                daysToComplete: _calculateDaysToComplete(
-                                    book['date_started'], book['date_finished']),
-                                pagesPerMinute:
-                                (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
-                                wordsPerMinute:
-                                (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
-                                totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
-                                dateRangeString: dateRangeString,
-                                allowCoverUpload: false,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        AnimatedSmoothIndicator(
-                          activeIndex: currentPage,
-                          count: 2,
-                          effect: WormEffect(
-                            dotHeight: 8,
-                            dotWidth: 8,
-                            activeDotColor: theme.colorScheme.primary,
-                            dotColor: theme.colorScheme.onSurface.withOpacity(0.3),
-                          ),
-                          onDotClicked: (index) {
-                            carouselController.animateToPage(index);
-                          },
-                        ),
-                      ],
+                  ),
+
+                  CarouselSlider(
+                    carouselController: carouselController,
+                    options: CarouselOptions(
+                      height: 480,
+                      enlargeCenterPage: false,
+                      viewportFraction: 0.78,
+                      enableInfiniteScroll: false,
+                      onPageChanged: (index, _) =>
+                          setState(() => currentPage = index),
+                      padEnds: true,
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Column(
-                          children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceContainerHighest,
-                                shape: BoxShape.circle,
-                              ),
-                              child: IconButton(
-                                icon: const Icon(FluentIcons.arrow_download_16_filled, size: 32),
-                                color: theme.colorScheme.onSurface,
-                                onPressed: () async {
-                                  final controller = currentPage == 0
-                                      ? screenshotControllerCover
-                                      : screenshotControllerMinimal;
-                                  await saveImage(controller);
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text("Save", style: TextStyle(fontSize: 12)),
-                          ],
-                        ),
-                        Column(
-                          children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceContainerHighest,
-                                shape: BoxShape.circle,
-                              ),
-                              child: IconButton(
-                                icon: const Icon(FluentIcons.share_16_filled, size: 32),
-                                color: theme.colorScheme.onSurface,
-                                onPressed: () async {
-                                  final controller = currentPage == 0
-                                      ? screenshotControllerCover
-                                      : screenshotControllerMinimal;
-                                  await shareImage(controller);
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text("Share", style: TextStyle(fontSize: 12)),
-                          ],
-                        ),
-                      ],
+                    items: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: buildCard(coverKey, true),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: buildCard(minimalKey, false),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+                  AnimatedSmoothIndicator(
+                    activeIndex: currentPage,
+                    count: 2,
+                    effect: WormEffect(
+                      dotHeight: 8,
+                      dotWidth: 8,
+                      activeDotColor: theme.colorScheme.primary,
+                      dotColor: theme.colorScheme.onSurface.withValues(alpha: 0.25),
                     ),
-                    const SizedBox(height: 32),
-                  ],
-                ),
+                    onDotClicked: (index) =>
+                        carouselController.animateToPage(index),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Theme selector
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _ThemeCircle(
+                        selected: selectedTheme == _ShareCardTheme.dark,
+                        onTap: () => setState(() => selectedTheme = _ShareCardTheme.dark),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF121212),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      _ThemeCircle(
+                        selected: selectedTheme == _ShareCardTheme.light,
+                        onTap: () => setState(() => selectedTheme = _ShareCardTheme.light),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      _ThemeCircle(
+                        selected: selectedTheme == _ShareCardTheme.transparent,
+                        onTap: () =>
+                            setState(() => selectedTheme = _ShareCardTheme.transparent),
+                        child: ClipOval(child: CheckerboardBackground(squareSize: 12)),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _ShareAction(
+                        icon: FluentIcons.arrow_download_16_filled,
+                        label: 'Save',
+                        theme: theme,
+                        onTap: () async {
+                          final key = currentPage == 0 ? coverKey : minimalKey;
+                          await saveImage(key);
+                        },
+                      ),
+                      _ShareAction(
+                        icon: FluentIcons.share_16_filled,
+                        label: 'Share',
+                        theme: theme,
+                        onTap: () async {
+                          final key = currentPage == 0 ? coverKey : minimalKey;
+                          await shareImage(key);
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                ],
               ),
             );
           },
@@ -900,6 +915,83 @@ class _PopupAction extends StatelessWidget {
           style: TextStyle(fontSize: 14, color: color),
         ),
       ],
+    );
+  }
+}
+
+enum _ShareCardTheme { light, dark, transparent }
+
+class _ShareAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final ThemeData theme;
+  final VoidCallback onTap;
+
+  const _ShareAction({
+    required this.icon,
+    required this.label,
+    required this.theme,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: Icon(icon, size: 26),
+            color: theme.colorScheme.onSurface,
+            onPressed: onTap,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(label,
+            style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+      ],
+    );
+  }
+}
+
+class _ThemeCircle extends StatelessWidget {
+  final bool selected;
+  final VoidCallback onTap;
+  final Widget child;
+
+  const _ThemeCircle({
+    required this.selected,
+    required this.onTap,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected
+                ? primary
+                : Theme.of(context).colorScheme.outlineVariant,
+            width: 3.0,
+          ),
+        ),
+        padding: EdgeInsets.zero,
+        child: ClipOval(child: child),
+      ),
     );
   }
 }
