@@ -387,26 +387,27 @@ class BookPopup {
                       const SizedBox(height: 16),
                       if (tags.isNotEmpty) ...[
                         SizedBox(
-                          height: 36,
+                          height: 28,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: tags.length,
-                            separatorBuilder: (context, index) => const SizedBox(width: 8),
+                            separatorBuilder: (context, index) => const SizedBox(width: 6),
                             itemBuilder: (context, index) {
                               return Container(
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surfaceContainer,
-                                  borderRadius: BorderRadius.circular(16),
+                                  color: Theme.of(context).colorScheme.secondaryContainer,
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.sell, size: 16, color: Colors.grey[600]),
+                                    Icon(Icons.sell, size: 12,
+                                        color: Theme.of(context).colorScheme.onSecondaryContainer),
                                     const SizedBox(width: 4),
                                     Text(
                                       tags[index].name,
-                                      style: TextStyle(color: textColor, fontSize: 12),
+                                      style: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer, fontSize: 12),
                                     ),
                                   ],
                                 ),

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -40,7 +41,7 @@ class _BookFormPageState extends State<BookFormPage> {
   final DateTime _dateToday = DateTime.now();
   double? _rating;
   bool _isFavorite = false;
-  int _shelfId = 1; // Default: "Want to Read"
+  int _shelfId = DatabaseHelper.shelfWantToRead;
   List<Map<String, dynamic>> _shelves = [];
   int _selectedBookType = 0;
   int _durationMinutes = 0;
@@ -536,59 +537,106 @@ class _BookFormPageState extends State<BookFormPage> {
 
   Widget _buildCoverPicker() {
     final theme = Theme.of(context);
-    const double w = 120;
-    const double h = 180;
+    const double coverW = 150;
+    const double coverH = 230;
+    final double areaH = _coverFile != null ? 300.0 : 90.0;
 
-    return Center(
-      child: Column(
-        children: [
-        GestureDetector(
-          onTap: () async {
-            final file = await CoverService.pickImage();
-            if (file != null) {
-              setState(() {
-                _coverFile = file;
-                _coverChanged = true;
-              });
-            }
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: _coverFile != null
-                ? Image.file(
-                    _coverFile!,
-                    width: w,
-                    height: h,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _coverPlaceholder(theme, w, h),
-                  )
-                : _coverPlaceholder(theme, w, h),
-          ),
-        ),
-        if (_coverFile != null) ...[
-          const SizedBox(height: 4),
-          IconButton(
-            onPressed: () {
-              setState(() {
-                _coverFile = null;
-                _coverChanged = true;
-              });
-            },
-            icon: const Icon(Icons.delete_outline),
-            color: theme.colorScheme.error,
-            tooltip: 'Remove cover',
-          ),
-        ] else ...[
-          const SizedBox(height: 8),
-          Text(
-            'Tap to add a cover image.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        height: areaH,
+        width: double.infinity,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Background — blurred cover or plain surface
+            if (_coverFile != null)
+              Positioned.fill(
+                child: ImageFiltered(
+                  imageFilter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                  child: Image.file(_coverFile!, fit: BoxFit.cover),
+                ),
+              )
+            else
+              Positioned.fill(
+                child: Container(color: theme.colorScheme.surfaceContainerHighest),
+              ),
+
+            // Dim overlay so cover pops
+            if (_coverFile != null)
+              Positioned.fill(
+                child: Container(color: Colors.black.withValues(alpha: 0.35)),
+              ),
+
+            // Cover image — tappable
+            GestureDetector(
+              onTap: () async {
+                final file = await CoverService.pickImage();
+                if (file != null) {
+                  setState(() {
+                    _coverFile = file;
+                    _coverChanged = true;
+                  });
+                }
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: _coverFile != null
+                        ? Image.file(
+                            _coverFile!,
+                            width: coverW,
+                            height: coverH,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _coverPlaceholder(theme, coverW, coverH),
+                          )
+                        : _emptyPlaceholder(theme),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ],
+
+            // Remove button — top-right corner
+            if (_coverFile != null)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _coverFile = null;
+                      _coverChanged = true;
+                    });
+                  },
+                  icon: const Icon(Icons.delete, size: 22),
+                  color: Colors.white,
+                  style: IconButton.styleFrom(
+                    backgroundColor: theme.colorScheme.error.withValues(alpha: 0.85),
+                    minimumSize: const Size(44, 44),
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _emptyPlaceholder(ThemeData theme) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.add_photo_alternate_outlined,
+            size: 20, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: 8),
+        Text(
+          'Add cover image',
+          style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ],
     );
   }
 
@@ -628,10 +676,21 @@ class _BookFormPageState extends State<BookFormPage> {
               labelText: 'Title',
               hintText: 'Enter book title',
               floatingLabelBehavior: FloatingLabelBehavior.auto,
-              border: OutlineInputBorder(
+              filled: true,
+              fillColor: theme.colorScheme.surfaceContainerHighest,
+              border: UnderlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              enabledBorder: UnderlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
               suffixIcon: _titleController.text.isNotEmpty
                   ? IconButton(
                 icon: const Icon(Icons.clear),
@@ -674,18 +733,17 @@ class _BookFormPageState extends State<BookFormPage> {
             },
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: borderColor),
                 borderRadius: BorderRadius.circular(12),
                 color: _titleTitleCaseEnabled
                     ? theme.colorScheme.primaryContainer
-                    : Colors.transparent,
+                    : theme.colorScheme.surfaceContainerHighest,
               ),
               alignment: Alignment.center,
               child: Icon(
                 Icons.text_fields,
                 color: _titleTitleCaseEnabled
                     ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.onSurface..withAlpha(153),
+                    : theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -723,10 +781,21 @@ class _BookFormPageState extends State<BookFormPage> {
                   labelText: 'Author',
                   hintText: 'Enter author',
                   floatingLabelBehavior: FloatingLabelBehavior.auto,
-                  border: OutlineInputBorder(
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHighest,
+                  border: UnderlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  enabledBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                   suffixIcon: _authorController.text.isNotEmpty
                       ? IconButton(
                     icon: const Icon(Icons.clear),
@@ -780,18 +849,17 @@ class _BookFormPageState extends State<BookFormPage> {
             },
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: borderColor),
                 borderRadius: BorderRadius.circular(12),
                 color: _authorTitleCaseEnabled
                     ? theme.colorScheme.primaryContainer
-                    : Colors.transparent,
+                    : theme.colorScheme.surfaceContainerHighest,
               ),
               alignment: Alignment.center,
               child: Icon(
                 Icons.text_fields,
                 color: _authorTitleCaseEnabled
                     ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.onSurface.withAlpha(153),
+                    : theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -810,15 +878,19 @@ class _BookFormPageState extends State<BookFormPage> {
       appBar: AppBar(
         title: Text(widget.isEditing ? 'Edit Book' : 'Add Book'),
         backgroundColor: theme.scaffoldBackgroundColor,
-        actions: [
-          TextButton(
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: FilledButton(
             onPressed: _saveBook,
-            child: Text(
-              'Save',
-              style: TextStyle(color: accentColor),
+            style: FilledButton.styleFrom(
+              backgroundColor: accentColor,
+              minimumSize: const Size.fromHeight(48),
             ),
+            child: Text(widget.isEditing ? 'Update Book' : 'Save Book'),
           ),
-        ],
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -839,10 +911,21 @@ class _BookFormPageState extends State<BookFormPage> {
               style: theme.textTheme.bodyLarge,
               decoration: InputDecoration(
                 labelText: 'Format',
-                border: OutlineInputBorder(
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest,
+                border: UnderlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                enabledBorder: UnderlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
               ),
               items: const [
                 DropdownMenuItem(value: 0, child: Text('Paperback')),
@@ -867,9 +950,21 @@ class _BookFormPageState extends State<BookFormPage> {
                 decoration: InputDecoration(
                   labelText: 'Pages',
                   hintText: 'Enter number of pages',
-                  border: OutlineInputBorder(
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHighest,
+                  border: UnderlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
+                  enabledBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                   suffixIcon: _pageCountController.text.isNotEmpty
                       ? IconButton(
                     icon: const Icon(Icons.clear),
@@ -889,9 +984,21 @@ class _BookFormPageState extends State<BookFormPage> {
                 decoration: InputDecoration(
                   labelText: 'Words',
                   hintText: 'Enter number of words',
-                  border: OutlineInputBorder(
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHighest,
+                  border: UnderlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
+                  enabledBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                   suffixIcon: _wordCountController.text.isNotEmpty
                       ? IconButton(
                     icon: const Icon(Icons.clear),
@@ -917,9 +1024,21 @@ class _BookFormPageState extends State<BookFormPage> {
                 decoration: InputDecoration(
                   labelText: 'Duration',
                   hintText: 'Set audiobook duration',
-                  border: OutlineInputBorder(
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHighest,
+                  border: UnderlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
+                  enabledBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                   suffixIcon: _durationMinutes > 0
                       ? IconButton(
                     icon: const Icon(Icons.clear),
@@ -940,9 +1059,21 @@ class _BookFormPageState extends State<BookFormPage> {
               decoration: InputDecoration(
                 labelText: 'ISBN',
                 hintText: '978-X-XX-XXXXXX-X',
-                border: OutlineInputBorder(
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest,
+                border: UnderlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
+                enabledBorder: UnderlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                 suffixIcon: _isbnController.text.isNotEmpty
                     ? IconButton(
                   icon: const Icon(Icons.clear),
@@ -967,10 +1098,21 @@ class _BookFormPageState extends State<BookFormPage> {
                 style: theme.textTheme.bodyLarge,
                 decoration: InputDecoration(
                   labelText: 'Shelf',
-                  border: OutlineInputBorder(
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHighest,
+                  border: UnderlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  enabledBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                 ),
                 items: _shelves.map((shelf) {
                   return DropdownMenuItem<int>(
@@ -1003,9 +1145,21 @@ class _BookFormPageState extends State<BookFormPage> {
                     ),
                     decoration: InputDecoration(
                       labelText: 'Start Date',
-                      border: OutlineInputBorder(
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceContainerHighest,
+                      border: UnderlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
+                      enabledBorder: UnderlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                       suffixIcon: _dateStarted != null
                           ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -1030,9 +1184,21 @@ class _BookFormPageState extends State<BookFormPage> {
                     ),
                     decoration: InputDecoration(
                       labelText: 'Finish Date',
-                      border: OutlineInputBorder(
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceContainerHighest,
+                      border: UnderlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
+                      enabledBorder: UnderlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                       suffixIcon: _dateFinished != null
                           ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -1081,9 +1247,21 @@ class _BookFormPageState extends State<BookFormPage> {
                     decoration: InputDecoration(
                       labelText: 'Rating',
                       hintText: 'Enter rating (0–5)',
-                      border: OutlineInputBorder(
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceContainerHighest,
+                      border: UnderlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
+                      enabledBorder: UnderlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                       suffixIcon: _ratingController.text.isNotEmpty
                           ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -1149,17 +1327,30 @@ class _BookFormPageState extends State<BookFormPage> {
               decoration: InputDecoration(
                 labelText: 'Review',
                 hintText: 'Write your thoughts on this book...',
-                border: OutlineInputBorder(
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest,
+                border: UnderlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
+                enabledBorder: UnderlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                 alignLabelWithHint: true,
               ),
-              maxLines: 4,
+              minLines: 2,
+              maxLines: null,
               onTapOutside: (event) {
                 FocusManager.instance.primaryFocus?.unfocus();
               },
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
 
             // Tags Section
             InkWell(
@@ -1196,39 +1387,58 @@ class _BookFormPageState extends State<BookFormPage> {
               },
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                constraints: const BoxConstraints(minHeight: 48),
                 decoration: BoxDecoration(
-                  border: Border.all(color: theme.dividerColor),
+                  color: theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.sell, color: theme.colorScheme.onSurface.withAlpha(153)),
+                        Icon(Icons.sell, size: 18, color: theme.colorScheme.onSurface.withAlpha(153)),
                         const SizedBox(width: 8),
-                        Text(
-                          'Tags',
-                          style: theme.textTheme.bodyMedium,
-                        ),
+                        Text('Tags', style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        )),
                       ],
                     ),
-                    if (_selectedTagIds.isNotEmpty) const SizedBox(height: 8),
                     if (_selectedTagIds.isNotEmpty)
                       FutureBuilder<List<Tag>>(
                         future: _getTagsByIds(_selectedTagIds.toList()),
                         builder: (context, snapshot) {
                           final tags = snapshot.data ?? [];
-                          return Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: tags
-                                .map((tag) => Chip(
-                              label: Text(tag.name),
-                              backgroundColor: theme.colorScheme.surfaceContainer,
-                            ))
-                                .toList(),
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: tags.map((tag) => Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.secondaryContainer,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.sell, size: 12,
+                                        color: theme.colorScheme.onSecondaryContainer),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      tag.name,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: theme.colorScheme.onSecondaryContainer,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )).toList(),
+                            ),
                           );
                         },
                       ),
@@ -1237,22 +1447,6 @@ class _BookFormPageState extends State<BookFormPage> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // Save Button
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: accentColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: _saveBook,
-                child: Text(widget.isEditing ? 'Save Changes' : 'Save Book'),
-              ),
-            ),
           ],
         ),
       ),
