@@ -22,6 +22,8 @@ class SettingsViewModel {
   final ValueNotifier<String> libraryTagFilterModeNotifier;
   // Pinned Books
   final ValueNotifier<List<int>> pinnedBookIdsNotifier;
+  // Library Shelf Filter
+  final ValueNotifier<int?> libraryShelfFilterNotifier;
 
   SettingsViewModel({
     required ThemeMode themeMode,
@@ -41,6 +43,7 @@ class SettingsViewModel {
     required List<String> finishedYears,
     required String tagFilterMode,
     required List<int> pinnedBookIds,
+    required int? shelfId,
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
@@ -57,7 +60,8 @@ class SettingsViewModel {
         libraryBookTypeFilterNotifier = ValueNotifier(bookTypes),
         libraryFavoriteFilterNotifier = ValueNotifier(isFavorite),
         libraryFinishedYearFilterNotifier = ValueNotifier(finishedYears),
-        pinnedBookIdsNotifier = ValueNotifier(pinnedBookIds);
+        pinnedBookIdsNotifier = ValueNotifier(pinnedBookIds),
+        libraryShelfFilterNotifier = ValueNotifier(shelfId);
 
 
   // Method to toggle theme mode (light, dark, system)
@@ -326,5 +330,22 @@ class SettingsViewModel {
       return [];
     }
     return idsString.split(',').map((id) => int.parse(id)).toList();
+  }
+
+  // Save selected shelf filter
+  Future<void> setLibraryShelfFilter(int? shelfId) async {
+    libraryShelfFilterNotifier.value = shelfId;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (shelfId == null) {
+      await prefs.remove('libraryShelfFilter');
+    } else {
+      await prefs.setInt('libraryShelfFilter', shelfId);
+    }
+  }
+
+  // Load saved shelf filter
+  static Future<int?> getLibraryShelfFilter() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('libraryShelfFilter');
   }
 }

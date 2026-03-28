@@ -74,6 +74,7 @@ class _LibraryPageState extends State<LibraryPage> {
     _selectedFinishedYears = widget.settingsViewModel.libraryFinishedYearFilterNotifier.value;
     _selectedTagFilterMode = widget.settingsViewModel.libraryTagFilterModeNotifier.value;
     _pinnedBookIds = widget.settingsViewModel.pinnedBookIdsNotifier.value.toSet();
+    _selectedShelfId = widget.settingsViewModel.libraryShelfFilterNotifier.value;
 
     _filteredBooks = _sortAndFilterBooks(
       List<Map<String, dynamic>>.from(widget.books),
@@ -762,6 +763,7 @@ class _LibraryPageState extends State<LibraryPage> {
                                       _selectedTagFilterMode,
                                     );
                                   });
+                                  widget.settingsViewModel.setLibraryShelfFilter(null);
                                 },
                                 showCheckmark: false,
                                 labelStyle: theme.textTheme.bodyMedium,
@@ -802,6 +804,7 @@ class _LibraryPageState extends State<LibraryPage> {
                                         _selectedTagFilterMode,
                                       );
                                     });
+                                    widget.settingsViewModel.setLibraryShelfFilter(_selectedShelfId);
                                   },
                                   showCheckmark: false,
                                   labelStyle: theme.textTheme.bodyMedium,

@@ -97,6 +97,7 @@ class _MyAppState extends State<MyApp> {
     final finishedYears = await SettingsViewModel.getLibraryFinishedYears();
     final tagFilterMode = await SettingsViewModel.getLibraryTagFilterMode();
     final pinnedBookIds = await SettingsViewModel.getPinnedBookIds();
+    final shelfId = await SettingsViewModel.getLibraryShelfFilter();
 
     if (kDebugMode) {
       final preferencesDebugMessage = '''
@@ -144,6 +145,7 @@ class _MyAppState extends State<MyApp> {
         finishedYears: finishedYears,
         tagFilterMode: tagFilterMode,
         pinnedBookIds: pinnedBookIds,
+        shelfId: shelfId,
       );
       _isReady = true;
     });
