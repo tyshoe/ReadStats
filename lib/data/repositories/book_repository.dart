@@ -34,6 +34,10 @@ class BookRepository {
     await _databaseHelper.deleteBooksBatch(ids);
   }
 
+  Future<void> updateCoverPath(int bookId, String? path) async {
+    await _databaseHelper.updateCoverPath(bookId, path);
+  }
+
   Future<int> deleteAllBooks() async {
     return await _databaseHelper.deleteAllBooks();
   }

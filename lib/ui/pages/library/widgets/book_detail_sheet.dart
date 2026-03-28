@@ -226,48 +226,77 @@ class BookPopup {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Cover — read-only display
+                          if (book['cover_path'] != null) ...[
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                File(book['cover_path'] as String),
+                                width: 80,
+                                height: 120,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                          // Title / author / type
                           Expanded(
-                            child: Text(
-                              book['title'],
-                              style: theme.textTheme.titleLarge,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        book['title'],
+                                        style: theme.textTheme.titleLarge,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        mutableBook['is_favorite'] == 1
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                      ),
+                                      color: mutableBook['is_favorite'] == 1
+                                          ? Colors.red
+                                          : Colors.grey,
+                                      onPressed: () async {
+                                        final newStatus = mutableBook['is_favorite'] != 1;
+                                        await bookRepository.toggleFavoriteStatus(
+                                          mutableBook['id'],
+                                          newStatus,
+                                        );
+                                        setState(() {
+                                          mutableBook['is_favorite'] = newStatus ? 1 : 0;
+                                        });
+                                        refreshCallback();
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  "by ${book['author']}",
+                                  style: TextStyle(fontSize: 14, color: subtitleColor),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Icon(bookTypeIcon, size: 18, color: textColor),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      bookTypeString,
+                                      style: TextStyle(fontSize: 14, color: textColor),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              mutableBook['is_favorite'] == 1
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                            ),
-                            color: mutableBook['is_favorite'] == 1 ? Colors.red : Colors.grey,
-                            onPressed: () async {
-                              final newStatus = mutableBook['is_favorite'] != 1;
-                              await bookRepository.toggleFavoriteStatus(
-                                mutableBook['id'],
-                                newStatus,
-                              );
-                              setState(() {
-                                mutableBook['is_favorite'] = newStatus ? 1 : 0;
-                              });
-                              refreshCallback();
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        "by ${book['author']}",
-                        style: TextStyle(fontSize: 14, color: subtitleColor),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Icon(bookTypeIcon, size: 18, color: textColor),
-                          const SizedBox(width: 5),
-                          Text(
-                            bookTypeString,
-                            style: TextStyle(fontSize: 14, color: textColor),
                           ),
                         ],
                       ),
@@ -628,6 +657,7 @@ class BookPopup {
                 allowCoverUpload: allowCoverUpload,
                 isTransparent: isTransparent,
                 isDark: isDark,
+                initialCoverPath: book['cover_path'] as String?,
               );
 
               if (isTransparent) {

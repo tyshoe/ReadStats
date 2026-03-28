@@ -18,6 +18,7 @@ class BookShareCard extends StatefulWidget {
   final bool allowCoverUpload;
   final bool isTransparent;
   final bool isDark;
+  final String? initialCoverPath;
 
   const BookShareCard({
     super.key,
@@ -34,6 +35,7 @@ class BookShareCard extends StatefulWidget {
     required this.allowCoverUpload,
     this.isTransparent = false,
     this.isDark = false,
+    this.initialCoverPath,
   });
 
   @override
@@ -43,6 +45,14 @@ class BookShareCard extends StatefulWidget {
 class _BookShareCardState extends State<BookShareCard> {
   File? _coverImage;
   final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialCoverPath != null) {
+      _coverImage = File(widget.initialCoverPath!);
+    }
+  }
 
   Future<void> _pickImage() async {
     final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);

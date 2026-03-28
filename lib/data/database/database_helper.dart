@@ -94,6 +94,7 @@ class DatabaseHelper {
         user_review TEXT,
         duration_minutes INTEGER DEFAULT 0,
         shelf_id INTEGER NOT NULL DEFAULT 1,
+        cover_path TEXT,
         FOREIGN KEY(book_type_id) REFERENCES book_types(id),
         FOREIGN KEY(shelf_id) REFERENCES shelves(id)
       )
@@ -154,6 +155,7 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE books ADD COLUMN isbn TEXT');
       await db.execute('ALTER TABLE books ADD COLUMN user_review TEXT');
       await db.execute('ALTER TABLE books ADD COLUMN duration_minutes INTEGER DEFAULT 0');
+      await db.execute('ALTER TABLE books ADD COLUMN cover_path TEXT');
 
       // Create shelves table and seed system shelves
       await db.execute('''
@@ -463,6 +465,16 @@ class DatabaseHelper {
       'books',
       where: 'id = ?',
       whereArgs: [id],
+    );
+  }
+
+  Future<void> updateCoverPath(int bookId, String? path) async {
+    final db = await database;
+    await db.update(
+      'books',
+      {'cover_path': path},
+      where: 'id = ?',
+      whereArgs: [bookId],
     );
   }
 

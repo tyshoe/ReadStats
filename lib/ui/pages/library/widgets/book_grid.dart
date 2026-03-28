@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 
 class BookGridItem extends StatelessWidget {
@@ -35,32 +36,17 @@ class BookGridItem extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Placeholder cover
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          book['title'],
-                          style: theme.textTheme.bodyMedium,
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const Spacer(),
-                        Text(
-                          book['author'],
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.textTheme.bodySmall?.color?.withAlpha(
-                              153,
-                            ),
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
+                  // Cover image or text placeholder
+                  if (book['cover_path'] != null)
+                    Image.file(
+                      File(book['cover_path'] as String),
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      errorBuilder: (_, __, ___) => _textPlaceholder(theme, book),
+                    )
+                  else
+                    _textPlaceholder(theme, book),
 
                   Positioned(
                     top: 6,
@@ -101,6 +87,32 @@ class BookGridItem extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _textPlaceholder(ThemeData theme, Map<String, dynamic> book) {
+  return Container(
+    padding: const EdgeInsets.all(12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          book['title'],
+          style: theme.textTheme.bodyMedium,
+          maxLines: 4,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const Spacer(),
+        Text(
+          book['author'],
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.textTheme.bodySmall?.color?.withAlpha(153),
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    ),
+  );
 }
 
 class _BadgePill extends StatelessWidget {

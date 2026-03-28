@@ -19,6 +19,7 @@ class Book {
   String? userReview;
   int durationMinutes;
   int shelfId;
+  String? coverPath;
   // Denormalized from JOIN — populated when loaded from DB, not written back
   final String? shelfName;
 
@@ -40,6 +41,7 @@ class Book {
     this.userReview,
     this.durationMinutes = 0,
     this.shelfId = DatabaseHelper.shelfWantToRead,
+    this.coverPath,
     this.shelfName,
   });
 
@@ -63,6 +65,7 @@ class Book {
       'user_review': userReview,
       'duration_minutes': durationMinutes,
       'shelf_id': shelfId,
+      'cover_path': coverPath,
       // tags stored separately in book_tags
     };
   }
@@ -85,6 +88,7 @@ class Book {
       userReview: map['user_review'],
       durationMinutes: (map['duration_minutes'] as int?) ?? 0,
       shelfId: (map['shelf_id'] as int?) ?? DatabaseHelper.shelfWantToRead,
+      coverPath: map['cover_path'] as String?,
       shelfName: map['shelf_name'] as String?,
     );
   }
