@@ -49,6 +49,8 @@ class _SessionFormPageState extends State<SessionFormPage> {
   bool _isFirstSession = false;
   bool _isFinalSession = false;
   bool _useElapsedTimeFormat = false;
+  bool _showPageRange = false;
+  bool _showTimeRange = false;
   Map<String, dynamic>? _selectedBook;
 
   @override
@@ -305,41 +307,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
   }
 
-  void _deleteSession() async {
-    try {
-      await widget.sessionRepository.deleteSession(widget.session!['id']);
-      widget.onSave();
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      _showSnackBar('Failed to delete session. Please try again.');
-    }
-  }
-
-  void _confirmDelete() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Session'),
-        content: const Text('Are you sure you want to delete this session?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteSession();
-            },
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _showRatingDialog() async {
     final completer = Completer<void>();
@@ -406,7 +373,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
         return AlertDialog(
           title: Text(
             'Set Duration',
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: Theme.of(context).textTheme.titleMedium,
           ),
           content: SizedBox(
             width: dialogWidth,
@@ -594,7 +561,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
         return AlertDialog(
           title: Text(
             'Enter Time',
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: Theme.of(context).textTheme.titleMedium,
           ),
           content: SizedBox(
             width: dialogWidth,
@@ -750,32 +717,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
   }
 
-  Widget _buildShortDividerWithText(BuildContext context) {
-    final theme = Theme.of(context);
-    final dividerColor = theme.colorScheme.outline.withAlpha(77);
-    final labelStyle = theme.textTheme.labelSmall?.copyWith(
-      color: theme.colorScheme.onSurface.withAlpha(128),
-    );
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 80,
-          child: Divider(thickness: 1, color: dividerColor),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text('OR', style: labelStyle),
-        ),
-        SizedBox(
-          width: 80,
-          child: Divider(thickness: 1, color: dividerColor),
-        ),
-      ],
-    );
-  }
-
   Widget _buildTimeFormatToggle() {
     return SizedBox(
       width: double.infinity,
@@ -799,16 +740,13 @@ class _SessionFormPageState extends State<SessionFormPage> {
           });
         },
         style: SegmentedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          foregroundColor: Theme.of(context).colorScheme.onSurface,
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
           selectedBackgroundColor: Theme.of(context).colorScheme.primaryContainer,
           selectedForegroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
-          side: BorderSide(
-            color: Theme.of(context).colorScheme.outline,
-            width: 1,
-          ),
+          side: const BorderSide(color: Colors.transparent),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
           ),
           padding: const EdgeInsets.symmetric(vertical: 8),
           visualDensity: VisualDensity.compact,
@@ -828,15 +766,20 @@ class _SessionFormPageState extends State<SessionFormPage> {
       appBar: AppBar(
         title: Text(widget.isEditing ? 'Edit Session' : 'Add Session'),
         backgroundColor: theme.scaffoldBackgroundColor,
-        actions: [
-          TextButton(
+        actions: const [],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: FilledButton(
             onPressed: _saveSession,
-            child: Text(
-              'Save',
-              style: TextStyle(color: accentColor),
+            style: FilledButton.styleFrom(
+              backgroundColor: accentColor,
+              minimumSize: const Size.fromHeight(48),
             ),
+            child: Text(widget.isEditing ? 'Update Session' : 'Save Session'),
           ),
-        ],
+        ),
       ),
       body: SingleChildScrollView(
         controller: _scrollController,
@@ -874,11 +817,13 @@ class _SessionFormPageState extends State<SessionFormPage> {
                       decoration: InputDecoration(
                         labelText: 'Book',
                         hintText: 'Select a book',
-                        border: OutlineInputBorder(
+                        border: UnderlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
                         ),
-                        contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        filled: true,
+                        fillColor: theme.colorScheme.surfaceContainerHighest,
+                        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                         suffixIcon: _selectedBook != null
                             ? IconButton(
                           icon: const Icon(Icons.clear),
@@ -956,24 +901,48 @@ class _SessionFormPageState extends State<SessionFormPage> {
                   );
                 },
               ),
+            if (_selectedBook != null &&
+                (_selectedBook!['author'] as String?)?.isNotEmpty == true) ...[
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: Text(
+                  'by ${_selectedBook!['author']}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
             ] else ...[
               TextFormField(
                 readOnly: true,
                 decoration: InputDecoration(
                   labelText: 'Book',
                   labelStyle: TextStyle(color: colors.onSurfaceVariant),
-                  border: OutlineInputBorder(
+                  border: UnderlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHighest,
+                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                   suffixIcon: const Icon(Icons.lock, size: 20),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.onSurfaceVariant),
-                  ),
                 ),
                 controller: TextEditingController(text: widget.book!['title']),
               ),
+              if ((widget.book!['author'] as String?)?.isNotEmpty == true) ...[
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: Text(
+                    'by ${widget.book!['author']}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
             ],
             const SizedBox(height: 16),
 
@@ -987,9 +956,13 @@ class _SessionFormPageState extends State<SessionFormPage> {
               decoration: InputDecoration(
                 labelText: 'Date',
                 hintText: 'Select date *',
-                border: OutlineInputBorder(
+                border: UnderlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest,
+                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                 suffixIcon: const Icon(Icons.calendar_today),
               ),
               onTapOutside: (event) {
@@ -1001,75 +974,18 @@ class _SessionFormPageState extends State<SessionFormPage> {
             if (_selectedBook?['book_type_id'] != 4)
               Column(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _startPageController,
-                          decoration: InputDecoration(
-                            labelText: 'Start Page',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            suffixIcon: _startPageController.text.isNotEmpty
-                                ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () => _clearField(_startPageController),
-                            )
-                                : null,
-                          ),
-                          keyboardType: TextInputType.number,
-                          onChanged: (value) {
-                            _calculatePagesRead();
-                            setState(() {});
-                          },
-                          onTapOutside: (event) {
-                            FocusManager.instance.primaryFocus?.unfocus();
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Icon(Icons.arrow_forward,
-                          color: theme.colorScheme.onSurface.withAlpha(153)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _endPageController,
-                          decoration: InputDecoration(
-                            labelText: 'End Page',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            suffixIcon: _endPageController.text.isNotEmpty
-                                ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () => _clearField(_endPageController),
-                            )
-                                : null,
-                          ),
-                          keyboardType: TextInputType.number,
-                          onChanged: (value) {
-                            _calculatePagesRead();
-                            setState(() {});
-                          },
-                          onTapOutside: (event) {
-                            FocusManager.instance.primaryFocus?.unfocus();
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  _buildShortDividerWithText(context),
-                  const SizedBox(height: 8),
                   TextField(
                     controller: _pagesController,
                     decoration: InputDecoration(
                       labelText: 'Pages',
                       hintText: 'Enter number of pages',
-                      border: OutlineInputBorder(
+                      border: UnderlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceContainerHighest,
+                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                       suffixIcon: _pagesController.text.isNotEmpty
                           ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -1083,75 +999,111 @@ class _SessionFormPageState extends State<SessionFormPage> {
                       FocusManager.instance.primaryFocus?.unfocus();
                     },
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: InkWell(
+                      onTap: () => setState(() => _showPageRange = !_showPageRange),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'or use page range',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            AnimatedRotation(
+                              turns: _showPageRange ? 0.5 : 0,
+                              duration: const Duration(milliseconds: 200),
+                              child: Icon(Icons.expand_more, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    child: _showPageRange ? Column(
+                      children: [
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _startPageController,
+                                decoration: InputDecoration(
+                                  labelText: 'Start Page',
+                                  border: UnderlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  filled: true,
+                                  fillColor: theme.colorScheme.surfaceContainer,
+                                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                                  suffixIcon: _startPageController.text.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.clear),
+                                          onPressed: () => _clearField(_startPageController),
+                                        )
+                                      : null,
+                                ),
+                                keyboardType: TextInputType.number,
+                                onChanged: (value) {
+                                  _calculatePagesRead();
+                                  setState(() {});
+                                },
+                                onTapOutside: (event) {
+                                  FocusManager.instance.primaryFocus?.unfocus();
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Icon(Icons.arrow_forward, color: theme.colorScheme.onSurface.withAlpha(153)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: _endPageController,
+                                decoration: InputDecoration(
+                                  labelText: 'End Page',
+                                  border: UnderlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  filled: true,
+                                  fillColor: theme.colorScheme.surfaceContainer,
+                                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                                  suffixIcon: _endPageController.text.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(Icons.clear),
+                                          onPressed: () => _clearField(_endPageController),
+                                        )
+                                      : null,
+                                ),
+                                keyboardType: TextInputType.number,
+                                onChanged: (value) {
+                                  _calculatePagesRead();
+                                  setState(() {});
+                                },
+                                onTapOutside: (event) {
+                                  FocusManager.instance.primaryFocus?.unfocus();
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ) : const SizedBox.shrink(),
+                  ),
+                  const SizedBox(height: 24),
                 ],
               ),
-
-            // Time Range Input
-            _buildTimeFormatToggle(),
-            const SizedBox(height: 16),
-
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    readOnly: true,
-                    onTap: () => _useElapsedTimeFormat
-                        ? _showElapsedTimePicker(context, true)
-                        : _showTimePicker(context, true),
-                    controller: _startTimeController,
-                    decoration: InputDecoration(
-                      labelText: 'Start Time',
-                      hintText: 'Select start time',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      suffixIcon: _startTimeController.text.isNotEmpty
-                          ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => _clearField(_startTimeController),
-                      )
-                          : null,
-                    ),
-                    onTapOutside: (event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Icon(Icons.arrow_forward, color: theme.colorScheme.onSurface.withAlpha(153)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    readOnly: true,
-                    onTap: () => _useElapsedTimeFormat
-                        ? _showElapsedTimePicker(context, false)
-                        : _showTimePicker(context, false),
-                    controller: _endTimeController,
-                    decoration: InputDecoration(
-                      labelText: 'End Time',
-                      hintText: 'Select end time',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      suffixIcon: _endTimeController.text.isNotEmpty
-                          ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => _clearField(_endTimeController),
-                      )
-                          : null,
-                    ),
-                    onTapOutside: (event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-            _buildShortDividerWithText(context),
-            const SizedBox(height: 8),
 
             // Duration Field
             TextFormField(
@@ -1163,9 +1115,13 @@ class _SessionFormPageState extends State<SessionFormPage> {
               decoration: InputDecoration(
                 labelText: 'Duration',
                 hintText: 'Set duration',
-                border: OutlineInputBorder(
+                border: UnderlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest,
+                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                 suffixIcon: (_hoursController.text != '0' || _minutesController.text != '0')
                     ? IconButton(
                   icon: const Icon(Icons.clear),
@@ -1184,10 +1140,113 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 FocusManager.instance.primaryFocus?.unfocus();
               },
             ),
-            const Divider(height: 48),
+            const SizedBox(height: 8),
+            Center(
+              child: InkWell(
+                onTap: () => setState(() => _showTimeRange = !_showTimeRange),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'or use time range',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      AnimatedRotation(
+                        turns: _showTimeRange ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(Icons.expand_more, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              child: _showTimeRange ? Column(
+                children: [
+                  const SizedBox(height: 8),
+                  _buildTimeFormatToggle(),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          readOnly: true,
+                          onTap: () => _useElapsedTimeFormat
+                              ? _showElapsedTimePicker(context, true)
+                              : _showTimePicker(context, true),
+                          controller: _startTimeController,
+                          decoration: InputDecoration(
+                            labelText: 'Start Time',
+                            hintText: 'Select start time',
+                            border: UnderlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: theme.colorScheme.surfaceContainer,
+                            contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                            suffixIcon: _startTimeController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () => _clearField(_startTimeController),
+                                  )
+                                : null,
+                          ),
+                          onTapOutside: (event) {
+                            FocusManager.instance.primaryFocus?.unfocus();
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(Icons.arrow_forward, color: theme.colorScheme.onSurface.withAlpha(153)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          readOnly: true,
+                          onTap: () => _useElapsedTimeFormat
+                              ? _showElapsedTimePicker(context, false)
+                              : _showTimePicker(context, false),
+                          controller: _endTimeController,
+                          decoration: InputDecoration(
+                            labelText: 'End Time',
+                            hintText: 'Select end time',
+                            border: UnderlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: theme.colorScheme.surfaceContainer,
+                            contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                            suffixIcon: _endTimeController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () => _clearField(_endTimeController),
+                                  )
+                                : null,
+                          ),
+                          onTapOutside: (event) {
+                            FocusManager.instance.primaryFocus?.unfocus();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ) : const SizedBox.shrink(),
+            ),
 
             // Session Type Checkboxes (only for new sessions)
             if (!widget.isEditing) ...[
+              const Divider(height: 48),
               Text('Session Type', style: textTheme.bodyMedium),
               const SizedBox(height: 8),
               Column(
@@ -1225,59 +1284,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
               ),
             ],
 
-            const SizedBox(height: 32),
-
-            // Action Buttons
-            if (widget.isEditing) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _confirmDelete,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: colors.error,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: BorderSide(color: colors.error),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('Delete'),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton(
-                      onPressed: _saveSession,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: accentColor,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('Save Changes'),
-                    ),
-                  ),
-                ],
-              ),
-            ] else ...[
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _saveSession,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: accentColor,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Save Session'),
-                ),
-              ),
-            ],
           ],
         ),
       ),

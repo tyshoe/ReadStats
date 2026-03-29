@@ -280,10 +280,50 @@ class _SessionsPageState extends State<SessionsPage> {
 
     final double pagesPerMinute = (pagesRead > 0 && minutes > 0) ? pagesRead / minutes : 0;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Dismissible(
+      key: ValueKey(session['id']),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.error,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 28),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      confirmDismiss: (_) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete Session'),
+            content: const Text('Are you sure you want to delete this session?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              ),
+            ],
+          ),
+        ) ?? false;
+      },
+      onDismissed: (_) async {
+        await widget.sessionRepository.deleteSession(session['id']);
+        widget.refreshSessions();
+        widget.refreshBooks();
+      },
+      child: Card(
+      margin: EdgeInsets.zero,
       elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: const RoundedRectangleBorder(),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () => _navigateToEditSessionsPage(session),
@@ -366,6 +406,9 @@ class _SessionsPageState extends State<SessionsPage> {
             ],
           ),
         ),
+      ),
+      ),
+      ),
       ),
     );
   }
