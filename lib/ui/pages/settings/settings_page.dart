@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -169,43 +170,55 @@ class SettingsPage extends StatelessWidget {
           // Data Management Section
           _buildSettingsSection(
             context,
-            header: 'Manage Your Data',
+            header: 'Data',
             children: [
               _buildSettingsTile(
                 context,
-                title: 'Export data as CSV',
+                title: 'Export to CSV',
                 onTap: () =>
                     _handleImportExport(context, importExportService.exportDataToCSV),
               ),
               _buildSettingsTile(
                 context,
-                title: 'Import Goodreads data',
+                title: 'Import from Goodreads',
                 onTap: () =>
                     _handleImportExport(context, importExportService.importGoodreadsCSV),
               ),
-              _buildSettingsTile(
-                context,
-                title: 'Import Books from CSV',
-                onTap: () =>
-                    _handleImportExport(context, importExportService.importBooksFromCSV),
-              ),
-              _buildSettingsTile(
-                context,
-                title: 'Import Sessions from CSV',
-                onTap: () =>
-                    _handleImportExport(context, importExportService.importSessionsFromCSV),
-              ),
-              _buildSettingsTile(
-                context,
-                title: 'Import Tags from CSV',
-                onTap: () =>
-                    _handleImportExport(context, importExportService.importTagsFromCSV),
-              ),
-              _buildSettingsTile(
-                context,
-                title: 'Import Book Tags from CSV',
-                onTap: () =>
-                    _handleImportExport(context, importExportService.importBookTagsFromCSV),
+              ExpansionTile(
+                title: Text(
+                  'Import from CSV',
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+                childrenPadding: const EdgeInsets.only(bottom: 4),
+                children: [
+                  _buildSettingsTile(
+                    context,
+                    title: 'Books',
+                    onTap: () =>
+                        _handleImportExport(context, importExportService.importBooksFromCSV),
+                  ),
+                  _buildSettingsTile(
+                    context,
+                    title: 'Sessions',
+                    onTap: () =>
+                        _handleImportExport(context, importExportService.importSessionsFromCSV),
+                  ),
+                  _buildSettingsTile(
+                    context,
+                    title: 'Tags',
+                    onTap: () =>
+                        _handleImportExport(context, importExportService.importTagsFromCSV),
+                  ),
+                  _buildSettingsTile(
+                    context,
+                    title: 'Book Tags',
+                    onTap: () =>
+                        _handleImportExport(context, importExportService.importBookTagsFromCSV),
+                  ),
+                ],
               ),
               _buildSettingsTile(
                 context,
@@ -224,11 +237,15 @@ class SettingsPage extends StatelessWidget {
               _buildSettingsTile(
                 context,
                 title: 'Join our Discord',
+                leading: const FaIcon(FontAwesomeIcons.discord, size: 20),
+                trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () => _launchUrl('https://discord.gg/cA6CDkUY4x'),
               ),
               _buildSettingsTile(
                 context,
                 title: 'GitHub',
+                leading: const FaIcon(FontAwesomeIcons.github, size: 20),
+                trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () => _launchUrl('https://github.com/tyshoe/ReadStats'),
               ),
               _buildSettingsTile(
@@ -319,6 +336,7 @@ class SettingsPage extends StatelessWidget {
       BuildContext context, {
         required String title,
         Widget? trailing,
+        Widget? leading,
         VoidCallback? onTap,
         Color? textColor,
       }) {
@@ -328,6 +346,7 @@ class SettingsPage extends StatelessWidget {
         style: TextStyle(
             color: textColor ?? Theme.of(context).colorScheme.onSurface),
       ),
+      leading: leading,
       trailing: trailing,
       onTap: onTap,
       shape: RoundedRectangleBorder(
