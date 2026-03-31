@@ -33,13 +33,12 @@ class BookPopup {
       {required Function() refreshCallback}) async {
     final DatabaseHelper dbHelper = DatabaseHelper();
     final stats = await dbHelper.getBookStats(book['id']);
-    final DateFormat dateFormat = DateFormat(dateFormatString);
-
     final ThemeData theme = Theme.of(context);
     final Color textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
     final Color subtitleColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
 
     final tags = await tagRepository.getTagsForBook(book['id']);
+    final shelves = await dbHelper.getShelves();
 
     final mutableBook = Map<String, dynamic>.from(book);
 
@@ -49,9 +48,6 @@ class BookPopup {
     DateTime? finishDateTime =
     book['date_finished'] != null ? DateTime.parse(book['date_finished']) : null;
 
-    String? startDate = startDateTime != null ? dateFormat.format(startDateTime) : null;
-    String? finishDate = finishDateTime != null ? dateFormat.format(finishDateTime) : null;
-
     String daysToCompleteString = "";
 
     if (startDateTime != null && finishDateTime != null) {
@@ -59,6 +55,10 @@ class BookPopup {
       int adjustedDays = days == 0 ? 1 : days;
       daysToCompleteString = " ($adjustedDays ${adjustedDays == 1 ? 'day' : 'days'})";
     }
+
+    final dateFormat = DateFormat(dateFormatString);
+    final String? startDate = startDateTime != null ? dateFormat.format(startDateTime) : null;
+    final String? finishDate = finishDateTime != null ? dateFormat.format(finishDateTime) : null;
 
     String dateRangeString = "";
 
@@ -116,22 +116,19 @@ class BookPopup {
     }
 
     // Completion status
-    String completionStatus = '';
+    final bool isDark = theme.brightness == Brightness.dark;
     IconData completionIcon;
     Color completionColor;
 
     if (book['is_completed'] == 1) {
-      completionStatus = 'Completed';
       completionIcon = Icons.check;
-      completionColor = Colors.grey;
+      completionColor = isDark ? Colors.green.shade300 : Colors.green.shade700;
     } else if (book['is_completed'] == 0 && stats['date_started'] != null) {
-      completionStatus = 'In Progress';
       completionIcon = Icons.autorenew;
-      completionColor = Colors.grey;
+      completionColor = theme.colorScheme.primary;
     } else {
-      completionStatus = 'Not Started';
       completionIcon = Icons.schedule;
-      completionColor = Colors.grey;
+      completionColor = theme.colorScheme.onSurfaceVariant;
     }
 
     // Book type
@@ -205,7 +202,7 @@ class BookPopup {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: theme.colorScheme.surfaceContainerLow,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
@@ -217,226 +214,355 @@ class BookPopup {
                 bottom: MediaQuery.of(context).viewInsets.bottom,
               ),
               child: SingleChildScrollView(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Cover — read-only display
-                          if (book['cover_path'] != null) ...[
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── BOOK SECTION ─────────────────────────────────────
+                    ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    child: Stack(
+                      children: [
+                        if (book['cover_path'] != null) ...[
+                          Positioned.fill(
+                            child: ImageFiltered(
+                              imageFilter: ui.ImageFilter.blur(sigmaX: 60, sigmaY: 60),
                               child: Image.file(
                                 File(book['cover_path'] as String),
-                                width: 80,
-                                height: 120,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                          ],
-                          // Title / author / type
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        book['title'],
-                                        style: theme.textTheme.titleLarge,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(
-                                        mutableBook['is_favorite'] == 1
-                                            ? Icons.favorite
-                                            : Icons.favorite_border,
-                                      ),
-                                      color: mutableBook['is_favorite'] == 1
-                                          ? Colors.red
-                                          : Colors.grey,
-                                      onPressed: () async {
-                                        final newStatus = mutableBook['is_favorite'] != 1;
-                                        await bookRepository.toggleFavoriteStatus(
-                                          mutableBook['id'],
-                                          newStatus,
-                                        );
-                                        setState(() {
-                                          mutableBook['is_favorite'] = newStatus ? 1 : 0;
-                                        });
-                                        refreshCallback();
-                                      },
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  "by ${book['author']}",
-                                  style: TextStyle(fontSize: 14, color: subtitleColor),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    Icon(bookTypeIcon, size: 18, color: textColor),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      bookTypeString,
-                                      style: TextStyle(fontSize: 14, color: textColor),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                          ),
+                          Positioned.fill(
+                            child: Container(
+                              color: Colors.black.withValues(alpha: 0.35),
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 10),
-                      Divider(color: Colors.grey[300], height: 1),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Book Completion Status
-                          Expanded(
-                            flex: 7,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(completionIcon, color: completionColor, size: 18),
-                                    const SizedBox(width: 5),
-                                    Text(
-                                      completionStatus,
-                                      style: TextStyle(fontSize: 14, color: textColor),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Drag handle
+                              Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  child: Container(
+                                    height: 4,
+                                    width: 40,
+                                    decoration: BoxDecoration(
+                                      color: book['cover_path'] != null
+                                          ? Colors.white.withValues(alpha: 0.5)
+                                          : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                                      borderRadius: BorderRadius.circular(2),
                                     ),
-                                    if (book['is_completed'] == 0 &&
-                                        (isAudiobook
-                                            ? (stats['total_time'] ?? 0) > 0 &&
-                                            (book['duration_minutes'] ?? 0) > 0
-                                            : (stats['total_pages'] ?? 0) > 0 &&
-                                            (book['page_count'] ?? 0) > 0)) ...[
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        isAudiobook
-                                            ? _getAudiobookProgressCompact(
-                                          stats['total_time'] ?? 0,
-                                          book['duration_minutes'] ?? 0,
-                                        )
-                                            : _getTimeToFinishCompact(
-                                          stats['total_pages'] ?? 0,
-                                          book['page_count'] ?? 0,
-                                          stats['pages_per_minute'] ?? 0,
+                                  ),
+                                ),
+                              ),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  if (book['cover_path'] != null) ...[
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.file(
+                                        File(book['cover_path'] as String),
+                                        width: 90,
+                                        height: 135,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                  ],
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                book['title'],
+                                                style: theme.textTheme.titleLarge?.copyWith(
+                                                  color: book['cover_path'] != null ? Colors.white : null,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            GestureDetector(
+                                              onTap: () async {
+                                                final newStatus = mutableBook['is_favorite'] != 1;
+                                                await bookRepository.toggleFavoriteStatus(
+                                                  mutableBook['id'],
+                                                  newStatus,
+                                                );
+                                                setState(() {
+                                                  mutableBook['is_favorite'] = newStatus ? 1 : 0;
+                                                });
+                                                refreshCallback();
+                                              },
+                                              child: Icon(
+                                                mutableBook['is_favorite'] == 1
+                                                    ? Icons.favorite
+                                                    : Icons.favorite_border,
+                                                size: 22,
+                                                color: mutableBook['is_favorite'] == 1
+                                                    ? Colors.red
+                                                    : book['cover_path'] != null
+                                                        ? Colors.white70
+                                                        : Colors.grey,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        style: TextStyle(fontSize: 14, color: subtitleColor),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                                const SizedBox(height: 5),
-                                _buildRatingDisplay(ratingStyle, book['rating']),
-                                if (dateRangeString != '') ...[
-                                  const SizedBox(height: 5),
-                                  Text(
-                                    dateRangeString + daysToCompleteString,
-                                    style: TextStyle(fontSize: 14, color: textColor),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          "by ${book['author']}",
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: book['cover_path'] != null
+                                                ? Colors.white70
+                                                : subtitleColor,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Icon(bookTypeIcon, size: 16,
+                                              color: book['cover_path'] != null ? Colors.white70 : subtitleColor),
+                                            const SizedBox(width: 5),
+                                            Text(bookTypeString, style: TextStyle(
+                                              fontSize: 14,
+                                              color: book['cover_path'] != null ? Colors.white70 : subtitleColor,
+                                            )),
+                                          ],
+                                        ),
+                                        if (!isAudiobook && (pageCountString != '' || wordCountString != '')) ...[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            [pageCountString, wordCountString].where((s) => s.isNotEmpty).join(' · '),
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: book['cover_path'] != null ? Colors.white70 : subtitleColor,
+                                            ),
+                                          ),
+                                        ],
+                                        if (isAudiobook && durationString != '') ...[
+                                          const SizedBox(height: 4),
+                                          Text(durationString, style: TextStyle(
+                                            fontSize: 14,
+                                            color: book['cover_path'] != null ? Colors.white70 : subtitleColor,
+                                          )),
+                                        ],
+                                      ],
+                                    ),
                                   ),
                                 ],
-                              ],
-                            ),
-                          ),
-                          // Pages/words or duration
-                          Expanded(
-                            flex: 3,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                if (!isAudiobook) ...[
-                                  if (pageCountString != '')
-                                    Text(
-                                      pageCountString,
-                                      style: TextStyle(fontSize: 14, color: textColor),
-                                    ),
-                                  if (wordCountString != '')
-                                    Text(
-                                      wordCountString,
-                                      style: TextStyle(fontSize: 14, color: textColor),
-                                    ),
-                                ] else if (durationString != '') ...[
-                                  Text(
-                                    durationString,
-                                    style: TextStyle(fontSize: 14, color: textColor),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      if (tags.isNotEmpty) ...[
-                        SizedBox(
-                          height: 28,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: tags.length,
-                            separatorBuilder: (context, index) => const SizedBox(width: 6),
-                            itemBuilder: (context, index) {
-                              return Container(
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.secondaryContainer,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.sell, size: 12,
-                                        color: Theme.of(context).colorScheme.onSecondaryContainer),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      tags[index].name,
-                                      style: TextStyle(color: Theme.of(context).colorScheme.onSecondaryContainer, fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 8),
                       ],
+                    ),
+                    ), // ClipRect
 
-                      // Stat cards — Read Time moved above Pages Read,
-                      // pages/speed stats hidden for audiobooks
-                      _buildStatCard(
-                          context, 'Sessions', stats['session_count']?.toString() ?? '0'),
-                      _buildStatCard(
-                          context, 'Read Time', formatTime(stats['total_time'] ?? 0)),
-                      if (!isAudiobook) ...[
-                        _buildStatCard(
-                            context, 'Pages Read', stats['total_pages']?.toString() ?? '0'),
-                        _buildStatCard(context, 'Pages/Min',
-                            stats['pages_per_minute']?.toStringAsFixed(2) ?? '0'),
-                        _buildStatCard(context, 'Words/Min',
-                            stats['words_per_minute']?.toStringAsFixed(2) ?? '0'),
-                      ],
-
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    // ── MY READING SECTION ───────────────────────────────
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHigh,
+                      ),
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Shelf chip + rating
+                          Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () async {
+                                  final currentShelfId = mutableBook['shelf_id'] as int?;
+                                  await showModalBottomSheet(
+                                    context: context,
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                    ),
+                                    builder: (ctx) => Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                                          child: Text('Move to shelf', style: theme.textTheme.titleMedium),
+                                        ),
+                                        ...shelves.map((shelf) {
+                                          final isSelected = shelf['id'] == currentShelfId;
+                                          return ListTile(
+                                            title: Text(shelf['name']),
+                                            trailing: isSelected ? Icon(Icons.check, color: theme.colorScheme.primary) : null,
+                                            onTap: isSelected ? null : () async {
+                                              Navigator.pop(ctx);
+                                              await bookRepository.updateBookShelf(mutableBook['id'], shelf['id']);
+                                              setState(() => mutableBook['shelf_id'] = shelf['id']);
+                                              refreshCallback();
+                                            },
+                                          );
+                                        }),
+                                        const SizedBox(height: 8),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: completionColor.withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(completionIcon, size: 14, color: completionColor),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        shelves.firstWhere(
+                                          (s) => s['id'] == mutableBook['shelf_id'],
+                                          orElse: () => {'name': 'Unknown'},
+                                        )['name'] as String,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: completionColor,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(Icons.expand_more, size: 14, color: completionColor),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const Spacer(),
+                              _buildRatingDisplay(ratingStyle, book['rating']),
+                            ],
+                          ),
+
+                          // Progress bar for currently reading books only
+                          if (mutableBook['shelf_id'] == DatabaseHelper.shelfCurrentlyReading &&
+                              (isAudiobook
+                                  ? (stats['total_time'] ?? 0) > 0 && (book['duration_minutes'] ?? 0) > 0
+                                  : (stats['total_pages'] ?? 0) > 0 && (book['page_count'] ?? 0) > 0)) ...[
+                            const SizedBox(height: 12),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: isAudiobook
+                                    ? ((stats['total_time'] ?? 0) / (book['duration_minutes'] ?? 1)).clamp(0.0, 1.0)
+                                    : ((stats['total_pages'] ?? 0) / (book['page_count'] ?? 1)).clamp(0.0, 1.0),
+                                minHeight: 6,
+                                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                                valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              isAudiobook
+                                  ? _getAudiobookProgressCompact(stats['total_time'] ?? 0, book['duration_minutes'] ?? 0)
+                                  : _getTimeToFinishCompact(stats['total_pages'] ?? 0, book['page_count'] ?? 0, stats['pages_per_minute'] ?? 0),
+                              style: TextStyle(fontSize: 12, color: subtitleColor),
+                            ),
+                          ],
+
+                          // Date range
+                          if (dateRangeString != '') ...[
+                            const SizedBox(height: 10),
+                            Text(
+                              dateRangeString + daysToCompleteString,
+                              style: TextStyle(fontSize: 14, color: textColor),
+                            ),
+                          ],
+
+                          const SizedBox(height: 16),
+
+                          // Stats grid
+                          Builder(builder: (context) {
+                            final sessionCount = (stats['session_count'] as int?) ?? 0;
+                            final totalTime = (stats['total_time'] as int?) ?? 0;
+                            final ppm = (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0;
+                            final wpm = (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0;
+                            final avgSession = sessionCount > 0 ? (totalTime / sessionCount).round() : 0;
+
+                            final cells = <(String, String)>[
+                              ('Sessions', sessionCount.toString()),
+                              ('Read Time', formatTime(totalTime)),
+                              if (!isAudiobook) ('Pages Read', stats['total_pages']?.toString() ?? '0'),
+                              if (totalTime > 0) ('Avg Session', formatTime(avgSession)),
+                              if (wpm > 0) ('Words/Min', wpm.round().toString()),
+                              if (!isAudiobook && ppm > 0) ('Pages/Min', ppm.toStringAsFixed(1)),
+                            ];
+
+                            final rows = <List<(String, String)>>[];
+                            for (var i = 0; i < cells.length; i += 3) {
+                              rows.add(cells.sublist(i, (i + 3).clamp(0, cells.length)));
+                            }
+
+                            return Column(
+                              children: [
+                                for (var r = 0; r < rows.length; r++) ...[
+                                  if (r > 0) const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      for (var c = 0; c < rows[r].length; c++) ...[
+                                        if (c > 0) _buildStatDivider(context),
+                                        _buildStatCell(context, rows[r][c].$1, rows[r][c].$2),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            );
+                          }),
+
+                          // Tags
+                          if (tags.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              height: 28,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: tags.length,
+                                separatorBuilder: (context, index) => const SizedBox(width: 6),
+                                itemBuilder: (context, index) {
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.secondaryContainer,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.sell, size: 12, color: theme.colorScheme.onSecondaryContainer),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          tags[index].name,
+                                          style: TextStyle(color: theme.colorScheme.onSecondaryContainer, fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
                           // Add Session Button
                           _PopupAction(
                             icon: FluentIcons.calendar_add_16_filled,
@@ -539,9 +665,11 @@ class BookPopup {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             );
@@ -897,24 +1025,31 @@ class BookPopup {
     }
   }
 
-  static Widget _buildStatCard(BuildContext context, String title, String value) {
-    return Card(
-      margin: const EdgeInsets.only(top: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.bodyMedium),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+  static Widget _buildStatCell(BuildContext context, String label, String value) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+  }
+
+  static Widget _buildStatDivider(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 32,
+      color: Theme.of(context).colorScheme.outlineVariant,
     );
   }
 }
