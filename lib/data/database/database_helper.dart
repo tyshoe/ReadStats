@@ -151,8 +151,6 @@ class DatabaseHelper {
     }
 
     if (oldVersion < 2) {
-      await db.execute('PRAGMA foreign_keys = OFF');
-
       // Add new columns to books
       await db.execute('ALTER TABLE books ADD COLUMN isbn TEXT');
       await db.execute('ALTER TABLE books ADD COLUMN user_review TEXT');
@@ -173,6 +171,15 @@ class DatabaseHelper {
       await db.insert('shelves', {'name': 'Finished',          'is_system': 1, 'sort_order': 2});
       await db.insert('shelves', {'name': 'Unfinished',        'is_system': 1, 'sort_order': 3});
 
+      // Back up sessions and book_tags before rebuilding books.
+      // PRAGMA foreign_keys is ignored inside a transaction (which sqflite uses
+      // for onUpgrade), so DROP TABLE books would cascade-delete all sessions
+      // and book_tags. Backing them up first avoids the data loss.
+      await db.execute('CREATE TABLE sessions_backup AS SELECT * FROM sessions');
+      await db.execute('CREATE TABLE book_tags_backup AS SELECT * FROM book_tags');
+      await db.execute('DROP TABLE sessions');
+      await db.execute('DROP TABLE book_tags');
+
       // Rebuild books table to add shelf_id
       await db.execute('''
         CREATE TABLE books_new(
@@ -192,6 +199,7 @@ class DatabaseHelper {
           user_review TEXT,
           duration_minutes INTEGER DEFAULT 0,
           shelf_id INTEGER NOT NULL DEFAULT 2,
+          cover_path TEXT,
           FOREIGN KEY(book_type_id) REFERENCES book_types(id),
           FOREIGN KEY(shelf_id) REFERENCES shelves(id)
         )
@@ -210,14 +218,40 @@ class DatabaseHelper {
               WHEN b.is_completed = 1 THEN 3
               WHEN b.date_started IS NOT NULL THEN 1
               ELSE 2
-            END
+            END,
+            b.cover_path
           FROM books b
       ''');
 
       await db.execute('DROP TABLE books');
       await db.execute('ALTER TABLE books_new RENAME TO books');
 
-      await db.execute('PRAGMA foreign_keys = ON');
+      // Restore sessions
+      await db.execute('''
+        CREATE TABLE sessions(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          book_id INTEGER,
+          pages_read INTEGER,
+          duration_minutes INTEGER,
+          date DATETIME,
+          FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute('INSERT INTO sessions SELECT * FROM sessions_backup');
+      await db.execute('DROP TABLE sessions_backup');
+
+      // Restore book_tags
+      await db.execute('''
+        CREATE TABLE book_tags(
+          book_id INTEGER,
+          tag_id INTEGER,
+          PRIMARY KEY (book_id, tag_id),
+          FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE,
+          FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute('INSERT INTO book_tags SELECT * FROM book_tags_backup');
+      await db.execute('DROP TABLE book_tags_backup');
 
       // Create planner list
       await db.execute('''
