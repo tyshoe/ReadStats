@@ -8,6 +8,7 @@ import 'data/repositories/session_repository.dart';
 import 'data/repositories/tag_repository.dart';
 import 'data/services/import_export_service.dart';
 import 'ui/pages/library/library_page.dart';
+import 'ui/pages/onboarding/onboarding_page.dart';
 import 'ui/pages/settings/settings_page.dart';
 import 'ui/pages/sessions/sessions_page.dart';
 import 'ui/pages/statistics/statistics_page.dart';
@@ -33,6 +34,8 @@ void main() async {
   );
 
   final themeMode = await SettingsViewModel.loadSavedThemeMode();
+  final hasSeenOnboarding = await SettingsViewModel.getHasSeenOnboarding();
+  SettingsViewModel.setHasSeenOnboarding();
 
   runApp(MyApp(
     dbHelper: dbHelper,
@@ -41,6 +44,7 @@ void main() async {
     sessionRepository: sessionRepository,
     tagRepository: tagRepository,
     importExportService: importExportService,
+    hasSeenOnboarding: hasSeenOnboarding,
   ));
 }
 
@@ -51,6 +55,7 @@ class MyApp extends StatefulWidget {
   final SessionRepository sessionRepository;
   final TagRepository tagRepository;
   final ImportExportService importExportService;
+  final bool hasSeenOnboarding;
 
   const MyApp({
     super.key,
@@ -60,6 +65,7 @@ class MyApp extends StatefulWidget {
     required this.sessionRepository,
     required this.tagRepository,
     required this.importExportService,
+    required this.hasSeenOnboarding,
   });
 
   @override
@@ -69,12 +75,14 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   late SettingsViewModel _settingsViewModel;
   bool _isReady = false;
+  late bool _hasSeenOnboarding;
   List<Map<String, dynamic>> _books = [];
   List<Map<String, dynamic>> _sessions = [];
 
   @override
   void initState() {
     super.initState();
+    _hasSeenOnboarding = widget.hasSeenOnboarding;
     _initializeSettingsViewModel();
     _loadBooks();
     _loadSessions();
@@ -199,20 +207,29 @@ class _MyAppState extends State<MyApp> {
                   theme: AppTheme.lightTheme(_settingsViewModel),
                   darkTheme: AppTheme.darkTheme(_settingsViewModel),
                   themeMode: themeMode,
-                  home: NavigationMenu(
-                    toggleTheme: _settingsViewModel.toggleTheme,
-                    themeMode: themeMode,
-                    books: _books,
-                    addBook: _addBook,
-                    refreshBooks: _refreshBooks,
-                    refreshSessions: _refreshSessions,
-                    sessions: _sessions,
-                    bookRepository: widget.bookRepository,
-                    sessionRepository: widget.sessionRepository,
-                    tagRepository: widget.tagRepository,
-                    importExportService: widget.importExportService,
-                    settingsViewModel: _settingsViewModel,
-                  ),
+                  home: _hasSeenOnboarding
+                      ? NavigationMenu(
+                          toggleTheme: _settingsViewModel.toggleTheme,
+                          themeMode: themeMode,
+                          books: _books,
+                          addBook: _addBook,
+                          refreshBooks: _refreshBooks,
+                          refreshSessions: _refreshSessions,
+                          sessions: _sessions,
+                          bookRepository: widget.bookRepository,
+                          sessionRepository: widget.sessionRepository,
+                          tagRepository: widget.tagRepository,
+                          importExportService: widget.importExportService,
+                          settingsViewModel: _settingsViewModel,
+                        )
+                      : OnboardingPage(
+                          onDone: () {
+                            setState(() => _hasSeenOnboarding = true);
+                            _refreshBooks();
+                          },
+                          importExportService: widget.importExportService,
+                          hasBooks: _books.isNotEmpty,
+                        ),
                 );
               },
             );

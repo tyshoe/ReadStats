@@ -348,4 +348,19 @@ class SettingsViewModel {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getInt('libraryShelfFilter');
   }
+
+  static const String _onboardingVersion = '1.0';
+
+  // Returns true if the user has seen the current onboarding version
+  static Future<bool> getHasSeenOnboarding() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final seenVersion = prefs.getString('onboardingVersion');
+    return seenVersion == _onboardingVersion;
+  }
+
+  // Mark current onboarding version as seen
+  static Future<void> setHasSeenOnboarding() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('onboardingVersion', _onboardingVersion);
+  }
 }
