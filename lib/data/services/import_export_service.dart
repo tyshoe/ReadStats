@@ -9,6 +9,7 @@ import '../models/book.dart';
 import '../models/session.dart';
 import '../models/tag.dart';
 import '../models/book_tag.dart';
+import '../database/database_helper.dart';
 import '../repositories/book_repository.dart';
 import '../repositories/session_repository.dart';
 import '../repositories/tag_repository.dart';
@@ -78,7 +79,7 @@ class ImportExportService {
         'id', 'title', 'author', 'word_count', 'page_count', 'rating',
         'is_complete', 'is_favorite', 'book_type_id', 'date_added',
         'date_started', 'date_finished', 'isbn', 'user_review',
-        'duration_minutes',
+        'duration_minutes', 'shelf_id',
       ],
       ...books.map((b) => [
         b.id.toString(),
@@ -96,6 +97,7 @@ class ImportExportService {
         b.isbn.toString(),
         b.userReview.toString(),
         b.durationMinutes.toString(),
+        b.shelfId.toString(),
       ]),
     ];
     await _writeCSV(path, rows);
@@ -250,6 +252,9 @@ class ImportExportService {
           durationMinutes: row.length > 14
               ? int.tryParse(row[14].toString()) ?? 0
               : 0,
+          shelfId: row.length > 15
+              ? int.tryParse(row[15].toString()) ?? DatabaseHelper.shelfWantToRead
+              : DatabaseHelper.shelfWantToRead,
         ));
       } catch (e) {
         if (kDebugMode) print('Skipping book row: $e');
