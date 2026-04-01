@@ -151,6 +151,8 @@ class DatabaseHelper {
     }
 
     if (oldVersion < 2) {
+      await db.execute('PRAGMA foreign_keys = OFF');
+
       // Add new columns to books
       await db.execute('ALTER TABLE books ADD COLUMN isbn TEXT');
       await db.execute('ALTER TABLE books ADD COLUMN user_review TEXT');
@@ -214,6 +216,8 @@ class DatabaseHelper {
 
       await db.execute('DROP TABLE books');
       await db.execute('ALTER TABLE books_new RENAME TO books');
+
+      await db.execute('PRAGMA foreign_keys = ON');
 
       // Create planner list
       await db.execute('''
