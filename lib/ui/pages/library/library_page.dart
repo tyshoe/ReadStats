@@ -216,60 +216,6 @@ class _LibraryPageState extends State<LibraryPage> {
     _clearSelection();
   }
 
-  Future<void> _moveSelectedBooksToShelf() async {
-    final shelf = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
-      builder: (ctx) {
-        final theme = Theme.of(ctx);
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Text('Move to shelf', style: theme.textTheme.titleMedium),
-              ),
-              const Divider(height: 1),
-              ..._shelves.map((shelf) => ListTile(
-                    leading: const Icon(Icons.bookmarks_outlined),
-                    title: Text(shelf['name'] as String),
-                    onTap: () => Navigator.pop(ctx, shelf),
-                  )),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-
-    if (shelf == null || !mounted) return;
-
-    final shelfId = shelf['id'] as int;
-    final bookRepository = BookRepository(DatabaseHelper());
-    for (final id in _selectedBookIds) {
-      await bookRepository.updateBookShelf(id, shelfId);
-    }
-
-    final count = _selectedBookIds.length;
-    widget.refreshBooks();
-    _clearSelection();
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text('${count == 1 ? '1 book' : '$count books'} moved to ${shelf['name']}'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-        duration: const Duration(seconds: 2),
-      ));
-  }
-
   Future<void> _refreshTags() async {
     await _loadAvailableTags();
     await _loadAllBookTags();

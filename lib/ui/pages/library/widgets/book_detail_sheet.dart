@@ -390,31 +390,57 @@ class BookPopup {
                                   await showModalBottomSheet(
                                     context: context,
                                     shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                                     ),
-                                    builder: (ctx) => Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                                          child: Text('Move to shelf', style: theme.textTheme.titleMedium),
+                                    builder: (ctx) {
+                                      final sheetTheme = Theme.of(ctx);
+                                      return SafeArea(
+                                        minimum: const EdgeInsets.only(bottom: 12),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              width: 36,
+                                              height: 4,
+                                              decoration: BoxDecoration(
+                                                color: sheetTheme.colorScheme.outlineVariant,
+                                                borderRadius: BorderRadius.circular(2),
+                                              ),
+                                            ),
+                                            Padding(
+                                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                                              child: Text(
+                                                'Move to shelf',
+                                                style: sheetTheme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                                              ),
+                                            ),
+                                            ...shelves.map((shelf) {
+                                              final isSelected = shelf['id'] == currentShelfId;
+                                              return ListTile(
+                                                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                                                title: Text(
+                                                  shelf['name'],
+                                                  style: TextStyle(
+                                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                                    color: isSelected ? sheetTheme.colorScheme.primary : null,
+                                                  ),
+                                                ),
+                                                trailing: isSelected
+                                                    ? Icon(Icons.check_rounded, color: sheetTheme.colorScheme.primary)
+                                                    : null,
+                                                onTap: isSelected ? null : () async {
+                                                  Navigator.pop(ctx);
+                                                  await bookRepository.updateBookShelf(mutableBook['id'], shelf['id']);
+                                                  setState(() => mutableBook['shelf_id'] = shelf['id']);
+                                                  refreshCallback();
+                                                },
+                                              );
+                                            }),
+                                          ],
                                         ),
-                                        ...shelves.map((shelf) {
-                                          final isSelected = shelf['id'] == currentShelfId;
-                                          return ListTile(
-                                            title: Text(shelf['name']),
-                                            trailing: isSelected ? Icon(Icons.check, color: theme.colorScheme.primary) : null,
-                                            onTap: isSelected ? null : () async {
-                                              Navigator.pop(ctx);
-                                              await bookRepository.updateBookShelf(mutableBook['id'], shelf['id']);
-                                              setState(() => mutableBook['shelf_id'] = shelf['id']);
-                                              refreshCallback();
-                                            },
-                                          );
-                                        }),
-                                        const SizedBox(height: 8),
-                                      ],
-                                    ),
+                                      );
+                                    },
                                   );
                                 },
                                 child: Container(
