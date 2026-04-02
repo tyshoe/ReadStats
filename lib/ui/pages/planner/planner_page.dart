@@ -18,6 +18,9 @@ class _PlannerPageState extends State<PlannerPage> {
   late final PlannerRepository _repository;
   List<PlannerBook> _books = [];
   bool _isLoading = true;
+  final Set<int> _selectedIds = {};
+
+  bool get _selectionMode => _selectedIds.isNotEmpty;
 
   @override
   void initState() {
@@ -39,43 +42,34 @@ class _PlannerPageState extends State<PlannerPage> {
 
   Future<void> _addBook() async {
     final existingIds = _books.map((b) => b.bookId).toSet();
-    final result = await showPlannerBookSheet(
+    await showPlannerBookSheet(
       context: context,
       wantToReadBooks: widget.wantToReadBooks,
       existingBookIds: existingIds,
+      onAdd: (book) async {
+        await _repository.addPlannerBook(book);
+        await _loadBooks();
+      },
     );
-    if (result == null) return;
-    await _repository.addPlannerBook(result);
-    await _loadBooks();
   }
 
-  Future<bool> _confirmDelete(PlannerBook book) async {
-    return await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove from Planner?'),
-        content: Text('Remove "${book.bookTitle}" from your reading planner?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
-    ) ?? false;
+  void _toggleSelection(int id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
   }
 
-  Future<void> _deleteBook(PlannerBook book) async {
-    final confirm = await _confirmDelete(book);
-    if (!confirm) return;
-    await _repository.deletePlannerBook(book.id!);
+  void _clearSelection() => setState(() => _selectedIds.clear());
+
+  Future<void> _deleteSelected() async {
+    for (final id in _selectedIds) {
+      await _repository.deletePlannerBook(id);
+    }
+    _selectedIds.clear();
     await _loadBooks();
   }
 
@@ -92,56 +86,132 @@ class _PlannerPageState extends State<PlannerPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reading Planner'),
-        backgroundColor: theme.scaffoldBackgroundColor,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _books.isEmpty
-              ? _EmptyState(onAdd: _addBook)
-              : Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: ReorderableListView.builder(
-                    padding: const EdgeInsets.only(top: 4, bottom: 80),
-                    itemCount: _books.length,
-                    onReorder: _onReorder,
-                    buildDefaultDragHandles: false,
-                    itemBuilder: (_, index) {
-                      final book = _books[index];
-                      return Dismissible(
-                        key: ValueKey(book.id),
-                        direction: DismissDirection.endToStart,
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 20),
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.errorContainer,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(Icons.delete_outline,
-                              color: theme.colorScheme.onErrorContainer),
-                        ),
-                        confirmDismiss: (_) => _confirmDelete(book),
-                        onDismissed: (_) {},
-                        child: PlannerBookCard(
-                          key: ValueKey('card_${book.id}'),
+    return PopScope(
+      canPop: !_selectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _clearSelection();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          leading: _selectionMode
+              ? IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: _clearSelection,
+                )
+              : null,
+          title: Text(_selectionMode
+              ? '${_selectedIds.length} selected'
+              : 'Reading Planner'),
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _books.isEmpty
+                ? _EmptyState(onAdd: _addBook)
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: ReorderableListView.builder(
+                      padding: const EdgeInsets.only(top: 4, bottom: 80),
+                      itemCount: _books.length,
+                      onReorder: _onReorder,
+                      buildDefaultDragHandles: false,
+                      proxyDecorator: (child, _, __) => child,
+                      itemBuilder: (_, index) {
+                        final book = _books[index];
+                        final isSelected = _selectedIds.contains(book.id);
+                        return _PlannerItem(
+                          key: ValueKey(book.id),
                           book: book,
                           index: index + 1,
-                          onDelete: () => _deleteBook(book),
-                        ),
-                      );
-                    },
+                          selectionMode: _selectionMode,
+                          isSelected: isSelected,
+                          onLongPress: () => _toggleSelection(book.id!),
+                          onTap: _selectionMode
+                              ? () => _toggleSelection(book.id!)
+                              : null,
+                          onDismissed: () async {
+                            await _repository.deletePlannerBook(book.id!);
+                            await _loadBooks();
+                          },
+                        );
+                      },
+                    ),
                   ),
-                ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addBook,
-        tooltip: 'Add to Planner',
-        child: const Icon(Icons.add),
+        floatingActionButton: _selectionMode
+            ? FloatingActionButton(
+                onPressed: _deleteSelected,
+                backgroundColor: theme.colorScheme.error,
+                child: Icon(Icons.delete, color: theme.colorScheme.onPrimary),
+              )
+            : FloatingActionButton(
+                onPressed: _addBook,
+                tooltip: 'Add to Planner',
+                child: const Icon(Icons.add),
+              ),
       ),
     );
+  }
+}
+
+class _PlannerItem extends StatefulWidget {
+  final PlannerBook book;
+  final int index;
+  final bool selectionMode;
+  final bool isSelected;
+  final VoidCallback onLongPress;
+  final VoidCallback? onTap;
+  final Future<void> Function() onDismissed;
+
+  const _PlannerItem({
+    super.key,
+    required this.book,
+    required this.index,
+    required this.selectionMode,
+    required this.isSelected,
+    required this.onLongPress,
+    required this.onTap,
+    required this.onDismissed,
+  });
+
+  @override
+  State<_PlannerItem> createState() => _PlannerItemState();
+}
+
+class _PlannerItemState extends State<_PlannerItem> {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Dismissible(
+            key: ValueKey(widget.book.id),
+            direction: widget.selectionMode
+                ? DismissDirection.none
+                : DismissDirection.endToStart,
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.error,
+                borderRadius:
+                    const BorderRadius.horizontal(right: Radius.circular(12)),
+              ),
+              child: Icon(
+                Icons.playlist_remove_rounded,
+                size: 32,
+                color: theme.colorScheme.onPrimary,
+              ),
+            ),
+            onDismissed: (_) => widget.onDismissed(),
+            child: PlannerBookCard(
+              key: ValueKey('card_${widget.book.id}'),
+              book: widget.book,
+              index: widget.index,
+              isSelected: widget.isSelected,
+              onTap: widget.onTap,
+              onLongPress: widget.onLongPress,
+            ),
+          );
   }
 }
 
@@ -171,12 +241,6 @@ class _EmptyState extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
             textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add),
-            label: const Text('Add your first book'),
           ),
         ],
       ),

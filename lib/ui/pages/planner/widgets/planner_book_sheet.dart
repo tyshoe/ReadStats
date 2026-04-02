@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import '/data/models/planner_book.dart';
 
-/// Shows a bottom sheet to pick a Want to Read book to add to the planner.
+/// Shows a bottom sheet to pick Want to Read books to add to the planner.
 /// [wantToReadBooks] should already be filtered to shelf = Want to Read.
 /// [existingBookIds] are excluded from the list (already in planner).
-/// Returns the new [PlannerBook] to add, or null if cancelled.
-Future<PlannerBook?> showPlannerBookSheet({
+/// [onAdd] is called immediately each time a book is tapped; the sheet stays open.
+Future<void> showPlannerBookSheet({
   required BuildContext context,
   required List<Map<String, dynamic>> wantToReadBooks,
   required Set<int> existingBookIds,
+  required Future<void> Function(PlannerBook) onAdd,
 }) {
-  return showModalBottomSheet<PlannerBook>(
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
@@ -20,6 +21,7 @@ Future<PlannerBook?> showPlannerBookSheet({
     builder: (_) => _PlannerPickerSheet(
       wantToReadBooks: wantToReadBooks,
       existingBookIds: existingBookIds,
+      onAdd: onAdd,
     ),
   );
 }
@@ -27,10 +29,12 @@ Future<PlannerBook?> showPlannerBookSheet({
 class _PlannerPickerSheet extends StatefulWidget {
   final List<Map<String, dynamic>> wantToReadBooks;
   final Set<int> existingBookIds;
+  final Future<void> Function(PlannerBook) onAdd;
 
   const _PlannerPickerSheet({
     required this.wantToReadBooks,
     required this.existingBookIds,
+    required this.onAdd,
   });
 
   @override
@@ -39,6 +43,7 @@ class _PlannerPickerSheet extends StatefulWidget {
 
 class _PlannerPickerSheetState extends State<_PlannerPickerSheet> {
   final _searchController = TextEditingController();
+  final _addedIds = <int>{};
   late List<Map<String, dynamic>> _filtered;
 
   @override
@@ -49,7 +54,10 @@ class _PlannerPickerSheetState extends State<_PlannerPickerSheet> {
   }
 
   List<Map<String, dynamic>> get _available => widget.wantToReadBooks
-      .where((b) => !widget.existingBookIds.contains(b['id'] as int))
+      .where((b) {
+        final id = b['id'] as int;
+        return !widget.existingBookIds.contains(id) && !_addedIds.contains(id);
+      })
       .toList();
 
   @override
@@ -69,15 +77,21 @@ class _PlannerPickerSheetState extends State<_PlannerPickerSheet> {
     });
   }
 
-  void _pick(Map<String, dynamic> book) {
+  Future<void> _pick(Map<String, dynamic> book) async {
+    final id = book['id'] as int;
     final entry = PlannerBook(
-      bookId: book['id'] as int,
+      bookId: id,
       sortOrder: 0,
       dateAdded: DateTime.now().toIso8601String(),
       bookTitle: book['title'] as String? ?? '',
       bookAuthor: book['author'] as String? ?? '',
     );
-    Navigator.of(context).pop(entry);
+    await widget.onAdd(entry);
+    if (!mounted) return;
+    setState(() {
+      _addedIds.add(id);
+      _filter();
+    });
   }
 
   @override
@@ -113,11 +127,6 @@ class _PlannerPickerSheetState extends State<_PlannerPickerSheet> {
                         ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Navigator.pop(context),
-                  visualDensity: VisualDensity.compact,
-                ),
               ],
             ),
           ),
@@ -148,9 +157,15 @@ class _PlannerPickerSheetState extends State<_PlannerPickerSheet> {
                       textAlign: TextAlign.center,
                     ),
                   )
-                : ListView.builder(
+                : ListView.separated(
                     controller: scrollController,
                     itemCount: _filtered.length,
+                    separatorBuilder: (context, i) => Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                    ),
                     itemBuilder: (_, index) {
                       final book = _filtered[index];
                       return ListTile(
