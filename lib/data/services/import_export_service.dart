@@ -87,15 +87,15 @@ class ImportExportService {
         b.author,
         b.wordCount.toString(),
         b.pageCount.toString(),
-        b.rating.toString(),
+        b.rating?.toString() ?? '',
         b.isCompleted.toString(),
         b.isFavorite.toString(),
         b.bookTypeId.toString(),
-        b.dateAdded.toString(),
-        b.dateStarted.toString(),
-        b.dateFinished.toString(),
-        b.isbn.toString(),
-        b.userReview.toString(),
+        b.dateAdded,
+        b.dateStarted ?? '',
+        b.dateFinished ?? '',
+        b.isbn ?? '',
+        b.userReview ?? '',
         b.durationMinutes.toString(),
         b.shelfId.toString(),
       ]),
@@ -225,6 +225,12 @@ class ImportExportService {
     }).toList()).toList();
   }
 
+  String? _nullableString(dynamic value) {
+    if (value == null) return null;
+    final s = value.toString().trim();
+    return (s.isEmpty || s == 'null') ? null : s;
+  }
+
   Future<int> _parseAndInsertBooks(List<List<dynamic>> rows) async {
     final books = <Book>[];
     for (final row in rows) {
@@ -247,8 +253,8 @@ class ImportExportService {
           dateFinished: row[11]?.toString().isNotEmpty == true
               ? DateUtils.parseAndFormatOptionalDate(row[11].toString())
               : null,
-          isbn: row.length > 12 ? row[12]?.toString() : null,
-          userReview: row.length > 13 ? row[13]?.toString() : null,
+          isbn: row.length > 12 ? _nullableString(row[12]) : null,
+          userReview: row.length > 13 ? _nullableString(row[13]) : null,
           durationMinutes: row.length > 14
               ? int.tryParse(row[14].toString()) ?? 0
               : 0,
