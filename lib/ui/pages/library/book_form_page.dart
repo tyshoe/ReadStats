@@ -2,9 +2,11 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:read_stats/ui/pages/library/widgets/book_tag_editor_page.dart';
+import 'package:read_stats/ui/pages/library/widgets/barcode_scanner_page.dart';
 import '../../../data/database/database_helper.dart';
 import '../../../data/models/book.dart';
 import '../../../data/models/tag.dart';
@@ -1054,39 +1056,77 @@ class _BookFormPageState extends State<BookFormPage> {
             ],
 
             // ISBN
-            TextField(
-              controller: _isbnController,
-              decoration: InputDecoration(
-                labelText: 'ISBN',
-                hintText: '978-X-XX-XXXXXX-X',
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest,
-                border: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                suffixIcon: _isbnController.text.isNotEmpty
-                    ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _clearField(_isbnController),
-                )
-                    : null,
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _isbnController,
+                      decoration: InputDecoration(
+                        labelText: 'ISBN',
+                        hintText: '978-X-XX-XXXXXX-X',
+                        filled: true,
+                        fillColor: theme.colorScheme.surfaceContainerHighest,
+                        border: UnderlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: UnderlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                        suffixIcon: _isbnController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () => _clearField(_isbnController),
+                              )
+                            : null,
+                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [IsbnInputFormatter()],
+                      onChanged: (value) => setState(() {}),
+                      onTapOutside: (event) {
+                        FocusManager.instance.primaryFocus?.unfocus();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  AspectRatio(
+                    aspectRatio: 1,
+                    child: Tooltip(
+                      message: 'Scan barcode',
+                      child: Material(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () async {
+                            final result = await Navigator.of(context).push<String>(
+                              MaterialPageRoute(
+                                builder: (_) => const BarcodeScannerPage(),
+                              ),
+                            );
+                            if (result != null) {
+                              setState(() {
+                                _isbnController.text = result;
+                              });
+                            }
+                          },
+                          child: const Center(
+                            child: Icon(FluentIcons.barcode_scanner_24_regular),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [IsbnInputFormatter()],
-              onChanged: (value) => setState(() {}),
-              onTapOutside: (event) {
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
             ),
 
             const Divider(height: 32),
