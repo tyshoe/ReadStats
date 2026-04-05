@@ -15,12 +15,21 @@ class CoverService {
   }
 
   /// Copy [sourcePath] to permanent app storage for [bookId] and return the
-  /// new permanent path.
+  /// filename only (e.g. "42.jpg"). Storing just the filename avoids stale
+  /// absolute paths after iOS app updates, where the sandbox UUID changes.
   static Future<String> saveFromPath(int bookId, String sourcePath) async {
     final dir = await _coversDir();
-    final dest = File(p.join(dir.path, '$bookId.jpg'));
+    final filename = '$bookId.jpg';
+    final dest = File(p.join(dir.path, filename));
     await File(sourcePath).copy(dest.path);
-    return dest.path;
+    return filename;
+  }
+
+  /// Resolve a stored cover value (filename or legacy absolute path) to the
+  /// current absolute path. Always call this before passing to [Image.file].
+  static Future<String> resolveFullPath(String storedPath) async {
+    final dir = await _coversDir();
+    return p.join(dir.path, p.basename(storedPath));
   }
 
   /// Delete the cover file for a book if it exists.
@@ -30,10 +39,11 @@ class CoverService {
     if (await file.exists()) await file.delete();
   }
 
-  /// Delete a cover by its stored path (used when the path is already known).
+  /// Delete a cover by its stored value (filename or legacy absolute path).
   static Future<void> deleteByPath(String? path) async {
     if (path == null) return;
-    final file = File(path);
+    final dir = await _coversDir();
+    final file = File(p.join(dir.path, p.basename(path)));
     if (await file.exists()) await file.delete();
   }
 

@@ -1,7 +1,7 @@
 name: read_stats
 description: "A new Flutter project."
 publish_to: "none"
-version: 0.2.1+9
+version: 0.2.1+10
 
 environment:
   sdk: ^3.11.1

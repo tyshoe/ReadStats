@@ -6,6 +6,7 @@ import 'data/database/database_helper.dart';
 import 'data/repositories/book_repository.dart';
 import 'data/repositories/session_repository.dart';
 import 'data/repositories/tag_repository.dart';
+import 'data/services/cover_service.dart';
 import 'data/services/import_export_service.dart';
 import 'ui/pages/library/library_page.dart';
 import 'ui/pages/onboarding/onboarding_page.dart';
@@ -161,8 +162,22 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _loadBooks() async {
     final books = await widget.dbHelper.getBooks();
+    // Resolve cover paths to current absolute paths. Stored values may be
+    // filenames ("42.jpg") or legacy absolute paths from before this fix.
+    // On iOS the sandbox UUID changes on app update, making old absolute paths
+    // stale — resolveFullPath always rebuilds from the current documents dir.
+    final resolvedBooks = <Map<String, dynamic>>[];
+    for (final book in books) {
+      if (book['cover_path'] != null) {
+        final mutable = Map<String, dynamic>.from(book);
+        mutable['cover_path'] = await CoverService.resolveFullPath(book['cover_path'] as String);
+        resolvedBooks.add(mutable);
+      } else {
+        resolvedBooks.add(book);
+      }
+    }
     setState(() {
-      _books = books;
+      _books = resolvedBooks;
     });
     if (kDebugMode) print('Books: $_books');
   }
