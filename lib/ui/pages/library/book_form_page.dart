@@ -55,6 +55,7 @@ class _BookFormPageState extends State<BookFormPage> {
   bool _authorTitleCaseEnabled = true;
   File? _coverFile;
   bool _coverChanged = false;
+  bool _isPickingCover = false;
 
   @override
   void initState() {
@@ -570,34 +571,47 @@ class _BookFormPageState extends State<BookFormPage> {
                 child: Container(color: Colors.black.withValues(alpha: 0.35)),
               ),
 
-            // Cover image — tappable
-            GestureDetector(
-              onTap: () async {
-                final file = await CoverService.pickImage();
-                if (file != null) {
-                  setState(() {
-                    _coverFile = file;
-                    _coverChanged = true;
-                  });
-                }
-              },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: _coverFile != null
-                        ? Image.file(
-                            _coverFile!,
-                            width: coverW,
-                            height: coverH,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _coverPlaceholder(theme, coverW, coverH),
-                          )
-                        : _emptyPlaceholder(theme),
-                  ),
-                ],
+            // Ripple layer — above backgrounds so the ink is visible
+            Positioned.fill(
+              child: Material(
+                type: MaterialType.transparency,
+                child: InkWell(
+                  onTap: () async {
+                    if (_isPickingCover) return;
+                    setState(() => _isPickingCover = true);
+                    try {
+                      final file = await CoverService.pickImage();
+                      if (file != null && mounted) {
+                        setState(() {
+                          _coverFile = file;
+                          _coverChanged = true;
+                        });
+                      }
+                    } finally {
+                      if (mounted) setState(() => _isPickingCover = false);
+                    }
+                  },
+                ),
               ),
+            ),
+
+            // Cover image
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: _coverFile != null
+                      ? Image.file(
+                          _coverFile!,
+                          width: coverW,
+                          height: coverH,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _coverPlaceholder(theme, coverW, coverH),
+                        )
+                      : _emptyPlaceholder(theme),
+                ),
+              ],
             ),
 
             // Remove button — top-right corner
