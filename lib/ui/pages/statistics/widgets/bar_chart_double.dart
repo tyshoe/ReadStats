@@ -31,7 +31,7 @@ class CombinedBarChartWidget extends StatelessWidget {
     final chartWidth = max(minChartWidth, keys.length * 70).toDouble();
 
     return SizedBox(
-      height: 320, // taller to fit legend
+      height: 220, // taller to fit legend
       child: Stack(
         children: [
           // Rounded background

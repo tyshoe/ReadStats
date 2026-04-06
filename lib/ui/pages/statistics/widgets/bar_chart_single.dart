@@ -48,7 +48,7 @@ class BarChartWidget extends StatelessWidget {
 
     // Use a consistent height no matter what
     return SizedBox(
-      height: 280,
+      height: 200,
       child: Stack(
         children: [
           // Rounded background container

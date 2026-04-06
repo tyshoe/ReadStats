@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_double.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_single.dart';
+import 'package:read_stats/ui/pages/statistics/widgets/pie_breakdown.dart';
+import 'package:read_stats/ui/pages/statistics/widgets/stacked_bar_breakdown.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/rating_summary.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stat_card.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/year_filter.dart';
-import 'dart:math';
 import '../../../data/models/book.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
@@ -82,7 +82,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
     }
 
     double avgPagesPerMinute = totalMinutes > 0 ? totalPagesRead / totalMinutes : 0;
-    String totalTimeSpent = convertMinutesToTimeString(totalMinutes);
+    String totalTimeSpent = _formatMinutes(totalMinutes);
 
     // Fetch book stats filtered by the selected year
     Map<String, dynamic> bookStats = await widget.bookRepository.getAllBookStats(selectedYear);
@@ -102,25 +102,12 @@ class _StatisticsPageState extends State<StatisticsPage> {
       'lowestPages': bookStats['lowest_pages'] ?? 0,
       'lowestPagesBookTitle': bookStats['lowest_pages_book_title'],
       'averagePages': bookStats['average_pages'] ?? 0,
-      'slowestReadTime': convertMinutesToTimeString(bookStats['slowest_read_time'] ?? 0),
+      'slowestReadTime': _formatMinutes(bookStats['slowest_read_time'] ?? 0),
       'slowestReadBookTitle': bookStats['slowest_read_book_title'],
-      'fastestReadTime': convertMinutesToTimeString(bookStats['fastest_read_time'] ?? 0),
+      'fastestReadTime': _formatMinutes(bookStats['fastest_read_time'] ?? 0),
       'fastestReadBookTitle': bookStats['fastest_read_book_title'],
       'booksCompleted': bookStats['books_completed'] ?? 0,
     };
-  }
-
-  String convertMinutesToTimeString(int totalTimeInMinutes) {
-    int days = totalTimeInMinutes ~/ (24 * 60);
-    int hours = (totalTimeInMinutes % (24 * 60)) ~/ 60;
-    int minutes = totalTimeInMinutes % 60;
-
-    String formattedTime = '';
-    if (days > 0) formattedTime += '${days}d ';
-    if (hours > 0 || days > 0) formattedTime += '${hours}h ';
-    formattedTime += '${minutes}m';
-
-    return formattedTime;
   }
 
   Future<List<int>> getCombinedYears() async {
@@ -136,16 +123,34 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return combinedYears;
   }
 
-  Widget _buildSectionHeader(String title, double topPad) {
-    return Padding(
-      padding: EdgeInsets.only(top: topPad),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-      ),
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
     );
+  }
+
+  List<Widget> _spaced(List<Widget> children, {double gap = 8, double sectionGap = 24}) {
+    final result = <Widget>[];
+    for (int i = 0; i < children.length; i++) {
+      result.add(children[i]);
+      if (i < children.length - 1) {
+        final nextIsSectionHeader = children[i + 1] is! StatCard &&
+            i + 1 < children.length &&
+            children[i + 1].runtimeType.toString().contains('Padding') == false;
+        // Use larger gap before section headers
+        final isNextSection = _isSectionHeader(children[i + 1]);
+        result.add(SizedBox(height: isNextSection ? sectionGap : gap));
+      }
+    }
+    return result;
+  }
+
+  bool _isSectionHeader(Widget w) {
+    // Section headers are plain Text widgets from _buildSectionHeader
+    return w is Text;
   }
 
   String _formatMinutes(int minutes) {
@@ -203,7 +208,6 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
   }
 
-  // Add this method to get pages distribution data
   Future<Map<String, int>> _getPagesDistribution() async {
     List<Session> sessions = await widget.sessionRepository.getSessions(
       yearFilter: selectedYear,
@@ -270,34 +274,6 @@ class _StatisticsPageState extends State<StatisticsPage> {
       grouped[key] = (grouped[key] ?? 0) + 1; // count per session
     }
     return grouped;
-  }
-
-  Widget _buildBooksChart() {
-    return FutureBuilder<Map<String, int>>(
-      future: _getBooksDistribution(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink();
-        return BarChartWidget(
-          data: snapshot.data!,
-          selectedYear: selectedYear,
-          barColor: Theme.of(context).primaryColor,
-        );
-      },
-    );
-  }
-
-  Widget _buildSessionsChart() {
-    return FutureBuilder<Map<String, int>>(
-      future: _getSessionsDistribution(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink();
-        return BarChartWidget(
-          data: snapshot.data!,
-          selectedYear: selectedYear,
-          barColor: Theme.of(context).primaryColor,
-        );
-      },
-    );
   }
 
   Future<Map<String, Map<String, int>>> _getCombinedDistribution() async {
@@ -384,6 +360,74 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
   }
 
+  /// Returns [candidate] unchanged unless its hue is within [threshold]
+  /// degrees of [primary], in which case it rotates the hue 120° away.
+  Color _safeColor(Color candidate, Color primary, {double threshold = 30.0}) {
+    final primaryHue = HSLColor.fromColor(primary).hue;
+    final candidateHSL = HSLColor.fromColor(candidate);
+    final diff = (primaryHue - candidateHSL.hue).abs();
+    final distance = diff > 180 ? 360 - diff : diff;
+    if (distance < threshold) {
+      final newHue = (candidateHSL.hue + 120) % 360;
+      return candidateHSL.withHue(newHue).toColor();
+    }
+    return candidate;
+  }
+
+  static const _typeIcons = {
+    'Paperback': Icons.menu_book,
+    'Hardback':  Icons.auto_stories,
+    'EBook':     Icons.tablet_android,
+    'Audiobook': Icons.headphones,
+  };
+
+  Widget _buildTypeBreakdown() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: widget.bookRepository.getBookCountsPerType(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        return PieBreakdownWidget(
+          title: 'Book Formats',
+          data: snapshot.data!,
+          icons: _typeIcons,
+          sortByCount: true,
+          colors: {
+            'Paperback':  Theme.of(context).primaryColor,
+            'Hardback':   _safeColor(const Color(0xFF9575CD), Theme.of(context).primaryColor),
+            'EBook':      _safeColor(const Color(0xFF4CAF50), Theme.of(context).primaryColor),
+            'Audiobook':  _safeColor(const Color(0xFFFF9800), Theme.of(context).primaryColor),
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildShelfBreakdown() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: widget.bookRepository.getBookCountsPerShelf(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        final primary = Theme.of(context).primaryColor;
+        const shelfOrder = ['Want to Read', 'Currently Reading', 'Finished', 'Unfinished'];
+        final sorted = [...snapshot.data!]..sort((a, b) {
+            final ai = shelfOrder.indexOf(a['name'] as String);
+            final bi = shelfOrder.indexOf(b['name'] as String);
+            return (ai == -1 ? 999 : ai).compareTo(bi == -1 ? 999 : bi);
+          });
+        return StackedBarBreakdownWidget(
+          title: 'Library Breakdown',
+          data: sorted,
+          colors: {
+            'Currently Reading': primary,
+            'Want to Read':      _safeColor(const Color(0xFF9575CD), primary),
+            'Finished':          _safeColor(const Color(0xFF4CAF50), primary),
+            'Unfinished':        _safeColor(const Color(0xFFFF9800), primary),
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildRatingSummary() {
     return FutureBuilder<Map<double, int>>(
       future: widget.bookRepository.getRatingDistribution(selectedYear: selectedYear),
@@ -443,21 +487,21 @@ class _StatisticsPageState extends State<StatisticsPage> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionHeader('Overall', 0),
+                children: _spaced([
+                  _buildSectionHeader('Overview'),
+                  _buildShelfBreakdown(),
+                  _buildTypeBreakdown(),
                   _buildCombinedChart(),
-                  // _buildBooksChart(),
                   StatCard(
                     title: 'Books Finished',
                     value: _stats['booksCompleted'].toString(),
                   ),
-                  // _buildSessionsChart(),
                   StatCard(
                     title: 'Total Sessions',
                     value: _stats['totalSessions'].toString(),
                   ),
 
-                  _buildSectionHeader('Ratings', 16),
+                  _buildSectionHeader('Ratings'),
                   _buildRatingSummary(),
                   StatCard(
                     title: 'Highest Rating',
@@ -474,7 +518,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     value: _stats['averageRating'].toStringAsFixed(2),
                   ),
 
-                  _buildSectionHeader('Reading Time', 16),
+                  _buildSectionHeader('Reading Time'),
                   _buildReadingTimeChart(),
                   StatCard(
                     title: 'Total Time Spent',
@@ -491,7 +535,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     bookTitle: _stats['fastestReadBookTitle'],
                   ),
 
-                  _buildSectionHeader('Pages', 16),
+                  _buildSectionHeader('Pages'),
                   _buildPagesChart(),
                   StatCard(
                     title: 'Total Pages Read',
@@ -515,7 +559,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     value: _stats['lowestPages'].toString(),
                     bookTitle: _stats['lowestPagesBookTitle'],
                   ),
-                ],
+                ]),
               ),
             ),
           ),

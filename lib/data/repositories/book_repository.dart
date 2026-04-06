@@ -113,6 +113,14 @@ class BookRepository {
     await _databaseHelper.updateBookShelf(bookId, shelfId);
   }
 
+  Future<List<Map<String, dynamic>>> getBookCountsPerType() async {
+    return await _databaseHelper.getBookCountsPerType();
+  }
+
+  Future<List<Map<String, dynamic>>> getBookCountsPerShelf() async {
+    return await _databaseHelper.getBookCountsPerShelf();
+  }
+
   // --- Shelf passthrough ---
 
   Future<List<Map<String, dynamic>>> getShelves() async {

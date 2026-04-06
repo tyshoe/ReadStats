@@ -882,6 +882,28 @@ class DatabaseHelper {
     );
   }
 
+  Future<List<Map<String, dynamic>>> getBookCountsPerType() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT bt.name, COUNT(b.id) as book_count
+      FROM book_types bt
+      LEFT JOIN books b ON b.book_type_id = bt.id
+      GROUP BY bt.id
+      ORDER BY bt.id ASC
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> getBookCountsPerShelf() async {
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT s.name, COUNT(b.id) as book_count
+      FROM shelves s
+      LEFT JOIN books b ON b.shelf_id = s.id
+      GROUP BY s.id
+      ORDER BY s.sort_order ASC
+    ''');
+  }
+
   // --- Shelf CRUD ---
 
   Future<List<Map<String, dynamic>>> getShelves() async {
