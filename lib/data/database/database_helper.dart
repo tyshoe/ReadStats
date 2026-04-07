@@ -677,16 +677,22 @@ class DatabaseHelper {
       -- Book references
       (SELECT book_id FROM MaxRating) AS highest_rating_book_id,
       (SELECT book_title FROM MaxRating) AS highest_rating_book_title,
+      (SELECT cover_path FROM books WHERE id = (SELECT book_id FROM MaxRating)) AS highest_rating_cover_path,
       (SELECT book_id FROM MinRating) AS lowest_rating_book_id,
       (SELECT book_title FROM MinRating) AS lowest_rating_book_title,
+      (SELECT cover_path FROM books WHERE id = (SELECT book_id FROM MinRating)) AS lowest_rating_cover_path,
       (SELECT book_id FROM MaxPages) AS highest_pages_book_id,
       (SELECT book_title FROM MaxPages) AS highest_pages_book_title,
+      (SELECT cover_path FROM books WHERE id = (SELECT book_id FROM MaxPages)) AS highest_pages_cover_path,
       (SELECT book_id FROM MinPages) AS lowest_pages_book_id,
       (SELECT book_title FROM MinPages) AS lowest_pages_book_title,
+      (SELECT cover_path FROM books WHERE id = (SELECT book_id FROM MinPages)) AS lowest_pages_cover_path,
       (SELECT book_id FROM SlowestRead) AS slowest_read_book_id,
       (SELECT book_title FROM SlowestRead) AS slowest_read_book_title,
+      (SELECT cover_path FROM books WHERE id = (SELECT book_id FROM SlowestRead)) AS slowest_read_cover_path,
       (SELECT book_id FROM FastestRead) AS fastest_read_book_id,
-      (SELECT book_title FROM FastestRead) AS fastest_read_book_title
+      (SELECT book_title FROM FastestRead) AS fastest_read_book_title,
+      (SELECT cover_path FROM books WHERE id = (SELECT book_id FROM FastestRead)) AS fastest_read_cover_path
     FROM BookReadTimes
   ''');
 

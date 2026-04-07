@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:read_stats/data/services/cover_service.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_double.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_single.dart';
-import 'package:read_stats/ui/pages/statistics/widgets/pie_breakdown.dart';
-import 'package:read_stats/ui/pages/statistics/widgets/stacked_bar_breakdown.dart';
+import 'package:read_stats/ui/pages/statistics/widgets/pie_chart.dart';
+import 'package:read_stats/ui/pages/statistics/widgets/stacked_bar_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/rating_summary.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stat_card.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/year_filter.dart';
@@ -38,21 +39,27 @@ class _StatisticsPageState extends State<StatisticsPage> {
     'booksCompleted': 0,
     'highestRating': '-',
     'highestRatingBookTitle': '',
+    'highestRatingCoverPath': null,
     'lowestRating': '-',
     'lowestRatingBookTitle': '',
+    'lowestRatingCoverPath': null,
     'averageRating': 0.0,
     'totalTimeSpent': '0m',
     'slowestReadTime': '0m',
     'slowestReadBookTitle': '',
+    'slowestReadCoverPath': null,
     'fastestReadTime': '0m',
     'fastestReadBookTitle': '',
+    'fastestReadCoverPath': null,
     'totalPagesRead': 0,
     'avgPagesPerMinute': 0.0,
     'averagePages': 0.0,
     'highestPages': 0,
     'highestPagesBookTitle': '',
+    'highestPagesCoverPath': null,
     'lowestPages': 0,
     'lowestPagesBookTitle': '',
+    'lowestPagesCoverPath': null,
   };
 
   @override
@@ -87,6 +94,13 @@ class _StatisticsPageState extends State<StatisticsPage> {
     // Fetch book stats filtered by the selected year
     Map<String, dynamic> bookStats = await widget.bookRepository.getAllBookStats(selectedYear);
 
+    Future<String?> resolveCover(dynamic raw) async {
+      if (raw == null) return null;
+      final path = raw as String;
+      if (path.isEmpty) return null;
+      return await CoverService.resolveFullPath(path);
+    }
+
     return {
       'totalSessions': totalSessions,
       'totalPagesRead': totalPagesRead,
@@ -94,18 +108,24 @@ class _StatisticsPageState extends State<StatisticsPage> {
       'avgPagesPerMinute': avgPagesPerMinute,
       'highestRating': bookStats['highest_rating'] ?? 0,
       'highestRatingBookTitle': bookStats['highest_rating_book_title'],
+      'highestRatingCoverPath': await resolveCover(bookStats['highest_rating_cover_path']),
       'lowestRating': bookStats['lowest_rating'] ?? 0,
       'lowestRatingBookTitle': bookStats['lowest_rating_book_title'],
+      'lowestRatingCoverPath': await resolveCover(bookStats['lowest_rating_cover_path']),
       'averageRating': bookStats['average_rating'] ?? 0,
       'highestPages': bookStats['highest_pages'] ?? 0,
       'highestPagesBookTitle': bookStats['highest_pages_book_title'],
+      'highestPagesCoverPath': await resolveCover(bookStats['highest_pages_cover_path']),
       'lowestPages': bookStats['lowest_pages'] ?? 0,
       'lowestPagesBookTitle': bookStats['lowest_pages_book_title'],
+      'lowestPagesCoverPath': await resolveCover(bookStats['lowest_pages_cover_path']),
       'averagePages': bookStats['average_pages'] ?? 0,
       'slowestReadTime': _formatMinutes(bookStats['slowest_read_time'] ?? 0),
       'slowestReadBookTitle': bookStats['slowest_read_book_title'],
+      'slowestReadCoverPath': await resolveCover(bookStats['slowest_read_cover_path']),
       'fastestReadTime': _formatMinutes(bookStats['fastest_read_time'] ?? 0),
       'fastestReadBookTitle': bookStats['fastest_read_book_title'],
+      'fastestReadCoverPath': await resolveCover(bookStats['fastest_read_cover_path']),
       'booksCompleted': bookStats['books_completed'] ?? 0,
     };
   }
@@ -151,6 +171,19 @@ class _StatisticsPageState extends State<StatisticsPage> {
   bool _isSectionHeader(Widget w) {
     // Section headers are plain Text widgets from _buildSectionHeader
     return w is Text;
+  }
+
+  Widget _buildPair(Widget left, Widget right) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: left),
+          const SizedBox(width: 8),
+          Expanded(child: right),
+        ],
+      ),
+    );
   }
 
   String _formatMinutes(int minutes) {
@@ -386,7 +419,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
       future: widget.bookRepository.getBookCountsPerType(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const SizedBox.shrink();
-        return PieBreakdownWidget(
+        return PieChartWidget(
           title: 'Book Formats',
           data: snapshot.data!,
           icons: _typeIcons,
@@ -414,7 +447,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
             final bi = shelfOrder.indexOf(b['name'] as String);
             return (ai == -1 ? 999 : ai).compareTo(bi == -1 ? 999 : bi);
           });
-        return StackedBarBreakdownWidget(
+        return StackedBarChartWidget(
           title: 'Library Breakdown',
           data: sorted,
           colors: {
@@ -484,7 +517,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
           // Statistics content
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: _spaced([
@@ -503,36 +536,40 @@ class _StatisticsPageState extends State<StatisticsPage> {
 
                   _buildSectionHeader('Ratings'),
                   _buildRatingSummary(),
-                  StatCard(
-                    title: 'Highest Rating',
-                    value: _stats['highestRating'].toString(),
-                    bookTitle: _stats['highestRatingBookTitle'],
-                  ),
-                  StatCard(
-                    title: 'Lowest Rating',
-                    value: _stats['lowestRating'].toString(),
-                    bookTitle: _stats['lowestRatingBookTitle'],
-                  ),
-                  StatCard(
-                    title: 'Average Rating',
-                    value: _stats['averageRating'].toStringAsFixed(2),
+                  _buildPair(
+                    StatCard(
+                      title: 'Lowest Rating',
+                      value: _stats['lowestRating'].toString(),
+                      bookTitle: _stats['lowestRatingBookTitle'],
+                      coverPath: _stats['lowestRatingCoverPath'],
+                    ),
+                    StatCard(
+                      title: 'Highest Rating',
+                      value: _stats['highestRating'].toString(),
+                      bookTitle: _stats['highestRatingBookTitle'],
+                      coverPath: _stats['highestRatingCoverPath'],
+                    ),
                   ),
 
                   _buildSectionHeader('Reading Time'),
                   _buildReadingTimeChart(),
                   StatCard(
-                    title: 'Total Time Spent',
+                    title: 'Reading Time',
                     value: _stats['totalTimeSpent'],
                   ),
-                  StatCard(
-                    title: 'Slowest Read',
-                    value: _stats['slowestReadTime'].toString(),
-                    bookTitle: _stats['slowestReadBookTitle'],
-                  ),
-                  StatCard(
-                    title: 'Fastest Read',
-                    value: _stats['fastestReadTime'].toString(),
-                    bookTitle: _stats['fastestReadBookTitle'],
+                  _buildPair(
+                    StatCard(
+                      title: 'Fastest Read',
+                      value: _stats['fastestReadTime'].toString(),
+                      bookTitle: _stats['fastestReadBookTitle'],
+                      coverPath: _stats['fastestReadCoverPath'],
+                    ),
+                    StatCard(
+                      title: 'Slowest Read',
+                      value: _stats['slowestReadTime'].toString(),
+                      bookTitle: _stats['slowestReadBookTitle'],
+                      coverPath: _stats['slowestReadCoverPath'],
+                    ),
                   ),
 
                   _buildSectionHeader('Pages'),
@@ -549,15 +586,19 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     title: 'Average Pages',
                     value: _stats['averagePages'].toStringAsFixed(2),
                   ),
-                  StatCard(
-                    title: 'Longest Book',
-                    value: _stats['highestPages'].toString(),
-                    bookTitle: _stats['highestPagesBookTitle'],
-                  ),
-                  StatCard(
-                    title: 'Shortest Book',
-                    value: _stats['lowestPages'].toString(),
-                    bookTitle: _stats['lowestPagesBookTitle'],
+                  _buildPair(
+                    StatCard(
+                      title: 'Shortest Book',
+                      value: _stats['lowestPages'].toString(),
+                      bookTitle: _stats['lowestPagesBookTitle'],
+                      coverPath: _stats['lowestPagesCoverPath'],
+                    ),
+                    StatCard(
+                      title: 'Longest Book',
+                      value: _stats['highestPages'].toString(),
+                      bookTitle: _stats['highestPagesBookTitle'],
+                      coverPath: _stats['highestPagesCoverPath'],
+                    ),
                   ),
                 ]),
               ),

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-class StackedBarBreakdownWidget extends StatelessWidget {
+class StackedBarChartWidget extends StatelessWidget {
   /// Each entry must have 'name' (String) and 'book_count' (int).
   final List<Map<String, dynamic>> data;
   final String title;
   final Map<String, Color>? colors;
 
-  const StackedBarBreakdownWidget({
+  const StackedBarChartWidget({
     super.key,
     required this.title,
     required this.data,
@@ -34,12 +34,11 @@ class StackedBarBreakdownWidget extends StatelessWidget {
         if ((data[i]['book_count'] as int) > 0) i,
     ];
 
-    return Container(
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -124,6 +123,7 @@ class StackedBarBreakdownWidget extends StatelessWidget {
             ),
           ],
         ],
+      ),
       ),
     );
   }

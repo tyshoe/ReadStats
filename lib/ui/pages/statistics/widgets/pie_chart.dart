@@ -1,7 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-class PieBreakdownWidget extends StatelessWidget {
+class PieChartWidget extends StatelessWidget {
   /// Each entry must have 'name' (String) and 'book_count' (int).
   final List<Map<String, dynamic>> data;
 
@@ -16,7 +16,7 @@ class PieBreakdownWidget extends StatelessWidget {
   /// When true, data is sorted by count descending for the legend.
   final bool sortByCount;
 
-  const PieBreakdownWidget({super.key, required this.title, required this.data, this.icons, this.colors, this.sortByCount = false});
+  const PieChartWidget({super.key, required this.title, required this.data, this.icons, this.colors, this.sortByCount = false});
 
   static List<Color> _palette(Color primary) => [
     primary,
@@ -53,13 +53,11 @@ class PieBreakdownWidget extends StatelessWidget {
         (displayData[a]['book_count'] as int)
             .compareTo(displayData[b]['book_count'] as int));
 
-    return Container(
+    return Card(
       margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: total == 0
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,6 +152,7 @@ class PieBreakdownWidget extends StatelessWidget {
                 ),
               ],
             ),
+      ),
     );
   }
 }

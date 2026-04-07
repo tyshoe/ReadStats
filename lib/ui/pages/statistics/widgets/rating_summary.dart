@@ -28,12 +28,11 @@ class RatingSummaryWidget extends StatelessWidget {
         ? (ratingData.entries.map((e) => e.key * e.value).reduce((a, b) => a + b) / totalRatings)
         : 0.0;
 
-    return Container(
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -123,6 +122,7 @@ class RatingSummaryWidget extends StatelessWidget {
             }),
           ),
         ],
+      ),
       ),
     );
   }
