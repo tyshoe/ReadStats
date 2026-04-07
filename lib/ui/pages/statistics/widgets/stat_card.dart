@@ -6,6 +6,7 @@ class StatCard extends StatelessWidget {
   final String value;
   final String? bookTitle;
   final String? coverPath;
+  final VoidCallback? onTap;
 
   const StatCard({
     super.key,
@@ -13,6 +14,7 @@ class StatCard extends StatelessWidget {
     required this.value,
     this.bookTitle,
     this.coverPath,
+    this.onTap,
   });
 
   @override
@@ -23,56 +25,60 @@ class StatCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withAlpha(153),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withAlpha(153),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (bookTitle != null && bookTitle!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
-                      bookTitle!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withAlpha(179),
+                      value,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
+                    if (bookTitle != null && bookTitle!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        bookTitle!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withAlpha(179),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ),
-            if (hasCover) ...[
-              const SizedBox(width: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Image.file(
-                  File(coverPath!),
-                  width: 50,
-                  height: 72,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _coverPlaceholder(theme),
                 ),
               ),
+              if (hasCover) ...[
+                const SizedBox(width: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Image.file(
+                    File(coverPath!),
+                    width: 50,
+                    height: 72,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _coverPlaceholder(theme),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

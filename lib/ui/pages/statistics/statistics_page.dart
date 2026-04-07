@@ -12,8 +12,13 @@ import 'package:read_stats/ui/pages/statistics/widgets/year_filter.dart';
 import '../../../data/models/book.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
+import '/data/repositories/tag_repository.dart';
 import '/data/models/session.dart';
+import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
+import '/ui/pages/library/widgets/book_detail_sheet.dart';
+import '/ui/pages/library/book_form_page.dart';
+import '/ui/pages/sessions/session_form_page.dart';
 
 class StatisticsPage extends StatefulWidget {
   final BookRepository bookRepository;
@@ -40,26 +45,32 @@ class _StatisticsPageState extends State<StatisticsPage> {
     'highestRating': '-',
     'highestRatingBookTitle': '',
     'highestRatingCoverPath': null,
+    'highestRatingBookId': null,
     'lowestRating': '-',
     'lowestRatingBookTitle': '',
     'lowestRatingCoverPath': null,
+    'lowestRatingBookId': null,
     'averageRating': 0.0,
     'totalTimeSpent': '0m',
     'slowestReadTime': '0m',
     'slowestReadBookTitle': '',
     'slowestReadCoverPath': null,
+    'slowestReadBookId': null,
     'fastestReadTime': '0m',
     'fastestReadBookTitle': '',
     'fastestReadCoverPath': null,
+    'fastestReadBookId': null,
     'totalPagesRead': 0,
     'avgPagesPerMinute': 0.0,
     'averagePages': 0.0,
     'highestPages': 0,
     'highestPagesBookTitle': '',
     'highestPagesCoverPath': null,
+    'highestPagesBookId': null,
     'lowestPages': 0,
     'lowestPagesBookTitle': '',
     'lowestPagesCoverPath': null,
+    'lowestPagesBookId': null,
   };
 
   @override
@@ -109,23 +120,29 @@ class _StatisticsPageState extends State<StatisticsPage> {
       'highestRating': bookStats['highest_rating'] ?? 0,
       'highestRatingBookTitle': bookStats['highest_rating_book_title'],
       'highestRatingCoverPath': await resolveCover(bookStats['highest_rating_cover_path']),
+      'highestRatingBookId': bookStats['highest_rating_book_id'],
       'lowestRating': bookStats['lowest_rating'] ?? 0,
       'lowestRatingBookTitle': bookStats['lowest_rating_book_title'],
       'lowestRatingCoverPath': await resolveCover(bookStats['lowest_rating_cover_path']),
+      'lowestRatingBookId': bookStats['lowest_rating_book_id'],
       'averageRating': bookStats['average_rating'] ?? 0,
       'highestPages': bookStats['highest_pages'] ?? 0,
       'highestPagesBookTitle': bookStats['highest_pages_book_title'],
       'highestPagesCoverPath': await resolveCover(bookStats['highest_pages_cover_path']),
+      'highestPagesBookId': bookStats['highest_pages_book_id'],
       'lowestPages': bookStats['lowest_pages'] ?? 0,
       'lowestPagesBookTitle': bookStats['lowest_pages_book_title'],
       'lowestPagesCoverPath': await resolveCover(bookStats['lowest_pages_cover_path']),
+      'lowestPagesBookId': bookStats['lowest_pages_book_id'],
       'averagePages': bookStats['average_pages'] ?? 0,
       'slowestReadTime': _formatMinutes(bookStats['slowest_read_time'] ?? 0),
       'slowestReadBookTitle': bookStats['slowest_read_book_title'],
       'slowestReadCoverPath': await resolveCover(bookStats['slowest_read_cover_path']),
+      'slowestReadBookId': bookStats['slowest_read_book_id'],
       'fastestReadTime': _formatMinutes(bookStats['fastest_read_time'] ?? 0),
       'fastestReadBookTitle': bookStats['fastest_read_book_title'],
       'fastestReadCoverPath': await resolveCover(bookStats['fastest_read_cover_path']),
+      'fastestReadBookId': bookStats['fastest_read_book_id'],
       'booksCompleted': bookStats['books_completed'] ?? 0,
     };
   }
@@ -481,6 +498,93 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
   }
 
+  void _onStatCardTap(int? bookId) async {
+    if (bookId == null) return;
+    final book = await widget.bookRepository.getBookById(bookId);
+    if (book == null || !mounted) return;
+
+    final mutableBook = Map<String, dynamic>.from(book);
+    final rawCover = mutableBook['cover_path'];
+    if (rawCover != null && (rawCover as String).isNotEmpty) {
+      mutableBook['cover_path'] = await CoverService.resolveFullPath(rawCover);
+    }
+
+    BookPopup.showBookPopup(
+      context,
+      mutableBook,
+      widget.settingsViewModel.defaultRatingStyleNotifier.value,
+      widget.settingsViewModel.defaultDateFormatNotifier.value,
+      _navigateToEditBookPage,
+      _navigateToAddSessionPage,
+      _confirmDelete,
+      TagRepository(DatabaseHelper()),
+      BookRepository(DatabaseHelper()),
+      widget.settingsViewModel,
+      refreshCallback: loadStats,
+    );
+  }
+
+  void _navigateToEditBookPage(Map<String, dynamic>? book) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BookFormPage(
+          onSave: (_) async => loadStats(),
+          settingsViewModel: widget.settingsViewModel,
+          book: book,
+        ),
+      ),
+    );
+  }
+
+  void _navigateToAddSessionPage(Map<String, dynamic> book) async {
+    final books = await widget.bookRepository.getBooks();
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SessionFormPage(
+          availableBooks: books
+              .where((b) => b.isCompleted == false)
+              .map((b) => b.toMap())
+              .toList(),
+          book: book,
+          onSave: loadStats,
+          settingsViewModel: widget.settingsViewModel,
+          sessionRepository: widget.sessionRepository,
+          bookRepository: widget.bookRepository,
+        ),
+      ),
+    );
+  }
+
+  void _confirmDelete(int bookId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Book'),
+        content: const Text('Are you sure you want to delete this book and all its sessions?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () async {
+              await DatabaseHelper().deleteBook(bookId);
+              if (mounted) Navigator.pop(context);
+              loadStats();
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -542,12 +646,14 @@ class _StatisticsPageState extends State<StatisticsPage> {
                       value: _stats['lowestRating'].toString(),
                       bookTitle: _stats['lowestRatingBookTitle'],
                       coverPath: _stats['lowestRatingCoverPath'],
+                      onTap: () => _onStatCardTap(_stats['lowestRatingBookId']),
                     ),
                     StatCard(
                       title: 'Highest Rating',
                       value: _stats['highestRating'].toString(),
                       bookTitle: _stats['highestRatingBookTitle'],
                       coverPath: _stats['highestRatingCoverPath'],
+                      onTap: () => _onStatCardTap(_stats['highestRatingBookId']),
                     ),
                   ),
 
@@ -563,12 +669,14 @@ class _StatisticsPageState extends State<StatisticsPage> {
                       value: _stats['fastestReadTime'].toString(),
                       bookTitle: _stats['fastestReadBookTitle'],
                       coverPath: _stats['fastestReadCoverPath'],
+                      onTap: () => _onStatCardTap(_stats['fastestReadBookId']),
                     ),
                     StatCard(
                       title: 'Slowest Read',
                       value: _stats['slowestReadTime'].toString(),
                       bookTitle: _stats['slowestReadBookTitle'],
                       coverPath: _stats['slowestReadCoverPath'],
+                      onTap: () => _onStatCardTap(_stats['slowestReadBookId']),
                     ),
                   ),
 
@@ -592,12 +700,14 @@ class _StatisticsPageState extends State<StatisticsPage> {
                       value: _stats['lowestPages'].toString(),
                       bookTitle: _stats['lowestPagesBookTitle'],
                       coverPath: _stats['lowestPagesCoverPath'],
+                      onTap: () => _onStatCardTap(_stats['lowestPagesBookId']),
                     ),
                     StatCard(
                       title: 'Longest Book',
                       value: _stats['highestPages'].toString(),
                       bookTitle: _stats['highestPagesBookTitle'],
                       coverPath: _stats['highestPagesCoverPath'],
+                      onTap: () => _onStatCardTap(_stats['highestPagesBookId']),
                     ),
                   ),
                 ]),
