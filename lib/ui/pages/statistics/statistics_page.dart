@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:read_stats/data/services/cover_service.dart';
-import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_double.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_single.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/pie_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stacked_bar_chart.dart';
@@ -38,6 +37,7 @@ class StatisticsPage extends StatefulWidget {
 
 class _StatisticsPageState extends State<StatisticsPage> {
   int selectedYear = 0;
+  Map<double, int> _cachedRatingData = {};
 
   Map<String, dynamic> _stats = {
     'totalSessions': 0,
@@ -161,33 +161,28 @@ class _StatisticsPageState extends State<StatisticsPage> {
   }
 
   Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(
+        title.toUpperCase(),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(120),
+              letterSpacing: 1.2,
+            ),
+      ),
     );
   }
 
-  List<Widget> _spaced(List<Widget> children, {double gap = 8, double sectionGap = 24}) {
+  List<Widget> _spaced(List<Widget> children, {double gap = 8, double sectionGap = 20}) {
     final result = <Widget>[];
     for (int i = 0; i < children.length; i++) {
       result.add(children[i]);
       if (i < children.length - 1) {
-        final nextIsSectionHeader = children[i + 1] is! StatCard &&
-            i + 1 < children.length &&
-            children[i + 1].runtimeType.toString().contains('Padding') == false;
-        // Use larger gap before section headers
-        final isNextSection = _isSectionHeader(children[i + 1]);
+        final isNextSection = children[i + 1] is Padding;
         result.add(SizedBox(height: isNextSection ? sectionGap : gap));
       }
     }
     return result;
-  }
-
-  bool _isSectionHeader(Widget w) {
-    // Section headers are plain Text widgets from _buildSectionHeader
-    return w is Text;
   }
 
   Widget _buildPair(Widget left, Widget right) {
@@ -243,16 +238,32 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return groupedMinutes;
   }
 
+  String _shortFormatMinutes(int minutes) {
+    if (minutes < 60) return '${minutes}m';
+    final hours = minutes ~/ 60;
+    return '${hours}h';
+  }
+
   Widget _buildReadingTimeChart() {
     return FutureBuilder<Map<String, int>>(
       future: _getReadingTimeDistribution(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const SizedBox.shrink();
+        final data = snapshot.data!;
+        final activeMinutes = data.values.where((v) => v > 0).toList();
+        final avgMinutes = activeMinutes.isEmpty
+            ? '0'
+            : _shortFormatMinutes((activeMinutes.reduce((a, b) => a + b) / activeMinutes.length).round());
         return BarChartWidget(
-          data: snapshot.data!,
+          data: data,
           selectedYear: selectedYear,
           barColor: Theme.of(context).primaryColor,
-          tooltipFormatter: (value) => _formatMinutes(value), // custom formatting for reading time
+          title: 'Reading Time',
+          subtitleValue: _stats['totalTimeSpent'],
+          averageValue: avgMinutes,
+          averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
+          shortFormatter: _shortFormatMinutes,
+          tooltipFormatter: _formatMinutes,
         );
       },
     );
@@ -282,10 +293,19 @@ class _StatisticsPageState extends State<StatisticsPage> {
       future: _getPagesDistribution(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const SizedBox.shrink();
+        final data = snapshot.data!;
+        final activePages = data.values.where((v) => v > 0).toList();
+        final avgPages = activePages.isEmpty
+            ? '0'
+            : NumberFormat('#,###').format((activePages.reduce((a, b) => a + b) / activePages.length).round());
         return BarChartWidget(
-          data: snapshot.data!,
+          data: data,
           selectedYear: selectedYear,
           barColor: Theme.of(context).primaryColor,
+          title: 'Pages Read',
+          subtitleValue: NumberFormat('#,###').format(_stats['totalPagesRead']),
+          averageValue: avgPages,
+          averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
         );
       },
     );
@@ -326,85 +346,44 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return grouped;
   }
 
-  Future<Map<String, Map<String, int>>> _getCombinedDistribution() async {
-    // Get both datasets
-    final booksData = await _getBooksDistribution();
-    final sessionsData = await _getSessionsDistribution();
 
-    // Get all unique keys from both datasets
-    final allKeys = {...booksData.keys, ...sessionsData.keys}.toList();
-
-    // Sort keys if monthly view
-    if (selectedYear != 0) {
-      const monthOrder = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec'
-      ];
-      final monthIndexMap = {for (var i = 0; i < monthOrder.length; i++) monthOrder[i]: i};
-
-      allKeys.sort((a, b) {
-        final indexA = monthIndexMap[a] ?? 99;
-        final indexB = monthIndexMap[b] ?? 99;
-        return indexA.compareTo(indexB);
-      });
-    } else {
-      // Yearly view - sort descending
-      allKeys.sort((a, b) {
-        try {
-          final yearA = int.tryParse(a) ?? 0;
-          final yearB = int.tryParse(b) ?? 0;
-          return yearB.compareTo(yearA);
-        } catch (e) {
-          return b.compareTo(a);
-        }
-      });
-    }
-
-    // Create combined data structure
-    final combinedData = <String, Map<String, int>>{};
-    for (final key in allKeys) {
-      combinedData[key] = {
-        'books': booksData[key] ?? 0,
-        'sessions': sessionsData[key] ?? 0,
-      };
-    }
-
-    return combinedData;
+  String _formatAverage(Map<String, int> data) {
+    final active = data.values.where((v) => v > 0).toList();
+    if (active.isEmpty) return '0';
+    return (active.reduce((a, b) => a + b) / active.length).round().toString();
   }
 
-  Widget _buildCombinedChart() {
-    return FutureBuilder<Map<String, Map<String, int>>>(
-      future: _getCombinedDistribution(),
+  Widget _buildBooksChart() {
+    return FutureBuilder<Map<String, int>>(
+      future: _getBooksDistribution(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          // Show an "empty" chart while loading
-          return const CombinedBarChartWidget(
-            data: {},
-            selectedYear: 0,
-          );
-        }
-
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          // Still show an empty chart instead of shrinking
-          return const CombinedBarChartWidget(
-            data: {},
-            selectedYear: 0,
-          );
-        }
-
-        return CombinedBarChartWidget(
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        return BarChartWidget(
           data: snapshot.data!,
           selectedYear: selectedYear,
+          barColor: Theme.of(context).primaryColor,
+          title: 'Books Finished',
+          subtitleValue: _stats['booksCompleted'].toString(),
+          averageValue: _formatAverage(snapshot.data!),
+          averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
+        );
+      },
+    );
+  }
+
+  Widget _buildSessionsChart() {
+    return FutureBuilder<Map<String, int>>(
+      future: _getSessionsDistribution(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        return BarChartWidget(
+          data: snapshot.data!,
+          selectedYear: selectedYear,
+          barColor: Theme.of(context).primaryColor,
+          title: 'Sessions',
+          subtitleValue: _stats['totalSessions'].toString(),
+          averageValue: _formatAverage(snapshot.data!),
+          averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
         );
       },
     );
@@ -431,7 +410,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
     'Audiobook': Icons.headphones,
   };
 
-  Widget _buildTypeBreakdown() {
+  Widget _buildBookTypeChart() {
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: widget.bookRepository.getBookCountsPerType(),
       builder: (context, snapshot) {
@@ -452,7 +431,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
   }
 
-  Widget _buildShelfBreakdown() {
+  Widget _buildShelfChart() {
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: widget.bookRepository.getBookCountsPerShelf(),
       builder: (context, snapshot) {
@@ -465,7 +444,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
             return (ai == -1 ? 999 : ai).compareTo(bi == -1 ? 999 : bi);
           });
         return StackedBarChartWidget(
-          title: 'Library Breakdown',
+          title: 'Library Shelves',
           data: sorted,
           colors: {
             'Currently Reading': primary,
@@ -482,17 +461,14 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return FutureBuilder<Map<double, int>>(
       future: widget.bookRepository.getRatingDistribution(selectedYear: selectedYear),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return RatingSummaryWidget(ratingData: {}, selectedYear: selectedYear);
-        }
-
-        if (!snapshot.hasData) {
-          return RatingSummaryWidget(ratingData: {}, selectedYear: selectedYear);
+        if (snapshot.hasData) {
+          _cachedRatingData = snapshot.data!;
         }
 
         return RatingSummaryWidget(
-          ratingData: snapshot.data!,
+          ratingData: _cachedRatingData,
           selectedYear: selectedYear,
+          title: 'My Ratings',
         );
       },
     );
@@ -626,18 +602,10 @@ class _StatisticsPageState extends State<StatisticsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: _spaced([
                   _buildSectionHeader('Overview'),
-                  _buildShelfBreakdown(),
-                  _buildTypeBreakdown(),
-                  _buildCombinedChart(),
-                  StatCard(
-                    title: 'Books Finished',
-                    value: _stats['booksCompleted'].toString(),
-                  ),
-                  StatCard(
-                    title: 'Total Sessions',
-                    value: _stats['totalSessions'].toString(),
-                  ),
-
+                  _buildShelfChart(),
+                  _buildBookTypeChart(),
+                  _buildBooksChart(),
+                  _buildSessionsChart(),
                   _buildSectionHeader('Ratings'),
                   _buildRatingSummary(),
                   _buildPair(
@@ -656,13 +624,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
                       onTap: () => _onStatCardTap(_stats['highestRatingBookId']),
                     ),
                   ),
-
                   _buildSectionHeader('Reading Time'),
                   _buildReadingTimeChart(),
-                  StatCard(
-                    title: 'Reading Time',
-                    value: _stats['totalTimeSpent'],
-                  ),
                   _buildPair(
                     StatCard(
                       title: 'Fastest Read',
@@ -679,21 +642,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
                       onTap: () => _onStatCardTap(_stats['slowestReadBookId']),
                     ),
                   ),
-
                   _buildSectionHeader('Pages'),
                   _buildPagesChart(),
-                  StatCard(
-                    title: 'Total Pages Read',
-                    value: _stats['totalPagesRead'].toString(),
-                  ),
-                  StatCard(
-                    title: 'Avg Pages/Min',
-                    value: _stats['avgPagesPerMinute'].toStringAsFixed(2),
-                  ),
-                  StatCard(
-                    title: 'Average Pages',
-                    value: _stats['averagePages'].toStringAsFixed(2),
-                  ),
                   _buildPair(
                     StatCard(
                       title: 'Shortest Book',
@@ -709,6 +659,10 @@ class _StatisticsPageState extends State<StatisticsPage> {
                       coverPath: _stats['highestPagesCoverPath'],
                       onTap: () => _onStatCardTap(_stats['highestPagesBookId']),
                     ),
+                  ),
+                  StatCard(
+                    title: 'Avg Pages/Min',
+                    value: _stats['avgPagesPerMinute'].toStringAsFixed(2),
                   ),
                 ]),
               ),
