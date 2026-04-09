@@ -6,8 +6,6 @@ import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import 'widgets/session_calendar.dart';
 
-enum CalendarMode { thirtyDays, currentMonth }
-
 class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
   final List<Map<String, dynamic>> sessions;
@@ -36,19 +34,17 @@ class _SessionsPageState extends State<SessionsPage> {
   late Map<int, Map<String, dynamic>> _bookMap;
   late String _dateFormatString;
   late final VoidCallback _formatListener;
-  late CalendarMode _calendarMode;
+  late DateTime _selectedMonth;
+  int _monthStepDirection = 1;
 
   @override
   void initState() {
     super.initState();
     _initializeBookMap();
+    final now = DateTime.now();
+    _selectedMonth = DateTime(now.year, now.month);
     _dateFormatString = widget.settingsViewModel.defaultDateFormatNotifier.value;
 
-    // Load calendar mode from settings
-    final isCurrentMonth = widget.settingsViewModel.calendarMonthModeNotifier.value;
-    _calendarMode = isCurrentMonth ? CalendarMode.currentMonth : CalendarMode.thirtyDays;
-
-    // Listen for date format changes
     _formatListener = () {
       if (mounted) {
         setState(() {
@@ -57,17 +53,6 @@ class _SessionsPageState extends State<SessionsPage> {
       }
     };
     widget.settingsViewModel.defaultDateFormatNotifier.addListener(_formatListener);
-
-    // Listen for calendar mode changes from outside if needed
-    widget.settingsViewModel.calendarMonthModeNotifier.addListener(() {
-      if (mounted) {
-        setState(() {
-          _calendarMode = widget.settingsViewModel.calendarMonthModeNotifier.value
-              ? CalendarMode.currentMonth
-              : CalendarMode.thirtyDays;
-        });
-      }
-    });
   }
 
   @override
@@ -110,29 +95,6 @@ class _SessionsPageState extends State<SessionsPage> {
   String _formatDate(String isoDate) {
     final date = DateTime.parse(isoDate);
     return DateFormat(_dateFormatString).format(date);
-  }
-
-  Map<String, List<Map<String, dynamic>>> _groupSessionsByMonth(DateTime start, DateTime end) {
-    Map<String, List<Map<String, dynamic>>> groupedSessions = {};
-
-    // Only include sessions inside the displayed range
-    for (var session in widget.sessions) {
-      String date = session['date'] ?? '';
-      if (date.isEmpty) continue;
-
-      DateTime sessionDate = DateTime.parse(date);
-      if (sessionDate.isBefore(start) || sessionDate.isAfter(end)) continue;
-
-      String monthYear = DateFormat('MMMM yyyy').format(sessionDate);
-
-      int bookId = session['book_id'];
-      Map<String, dynamic>? book = _bookMap[bookId];
-      var sessionWithBook = {...session, 'book': book};
-
-      groupedSessions.putIfAbsent(monthYear, () => []).add(sessionWithBook);
-    }
-
-    return groupedSessions;
   }
 
   Map<String, List<Map<String, dynamic>>> _groupSessionsByMonthAll() {
@@ -221,11 +183,53 @@ class _SessionsPageState extends State<SessionsPage> {
     return '';
   }
 
-  Future<void> _updateCalendarMode(CalendarMode mode) async {
+  DateTime? get _firstSessionMonth {
+    if (widget.sessions.isEmpty) return null;
+    final earliest = widget.sessions
+        .map((s) => DateTime.parse(s['date']))
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    return DateTime(earliest.year, earliest.month);
+  }
+
+  void _stepMonth(int delta) {
     setState(() {
-      _calendarMode = mode;
+      _monthStepDirection = delta;
+      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + delta);
     });
-    await widget.settingsViewModel.setCalendarMonthMode(mode == CalendarMode.currentMonth);
+  }
+
+  Widget _buildMonthNavigator() {
+    final theme = Theme.of(context);
+    final now = DateTime.now();
+    final currentMonth = DateTime(now.year, now.month);
+    final firstMonth = _firstSessionMonth;
+
+    final canGoBack = firstMonth != null && _selectedMonth.isAfter(firstMonth);
+    final canGoForward = _selectedMonth.isBefore(currentMonth);
+
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chevron_left),
+          onPressed: canGoBack ? () => _stepMonth(-1) : null,
+          color: theme.colorScheme.onSurface,
+          disabledColor: theme.colorScheme.onSurface.withAlpha(40),
+        ),
+        Expanded(
+          child: Text(
+            DateFormat('MMMM yyyy').format(_selectedMonth),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.chevron_right),
+          onPressed: canGoForward ? () => _stepMonth(1) : null,
+          color: theme.colorScheme.onSurface,
+          disabledColor: theme.colorScheme.onSurface.withAlpha(40),
+        ),
+      ],
+    );
   }
 
   Widget _buildStats(DateTime start, DateTime end) {
@@ -418,19 +422,8 @@ class _SessionsPageState extends State<SessionsPage> {
     final theme = Theme.of(context);
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
 
-    final now = DateTime.now();
-    late DateTime start;
-    late DateTime end;
-
-    if (_calendarMode == CalendarMode.thirtyDays) {
-      // Last 30 days aligned to week start and end
-      end = now.subtract(Duration(days: now.weekday % 7 - 6));
-      start = end.subtract(const Duration(days: 34));
-    } else {
-      // Current month start and end
-      start = DateTime(now.year, now.month, 1);
-      end = DateTime(now.year, now.month + 1, 0);
-    }
+    final start = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
+    final end = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
 
     final groupedSessions = _groupSessionsByMonthAll();
 
@@ -455,27 +448,53 @@ class _SessionsPageState extends State<SessionsPage> {
           : ListView(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    ChoiceChip(
-                      label: const Text("Last 30 Days"),
-                      selected: _calendarMode == CalendarMode.thirtyDays,
-                      onSelected: (_) => _updateCalendarMode(CalendarMode.thirtyDays),
+                _buildMonthNavigator(),
+                GestureDetector(
+                  onHorizontalDragEnd: (details) {
+                    final velocity = details.primaryVelocity ?? 0;
+                    if (velocity < -200) {
+                      final now = DateTime.now();
+                      if (_selectedMonth.isBefore(DateTime(now.year, now.month))) {
+                        _stepMonth(1);
+                      }
+                    } else if (velocity > 200) {
+                      final first = _firstSessionMonth;
+                      if (first != null && _selectedMonth.isAfter(first)) {
+                        _stepMonth(-1);
+                      }
+                    }
+                  },
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (child, animation) {
+                      final isIncoming =
+                          (child.key as ValueKey<DateTime>).value == _selectedMonth;
+                      final begin = Offset(
+                        isIncoming ? _monthStepDirection.toDouble() : -_monthStepDirection.toDouble(),
+                        0,
+                      );
+                      return SlideTransition(
+                        position: Tween<Offset>(begin: begin, end: Offset.zero)
+                            .animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut)),
+                        child: child,
+                      );
+                    },
+                    layoutBuilder: (currentChild, previousChildren) => Stack(
+                      children: [
+                        ...previousChildren,
+                        if (currentChild != null) currentChild,
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: const Text("Current Month"),
-                      selected: _calendarMode == CalendarMode.currentMonth,
-                      onSelected: (_) => _updateCalendarMode(CalendarMode.currentMonth),
+                    child: KeyedSubtree(
+                      key: ValueKey(_selectedMonth),
+                      child: SessionsCalendar(
+                        start: start,
+                        end: end,
+                        sessions: widget.sessions,
+                        isCurrentMonth: true,
+                      ),
                     ),
-                  ],
-                ),
-                SessionsCalendar(
-                  start: start,
-                  end: end,
-                  sessions: widget.sessions,
-                  isCurrentMonth: _calendarMode == CalendarMode.currentMonth,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 _buildStats(start, end),

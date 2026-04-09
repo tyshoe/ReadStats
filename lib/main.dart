@@ -98,7 +98,6 @@ class _MyAppState extends State<MyApp> {
     final defaultTab = await SettingsViewModel.getDefaultTab();
     final defaultDateFormat = await SettingsViewModel.getDefaultDateFormat();
     final selectedFont = await SettingsViewModel.getSelectedFont();
-    final calendarMonthMode = await SettingsViewModel.getCalendarMonthMode();
     final sortOption = await SettingsViewModel.getLibrarySortOption();
     final isAscending = await SettingsViewModel.getLibrarySortAscending();
     final bookTypes = await SettingsViewModel.getLibraryBookTypes();
@@ -145,7 +144,6 @@ class _MyAppState extends State<MyApp> {
         navStyle: navStyle,
         defaultTab: defaultTab,
         defaultDateFormat: defaultDateFormat,
-        calendarMonthModeNotifier: calendarMonthMode,
         selectedFont: selectedFont,
         sortOption: sortOption,
         isAscending: isAscending,

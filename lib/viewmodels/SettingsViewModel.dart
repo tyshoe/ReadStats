@@ -12,7 +12,6 @@ class SettingsViewModel {
   final ValueNotifier<int> defaultTabNotifier;
   final ValueNotifier<String> defaultDateFormatNotifier;
   final ValueNotifier<String> selectedFontNotifier;
-  final ValueNotifier<bool> calendarMonthModeNotifier;
   // Library Filters
   final ValueNotifier<String> librarySortOptionNotifier;
   final ValueNotifier<bool> isLibrarySortAscendingNotifier;
@@ -35,7 +34,6 @@ class SettingsViewModel {
     required int defaultTab,
     required String defaultDateFormat,
     required String selectedFont,
-    required bool calendarMonthModeNotifier,
     required String sortOption,
     required bool isAscending,
     required List<String> bookTypes,
@@ -54,7 +52,6 @@ class SettingsViewModel {
         defaultDateFormatNotifier = ValueNotifier(defaultDateFormat),
         selectedFontNotifier = ValueNotifier(selectedFont),
         libraryTagFilterModeNotifier = ValueNotifier(tagFilterMode),
-        calendarMonthModeNotifier = ValueNotifier(calendarMonthModeNotifier),
         librarySortOptionNotifier = ValueNotifier(sortOption),
         isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
         libraryBookTypeFilterNotifier = ValueNotifier(bookTypes),
@@ -298,17 +295,6 @@ class SettingsViewModel {
   static Future<String> getLibraryTagFilterMode() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('libraryTagFilterMode') ?? 'any';
-  }
-
-  Future<void> setCalendarMonthMode(bool isCurrentMonth) async {
-    calendarMonthModeNotifier.value = isCurrentMonth;
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setBool('calendarMonthMode', isCurrentMonth);
-  }
-
-  static Future<bool> getCalendarMonthMode() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('calendarMonthMode') ?? false;
   }
 
   // Save pinned book IDs
