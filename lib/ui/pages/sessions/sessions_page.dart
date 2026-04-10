@@ -249,14 +249,26 @@ class _SessionsPageState extends State<SessionsPage> {
       return sum + pages;
     });
 
+    final uniqueDays = sessionsInRange
+        .map((s) => s['date']?.toString().substring(0, 10))
+        .whereType<String>()
+        .toSet()
+        .length;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildStatCard("Sessions", "$totalSessions"),
-          _buildStatCard("Time", _formatDuration(totalMinutes)),
-          _buildStatCard("Pages", "$totalPages"),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatCard("Time", _formatDuration(totalMinutes)),
+              _buildStatCard("Sessions", "$totalSessions"),
+              _buildStatCard("Days", "$uniqueDays"),
+              _buildStatCard("Pages", "$totalPages"),
+            ],
+          ),
         ],
       ),
     );
@@ -265,8 +277,8 @@ class _SessionsPageState extends State<SessionsPage> {
   Widget _buildStatCard(String label, String value) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         Text(label, style: const TextStyle(color: Colors.grey)),
+        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -425,7 +437,8 @@ class _SessionsPageState extends State<SessionsPage> {
     final start = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
     final end = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
 
-    final groupedSessions = _groupSessionsByMonthAll();
+    final groupedSessions = _groupSessionsByMonthAll()
+      ..removeWhere((key, _) => key != DateFormat('MMMM yyyy').format(_selectedMonth));
 
     return Scaffold(
       appBar: AppBar(
@@ -492,6 +505,7 @@ class _SessionsPageState extends State<SessionsPage> {
                         end: end,
                         sessions: widget.sessions,
                         isCurrentMonth: true,
+
                       ),
                     ),
                   ),
@@ -502,26 +516,21 @@ class _SessionsPageState extends State<SessionsPage> {
                   color: Colors.grey[600],
                   height: 1,
                 ),
-                ...groupedSessions.entries.map((entry) {
-                  final monthYear = entry.key;
-                  final sessions = entry.value;
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16),
-                        child: Text(
-                          monthYear,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                const SizedBox(height: 8),
+                if (groupedSessions.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    child: Center(
+                      child: Text(
+                        'No sessions this month',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface.withAlpha(120),
                         ),
                       ),
-                      ...sessions.map(_buildSessionCard),
-                    ],
-                  );
-                }),
+                    ),
+                  )
+                else
+                  ...?groupedSessions.values.firstOrNull?.map(_buildSessionCard),
               ],
             ),
       floatingActionButton: widget.books.isNotEmpty
