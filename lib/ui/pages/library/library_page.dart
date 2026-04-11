@@ -558,18 +558,14 @@ class _LibraryPageState extends State<LibraryPage> {
             _selectedFinishedYears = newOptions.finishedYears;
             _selectedTags = newOptions.tags;
             _selectedTagFilterMode = newOptions.tagFilterMode;
-
-            _filteredBooks = _sortAndFilterBooks(
-                List<Map<String, dynamic>>.from(widget.books),
-                _selectedSortOption,
-                _isAscending,
-                _selectedBookTypes,
-                _isFavorite,
-                _selectedShelfId,
-                _selectedFinishedYears,
-                _selectedTags,
-                _selectedTagFilterMode);
           });
+          _searchBooks();
+          widget.settingsViewModel.setLibrarySortOption(_selectedSortOption);
+          widget.settingsViewModel.setLibrarySortAscending(_isAscending);
+          widget.settingsViewModel.setLibraryBookTypeFilter(_selectedBookTypes);
+          widget.settingsViewModel.setLibraryIsFavorite(_isFavorite);
+          widget.settingsViewModel.setLibraryFinishedYearFilter(_selectedFinishedYears);
+          widget.settingsViewModel.setLibraryTagFilterMode(_selectedTagFilterMode);
         },
         availableYears: availableYears,
         settingsViewModel: widget.settingsViewModel,
@@ -829,18 +825,8 @@ class _LibraryPageState extends State<LibraryPage> {
                                   onSelected: (_) {
                                     setState(() {
                                       _selectedShelfId = isSelected ? null : id;
-                                      _filteredBooks = _sortAndFilterBooks(
-                                        List<Map<String, dynamic>>.from(widget.books),
-                                        _selectedSortOption,
-                                        _isAscending,
-                                        _selectedBookTypes,
-                                        _isFavorite,
-                                        _selectedShelfId,
-                                        _selectedFinishedYears,
-                                        _selectedTags,
-                                        _selectedTagFilterMode,
-                                      );
                                     });
+                                    _searchBooks();
                                     widget.settingsViewModel.setLibraryShelfFilter(_selectedShelfId);
                                     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedChip());
                                   },
