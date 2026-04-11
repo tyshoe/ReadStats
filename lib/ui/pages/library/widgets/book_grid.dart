@@ -24,7 +24,7 @@ class BookGridItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasCover = book['cover_path'] != null;
-    final blurNonSelected = selectionMode && !isSelected && hasCover;
+    final blurSelected = selectionMode && isSelected && hasCover;
 
     return Card(
       elevation: 0,
@@ -57,8 +57,8 @@ class BookGridItem extends StatelessWidget {
                   else
                     _textPlaceholder(theme, book),
 
-                  // Blur + dim overlay for non-selected books in selection mode
-                  if (blurNonSelected)
+                  // Blur + dim overlay for selected books in selection mode
+                  if (blurSelected)
                     Positioned.fill(
                       child: BackdropFilter(
                         filter: ImageFilter.blur(sigmaX: .8, sigmaY: .8),
@@ -68,16 +68,13 @@ class BookGridItem extends StatelessWidget {
 
                   // Checkmark overlay for selected books with covers
                   if (isSelected && hasCover)
-                    Positioned.fill(
-                      child: Container(
-                        color: selectionColor.withOpacity(0.25),
-                        child: const Center(
-                          child: Icon(Icons.check_circle, color: Colors.white, size: 32),
-                        ),
+                    const Positioned.fill(
+                      child: Center(
+                        child: Icon(Icons.check_circle, color: Colors.white, size: 32),
                       ),
                     ),
 
-                  if (!blurNonSelected)
+                  if (!blurSelected)
                     Positioned(
                       top: 6,
                       right: 6,
