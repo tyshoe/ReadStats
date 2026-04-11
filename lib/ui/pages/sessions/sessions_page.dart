@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'session_form_page.dart';
@@ -293,6 +294,7 @@ class _SessionsPageState extends State<SessionsPage> {
     final int pagesRead = int.tryParse(session['pages_read']?.toString() ?? '0') ?? 0;
     final int minutes = int.tryParse(session['duration_minutes']?.toString() ?? '0') ?? 0;
     final String date = session['date'] ?? '';
+    final String? coverPath = book?['cover_path'] as String?;
 
     final double pagesPerMinute = (pagesRead > 0 && minutes > 0) ? pagesRead / minutes : 0;
 
@@ -344,10 +346,25 @@ class _SessionsPageState extends State<SessionsPage> {
         borderRadius: BorderRadius.circular(12),
         onTap: () => _navigateToEditSessionsPage(session),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: coverPath != null
+              ? const EdgeInsets.fromLTRB(8, 8, 14, 8)
+              : const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: IntrinsicHeight(
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (coverPath != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Image.file(
+                    File(coverPath),
+                    width: 42,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -421,6 +438,7 @@ class _SessionsPageState extends State<SessionsPage> {
               ),
             ],
           ),
+          ),
         ),
       ),
       ),
@@ -462,7 +480,10 @@ class _SessionsPageState extends State<SessionsPage> {
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: _buildMonthNavigator(),
+                  child: SizedBox(
+                    height: 36,
+                    child: _buildMonthNavigator(),
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),

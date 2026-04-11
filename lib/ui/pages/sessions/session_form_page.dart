@@ -299,7 +299,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
           if (mounted) Navigator.pop(context);
         } else {
           widget.onSave();
-          _resetInputs();
+          if (mounted) Navigator.pop(context);
         }
       }
     } catch (e) {
