@@ -256,7 +256,7 @@ class _SessionsPageState extends State<SessionsPage> {
         .length;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -458,79 +458,88 @@ class _SessionsPageState extends State<SessionsPage> {
                 ),
               ),
             )
-          : ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+          : Column(
               children: [
-                _buildMonthNavigator(),
-                GestureDetector(
-                  onHorizontalDragEnd: (details) {
-                    final velocity = details.primaryVelocity ?? 0;
-                    if (velocity < -200) {
-                      final now = DateTime.now();
-                      if (_selectedMonth.isBefore(DateTime(now.year, now.month))) {
-                        _stepMonth(1);
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: _buildMonthNavigator(),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: GestureDetector(
+                    onHorizontalDragEnd: (details) {
+                      final velocity = details.primaryVelocity ?? 0;
+                      if (velocity < -200) {
+                        final now = DateTime.now();
+                        if (_selectedMonth.isBefore(DateTime(now.year, now.month))) {
+                          _stepMonth(1);
+                        }
+                      } else if (velocity > 200) {
+                        final first = _firstSessionMonth;
+                        if (first != null && _selectedMonth.isAfter(first)) {
+                          _stepMonth(-1);
+                        }
                       }
-                    } else if (velocity > 200) {
-                      final first = _firstSessionMonth;
-                      if (first != null && _selectedMonth.isAfter(first)) {
-                        _stepMonth(-1);
-                      }
-                    }
-                  },
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    transitionBuilder: (child, animation) {
-                      final isIncoming =
-                          (child.key as ValueKey<DateTime>).value == _selectedMonth;
-                      final begin = Offset(
-                        isIncoming ? _monthStepDirection.toDouble() : -_monthStepDirection.toDouble(),
-                        0,
-                      );
-                      return SlideTransition(
-                        position: Tween<Offset>(begin: begin, end: Offset.zero)
-                            .animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut)),
-                        child: child,
-                      );
                     },
-                    layoutBuilder: (currentChild, previousChildren) => Stack(
-                      children: [
-                        ...previousChildren,
-                        if (currentChild != null) currentChild,
-                      ],
-                    ),
-                    child: KeyedSubtree(
-                      key: ValueKey(_selectedMonth),
-                      child: SessionsCalendar(
-                        start: start,
-                        end: end,
-                        sessions: widget.sessions,
-                        isCurrentMonth: true,
-
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder: (child, animation) {
+                        final isIncoming =
+                            (child.key as ValueKey<DateTime>).value == _selectedMonth;
+                        final begin = Offset(
+                          isIncoming ? _monthStepDirection.toDouble() : -_monthStepDirection.toDouble(),
+                          0,
+                        );
+                        return SlideTransition(
+                          position: Tween<Offset>(begin: begin, end: Offset.zero)
+                              .animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut)),
+                          child: child,
+                        );
+                      },
+                      layoutBuilder: (currentChild, previousChildren) => Stack(
+                        children: [
+                          ...previousChildren,
+                          if (currentChild != null) currentChild,
+                        ],
+                      ),
+                      child: KeyedSubtree(
+                        key: ValueKey(_selectedMonth),
+                        child: SessionsCalendar(
+                          start: start,
+                          end: end,
+                          sessions: widget.sessions,
+                          isCurrentMonth: true,
+                        ),
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
                 _buildStats(start, end),
+                const SizedBox(height: 8),
                 Divider(
                   color: Colors.grey[600],
                   height: 1,
                 ),
-                const SizedBox(height: 8),
-                if (groupedSessions.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 32),
-                    child: Center(
-                      child: Text(
-                        'No sessions this month',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface.withAlpha(120),
+                Expanded(
+                  child: groupedSessions.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No sessions this month',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurface.withAlpha(120),
+                            ),
+                          ),
+                        )
+                      : Scrollbar(
+                          child: ListView(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            children: [
+                              ...?groupedSessions.values.firstOrNull?.map(_buildSessionCard),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                  )
-                else
-                  ...?groupedSessions.values.firstOrNull?.map(_buildSessionCard),
+                ),
               ],
             ),
       floatingActionButton: widget.books.isNotEmpty
