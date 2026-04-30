@@ -42,6 +42,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
   final TextEditingController _bookController = TextEditingController();
   final TextEditingController _startTimeController = TextEditingController();
   final TextEditingController _endTimeController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode hoursFocusNode = FocusNode();
   final FocusNode minutesFocusNode = FocusNode();
@@ -66,6 +67,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
       _hoursController.text = hours.toString();
       _minutesController.text = minutes.toString();
       _sessionDate = DateTime.parse(widget.session!['date']);
+      _notesController.text = widget.session!['notes'] ?? '';
       _selectedBook = widget.book;
     } else {
       _pagesController.text = '';
@@ -103,6 +105,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
     _scrollController.dispose();
     _startTimeController.dispose();
     _endTimeController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -272,6 +275,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
         pagesRead: pagesRead,
         durationMinutes: durationMinutes,
         date: _sessionDate.toIso8601String(),
+        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       );
 
       if (widget.isEditing) {
@@ -1283,6 +1287,37 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 ],
               ),
             ],
+
+            const Divider(height: 48),
+            TextField(
+              controller: _notesController,
+              decoration: InputDecoration(
+                labelText: 'Notes',
+                hintText: 'Reflect on your reading session...',
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest,
+                border: UnderlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: UnderlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                alignLabelWithHint: true,
+              ),
+              minLines: 2,
+              maxLines: null,
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
+            ),
+            const SizedBox(height: 8),
 
           ],
         ),

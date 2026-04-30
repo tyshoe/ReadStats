@@ -81,6 +81,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
 
   void loadStats() async {
     final newStats = await calculateStats(selectedYear);
+    if (!mounted) return;
     setState(() {
       _stats = newStats;
     });

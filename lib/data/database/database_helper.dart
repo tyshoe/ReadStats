@@ -9,7 +9,7 @@ class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
-  static const int _databaseVersion = 2;
+  static const int _databaseVersion = 3;
 
   // System shelf IDs — stable because shelves are seeded in a fixed order
   // and only exist from v2 onwards (v1 had no shelves).
@@ -107,7 +107,29 @@ class DatabaseHelper {
         pages_read INTEGER,
         duration_minutes INTEGER,
         date DATETIME,
+        notes TEXT,
         FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE goals(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        metric TEXT NOT NULL,
+        period TEXT NOT NULL,
+        target INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE(metric, period)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE goal_target_changes(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        goal_id INTEGER NOT NULL,
+        target INTEGER NOT NULL,
+        effective_from TEXT NOT NULL,
+        FOREIGN KEY(goal_id) REFERENCES goals(id) ON DELETE CASCADE
       )
     ''');
 
@@ -226,7 +248,7 @@ class DatabaseHelper {
       await db.execute('DROP TABLE books');
       await db.execute('ALTER TABLE books_new RENAME TO books');
 
-      // Restore sessions
+      // Restore sessions (backup predates notes column so we can't SELECT *)
       await db.execute('''
         CREATE TABLE sessions(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -234,10 +256,13 @@ class DatabaseHelper {
           pages_read INTEGER,
           duration_minutes INTEGER,
           date DATETIME,
+          notes TEXT,
           FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
         )
       ''');
-      await db.execute('INSERT INTO sessions SELECT * FROM sessions_backup');
+      await db.execute(
+          'INSERT INTO sessions(id, book_id, pages_read, duration_minutes, date) '
+          'SELECT id, book_id, pages_read, duration_minutes, date FROM sessions_backup');
       await db.execute('DROP TABLE sessions_backup');
 
       // Restore book_tags
@@ -261,6 +286,31 @@ class DatabaseHelper {
           sort_order INTEGER NOT NULL DEFAULT 0,
           date_added TEXT NOT NULL,
           FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
+        )
+      ''');
+    }
+
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE sessions ADD COLUMN notes TEXT');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS goals(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          metric TEXT NOT NULL,
+          period TEXT NOT NULL,
+          target INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(metric, period)
+        )
+      ''');
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS goal_target_changes(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          goal_id INTEGER NOT NULL,
+          target INTEGER NOT NULL,
+          effective_from TEXT NOT NULL,
+          FOREIGN KEY(goal_id) REFERENCES goals(id) ON DELETE CASCADE
         )
       ''');
     }
@@ -1000,5 +1050,86 @@ class DatabaseHelper {
       );
     }
     await batch.commit(noResult: true);
+  }
+
+  // --- Goals ---
+
+  Future<int> insertGoal(Map<String, dynamic> goal) async {
+    final db = await database;
+    return await db.insert('goals', goal);
+  }
+
+  Future<List<Map<String, dynamic>>> getGoals() async {
+    final db = await database;
+    return await db.query('goals', orderBy: 'id ASC');
+  }
+
+  Future<int> updateGoalTarget(int goalId, int newTarget) async {
+    final db = await database;
+    return await db.update(
+      'goals',
+      {'target': newTarget},
+      where: 'id = ?',
+      whereArgs: [goalId],
+    );
+  }
+
+  Future<int> deleteGoal(int id) async {
+    final db = await database;
+    return await db.delete('goals', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> insertGoalTargetChange(Map<String, dynamic> change) async {
+    final db = await database;
+    return await db.insert('goal_target_changes', change);
+  }
+
+  Future<int?> getTargetForPeriod(int goalId, String periodStart) async {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT target FROM goal_target_changes
+      WHERE goal_id = ? AND effective_from <= ?
+      ORDER BY effective_from DESC, id DESC
+      LIMIT 1
+    ''', [goalId, periodStart]);
+    if (result.isEmpty) return null;
+    return result.first['target'] as int?;
+  }
+
+  Future<int> getProgressForPeriod({
+    required String metric,
+    required String periodStart,
+    required String periodEnd,
+  }) async {
+    final db = await database;
+
+    if (metric == 'books_finished') {
+      final result = await db.rawQuery('''
+        SELECT COUNT(*) as count FROM books
+        WHERE is_completed = 1
+          AND DATE(date_finished) >= ?
+          AND DATE(date_finished) <= ?
+      ''', [periodStart, periodEnd]);
+      return (result.first['count'] as int?) ?? 0;
+    } else if (metric == 'sessions') {
+      final result = await db.rawQuery('''
+        SELECT COUNT(*) as count FROM sessions
+        WHERE DATE(date) >= ? AND DATE(date) <= ?
+      ''', [periodStart, periodEnd]);
+      return (result.first['count'] as int?) ?? 0;
+    } else if (metric == 'pages_read') {
+      final result = await db.rawQuery('''
+        SELECT COALESCE(SUM(pages_read), 0) as total FROM sessions
+        WHERE DATE(date) >= ? AND DATE(date) <= ?
+      ''', [periodStart, periodEnd]);
+      return (result.first['total'] as int?) ?? 0;
+    } else {
+      // time_reading
+      final result = await db.rawQuery('''
+        SELECT COALESCE(SUM(duration_minutes), 0) as total FROM sessions
+        WHERE DATE(date) >= ? AND DATE(date) <= ?
+      ''', [periodStart, periodEnd]);
+      return (result.first['total'] as int?) ?? 0;
+    }
   }
 }

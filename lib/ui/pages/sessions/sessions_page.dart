@@ -5,7 +5,9 @@ import 'session_form_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
+import '/data/repositories/goal_repository.dart';
 import 'widgets/session_calendar.dart';
+import 'widgets/goals_tab.dart';
 
 class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -15,6 +17,7 @@ class SessionsPage extends StatefulWidget {
   final SettingsViewModel settingsViewModel;
   final SessionRepository sessionRepository;
   final BookRepository bookRepository;
+  final GoalRepository goalRepository;
 
   const SessionsPage({
     super.key,
@@ -25,13 +28,16 @@ class SessionsPage extends StatefulWidget {
     required this.settingsViewModel,
     required this.sessionRepository,
     required this.bookRepository,
+    required this.goalRepository,
   });
 
   @override
   State<SessionsPage> createState() => _SessionsPageState();
 }
 
-class _SessionsPageState extends State<SessionsPage> {
+class _SessionsPageState extends State<SessionsPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   late Map<int, Map<String, dynamic>> _bookMap;
   late String _dateFormatString;
   late final VoidCallback _formatListener;
@@ -41,6 +47,8 @@ class _SessionsPageState extends State<SessionsPage> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() => setState(() {}));
     _initializeBookMap();
     final now = DateTime.now();
     _selectedMonth = DateTime(now.year, now.month);
@@ -67,6 +75,7 @@ class _SessionsPageState extends State<SessionsPage> {
 
   @override
   void dispose() {
+    _tabController.dispose();
     widget.settingsViewModel.defaultDateFormatNotifier.removeListener(_formatListener);
     super.dispose();
   }
@@ -447,129 +456,160 @@ class _SessionsPageState extends State<SessionsPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
-
+  Widget _buildSessionsTab(ThemeData theme, Color accentColor) {
     final start = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
     final end = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
 
     final groupedSessions = _groupSessionsByMonthAll()
       ..removeWhere((key, _) => key != DateFormat('MMMM yyyy').format(_selectedMonth));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reading Sessions'),
-        backgroundColor: theme.scaffoldBackgroundColor,
-        centerTitle: false,
-        elevation: 0,
-      ),
-      body: widget.sessions.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  _getMessageToDisplay(),
-                  style: theme.textTheme.bodyLarge,
-                  textAlign: TextAlign.center,
-                ),
+    final content = widget.sessions.isEmpty
+        ? Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                _getMessageToDisplay(),
+                style: theme.textTheme.bodyLarge,
+                textAlign: TextAlign.center,
               ),
-            )
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: SizedBox(
-                    height: 36,
-                    child: _buildMonthNavigator(),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: GestureDetector(
-                    onHorizontalDragEnd: (details) {
-                      final velocity = details.primaryVelocity ?? 0;
-                      if (velocity < -200) {
-                        final now = DateTime.now();
-                        if (_selectedMonth.isBefore(DateTime(now.year, now.month))) {
-                          _stepMonth(1);
-                        }
-                      } else if (velocity > 200) {
-                        final first = _firstSessionMonth;
-                        if (first != null && _selectedMonth.isAfter(first)) {
-                          _stepMonth(-1);
-                        }
+            ),
+          )
+        : Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: SizedBox(height: 36, child: _buildMonthNavigator()),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: GestureDetector(
+                  onHorizontalDragEnd: (details) {
+                    final velocity = details.primaryVelocity ?? 0;
+                    if (velocity < -200) {
+                      final now = DateTime.now();
+                      if (_selectedMonth.isBefore(DateTime(now.year, now.month))) {
+                        _stepMonth(1);
                       }
+                    } else if (velocity > 200) {
+                      final first = _firstSessionMonth;
+                      if (first != null && _selectedMonth.isAfter(first)) {
+                        _stepMonth(-1);
+                      }
+                    }
+                  },
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (child, animation) {
+                      final isIncoming =
+                          (child.key as ValueKey<DateTime>).value == _selectedMonth;
+                      final begin = Offset(
+                        isIncoming
+                            ? _monthStepDirection.toDouble()
+                            : -_monthStepDirection.toDouble(),
+                        0,
+                      );
+                      return SlideTransition(
+                        position: Tween<Offset>(begin: begin, end: Offset.zero)
+                            .animate(CurvedAnimation(
+                                parent: animation, curve: Curves.easeInOut)),
+                        child: child,
+                      );
                     },
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      transitionBuilder: (child, animation) {
-                        final isIncoming =
-                            (child.key as ValueKey<DateTime>).value == _selectedMonth;
-                        final begin = Offset(
-                          isIncoming ? _monthStepDirection.toDouble() : -_monthStepDirection.toDouble(),
-                          0,
-                        );
-                        return SlideTransition(
-                          position: Tween<Offset>(begin: begin, end: Offset.zero)
-                              .animate(CurvedAnimation(parent: animation, curve: Curves.easeInOut)),
-                          child: child,
-                        );
-                      },
-                      layoutBuilder: (currentChild, previousChildren) => Stack(
-                        children: [
-                          ...previousChildren,
-                          if (currentChild != null) currentChild,
-                        ],
-                      ),
-                      child: KeyedSubtree(
-                        key: ValueKey(_selectedMonth),
-                        child: SessionsCalendar(
-                          start: start,
-                          end: end,
-                          sessions: widget.sessions,
-                          isCurrentMonth: true,
-                        ),
+                    layoutBuilder: (currentChild, previousChildren) => Stack(
+                      children: [
+                        ...previousChildren,
+                        if (currentChild != null) currentChild,
+                      ],
+                    ),
+                    child: KeyedSubtree(
+                      key: ValueKey(_selectedMonth),
+                      child: SessionsCalendar(
+                        start: start,
+                        end: end,
+                        sessions: widget.sessions,
+                        isCurrentMonth: true,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                _buildStats(start, end),
-                const SizedBox(height: 8),
-                Divider(
-                  color: Colors.grey[600],
-                  height: 1,
-                ),
-                Expanded(
-                  child: groupedSessions.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No sessions this month',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface.withAlpha(120),
-                            ),
-                          ),
-                        )
-                      : Scrollbar(
-                          child: ListView(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            children: [
-                              ...?groupedSessions.values.firstOrNull?.map(_buildSessionCard),
-                            ],
+              ),
+              const SizedBox(height: 8),
+              _buildStats(start, end),
+              const SizedBox(height: 8),
+              Divider(color: Colors.grey[600], height: 1),
+              Expanded(
+                child: groupedSessions.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No sessions this month',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface.withAlpha(120),
                           ),
                         ),
-                ),
-              ],
-            ),
-      floatingActionButton: widget.books.isNotEmpty
-          ? FloatingActionButton(
+                      )
+                    : Scrollbar(
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(0, 8, 0, 88),
+                          children: [
+                            ...?groupedSessions.values.firstOrNull
+                                ?.map(_buildSessionCard),
+                          ],
+                        ),
+                      ),
+              ),
+            ],
+          );
+
+    return Stack(
+      children: [
+        content,
+        if (widget.books.isNotEmpty)
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: FloatingActionButton(
+              heroTag: 'sessions_fab',
               backgroundColor: accentColor,
               onPressed: _navigateToAddSessionPage,
               child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
-            )
-          : null,
+            ),
+          ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accentColor = widget.settingsViewModel.accentColorNotifier.value;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Tracking'),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        centerTitle: false,
+        elevation: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: accentColor,
+          labelColor: accentColor,
+          unselectedLabelColor: theme.colorScheme.onSurface.withAlpha(160),
+          tabs: const [
+            Tab(text: 'Sessions'),
+            Tab(text: 'Goals'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildSessionsTab(theme, accentColor),
+          GoalsTab(
+            goalRepository: widget.goalRepository,
+            settingsViewModel: widget.settingsViewModel,
+          ),
+        ],
+      ),
     );
   }
 }

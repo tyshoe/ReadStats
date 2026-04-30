@@ -4,6 +4,7 @@ class Session {
   final int? pagesRead;
   final int? durationMinutes;
   final String date;
+  final String? notes;
 
   Session({
     this.id,
@@ -11,9 +12,9 @@ class Session {
     required this.pagesRead,
     required this.durationMinutes,
     required this.date,
+    this.notes,
   });
 
-  // Convert a Session object to a Map for database operations
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -21,10 +22,10 @@ class Session {
       'pages_read': pagesRead,
       'duration_minutes': durationMinutes,
       'date': date,
+      'notes': notes,
     };
   }
 
-  // Factory constructor to create a Session from a Map (e.g., from database)
   factory Session.fromMap(Map<String, dynamic> map) {
     return Session(
       id: map['id'],
@@ -32,6 +33,7 @@ class Session {
       pagesRead: map['pages_read'],
       durationMinutes: map['duration_minutes'],
       date: map['date'],
+      notes: map['notes'] as String?,
     );
   }
 }

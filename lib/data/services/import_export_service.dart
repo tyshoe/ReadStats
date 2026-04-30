@@ -107,13 +107,14 @@ class ImportExportService {
   Future<String> _exportSessionsToCSV(List<Session> sessions) async {
     final path = await _buildFilePath('sessions_data');
     final rows = [
-      ['session_id', 'book_id', 'pages_read', 'duration_minutes', 'date'],
+      ['session_id', 'book_id', 'pages_read', 'duration_minutes', 'date', 'notes'],
       ...sessions.map((s) => [
         s.id.toString(),
         s.bookId.toString(),
         s.pagesRead.toString(),
         s.durationMinutes.toString(),
         s.date.toString(),
+        s.notes ?? '',
       ]),
     ];
     await _writeCSV(path, rows);
@@ -281,6 +282,7 @@ class ImportExportService {
           pagesRead: int.tryParse(row[2].toString()) ?? 0,
           durationMinutes: int.tryParse(row[3].toString()) ?? 0,
           date: DateUtils.parseAndFormatDate(row[4].toString()),
+          notes: row.length > 5 ? _nullableString(row[5]) : null,
         ));
       } catch (e) {
         if (kDebugMode) print('Skipping session row: $e');

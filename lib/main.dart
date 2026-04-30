@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 import 'data/database/database_helper.dart';
 import 'data/repositories/book_repository.dart';
+import 'data/repositories/goal_repository.dart';
 import 'data/repositories/session_repository.dart';
 import 'data/repositories/tag_repository.dart';
 import 'data/services/cover_service.dart';
@@ -27,6 +28,7 @@ void main() async {
   final bookRepository = BookRepository(dbHelper);
   final sessionRepository = SessionRepository(dbHelper);
   final tagRepository = TagRepository(dbHelper);
+  final goalRepository = GoalRepository(dbHelper);
 
   final importExportService = ImportExportService(
     bookRepository: bookRepository,
@@ -44,6 +46,7 @@ void main() async {
     bookRepository: bookRepository,
     sessionRepository: sessionRepository,
     tagRepository: tagRepository,
+    goalRepository: goalRepository,
     importExportService: importExportService,
     hasSeenOnboarding: hasSeenOnboarding,
   ));
@@ -55,6 +58,7 @@ class MyApp extends StatefulWidget {
   final BookRepository bookRepository;
   final SessionRepository sessionRepository;
   final TagRepository tagRepository;
+  final GoalRepository goalRepository;
   final ImportExportService importExportService;
   final bool hasSeenOnboarding;
 
@@ -65,6 +69,7 @@ class MyApp extends StatefulWidget {
     required this.bookRepository,
     required this.sessionRepository,
     required this.tagRepository,
+    required this.goalRepository,
     required this.importExportService,
     required this.hasSeenOnboarding,
   });
@@ -232,6 +237,7 @@ class _MyAppState extends State<MyApp> {
                           bookRepository: widget.bookRepository,
                           sessionRepository: widget.sessionRepository,
                           tagRepository: widget.tagRepository,
+                          goalRepository: widget.goalRepository,
                           importExportService: widget.importExportService,
                           settingsViewModel: _settingsViewModel,
                         )
@@ -264,6 +270,7 @@ class NavigationMenu extends StatefulWidget {
   final BookRepository bookRepository;
   final SessionRepository sessionRepository;
   final TagRepository tagRepository;
+  final GoalRepository goalRepository;
   final ImportExportService importExportService;
   final SettingsViewModel settingsViewModel;
 
@@ -279,6 +286,7 @@ class NavigationMenu extends StatefulWidget {
     required this.bookRepository,
     required this.sessionRepository,
     required this.tagRepository,
+    required this.goalRepository,
     required this.importExportService,
     required this.settingsViewModel,
   });
@@ -350,7 +358,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
       BottomBarItem(
         icon: Icon(FluentIcons.calendar_16_filled),
         selectedIcon: Icon(FluentIcons.calendar_16_filled, color: accentColor),
-        title: Text('Sessions'),
+        title: Text('Tracking'),
         unSelectedColor: Colors.grey,
         selectedColor: accentColor,
       ),
@@ -391,6 +399,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
           settingsViewModel: widget.settingsViewModel,
           sessionRepository: widget.sessionRepository,
           bookRepository: widget.bookRepository,
+          goalRepository: widget.goalRepository,
         );
       case 2:
         return StatisticsPage(
