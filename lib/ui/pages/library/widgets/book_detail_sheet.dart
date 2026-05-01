@@ -17,6 +17,7 @@ import '../../../../viewmodels/SettingsViewModel.dart';
 import '../book_form_page.dart';
 import '/data/database/database_helper.dart';
 import 'book_share_card.dart';
+import 'session_notes_sheet.dart';
 
 class BookPopup {
   static void showBookPopup(
@@ -213,7 +214,8 @@ class BookPopup {
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom,
               ),
-              child: SingleChildScrollView(
+              child: DefaultTabController(
+                length: 2,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,17 +373,25 @@ class BookPopup {
                     ),
                     ), // ClipRect
 
-                    // ── MY READING SECTION ───────────────────────────────
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
+                    // ── TABBED CONTENT ────────────────────────────────────
+                    TabBar(
+                      indicatorColor: settingsViewModel.accentColorNotifier.value,
+                      labelColor: settingsViewModel.accentColorNotifier.value,
+                      unselectedLabelColor: theme.colorScheme.onSurface.withAlpha(160),
+                      tabs: const [Tab(text: 'Stats'), Tab(text: 'Notes')],
+                    ),
+                    SizedBox(
+                      height: MediaQuery.sizeOf(context).height * 0.32,
+                      child: TabBarView(
+                      children: [
+                      Container(
                         color: theme.colorScheme.surfaceContainerHigh,
-                      ),
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Shelf chip + rating
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Shelf chip + rating
                           Row(
                             children: [
                               GestureDetector(
@@ -584,27 +594,38 @@ class BookPopup {
                               ),
                             ),
                           ],
-
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                          // Add Session Button
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        color: theme.colorScheme.surfaceContainerHigh,
+                        child: SessionNotesContent(
+                          bookId: book['id'] as int,
+                          dateFormatString: dateFormatString,
+                        ),
+                      ),
+                    ],
+                    ),
+                    ),
+                    // ── ACTION ROW ───────────────────────────────────────
+                    Container(
+                      color: theme.colorScheme.surfaceContainerHigh,
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, 8 + MediaQuery.of(context).padding.bottom),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
                           _PopupAction(
                             icon: FluentIcons.calendar_add_16_filled,
                             label: 'Session',
                             color: book['is_completed'] == 1
                                 ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)
                                 : Theme.of(context).colorScheme.onSurface,
-                            onTap: book['is_completed'] == 1
-                                ? null
-                                : () {
+                            onTap: book['is_completed'] == 1 ? null : () {
                               Navigator.pop(context);
                               navigateToAddSessionPage(book);
                             },
                           ),
-
-                          // Edit Button
                           _PopupAction(
                             icon: Icons.edit,
                             label: 'Edit',
@@ -614,18 +635,14 @@ class BookPopup {
                               navigateToEditBookPage(book);
                             },
                           ),
-
-                          // Share Button
                           _PopupAction(
                             icon: FluentIcons.share_16_filled,
                             label: 'Share',
                             color: Theme.of(context).colorScheme.onSurface,
                             onTap: () {
-                              _showShareModal(
-                                  context, book, stats, ratingStyle, dateRangeString);
+                              _showShareModal(context, book, stats, ratingStyle, dateRangeString);
                             },
                           ),
-
                           SizedBox(
                             width: 64,
                             child: Column(
@@ -639,8 +656,7 @@ class BookPopup {
                                   onSelected: (value) {
                                     switch (value) {
                                       case 'duplicate':
-                                        duplicateBook(
-                                            context, book, refreshCallback, settingsViewModel);
+                                        duplicateBook(context, book, refreshCallback, settingsViewModel);
                                         break;
                                       case 'delete':
                                         confirmDelete(book['id']);
@@ -652,17 +668,11 @@ class BookPopup {
                                       value: 'duplicate',
                                       child: ListTile(
                                         dense: true,
-                                        leading: Icon(Icons.copy,
-                                            size: 20,
+                                        leading: Icon(Icons.copy, size: 20,
                                             color: Theme.of(context).colorScheme.onSurface),
                                         title: Text('Duplicate',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium
-                                                ?.copyWith(
-                                              color:
-                                              Theme.of(context).colorScheme.onSurface,
-                                            )),
+                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                color: Theme.of(context).colorScheme.onSurface)),
                                       ),
                                     ),
                                     const PopupMenuDivider(),
@@ -670,31 +680,22 @@ class BookPopup {
                                       value: 'delete',
                                       child: ListTile(
                                         dense: true,
-                                        leading:
-                                        Icon(Icons.delete, size: 20, color: Colors.red),
+                                        leading: Icon(Icons.delete, size: 20, color: Colors.red),
                                         title: Text('Delete',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium
-                                                ?.copyWith(color: Colors.red)),
+                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.red)),
                                       ),
                                     ),
                                   ],
                                 ),
-                                Text('More',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Theme.of(context).colorScheme.onSurface,
-                                    )),
+                                Text('More', style: TextStyle(fontSize: 14,
+                                    color: Theme.of(context).colorScheme.onSurface)),
                               ],
                             ),
                           ),
                         ],
                       ),
-                          const SizedBox(height: 16),
-                        ],
-                      ),
                     ),
+                    SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
                   ],
                 ),
               ),
