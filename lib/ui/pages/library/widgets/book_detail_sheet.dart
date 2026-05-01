@@ -200,6 +200,9 @@ class BookPopup {
       );
     }
 
+    final statsKey = GlobalKey();
+    double? statsHeight;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -210,6 +213,12 @@ class BookPopup {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              final box = statsKey.currentContext?.findRenderObject() as RenderBox?;
+              if (box != null && box.hasSize && box.size.height != statsHeight) {
+                setState(() => statsHeight = box.size.height);
+              }
+            });
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -381,14 +390,17 @@ class BookPopup {
                       tabs: const [Tab(text: 'Stats'), Tab(text: 'Notes')],
                     ),
                     SizedBox(
-                      height: MediaQuery.sizeOf(context).height * 0.32,
+                      height: statsHeight ?? MediaQuery.sizeOf(context).height * 0.32,
                       child: TabBarView(
                       children: [
                       Container(
                         color: theme.colorScheme.surfaceContainerHigh,
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                          child: Column(
+                          physics: const NeverScrollableScrollPhysics(),
+                          child: Padding(
+                            key: statsKey,
+                            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                            child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // Shelf chip + rating
@@ -595,6 +607,7 @@ class BookPopup {
                             ),
                           ],
                             ],
+                          ),
                           ),
                         ),
                       ),
