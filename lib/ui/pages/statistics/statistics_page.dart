@@ -7,7 +7,6 @@ import 'package:read_stats/ui/pages/statistics/widgets/pie_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stacked_bar_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/rating_summary.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stat_card.dart';
-import 'package:read_stats/ui/pages/statistics/widgets/year_filter.dart';
 import '../../../data/models/book.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
@@ -580,21 +579,45 @@ class _StatisticsPageState extends State<StatisticsPage> {
             future: getCombinedYears(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const SizedBox.shrink();
-              final years = snapshot.data!;
-              return YearFilterWidget(
-                years: years,
-                selectedYear: selectedYear,
-                onYearSelected: (year) {
-                  setState(() {
-                    selectedYear = year;
-                  });
-                  loadStats();
-                },
+              final allYears = [0, ...snapshot.data!];
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: SizedBox(
+                height: 32,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemCount: allYears.length,
+                  itemBuilder: (context, index) {
+                    final year = allYears[index];
+                    final isSelected = selectedYear == year;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: FilterChip(
+                        label: Text(year == 0 ? 'All' : year.toString()),
+                        selected: isSelected,
+                        onSelected: (_) {
+                          setState(() => selectedYear = year);
+                          loadStats();
+                        },
+                        showCheckmark: false,
+                        labelStyle: theme.textTheme.bodySmall,
+                        labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                        selectedColor: theme.colorScheme.primaryContainer,
+                        elevation: 0,
+                        pressElevation: 0,
+                        side: BorderSide.none,
+                        shape: const StadiumBorder(),
+                      ),
+                    );
+                  },
+                ),
+                ),
               );
             },
           ),
 
-          const Divider(height: 1),
           // Statistics content
           Expanded(
             child: SingleChildScrollView(

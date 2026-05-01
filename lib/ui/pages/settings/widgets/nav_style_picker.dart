@@ -25,22 +25,22 @@ void showNavStylePicker(BuildContext context, SettingsViewModel settingsViewMode
             ),
             const SizedBox(height: 16),
             _TabVisibilityOption(
-              label: 'Simple',
-              selected: current == IconStyle.simple,
-              accentColor: accentColor,
-              textColor: textColor,
-              onTap: () {
-                settingsViewModel.setNavStyle(IconStyle.simple);
-                Navigator.pop(context);
-              },
-            ),
-            _TabVisibilityOption(
               label: 'Standard',
               selected: current == IconStyle.Default,
               accentColor: accentColor,
               textColor: textColor,
               onTap: () {
                 settingsViewModel.setNavStyle(IconStyle.Default);
+                Navigator.pop(context);
+              },
+            ),
+            _TabVisibilityOption(
+              label: 'Simple',
+              selected: current == IconStyle.simple,
+              accentColor: accentColor,
+              textColor: textColor,
+              onTap: () {
+                settingsViewModel.setNavStyle(IconStyle.simple);
                 Navigator.pop(context);
               },
             ),

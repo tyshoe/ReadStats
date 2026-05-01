@@ -212,7 +212,7 @@ class SettingsViewModel {
 
   static Future<IconStyle> getNavStyle() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return _iconStringToStyle(prefs.getString('navStyle') ?? 'simple');
+    return _iconStringToStyle(prefs.getString('navStyle') ?? 'default');
   }
 
   Future<void> setDefaultRatingStyle(int ratingStyle) async {
