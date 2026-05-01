@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:intl/intl.dart';
@@ -895,20 +896,14 @@ class _BookFormPageState extends State<BookFormPage> {
         title: Text(widget.isEditing ? 'Edit Book' : 'Add Book'),
         backgroundColor: theme.scaffoldBackgroundColor,
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: FilledButton(
-            onPressed: _saveBook,
-            style: FilledButton.styleFrom(
-              backgroundColor: accentColor,
-              minimumSize: const Size.fromHeight(48),
-            ),
-            child: Text(widget.isEditing ? 'Update Book' : 'Save Book'),
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
+      body: Column(
+        children: [
+        Expanded(child: NotificationListener<UserScrollNotification>(
+        onNotification: (n) {
+          if (n.direction != ScrollDirection.idle) FocusScope.of(context).unfocus();
+          return false;
+        },
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1503,6 +1498,22 @@ class _BookFormPageState extends State<BookFormPage> {
             const SizedBox(height: 16),
           ],
         ),
+      ),
+      )),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: FilledButton(
+              onPressed: _saveBook,
+              style: FilledButton.styleFrom(
+                backgroundColor: accentColor,
+                minimumSize: const Size.fromHeight(48),
+              ),
+              child: Text(widget.isEditing ? 'Update Book' : 'Save Book'),
+            ),
+          ),
+        ),
+      ],
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
 import 'package:read_stats/ui/pages/sessions/widgets/rate_book_dialog.dart';
 import '/data/models/session.dart';
@@ -772,20 +773,14 @@ class _SessionFormPageState extends State<SessionFormPage> {
         backgroundColor: theme.scaffoldBackgroundColor,
         actions: const [],
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: FilledButton(
-            onPressed: _saveSession,
-            style: FilledButton.styleFrom(
-              backgroundColor: accentColor,
-              minimumSize: const Size.fromHeight(48),
-            ),
-            child: Text(widget.isEditing ? 'Update Session' : 'Save Session'),
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
+      body: Column(
+        children: [
+        Expanded(child: NotificationListener<UserScrollNotification>(
+        onNotification: (n) {
+          if (n.direction != ScrollDirection.idle) FocusScope.of(context).unfocus();
+          return false;
+        },
+        child: SingleChildScrollView(
         controller: _scrollController,
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1321,6 +1316,22 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
           ],
         ),
+      ),
+      )),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: FilledButton(
+              onPressed: _saveSession,
+              style: FilledButton.styleFrom(
+                backgroundColor: accentColor,
+                minimumSize: const Size.fromHeight(48),
+              ),
+              child: Text(widget.isEditing ? 'Update Session' : 'Save Session'),
+            ),
+          ),
+        ),
+      ],
       ),
     );
   }
