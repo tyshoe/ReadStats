@@ -777,7 +777,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
         children: [
         Expanded(child: NotificationListener<UserScrollNotification>(
         onNotification: (n) {
-          if (n.direction != ScrollDirection.idle) FocusScope.of(context).unfocus();
+          if (n.direction != ScrollDirection.idle && n.depth == 0) FocusScope.of(context).unfocus();
           return false;
         },
         child: SingleChildScrollView(
@@ -852,7 +852,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
                         if (_selectedBook != null) {
                           textEditingController.text = _selectedBook!['title'];
                         }
-                        focusNode.unfocus();
                       },
                     ),
                   );
@@ -867,32 +866,33 @@ class _SessionFormPageState extends State<SessionFormPage> {
                   _checkIfFirstSession();
                 },
                 optionsViewBuilder: (context, onSelected, options) {
-                  return Align(
-                    alignment: Alignment.topLeft,
-                    child: Material(
-                      elevation: 4.0,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 200),
-                        child: Scrollbar(
-                          thumbVisibility: true,
-                          child: ListView.builder(
-                            padding: EdgeInsets.zero,
-                            shrinkWrap: true,
-                            itemCount: options.length,
-                            itemBuilder: (BuildContext context, int index) {
-                              final option = options.elementAt(index);
-                              return InkWell(
-                                onTap: () => onSelected(option),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Text(
-                                    option['title'],
-                                    style: theme.textTheme.bodyLarge,
-                                    overflow: TextOverflow.ellipsis,
+                  return TextFieldTapRegion(
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4.0,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          child: Scrollbar(
+                            thumbVisibility: true,
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              itemCount: options.length,
+                              itemBuilder: (BuildContext context, int index) {
+                                final option = options.elementAt(index);
+                                return InkWell(
+                                  onTap: () => onSelected(option),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Text(
+                                      option['title'],
+                                      style: theme.textTheme.bodyLarge,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ),
