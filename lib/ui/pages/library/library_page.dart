@@ -113,18 +113,7 @@ class _LibraryPageState extends State<LibraryPage> {
   void didUpdateWidget(covariant LibraryPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.books != oldWidget.books) {
-      setState(() {
-        _filteredBooks = _sortAndFilterBooks(
-            List<Map<String, dynamic>>.from(widget.books),
-            _selectedSortOption,
-            _isAscending,
-            _selectedBookTypes,
-            _isFavorite,
-            _selectedShelfId,
-            _selectedFinishedYears,
-            _selectedTags,
-            _selectedTagFilterMode);
-      });
+      _searchBooks();
     }
   }
 
