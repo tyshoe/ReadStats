@@ -335,23 +335,28 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   void _confirmDelete(int bookId) {
+    final pageContext = context;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Book'),
         content: const Text('Are you sure you want to delete this book and all its sessions?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           TextButton(
             style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.error,
             ),
             onPressed: () async {
               await _dbHelper.deleteBook(bookId);
               widget.refreshBooks();
+              if (mounted) {
+                Navigator.pop(dialogContext);
+                Navigator.pop(pageContext);
+              }
             },
             child: const Text('Delete'),
           ),
