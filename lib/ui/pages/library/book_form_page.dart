@@ -722,9 +722,10 @@ class _BookFormPageState extends State<BookFormPage> {
               if (_titleTitleCaseEnabled && value.isNotEmpty) {
                 final formattedValue = _toTitleCase(value);
                 if (value != formattedValue) {
+                  final cursorPos = _titleController.selection.baseOffset;
                   _titleController.value = _titleController.value.copyWith(
                     text: formattedValue,
-                    selection: TextSelection.collapsed(offset: formattedValue.length),
+                    selection: TextSelection.collapsed(offset: cursorPos),
                   );
                 }
               }
@@ -827,9 +828,10 @@ class _BookFormPageState extends State<BookFormPage> {
                   if (_authorTitleCaseEnabled && value.isNotEmpty) {
                     final formattedValue = _toTitleCase(value);
                     if (value != formattedValue) {
+                      final cursorPos = _authorController.selection.baseOffset;
                       _authorController.value = _authorController.value.copyWith(
                         text: formattedValue,
-                        selection: TextSelection.collapsed(offset: formattedValue.length),
+                        selection: TextSelection.collapsed(offset: cursorPos),
                       );
                     }
                   }
