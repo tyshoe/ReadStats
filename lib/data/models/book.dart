@@ -8,7 +8,6 @@ class Book {
   int wordCount;
   int pageCount;
   double? rating;
-  bool isCompleted;
   bool isFavorite;
   int bookTypeId;
   final String dateAdded;
@@ -30,7 +29,6 @@ class Book {
     required this.wordCount,
     required this.pageCount,
     required this.rating,
-    required this.isCompleted,
     required this.isFavorite,
     required this.bookTypeId,
     required this.dateAdded,
@@ -55,7 +53,6 @@ class Book {
       'word_count': wordCount,
       'page_count': pageCount,
       'rating': rating,
-      'is_completed': isCompleted ? 1 : 0,
       'is_favorite': isFavorite ? 1 : 0,
       'book_type_id': bookTypeId,
       'date_added': dateAdded,
@@ -78,7 +75,6 @@ class Book {
       wordCount: (map['word_count'] as int?) ?? 0,
       pageCount: (map['page_count'] as int?) ?? 0,
       rating: map['rating'] != null ? (map['rating'] as num).toDouble() : null,
-      isCompleted: (map['is_completed'] as int?) == 1,
       isFavorite: (map['is_favorite'] as int?) == 1,
       bookTypeId: (map['book_type_id'] as int?) ?? 1,
       dateAdded: map['date_added'] ?? DateTime.now().toIso8601String(),
@@ -92,6 +88,8 @@ class Book {
       shelfName: map['shelf_name'] as String?,
     );
   }
+
+  bool get isFinished => dateFinished != null;
 
   void addTag(Tag tag) => tags.add(tag);
   void removeTag(Tag tag) => tags.remove(tag);

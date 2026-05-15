@@ -88,7 +88,7 @@ class ImportExportService {
         b.wordCount.toString(),
         b.pageCount.toString(),
         b.rating?.toString() ?? '',
-        b.isCompleted.toString(),
+        b.isFinished.toString(),
         b.isFavorite.toString(),
         b.bookTypeId.toString(),
         b.dateAdded,
@@ -237,6 +237,15 @@ class ImportExportService {
     for (final row in rows) {
       if (row.length < 12) continue;
       try {
+        // Legacy exports include is_complete at index 6. Use it only to
+        // backfill date_finished when importing old CSVs that predate the
+        // date_finished field.
+        final wasComplete = row[6] == 1 || row[6].toString().toLowerCase() == 'true';
+        final dateAdded = DateUtils.parseAndFormatDate(row[9].toString());
+        final dateFinished = row[11]?.toString().isNotEmpty == true
+            ? DateUtils.parseAndFormatOptionalDate(row[11].toString())
+            : (wasComplete ? dateAdded : null);
+
         books.add(Book(
           id: row[0] ?? 0,
           title: row[1].toString(),
@@ -244,16 +253,13 @@ class ImportExportService {
           wordCount: int.tryParse(row[3].toString()) ?? 0,
           pageCount: int.tryParse(row[4].toString()) ?? 0,
           rating: double.tryParse(row[5].toString()),
-          isCompleted: row[6] == 1 || row[6].toString().toLowerCase() == 'true',
           isFavorite: row[7] == 1 || row[7].toString().toLowerCase() == 'true',
           bookTypeId: int.tryParse(row[8].toString()) ?? 0,
-          dateAdded: DateUtils.parseAndFormatDate(row[9].toString()),
+          dateAdded: dateAdded,
           dateStarted: row[10]?.toString().isNotEmpty == true
               ? DateUtils.parseAndFormatOptionalDate(row[10].toString())
               : null,
-          dateFinished: row[11]?.toString().isNotEmpty == true
-              ? DateUtils.parseAndFormatOptionalDate(row[11].toString())
-              : null,
+          dateFinished: dateFinished,
           isbn: row.length > 12 ? _nullableString(row[12]) : null,
           userReview: row.length > 13 ? _nullableString(row[13]) : null,
           durationMinutes: row.length > 14
@@ -382,7 +388,6 @@ class ImportExportService {
           wordCount: 0,
           pageCount: int.tryParse(getString(r, 'Number of Pages') ?? '') ?? 0,
           rating: double.tryParse(getString(r, 'My Rating') ?? '') ?? 0.0,
-          isCompleted: isCompleted,
           isFavorite: false,
           bookTypeId: _bookTypeIdFromBinding(getString(r, 'Binding') ?? ''),
           dateAdded: parseGoodreadsDate(getString(r, 'Date Added'))

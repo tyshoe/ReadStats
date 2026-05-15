@@ -315,12 +315,13 @@ class _BookFormPageState extends State<BookFormPage> {
       "word_count": wordCount,
       "page_count": pageCount,
       "rating": _rating?.toDouble(),
-      "is_completed": _shelfId == finishedShelfId ? 1 : 0,
       "is_favorite": _isFavorite ? 1 : 0,
       "shelf_id": _shelfId,
       "book_type_id": _selectedBookType + 1,
       "date_started": _dateStarted?.toIso8601String(),
-      "date_finished": _dateFinished?.toIso8601String(),
+      "date_finished": _shelfId == finishedShelfId
+          ? (_dateFinished ?? DateTime.now()).toIso8601String()
+          : _dateFinished?.toIso8601String(),
       "date_added":
       widget.isEditing ? widget.book!['date_added'] : DateTime.now().toIso8601String(),
       "isbn": _isbnController.text.trim().isEmpty
@@ -461,7 +462,6 @@ class _BookFormPageState extends State<BookFormPage> {
   void _clearFinishDate() {
     setState(() {
       _dateFinished = null;
-      // _isCompleted = false;
     });
   }
 

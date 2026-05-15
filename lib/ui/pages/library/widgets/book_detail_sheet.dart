@@ -116,22 +116,6 @@ class BookPopup {
       return formattedTime;
     }
 
-    // Completion status
-    final bool isDark = theme.brightness == Brightness.dark;
-    IconData completionIcon;
-    Color completionColor;
-
-    if (book['is_completed'] == 1) {
-      completionIcon = Icons.check;
-      completionColor = isDark ? Colors.green.shade300 : Colors.green.shade700;
-    } else if (book['is_completed'] == 0 && stats['date_started'] != null) {
-      completionIcon = Icons.autorenew;
-      completionColor = theme.colorScheme.primary;
-    } else {
-      completionIcon = Icons.schedule;
-      completionColor = theme.colorScheme.onSurfaceVariant;
-    }
-
     // Book type
     IconData bookTypeIcon;
     switch (book['book_type_id']) {
@@ -179,7 +163,6 @@ class BookPopup {
         'page_count': book['page_count'],
         'book_type_id': book['book_type_id'],
         'rating': null,
-        'is_completed': 0,
         'is_favorite': 0,
         'date_started': null,
         'date_finished': null,
@@ -468,14 +451,12 @@ class BookPopup {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: completionColor.withValues(alpha: 0.18),
+                                    color: theme.colorScheme.primaryContainer,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(completionIcon, size: 14, color: completionColor),
-                                      const SizedBox(width: 6),
                                       Text(
                                         shelves.firstWhere(
                                           (s) => s['id'] == mutableBook['shelf_id'],
@@ -484,11 +465,11 @@ class BookPopup {
                                         style: TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w500,
-                                          color: completionColor,
+                                          color: theme.colorScheme.onPrimaryContainer,
                                         ),
                                       ),
                                       const SizedBox(width: 4),
-                                      Icon(Icons.expand_more, size: 14, color: completionColor),
+                                      Icon(Icons.expand_more, size: 14, color: theme.colorScheme.onPrimaryContainer),
                                     ],
                                   ),
                                 ),
@@ -631,10 +612,10 @@ class BookPopup {
                           _PopupAction(
                             icon: FluentIcons.calendar_add_16_filled,
                             label: 'Session',
-                            color: book['is_completed'] == 1
+                            color: book['date_finished'] != null
                                 ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)
                                 : Theme.of(context).colorScheme.onSurface,
-                            onTap: book['is_completed'] == 1 ? null : () {
+                            onTap: book['date_finished'] != null ? null : () {
                               Navigator.pop(context);
                               navigateToAddSessionPage(book);
                             },

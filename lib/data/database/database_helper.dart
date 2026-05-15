@@ -9,7 +9,7 @@ class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
-  static const int _databaseVersion = 3;
+  static const int _databaseVersion = 4;
 
   // System shelf IDs — stable because shelves are seeded in a fixed order
   // and only exist from v2 onwards (v1 had no shelves).
@@ -84,7 +84,6 @@ class DatabaseHelper {
         word_count INTEGER DEFAULT 0,
         page_count INTEGER DEFAULT 0,
         rating REAL DEFAULT NULL,
-        is_completed INTEGER DEFAULT 0,
         is_favorite INTEGER DEFAULT 0,
         book_type_id INTEGER,
         date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -313,6 +312,18 @@ class DatabaseHelper {
           FOREIGN KEY(goal_id) REFERENCES goals(id) ON DELETE CASCADE
         )
       ''');
+    }
+
+    if (oldVersion < 4) {
+      // Backfill date_finished for any books marked complete without a finish date.
+      // Use date_added as the best available approximation.
+      await db.execute('''
+        UPDATE books SET date_finished = date_added
+        WHERE is_completed = 1 AND date_finished IS NULL
+      ''');
+
+      // Drop is_completed — date_finished IS NOT NULL is the single source of truth.
+      await db.execute('ALTER TABLE books DROP COLUMN is_completed');
     }
 
   }
@@ -653,8 +664,8 @@ class DatabaseHelper {
         COALESCE(SUM(sessions.duration_minutes), 0) AS total_read_time
       FROM books
       LEFT JOIN sessions ON books.id = sessions.book_id
-      WHERE 
-        books.is_completed = 1
+      WHERE
+        books.date_finished IS NOT NULL
         $yearFilter
       GROUP BY books.id
     ),
@@ -787,7 +798,7 @@ class DatabaseHelper {
     final result = await db.rawQuery('''
     SELECT rating, COUNT(*) as count
     FROM books
-    WHERE is_completed = 1
+    WHERE date_finished IS NOT NULL
       AND rating IS NOT NULL
       $yearFilter
     GROUP BY rating
@@ -1106,7 +1117,7 @@ class DatabaseHelper {
     if (metric == 'books_finished') {
       final result = await db.rawQuery('''
         SELECT COUNT(*) as count FROM books
-        WHERE is_completed = 1
+        WHERE date_finished IS NOT NULL
           AND DATE(date_finished) >= ?
           AND DATE(date_finished) <= ?
       ''', [periodStart, periodEnd]);

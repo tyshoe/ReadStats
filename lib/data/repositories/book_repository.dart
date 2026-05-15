@@ -81,7 +81,6 @@ class BookRepository {
 
     if (isFinalSession) {
       updates['date_finished'] = sessionDate.toIso8601String();
-      updates['is_completed'] = 1;
       // Move to Finished shelf if caller provides its id, otherwise look it up
       if (finishedShelfId != null) {
         updates['shelf_id'] = finishedShelfId;

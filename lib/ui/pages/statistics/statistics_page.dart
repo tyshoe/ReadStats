@@ -521,7 +521,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
       MaterialPageRoute(
         builder: (context) => SessionFormPage(
           availableBooks: books
-              .where((b) => b.isCompleted == false)
+              .where((b) => !b.isFinished)
               .map((b) => b.toMap())
               .toList(),
           book: book,

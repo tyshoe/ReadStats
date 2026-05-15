@@ -309,7 +309,7 @@ class _LibraryPageState extends State<LibraryPage> {
       context,
       MaterialPageRoute(
         builder: (context) => SessionFormPage(
-          availableBooks: widget.books.where((book) => book['is_completed'] == 0).toList(),
+          availableBooks: widget.books.where((book) => book['date_finished'] == null).toList(),
           book: book,
           onSave: () {
             widget.refreshSessions();

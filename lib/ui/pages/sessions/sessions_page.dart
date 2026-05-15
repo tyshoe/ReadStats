@@ -171,7 +171,7 @@ class _SessionsPageState extends State<SessionsPage>
       context,
       MaterialPageRoute(
         builder: (context) => SessionFormPage(
-          availableBooks: widget.books.where((book) => book['is_completed'] == 0).toList(),
+          availableBooks: widget.books.where((book) => book['date_finished'] == null).toList(),
           onSave: () {
             widget.refreshSessions();
             widget.refreshBooks();
