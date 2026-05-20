@@ -8,6 +8,7 @@ import 'widgets/book_row.dart';
 import 'widgets/filter_sort_sheet.dart';
 import 'book_form_page.dart';
 import '../sessions/session_form_page.dart';
+import '../sessions/widgets/rate_book_dialog.dart';
 import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/data/repositories/session_repository.dart';
@@ -305,11 +306,11 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   void _navigateToAddSessionPage(Map<String, dynamic> book) async {
-    await Navigator.push(
+    final finishedBook = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
         builder: (context) => SessionFormPage(
-          availableBooks: widget.books.where((book) => book['date_finished'] == null).toList(),
+          availableBooks: widget.books,
           book: book,
           onSave: () {
             widget.refreshSessions();
@@ -321,6 +322,16 @@ class _LibraryPageState extends State<LibraryPage> {
         ),
       ),
     );
+
+    if (finishedBook != null && mounted) {
+      await showRatingDialogForBook(
+        context: context,
+        book: finishedBook,
+        bookRepository: widget.bookRepository,
+        settingsViewModel: widget.settingsViewModel,
+      );
+      if (mounted) widget.refreshBooks();
+    }
   }
 
   void _confirmDelete(int bookId) {

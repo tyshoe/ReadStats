@@ -1,9 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
-import 'package:read_stats/ui/pages/sessions/widgets/rate_book_dialog.dart';
 import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
@@ -298,13 +295,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
         _showSnackBar('Session added successfully!');
 
-        if (_isFinalSession && mounted) {
-          await _showRatingDialog();
-          widget.onSave();
-          if (mounted) Navigator.pop(context);
-        } else {
-          widget.onSave();
-          if (mounted) Navigator.pop(context);
+        widget.onSave();
+        if (mounted) {
+          Navigator.pop(context, _isFinalSession ? _selectedBook : null);
         }
       }
     } catch (e) {
@@ -312,36 +305,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
   }
 
-
-  Future<void> _showRatingDialog() async {
-    final completer = Completer<void>();
-
-    showRateBookDialog(
-      context: context,
-      bookTitle: _selectedBook!['title'],
-      accentColor: widget.settingsViewModel.accentColorNotifier.value,
-      onRate: (rating) async {
-        try {
-          await widget.bookRepository.updateBookRating(
-            _selectedBook!['id'],
-            rating,
-          );
-          _showSnackBar("Rating saved!");
-        } catch (e) {
-          _showSnackBar("Failed to save rating: ${e.toString()}");
-        } finally {
-          completer.complete();
-        }
-      },
-      onSkip: () {
-        _showSnackBar("Skipped rating.");
-        completer.complete();
-      },
-      useStarRating: widget.settingsViewModel.defaultRatingStyleNotifier.value == 0,
-    );
-
-    return completer.future;
-  }
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context)

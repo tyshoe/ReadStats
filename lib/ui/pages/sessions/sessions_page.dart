@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'session_form_page.dart';
+import 'widgets/rate_book_dialog.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
@@ -78,6 +79,26 @@ class _SessionsPageState extends State<SessionsPage>
     _tabController.dispose();
     widget.settingsViewModel.defaultDateFormatNotifier.removeListener(_formatListener);
     super.dispose();
+  }
+
+  static const _shelfOrder = {
+    1: 0, // Currently Reading
+    2: 1, // Want to Read
+    4: 2, // Unfinished
+    3: 3, // Finished
+  };
+
+  List<Map<String, dynamic>> _sortedAvailableBooks() {
+    final sorted = List<Map<String, dynamic>>.from(widget.books);
+    sorted.sort((a, b) {
+      final shelfA = _shelfOrder[a['shelf_id'] as int? ?? 0] ?? 99;
+      final shelfB = _shelfOrder[b['shelf_id'] as int? ?? 0] ?? 99;
+      if (shelfA != shelfB) return shelfA.compareTo(shelfB);
+      final titleA = (a['title'] as String? ?? '').toLowerCase();
+      final titleB = (b['title'] as String? ?? '').toLowerCase();
+      return titleA.compareTo(titleB);
+    });
+    return sorted;
   }
 
   void _initializeBookMap() {
@@ -167,11 +188,11 @@ class _SessionsPageState extends State<SessionsPage>
   }
 
   void _navigateToAddSessionPage() async {
-    await Navigator.push(
+    final finishedBook = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
         builder: (context) => SessionFormPage(
-          availableBooks: widget.books.where((book) => book['date_finished'] == null).toList(),
+          availableBooks: _sortedAvailableBooks(),
           onSave: () {
             widget.refreshSessions();
             widget.refreshBooks();
@@ -182,7 +203,19 @@ class _SessionsPageState extends State<SessionsPage>
         ),
       ),
     );
+
+    if (finishedBook != null && mounted) {
+      await _showRatingDialog(finishedBook);
+    }
   }
+
+  Future<void> _showRatingDialog(Map<String, dynamic> book) =>
+      showRatingDialogForBook(
+        context: context,
+        book: book,
+        bookRepository: widget.bookRepository,
+        settingsViewModel: widget.settingsViewModel,
+      );
 
   String _getMessageToDisplay() {
     if (widget.books.isEmpty) {

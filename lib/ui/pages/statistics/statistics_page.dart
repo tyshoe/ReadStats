@@ -17,6 +17,7 @@ import '/viewmodels/SettingsViewModel.dart';
 import '/ui/pages/library/widgets/book_detail_sheet.dart';
 import '/ui/pages/library/book_form_page.dart';
 import '/ui/pages/sessions/session_form_page.dart';
+import '/ui/pages/sessions/widgets/rate_book_dialog.dart';
 
 class StatisticsPage extends StatefulWidget {
   final BookRepository bookRepository;
@@ -516,14 +517,11 @@ class _StatisticsPageState extends State<StatisticsPage> {
   void _navigateToAddSessionPage(Map<String, dynamic> book) async {
     final books = await widget.bookRepository.getBooks();
     if (!mounted) return;
-    await Navigator.push(
+    final finishedBook = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
         builder: (context) => SessionFormPage(
-          availableBooks: books
-              .where((b) => !b.isFinished)
-              .map((b) => b.toMap())
-              .toList(),
+          availableBooks: books.map((b) => b.toMap()).toList(),
           book: book,
           onSave: loadStats,
           settingsViewModel: widget.settingsViewModel,
@@ -532,6 +530,16 @@ class _StatisticsPageState extends State<StatisticsPage> {
         ),
       ),
     );
+
+    if (finishedBook != null && mounted) {
+      await showRatingDialogForBook(
+        context: context,
+        book: finishedBook,
+        bookRepository: widget.bookRepository,
+        settingsViewModel: widget.settingsViewModel,
+      );
+      if (mounted) loadStats();
+    }
   }
 
   void _confirmDelete(int bookId) {

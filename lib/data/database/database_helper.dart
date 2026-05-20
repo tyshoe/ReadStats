@@ -915,11 +915,13 @@ class DatabaseHelper {
     );
   }
 
-  Future<void> updateBookRating(int bookId, double rating) async {
+  Future<void> updateBookRating(int bookId, double rating, {String? review}) async {
     final db = await database;
+    final values = <String, dynamic>{'rating': rating};
+    if (review != null) values['user_review'] = review;
     await db.update(
       'books',
-      {'rating': rating},
+      values,
       where: 'id = ?',
       whereArgs: [bookId],
     );
