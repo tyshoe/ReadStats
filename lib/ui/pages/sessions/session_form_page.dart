@@ -829,15 +829,17 @@ class _SessionFormPageState extends State<SessionFormPage> {
                   _checkIfFirstSession();
                 },
                 optionsViewBuilder: (context, onSelected, options) {
+                  final double itemHeight = 52;
+                  final double maxHeight = 200;
+                  final double height = (options.length * itemHeight).clamp(0, maxHeight);
                   return TextFieldTapRegion(
                     child: Align(
                       alignment: Alignment.topLeft,
                       child: Material(
                         elevation: 4.0,
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 200),
+                          constraints: BoxConstraints(maxHeight: height),
                           child: Scrollbar(
-                            thumbVisibility: true,
                             child: ListView.builder(
                               padding: EdgeInsets.zero,
                               itemCount: options.length,
