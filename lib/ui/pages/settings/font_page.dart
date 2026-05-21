@@ -11,111 +11,116 @@ class FontSelectionPage extends StatelessWidget {
     required this.settingsViewModel,
   });
 
+  static const List<String> _fonts = [
+    'Roboto',
+    'Inter',
+    'Poppins',
+    'Montserrat',
+    'Raleway',
+    'Playfair Display',
+    'Merriweather',
+    'Lora',
+    'EB Garamond',
+  ];
+
+  static const _sampleBook = {
+    'title': 'The Art of War',
+    'author': 'Sun Tzu',
+    'book_type_id': 1,
+    'is_favorite': 1,
+    'rating': 4.5,
+    'date_started': '2024-08-16',
+    'date_finished': '2024-08-24',
+  };
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final textTheme = theme.textTheme;
-
-    // Simplified font list with just names
-    final List<String> fonts = [
-      'Roboto',
-      'Open Sans',
-      'Lato',
-      'Montserrat',
-      'Playfair Display',
-      'Raleway',
-      'Poppins',
-      'Merriweather',
-    ];
-
-    final String selectedFont = settingsViewModel.selectedFontNotifier.value;
-
-    // Sample book data for the preview
-    final sampleBook = {
-      'title': 'The Art of War',
-      'author': 'Sun Tzu',
-      'book_type_id': 1,
-      'is_favorite': 1,
-      'rating': 4.5,
-      'date_started': '2024-08-16',
-      'date_finished': '2024-08-24',
-    };
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Font Style'),
+        title: const Text('Font Style'),
         backgroundColor: colors.surface,
         elevation: 0,
       ),
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: Column(
-        children: [
-          // Preview section at the top
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: theme.scaffoldBackgroundColor,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Preview', style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colors.primary,
-                )),
-                const SizedBox(height: 12),
-                Theme(
-                  data: theme.copyWith(
-                    textTheme: GoogleFonts.getTextTheme(selectedFont, theme.textTheme),
-                  ),
-                  child: BookRow(
-                    book: sampleBook,
-                    textColor: colors.onSurface,
-                    onTap: () {},
-                    isCompactView: false,
-                    showStars: true,
-                    dateFormatString: 'MMM d, yyyy',
-                  ),
+      body: ValueListenableBuilder<String>(
+        valueListenable: settingsViewModel.selectedFontNotifier,
+        builder: (context, selectedFont, _) {
+          return Column(
+            children: [
+              // Preview section
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'PREVIEW',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colors.onSurface.withAlpha(120),
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Theme(
+                      data: theme.copyWith(
+                        textTheme: GoogleFonts.getTextTheme(selectedFont, theme.textTheme),
+                      ),
+                      child: BookRow(
+                        book: _sampleBook,
+                        textColor: colors.onSurface,
+                        onTap: () {},
+                        isCompactView: false,
+                        showStars: true,
+                        dateFormatString: 'MMM d, yyyy',
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          // Font selection list
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: fonts.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final fontName = fonts[index];
-                final isSelected = fontName == selectedFont;
+              const Divider(height: 24),
 
-                return _buildFontOption(
-                  context: context,
-                  fontName: fontName,
-                  isSelected: isSelected,
-                  onTap: () async {
-                    await settingsViewModel.setSelectedFont(fontName);
+              // Font list
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  itemCount: _fonts.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final fontName = _fonts[index];
+                    final isSelected = fontName == selectedFont;
+                    return _FontOption(
+                      fontName: fontName,
+                      isSelected: isSelected,
+                      onTap: () async => await settingsViewModel.setSelectedFont(fontName),
+                    );
                   },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Icon(Icons.check),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
+}
 
-  Widget _buildFontOption({
-    required BuildContext context,
-    required String fontName,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
+class _FontOption extends StatelessWidget {
+  final String fontName;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _FontOption({
+    required this.fontName,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
@@ -123,8 +128,7 @@ class FontSelectionPage extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       color: isSelected
           ? colors.primary.withAlpha(26)
-          : colors.surfaceContainer.withAlpha(128),
-      elevation: 0,
+          : colors.surfaceContainer,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
@@ -138,12 +142,6 @@ class FontSelectionPage extends StatelessWidget {
           ),
           child: Row(
             children: [
-              if (isSelected) Icon(
-                Icons.check_circle_rounded,
-                color: colors.primary,
-                size: 20,
-              ),
-              if (isSelected) const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   fontName,
@@ -155,6 +153,8 @@ class FontSelectionPage extends StatelessWidget {
                   ),
                 ),
               ),
+              if (isSelected)
+                Icon(Icons.check_circle_rounded, color: colors.primary, size: 20),
             ],
           ),
         ),
