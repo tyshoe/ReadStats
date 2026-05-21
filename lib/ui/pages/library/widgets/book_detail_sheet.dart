@@ -578,7 +578,9 @@ class BookPopup {
                                         const SizedBox(width: 4),
                                         Text(
                                           tags[index].name,
-                                          style: TextStyle(color: theme.colorScheme.onSecondaryContainer, fontSize: 12),
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            color: theme.colorScheme.onSecondaryContainer,
+                                          ),
                                         ),
                                       ],
                                     ),

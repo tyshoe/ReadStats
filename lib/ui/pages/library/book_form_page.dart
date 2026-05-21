@@ -1481,8 +1481,7 @@ class _BookFormPageState extends State<BookFormPage> {
                                     const SizedBox(width: 4),
                                     Text(
                                       tag.name,
-                                      style: TextStyle(
-                                        fontSize: 12,
+                                      style: theme.textTheme.bodySmall?.copyWith(
                                         color: theme.colorScheme.onSecondaryContainer,
                                       ),
                                     ),
