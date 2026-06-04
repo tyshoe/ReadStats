@@ -5,8 +5,8 @@ class Book {
   int? id;
   String title;
   String author;
-  int wordCount;
-  int pageCount;
+  int? wordCount;
+  int? pageCount;
   double? rating;
   bool isFavorite;
   int bookTypeId;
@@ -16,7 +16,7 @@ class Book {
   List<Tag> tags;
   String? isbn;
   String? userReview;
-  int durationMinutes;
+  int? durationMinutes;
   int shelfId;
   String? coverPath;
   // Denormalized from JOIN — populated when loaded from DB, not written back
@@ -26,8 +26,8 @@ class Book {
     this.id,
     required this.title,
     required this.author,
-    required this.wordCount,
-    required this.pageCount,
+    this.wordCount,
+    this.pageCount,
     required this.rating,
     required this.isFavorite,
     required this.bookTypeId,
@@ -37,7 +37,7 @@ class Book {
     this.tags = const [],
     this.isbn,
     this.userReview,
-    this.durationMinutes = 0,
+    this.durationMinutes,
     this.shelfId = DatabaseHelper.shelfWantToRead,
     this.coverPath,
     this.shelfName,
@@ -72,8 +72,8 @@ class Book {
       id: map['id'],
       title: map['title'] ?? '',
       author: map['author'] ?? '',
-      wordCount: (map['word_count'] as int?) ?? 0,
-      pageCount: (map['page_count'] as int?) ?? 0,
+      wordCount: map['word_count'] as int?,
+      pageCount: map['page_count'] as int?,
       rating: map['rating'] != null ? (map['rating'] as num).toDouble() : null,
       isFavorite: (map['is_favorite'] as int?) == 1,
       bookTypeId: (map['book_type_id'] as int?) ?? 1,
@@ -82,7 +82,7 @@ class Book {
       dateFinished: map['date_finished'],
       isbn: map['isbn'],
       userReview: map['user_review'],
-      durationMinutes: (map['duration_minutes'] as int?) ?? 0,
+      durationMinutes: map['duration_minutes'] as int?,
       shelfId: (map['shelf_id'] as int?) ?? DatabaseHelper.shelfWantToRead,
       coverPath: map['cover_path'] as String?,
       shelfName: map['shelf_name'] as String?,

@@ -85,8 +85,8 @@ class ImportExportService {
         b.id.toString(),
         b.title,
         b.author,
-        b.wordCount.toString(),
-        b.pageCount.toString(),
+        b.wordCount?.toString() ?? '',
+        b.pageCount?.toString() ?? '',
         b.rating?.toString() ?? '',
         b.isFinished.toString(),
         b.isFavorite.toString(),
@@ -96,7 +96,7 @@ class ImportExportService {
         b.dateFinished ?? '',
         b.isbn ?? '',
         b.userReview ?? '',
-        b.durationMinutes.toString(),
+        b.durationMinutes?.toString() ?? '',
         b.shelfId.toString(),
       ]),
     ];
@@ -250,8 +250,8 @@ class ImportExportService {
           id: row[0] ?? 0,
           title: row[1].toString(),
           author: row[2].toString(),
-          wordCount: int.tryParse(row[3].toString()) ?? 0,
-          pageCount: int.tryParse(row[4].toString()) ?? 0,
+          wordCount: int.tryParse(row[3].toString()),
+          pageCount: int.tryParse(row[4].toString()),
           rating: double.tryParse(row[5].toString()),
           isFavorite: row[7] == 1 || row[7].toString().toLowerCase() == 'true',
           bookTypeId: int.tryParse(row[8].toString()) ?? 0,
@@ -263,8 +263,8 @@ class ImportExportService {
           isbn: row.length > 12 ? _nullableString(row[12]) : null,
           userReview: row.length > 13 ? _nullableString(row[13]) : null,
           durationMinutes: row.length > 14
-              ? int.tryParse(row[14].toString()) ?? 0
-              : 0,
+              ? int.tryParse(row[14].toString())
+              : null,
           shelfId: row.length > 15
               ? int.tryParse(row[15].toString()) ?? DatabaseHelper.shelfWantToRead
               : DatabaseHelper.shelfWantToRead,

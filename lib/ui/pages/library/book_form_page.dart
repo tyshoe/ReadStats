@@ -41,13 +41,14 @@ class _BookFormPageState extends State<BookFormPage> {
   final TextEditingController _ratingController = TextEditingController();
   final TextEditingController _isbnController = TextEditingController();
   final TextEditingController _userReviewController = TextEditingController();
+  final TextEditingController _durationHoursController = TextEditingController();
+  final TextEditingController _durationMinutesController = TextEditingController();
   final DateTime _dateToday = DateTime.now();
   double? _rating;
   bool _isFavorite = false;
   int _shelfId = DatabaseHelper.shelfWantToRead;
   List<Map<String, dynamic>> _shelves = [];
   int _selectedBookType = 0;
-  int _durationMinutes = 0;
   DateTime? _dateStarted;
   DateTime? _dateFinished;
   late bool _useStarRating;
@@ -68,14 +69,20 @@ class _BookFormPageState extends State<BookFormPage> {
     if (widget.isEditing) {
       _titleController.text = widget.book!['title'];
       _authorController.text = widget.book!['author'];
-      _wordCountController.text = widget.book!['word_count'].toString();
-      _pageCountController.text = widget.book!['page_count'].toString();
+      final editWordCount = widget.book!['word_count'] as int?;
+      final editPageCount = widget.book!['page_count'] as int?;
+      if (editWordCount != null && editWordCount > 0) _wordCountController.text = editWordCount.toString();
+      if (editPageCount != null && editPageCount > 0) _pageCountController.text = editPageCount.toString();
       _rating = widget.book!['rating']?.toDouble();
       _ratingController.text = _rating?.toStringAsFixed(2) ?? '';
       _shelfId = (widget.book!['shelf_id'] as int?) ?? 1;
       _isFavorite = widget.book!['is_favorite'] == 1;
       _selectedBookType = widget.book!['book_type_id'] - 1;
-      _durationMinutes = (widget.book!['duration_minutes'] as int?) ?? 0;
+      final editDuration = widget.book!['duration_minutes'] as int?;
+      if (editDuration != null && editDuration > 0) {
+        _durationHoursController.text = (editDuration ~/ 60).toString();
+        _durationMinutesController.text = (editDuration % 60).toString();
+      }
       _isbnController.text = widget.book!['isbn'] ?? '';
       _userReviewController.text = widget.book!['user_review'] ?? '';
       _dateStarted = widget.book!['date_started'] != null
@@ -114,156 +121,17 @@ class _BookFormPageState extends State<BookFormPage> {
     _ratingController.dispose();
     _isbnController.dispose();
     _userReviewController.dispose();
+    _durationHoursController.dispose();
+    _durationMinutesController.dispose();
     super.dispose();
-  }
-
-  String _formatDuration(int totalMinutes) {
-    if (totalMinutes == 0) return '';
-    final hours = totalMinutes ~/ 60;
-    final minutes = totalMinutes % 60;
-    final hourText = hours > 0 ? '$hours hour${hours == 1 ? '' : 's'}' : '';
-    final minuteText = minutes > 0 ? '$minutes minute${minutes == 1 ? '' : 's'}' : '';
-    return [hourText, minuteText].where((e) => e.isNotEmpty).join(' ');
-  }
-
-  Future<void> _showDurationPicker(BuildContext context) async {
-    final hoursController = TextEditingController(text: (_durationMinutes ~/ 60).toString());
-    final minutesController = TextEditingController(text: (_durationMinutes % 60).toString());
-    int hours = _durationMinutes ~/ 60;
-    int minutes = _durationMinutes % 60;
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        final dialogWidth = screenWidth * 0.8;
-
-        return AlertDialog(
-          title: Text('Set Duration', style: Theme.of(context).textTheme.bodyMedium),
-          content: SizedBox(
-            width: dialogWidth,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: hoursController,
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          fillColor:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
-                          filled: true,
-                        ),
-                        onTap: () => hoursController.selection = TextSelection(
-                          baseOffset: 0,
-                          extentOffset: hoursController.text.length,
-                        ),
-                        onChanged: (value) {
-                          hours = int.tryParse(value) ?? 0;
-                          if (hours < 0) hours = 0;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      ':',
-                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: minutesController,
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          fillColor:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
-                          filled: true,
-                        ),
-                        onTap: () => minutesController.selection = TextSelection(
-                          baseOffset: 0,
-                          extentOffset: minutesController.text.length,
-                        ),
-                        onChanged: (value) {
-                          minutes = int.tryParse(value) ?? 0;
-                          if (minutes > 59) minutes = 59;
-                          if (minutes < 0) minutes = 0;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text('Hours',
-                          style: Theme.of(context).textTheme.bodySmall),
-                    ),
-                    const SizedBox(width: 32),
-                    Expanded(
-                      child: Text('Minutes',
-                          style: Theme.of(context).textTheme.bodySmall),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _durationMinutes = (hours * 60) + minutes;
-                });
-                Navigator.pop(context);
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _saveBook() async {
     String title = _titleController.text.trim();
     String author = _authorController.text.trim();
-    int wordCount = int.tryParse(_wordCountController.text) ?? 0;
-    int pageCount = int.tryParse(_pageCountController.text) ?? 0;
+    final bool savingAsAudiobook = _selectedBookType == 3;
+    final int? wordCount = savingAsAudiobook ? null : int.tryParse(_wordCountController.text);
+    final int? pageCount = savingAsAudiobook ? null : int.tryParse(_pageCountController.text);
 
     if (title.isEmpty || author.isEmpty) {
       final errorMessage =
@@ -327,7 +195,13 @@ class _BookFormPageState extends State<BookFormPage> {
       "isbn": _isbnController.text.trim().isEmpty
           ? null
           : _isbnController.text.replaceAll(RegExp(r'[\s-]'), ''),
-      "duration_minutes": _durationMinutes,
+      "duration_minutes": () {
+        if (!savingAsAudiobook) return null;
+        final h = int.tryParse(_durationHoursController.text) ?? 0;
+        final m = int.tryParse(_durationMinutesController.text) ?? 0;
+        final total = h * 60 + m;
+        return total > 0 ? total : null;
+      }(),
       "user_review":
       _userReviewController.text.trim().isEmpty ? null : _userReviewController.text.trim(),
       "cover_path": widget.isEditing ? widget.book!['cover_path'] as String? : null,
@@ -425,7 +299,8 @@ class _BookFormPageState extends State<BookFormPage> {
       _rating = 0;
       _isFavorite = false;
       _shelfId = DatabaseHelper.shelfWantToRead;
-      _durationMinutes = 0;
+      _durationHoursController.clear();
+      _durationMinutesController.clear();
       _selectedBookType = widget.settingsViewModel.defaultBookTypeNotifier.value - 1;
       _dateStarted = null;
       _dateFinished = null;
@@ -448,10 +323,6 @@ class _BookFormPageState extends State<BookFormPage> {
       );
   }
 
-  void _clearField(TextEditingController controller) {
-    controller.clear();
-    setState(() {});
-  }
 
   void _clearStartDate() {
     setState(() {
@@ -708,15 +579,6 @@ class _BookFormPageState extends State<BookFormPage> {
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-              suffixIcon: _titleController.text.isNotEmpty
-                  ? IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  _clearField(_titleController);
-                  setState(() {});
-                },
-              )
-                  : null,
             ),
             onChanged: (value) {
               if (_titleTitleCaseEnabled && value.isNotEmpty) {
@@ -814,16 +676,7 @@ class _BookFormPageState extends State<BookFormPage> {
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                  suffixIcon: _authorController.text.isNotEmpty
-                      ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      _clearField(_authorController);
-                      setState(() {});
-                    },
-                  )
-                      : null,
-                ),
+                    ),
                 onChanged: (value) {
                   if (_authorTitleCaseEnabled && value.isNotEmpty) {
                     final formattedValue = _toTitleCase(value);
@@ -978,14 +831,9 @@ class _BookFormPageState extends State<BookFormPage> {
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                  suffixIcon: _pageCountController.text.isNotEmpty
-                      ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () => _clearField(_pageCountController),
-                  )
-                      : null,
-                ),
+                    ),
                 keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 onChanged: (value) => setState(() {}),
                 onTapOutside: (event) {
                   FocusManager.instance.primaryFocus?.unfocus();
@@ -1012,13 +860,7 @@ class _BookFormPageState extends State<BookFormPage> {
                     borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                  suffixIcon: _wordCountController.text.isNotEmpty
-                      ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () => _clearField(_wordCountController),
-                  )
-                      : null,
-                ),
+                    ),
                 keyboardType: TextInputType.number,
                 onChanged: (value) => setState(() {}),
                 onTapOutside: (event) {
@@ -1030,38 +872,50 @@ class _BookFormPageState extends State<BookFormPage> {
 
             // Duration — shown only for audiobooks
             if (isAudiobook) ...[
-              TextFormField(
-                readOnly: true,
-                onTap: () => _showDurationPicker(context),
-                controller: TextEditingController(text: _formatDuration(_durationMinutes)),
-                decoration: InputDecoration(
-                  labelText: 'Duration',
-                  hintText: 'Set audiobook duration',
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest,
-                  border: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _durationHoursController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (_) => setState(() {}),
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                      decoration: InputDecoration(
+                        labelText: 'Hours',
+                        filled: true,
+                        fillColor: theme.colorScheme.surfaceContainerHighest,
+                        border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                      ),
+                    ),
                   ),
-                  enabledBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _durationMinutesController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (v) {
+                        final val = int.tryParse(v);
+                        if (val != null && val > 59) _durationMinutesController.text = '59';
+                        setState(() {});
+                      },
+                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                      decoration: InputDecoration(
+                        labelText: 'Minutes',
+                        filled: true,
+                        fillColor: theme.colorScheme.surfaceContainerHighest,
+                        border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                      ),
+                    ),
                   ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                  suffixIcon: _durationMinutes > 0
-                      ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () => setState(() => _durationMinutes = 0),
-                  )
-                      : const Icon(Icons.access_time),
-                ),
-                onTapOutside: (event) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
+                ],
               ),
               const SizedBox(height: 16),
             ],
@@ -1092,13 +946,7 @@ class _BookFormPageState extends State<BookFormPage> {
                           borderSide: BorderSide.none,
                         ),
                         contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                        suffixIcon: _isbnController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () => _clearField(_isbnController),
-                              )
-                            : null,
-                      ),
+                                ),
                       keyboardType: TextInputType.number,
                       inputFormatters: [IsbnInputFormatter()],
                       onChanged: (value) => setState(() {}),
@@ -1223,7 +1071,7 @@ class _BookFormPageState extends State<BookFormPage> {
                     },
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 8),
                 Expanded(
                   child: TextFormField(
                     readOnly: true,
@@ -1394,9 +1242,16 @@ class _BookFormPageState extends State<BookFormPage> {
                 ),
                 contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                 alignLabelWithHint: true,
+                suffixIcon: _userReviewController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => setState(() => _userReviewController.clear()),
+                      )
+                    : null,
               ),
               minLines: 2,
               maxLines: null,
+              onChanged: (_) => setState(() {}),
               onTapOutside: (event) {
                 FocusManager.instance.primaryFocus?.unfocus();
               },
