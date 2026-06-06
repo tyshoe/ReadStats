@@ -7,8 +7,10 @@ import '/viewmodels/SettingsViewModel.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/repositories/goal_repository.dart';
+import '/data/services/reading_timer_service.dart';
 import 'widgets/session_calendar.dart';
 import 'widgets/goals_tab.dart';
+import 'widgets/reading_timer_widget.dart';
 
 class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -19,6 +21,7 @@ class SessionsPage extends StatefulWidget {
   final SessionRepository sessionRepository;
   final BookRepository bookRepository;
   final GoalRepository goalRepository;
+  final ReadingTimerService timerService;
 
   const SessionsPage({
     super.key,
@@ -30,6 +33,7 @@ class SessionsPage extends StatefulWidget {
     required this.sessionRepository,
     required this.bookRepository,
     required this.goalRepository,
+    required this.timerService,
   });
 
   @override
@@ -224,6 +228,13 @@ class _SessionsPageState extends State<SessionsPage>
       return 'No sessions, time to get cozy and read a few pages';
     }
     return '';
+  }
+
+  Map<String, dynamic>? _lastUsedBook() {
+    if (widget.sessions.isEmpty) return null;
+    final sorted = List<Map<String, dynamic>>.from(widget.sessions)
+      ..sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
+    return _bookMap[sorted.first['book_id']];
   }
 
   DateTime? get _firstSessionMonth {
@@ -498,7 +509,7 @@ class _SessionsPageState extends State<SessionsPage>
 
     final sessionCards = groupedSessions.values.firstOrNull?.map(_buildSessionCard).toList() ?? [];
 
-    final content = widget.sessions.isEmpty
+    final sessionsContent = widget.sessions.isEmpty
         ? Center(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -593,20 +604,38 @@ class _SessionsPageState extends State<SessionsPage>
             ),
           );
 
-    return Stack(
+    return Column(
       children: [
-        content,
-        if (widget.books.isNotEmpty)
-          Positioned(
-            right: 16,
-            bottom: 16,
-            child: FloatingActionButton(
-              heroTag: 'sessions_fab',
-              backgroundColor: accentColor,
-              onPressed: _navigateToAddSessionPage,
-              child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
-            ),
+        ReadingTimerWidget(
+          timerService: widget.timerService,
+          books: widget.books,
+          defaultBook: _lastUsedBook(),
+          sessionRepository: widget.sessionRepository,
+          bookRepository: widget.bookRepository,
+          settingsViewModel: widget.settingsViewModel,
+          onSessionSaved: () {
+            widget.refreshSessions();
+            widget.refreshBooks();
+          },
+        ),
+        Expanded(
+          child: Stack(
+            children: [
+              sessionsContent,
+              if (widget.books.isNotEmpty)
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  child: FloatingActionButton(
+                    heroTag: 'sessions_fab',
+                    backgroundColor: accentColor,
+                    onPressed: _navigateToAddSessionPage,
+                    child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
+                  ),
+                ),
+            ],
           ),
+        ),
       ],
     );
   }

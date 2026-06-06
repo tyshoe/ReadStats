@@ -9,6 +9,7 @@ import 'data/repositories/session_repository.dart';
 import 'data/repositories/tag_repository.dart';
 import 'data/services/cover_service.dart';
 import 'data/services/import_export_service.dart';
+import 'data/services/reading_timer_service.dart';
 import 'ui/pages/library/library_page.dart';
 import 'ui/pages/onboarding/onboarding_page.dart';
 import 'ui/pages/settings/settings_page.dart';
@@ -40,6 +41,9 @@ void main() async {
   final hasSeenOnboarding = await SettingsViewModel.getHasSeenOnboarding();
   SettingsViewModel.setHasSeenOnboarding();
 
+  final timerService = ReadingTimerService();
+  await timerService.restore();
+
   runApp(MyApp(
     dbHelper: dbHelper,
     themeMode: themeMode,
@@ -49,6 +53,7 @@ void main() async {
     goalRepository: goalRepository,
     importExportService: importExportService,
     hasSeenOnboarding: hasSeenOnboarding,
+    timerService: timerService,
   ));
 }
 
@@ -61,6 +66,7 @@ class MyApp extends StatefulWidget {
   final GoalRepository goalRepository;
   final ImportExportService importExportService;
   final bool hasSeenOnboarding;
+  final ReadingTimerService timerService;
 
   const MyApp({
     super.key,
@@ -72,6 +78,7 @@ class MyApp extends StatefulWidget {
     required this.goalRepository,
     required this.importExportService,
     required this.hasSeenOnboarding,
+    required this.timerService,
   });
 
   @override
@@ -240,6 +247,7 @@ class _MyAppState extends State<MyApp> {
                           goalRepository: widget.goalRepository,
                           importExportService: widget.importExportService,
                           settingsViewModel: _settingsViewModel,
+                          timerService: widget.timerService,
                         )
                       : OnboardingPage(
                           onDone: () {
@@ -273,6 +281,7 @@ class NavigationMenu extends StatefulWidget {
   final GoalRepository goalRepository;
   final ImportExportService importExportService;
   final SettingsViewModel settingsViewModel;
+  final ReadingTimerService timerService;
 
   const NavigationMenu({
     super.key,
@@ -289,6 +298,7 @@ class NavigationMenu extends StatefulWidget {
     required this.goalRepository,
     required this.importExportService,
     required this.settingsViewModel,
+    required this.timerService,
   });
 
   @override
@@ -400,6 +410,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
           sessionRepository: widget.sessionRepository,
           bookRepository: widget.bookRepository,
           goalRepository: widget.goalRepository,
+          timerService: widget.timerService,
         );
       case 2:
         return StatisticsPage(
