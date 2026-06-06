@@ -133,12 +133,7 @@ class _BookFormPageState extends State<BookFormPage> {
     final int? wordCount = savingAsAudiobook ? null : int.tryParse(_wordCountController.text);
     final int? pageCount = savingAsAudiobook ? null : int.tryParse(_pageCountController.text);
 
-    if (title.isEmpty || author.isEmpty) {
-      final errorMessage =
-      title.isEmpty ? 'Please enter a book title' : 'Please enter an author name';
-      _showSnackBar(errorMessage);
-      return;
-    }
+    if (title.isEmpty || author.isEmpty) return;
 
     final bookRepository = BookRepository(DatabaseHelper());
     final bookExists = await bookRepository.doesBookExist(
@@ -1359,13 +1354,16 @@ class _BookFormPageState extends State<BookFormPage> {
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: FilledButton(
-              onPressed: _saveBook,
-              style: FilledButton.styleFrom(
-                backgroundColor: accentColor,
-                minimumSize: const Size.fromHeight(48),
+            child: Opacity(
+              opacity: _titleController.text.trim().isEmpty || _authorController.text.trim().isEmpty ? 0.4 : 1.0,
+              child: FilledButton(
+                onPressed: _saveBook,
+                style: FilledButton.styleFrom(
+                  backgroundColor: accentColor,
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: Text(widget.isEditing ? 'Update Book' : 'Save Book'),
               ),
-              child: Text(widget.isEditing ? 'Update Book' : 'Save Book'),
             ),
           ),
         ),

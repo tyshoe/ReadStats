@@ -148,12 +148,7 @@ class _GoalFormSheetState extends State<_GoalFormSheet> {
     } else {
       target = int.tryParse(_targetController.text);
     }
-    if (target == null || target <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid target')),
-      );
-      return;
-    }
+    if (target == null || target <= 0) return;
     if (_slotTaken) return;
 
     setState(() => _saving = true);
@@ -352,21 +347,24 @@ class _GoalFormSheetState extends State<_GoalFormSheet> {
             ),
           const SizedBox(height: 24),
 
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _canSave ? _save : null,
-              style: FilledButton.styleFrom(
-                backgroundColor: widget.accentColor,
-                minimumSize: const Size.fromHeight(48),
+          Opacity(
+            opacity: _canSave ? 1.0 : 0.4,
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _save,
+                style: FilledButton.styleFrom(
+                  backgroundColor: widget.accentColor,
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: _saving
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text(_isEditing ? 'Update Goal' : 'Set Goal'),
               ),
-              child: _saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : Text(_isEditing ? 'Update Goal' : 'Set Goal'),
             ),
           ),
           ],
