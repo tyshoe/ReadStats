@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
+import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
 class SessionFormPage extends StatefulWidget {
@@ -46,9 +47,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
   final TextEditingController _notesController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late DateTime _sessionDate;
-  bool _isFirstSession = false;
-  bool _isFinalSession = false;
-  bool _showPageRange = false;
+  int? _targetShelfId;
   bool _showTimeRange = false;
   Map<String, dynamic>? _selectedBook;
 
@@ -75,14 +74,11 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
       if (widget.book != null) {
         _selectedBook = widget.availableBooks.firstWhere(
-              (book) => book['id'] == widget.book!['id'],
+          (book) => book['id'] == widget.book!['id'],
           orElse: () => widget.book!,
         );
         _bookController.text = _selectedBook!['title'];
-
-        if (_selectedBook != null) {
-          _checkIfFirstSession();
-        }
+        _targetShelfId = _selectedBook!['shelf_id'] as int?;
       }
     }
   }
@@ -104,13 +100,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     super.dispose();
   }
 
-  Future<void> _checkIfFirstSession() async {
-    if (_selectedBook == null) return;
-
-    final sessions = await widget.sessionRepository.getSessionsByBookId(_selectedBook!['id']);
-    setState(() => _isFirstSession = sessions.isEmpty);
-  }
-
   int _calculateDurationFromTimeRange() {
     final startH = int.tryParse(_startHoursController.text) ?? 0;
     final startM = int.tryParse(_startMinutesController.text) ?? 0;
@@ -129,15 +118,23 @@ class _SessionFormPageState extends State<SessionFormPage> {
   }
 
   void _updateDurationFromTimeRange() {
-    final hasStart = _startHoursController.text.isNotEmpty || _startMinutesController.text.isNotEmpty;
-    final hasEnd = _endHoursController.text.isNotEmpty || _endMinutesController.text.isNotEmpty;
+    final hasStart =
+        _startHoursController.text.isNotEmpty ||
+        _startMinutesController.text.isNotEmpty;
+    final hasEnd =
+        _endHoursController.text.isNotEmpty ||
+        _endMinutesController.text.isNotEmpty;
     if (!hasStart || !hasEnd) return;
 
     final durationMinutes = _calculateDurationFromTimeRange();
     if (durationMinutes > 0) {
       setState(() {
-        _hoursController.text = durationMinutes ~/ 60 > 0 ? (durationMinutes ~/ 60).toString() : '';
-        _minutesController.text = durationMinutes % 60 > 0 ? (durationMinutes % 60).toString() : '';
+        _hoursController.text = durationMinutes ~/ 60 > 0
+            ? (durationMinutes ~/ 60).toString()
+            : '';
+        _minutesController.text = durationMinutes % 60 > 0
+            ? (durationMinutes % 60).toString()
+            : '';
       });
     }
   }
@@ -166,26 +163,26 @@ class _SessionFormPageState extends State<SessionFormPage> {
       _endHoursController.clear();
       _endMinutesController.clear();
       _sessionDate = DateTime.now();
-      _isFirstSession = false;
-      _isFinalSession = false;
+      _targetShelfId = _selectedBook?['shelf_id'] as int?;
     });
   }
 
   void _saveSession() async {
-    if (_selectedBook == null) {
-      _showSnackBar('Please select a book.');
-      return;
-    }
+    if (_selectedBook == null) return;
 
     final int? pagesRead = int.tryParse(_pagesController.text);
     int? durationMinutes;
 
-    final hasTimeRange = _startHoursController.text.isNotEmpty || _startMinutesController.text.isNotEmpty ||
-        _endHoursController.text.isNotEmpty || _endMinutesController.text.isNotEmpty;
+    final hasTimeRange =
+        _startHoursController.text.isNotEmpty ||
+        _startMinutesController.text.isNotEmpty ||
+        _endHoursController.text.isNotEmpty ||
+        _endMinutesController.text.isNotEmpty;
     if (hasTimeRange) {
       durationMinutes = _calculateDurationFromTimeRange();
       if (durationMinutes <= 0) return;
-    } else if (_hoursController.text.isNotEmpty || _minutesController.text.isNotEmpty) {
+    } else if (_hoursController.text.isNotEmpty ||
+        _minutesController.text.isNotEmpty) {
       final int? hours = int.tryParse(_hoursController.text);
       final int? minutes = int.tryParse(_minutesController.text);
 
@@ -207,7 +204,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
         pagesRead: pagesRead,
         durationMinutes: durationMinutes,
         date: _sessionDate.toIso8601String(),
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
       );
 
       if (widget.isEditing) {
@@ -218,12 +217,25 @@ class _SessionFormPageState extends State<SessionFormPage> {
       } else {
         await widget.sessionRepository.addSession(session);
 
-        if (_isFirstSession || _isFinalSession) {
+        final originalShelfId = _selectedBook!['shelf_id'] as int?;
+        final isFirstSession =
+            _targetShelfId == DatabaseHelper.shelfCurrentlyReading &&
+            originalShelfId == DatabaseHelper.shelfWantToRead;
+        final isFinalSession = _targetShelfId == DatabaseHelper.shelfFinished;
+
+        if (isFirstSession || isFinalSession) {
           await widget.bookRepository.updateBookDates(
             _selectedBook!['id'],
-            isFirstSession: _isFirstSession,
-            isFinalSession: _isFinalSession,
+            isFirstSession: isFirstSession,
+            isFinalSession: isFinalSession,
             sessionDate: _sessionDate,
+          );
+        }
+
+        if (_targetShelfId != null && _targetShelfId != originalShelfId) {
+          await widget.bookRepository.updateBookShelf(
+            _selectedBook!['id'],
+            _targetShelfId!,
           );
         }
 
@@ -231,14 +243,13 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
         widget.onSave();
         if (mounted) {
-          Navigator.pop(context, _isFinalSession ? _selectedBook : null);
+          Navigator.pop(context, isFinalSession ? _selectedBook : null);
         }
       }
     } catch (e) {
       _showSnackBar('Failed to save session. Please try again.');
     }
   }
-
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context)
@@ -256,11 +267,21 @@ class _SessionFormPageState extends State<SessionFormPage> {
       );
   }
 
-  Widget _buildTimeRow(String label, TextEditingController hoursCtrl, TextEditingController minutesCtrl, ThemeData theme) {
+  Widget _buildTimeRow(
+    String label,
+    TextEditingController hoursCtrl,
+    TextEditingController minutesCtrl,
+    ThemeData theme,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        Text(
+          label,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 6),
         Row(
           children: [
@@ -269,15 +290,28 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 controller: hoursCtrl,
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onChanged: (_) { setState(() {}); _updateDurationFromTimeRange(); },
-                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                onChanged: (_) {
+                  setState(() {});
+                  _updateDurationFromTimeRange();
+                },
+                onTapOutside: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
                 decoration: InputDecoration(
                   labelText: 'Hours',
                   filled: true,
                   fillColor: theme.colorScheme.surfaceContainer,
-                  border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                   contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                 ),
               ),
@@ -294,14 +328,24 @@ class _SessionFormPageState extends State<SessionFormPage> {
                   setState(() {});
                   _updateDurationFromTimeRange();
                 },
-                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                onTapOutside: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
                 decoration: InputDecoration(
                   labelText: 'Minutes',
                   filled: true,
                   fillColor: theme.colorScheme.surfaceContainer,
-                  border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                   contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                 ),
               ),
@@ -319,10 +363,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
       builder: (BuildContext context, Widget? child) {
-        return Theme(
-          data: Theme.of(context),
-          child: child!,
-        );
+        return Theme(data: Theme.of(context), child: child!);
       },
     );
 
@@ -346,503 +387,727 @@ class _SessionFormPageState extends State<SessionFormPage> {
       ),
       body: Column(
         children: [
-        Expanded(child: NotificationListener<UserScrollNotification>(
-        onNotification: (n) {
-          if (n.direction != ScrollDirection.idle && n.depth == 0) FocusScope.of(context).unfocus();
-          return false;
-        },
-        child: SingleChildScrollView(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Book Selection
-            if (!widget.isEditing) ...[
-              Autocomplete<Map<String, dynamic>>(
-                optionsBuilder: (TextEditingValue textEditingValue) {
-                  if (textEditingValue.text.isEmpty) {
-                    return widget.availableBooks;
-                  }
-                  return widget.availableBooks.where((book) =>
-                      book['title'].toLowerCase().contains(textEditingValue.text.toLowerCase()));
-                },
-                displayStringForOption: (option) => option['title'],
-                fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-                  if (_selectedBook != null &&
-                      textEditingController.text != _selectedBook!['title']) {
-                    textEditingController.text = _selectedBook!['title'];
-                  }
+          Expanded(
+            child: NotificationListener<UserScrollNotification>(
+              onNotification: (n) {
+                if (n.direction != ScrollDirection.idle && n.depth == 0)
+                  FocusScope.of(context).unfocus();
+                return false;
+              },
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Book Selection
+                    if (!widget.isEditing) ...[
+                      Autocomplete<Map<String, dynamic>>(
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          if (textEditingValue.text.isEmpty) {
+                            return widget.availableBooks;
+                          }
+                          return widget.availableBooks.where(
+                            (book) => book['title'].toLowerCase().contains(
+                              textEditingValue.text.toLowerCase(),
+                            ),
+                          );
+                        },
+                        displayStringForOption: (option) => option['title'],
+                        fieldViewBuilder:
+                            (
+                              context,
+                              textEditingController,
+                              focusNode,
+                              onFieldSubmitted,
+                            ) {
+                              if (_selectedBook != null &&
+                                  textEditingController.text !=
+                                      _selectedBook!['title']) {
+                                textEditingController.text =
+                                    _selectedBook!['title'];
+                              }
 
-                  focusNode.addListener(() {
-                    if (!focusNode.hasFocus && _selectedBook != null) {
-                      textEditingController.text = _selectedBook!['title'];
-                    }
-                  });
+                              focusNode.addListener(() {
+                                if (!focusNode.hasFocus &&
+                                    _selectedBook != null) {
+                                  textEditingController.text =
+                                      _selectedBook!['title'];
+                                }
+                              });
 
-                  return TextFieldTapRegion(
-                    child: TextFormField(
-                      controller: textEditingController,
-                      focusNode: focusNode,
+                              return TextFieldTapRegion(
+                                child: TextFormField(
+                                  controller: textEditingController,
+                                  focusNode: focusNode,
+                                  decoration: InputDecoration(
+                                    labelText: 'Book',
+                                    hintText: 'Select a book',
+                                    border: UnderlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    filled: true,
+                                    fillColor: theme
+                                        .colorScheme
+                                        .surfaceContainerHighest,
+                                    contentPadding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      10,
+                                      12,
+                                      6,
+                                    ),
+                                    suffixIcon: _selectedBook != null
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear),
+                                            onPressed: () {
+                                              textEditingController.clear();
+                                              setState(() {
+                                                _selectedBook = null;
+                                                _targetShelfId = null;
+                                              });
+                                              focusNode.requestFocus();
+                                            },
+                                          )
+                                        : const Icon(Icons.search),
+                                  ),
+                                  style: theme.textTheme.bodyLarge,
+                                  onChanged: (value) {
+                                    if (value.isEmpty) {
+                                      setState(() => _selectedBook = null);
+                                    }
+                                  },
+                                  onTap: () {
+                                    textEditingController
+                                        .selection = TextSelection.fromPosition(
+                                      TextPosition(
+                                        offset:
+                                            textEditingController.text.length,
+                                      ),
+                                    );
+                                  },
+                                  onTapOutside: (event) {
+                                    if (_selectedBook != null) {
+                                      textEditingController.text =
+                                          _selectedBook!['title'];
+                                    }
+                                  },
+                                ),
+                              );
+                            },
+                        onSelected: (option) {
+                          setState(() {
+                            _selectedBook = option;
+                            _targetShelfId = option['shelf_id'] as int?;
+                          });
+                          FocusManager.instance.primaryFocus?.unfocus();
+                        },
+                        optionsViewBuilder: (context, onSelected, options) {
+                          final double itemHeight = 52;
+                          final double maxHeight = 200;
+                          final double height = (options.length * itemHeight)
+                              .clamp(0, maxHeight);
+                          return TextFieldTapRegion(
+                            child: Align(
+                              alignment: Alignment.topLeft,
+                              child: Material(
+                                elevation: 4.0,
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxHeight: height,
+                                  ),
+                                  child: Scrollbar(
+                                    child: ListView.builder(
+                                      padding: EdgeInsets.zero,
+                                      itemCount: options.length,
+                                      itemBuilder:
+                                          (BuildContext context, int index) {
+                                            final option = options.elementAt(
+                                              index,
+                                            );
+                                            return InkWell(
+                                              onTap: () => onSelected(option),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(
+                                                  16.0,
+                                                ),
+                                                child: Text(
+                                                  option['title'],
+                                                  style:
+                                                      theme.textTheme.bodyLarge,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      if (_selectedBook != null &&
+                          (_selectedBook!['author'] as String?)?.isNotEmpty ==
+                              true) ...[
+                        const SizedBox(height: 4),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12),
+                          child: Text(
+                            'by ${_selectedBook!['author']}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ] else ...[
+                      TextFormField(
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          labelText: 'Book',
+                          labelStyle: TextStyle(color: colors.onSurfaceVariant),
+                          border: UnderlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: theme.colorScheme.surfaceContainerHighest,
+                          contentPadding: const EdgeInsets.fromLTRB(
+                            12,
+                            10,
+                            12,
+                            6,
+                          ),
+                          suffixIcon: const Icon(Icons.lock, size: 20),
+                        ),
+                        controller: TextEditingController(
+                          text: widget.book!['title'],
+                        ),
+                      ),
+                      if ((widget.book!['author'] as String?)?.isNotEmpty ==
+                          true) ...[
+                        const SizedBox(height: 4),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12),
+                          child: Text(
+                            'by ${widget.book!['author']}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                    const SizedBox(height: 16),
+
+                    // Date Field
+                    TextFormField(
+                      readOnly: true,
+                      onTap: () => _showDatePicker(context),
+                      controller: TextEditingController(
+                        text: DateFormat('MMMM d, y').format(_sessionDate),
+                      ),
                       decoration: InputDecoration(
-                        labelText: 'Book',
-                        hintText: 'Select a book',
+                        labelText: 'Date',
+                        hintText: 'Select date *',
                         border: UnderlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
                         filled: true,
                         fillColor: theme.colorScheme.surfaceContainerHighest,
-                        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                        suffixIcon: _selectedBook != null
-                            ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            textEditingController.clear();
-                            setState(() {
-                              _selectedBook = null;
-                              _isFirstSession = false;
-                              _isFinalSession = false;
-                            });
-                            focusNode.requestFocus();
-                          },
-                        )
-                            : const Icon(Icons.search),
+                        contentPadding: const EdgeInsets.fromLTRB(
+                          12,
+                          10,
+                          12,
+                          6,
+                        ),
+                        suffixIcon: const Icon(Icons.calendar_today),
                       ),
-                      style: theme.textTheme.bodyLarge,
-                      onChanged: (value) {
-                        if (value.isEmpty) {
-                          setState(() => _selectedBook = null);
-                        }
-                      },
-                      onTap: () {
-                        textEditingController.selection = TextSelection.fromPosition(
-                            TextPosition(offset: textEditingController.text.length));
-                      },
                       onTapOutside: (event) {
-                        if (_selectedBook != null) {
-                          textEditingController.text = _selectedBook!['title'];
-                        }
+                        FocusManager.instance.primaryFocus?.unfocus();
                       },
                     ),
-                  );
-                },
-                onSelected: (option) {
-                  setState(() {
-                    _selectedBook = option;
-                    _isFirstSession = false;
-                    _isFinalSession = false;
-                  });
-                  _checkIfFirstSession();
-                },
-                optionsViewBuilder: (context, onSelected, options) {
-                  final double itemHeight = 52;
-                  final double maxHeight = 200;
-                  final double height = (options.length * itemHeight).clamp(0, maxHeight);
-                  return TextFieldTapRegion(
-                    child: Align(
-                      alignment: Alignment.topLeft,
-                      child: Material(
-                        elevation: 4.0,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxHeight: height),
-                          child: Scrollbar(
-                            child: ListView.builder(
-                              padding: EdgeInsets.zero,
-                              itemCount: options.length,
-                              itemBuilder: (BuildContext context, int index) {
-                                final option = options.elementAt(index);
-                                return InkWell(
-                                  onTap: () => onSelected(option),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Text(
-                                      option['title'],
-                                      style: theme.textTheme.bodyLarge,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            if (_selectedBook != null &&
-                (_selectedBook!['author'] as String?)?.isNotEmpty == true) ...[
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: Text(
-                  'by ${_selectedBook!['author']}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ],
-            ] else ...[
-              TextFormField(
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: 'Book',
-                  labelStyle: TextStyle(color: colors.onSurfaceVariant),
-                  border: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest,
-                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                  suffixIcon: const Icon(Icons.lock, size: 20),
-                ),
-                controller: TextEditingController(text: widget.book!['title']),
-              ),
-              if ((widget.book!['author'] as String?)?.isNotEmpty == true) ...[
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.only(left: 12),
-                  child: Text(
-                    'by ${widget.book!['author']}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-            const SizedBox(height: 16),
+                    const Divider(height: 48),
 
-            // Date Field
-            TextFormField(
-              readOnly: true,
-              onTap: () => _showDatePicker(context),
-              controller: TextEditingController(
-                text: DateFormat('MMMM d, y').format(_sessionDate),
-              ),
-              decoration: InputDecoration(
-                labelText: 'Date',
-                hintText: 'Select date *',
-                border: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest,
-                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                suffixIcon: const Icon(Icons.calendar_today),
-              ),
-              onTapOutside: (event) {
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
-            ),
-            const Divider(height: 48),
-
-            if (_selectedBook?['book_type_id'] != 4)
-              Column(
-                children: [
-                  TextField(
-                    controller: _pagesController,
-                    decoration: InputDecoration(
-                      labelText: 'Pages',
-                      hintText: 'Enter number of pages',
-                      border: UnderlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest,
-                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                    ),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (value) => setState(() {}),
-                    onTapOutside: (event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  Center(
-                    child: InkWell(
-                      onTap: () => setState(() => _showPageRange = !_showPageRange),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'or use page range',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+                    if (_selectedBook?['book_type_id'] != 4)
+                      Column(
+                        children: [
+                          TextField(
+                            controller: _pagesController,
+                            decoration: InputDecoration(
+                              labelText: 'Pages',
+                              hintText: 'Enter number of pages',
+                              border: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              filled: true,
+                              fillColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              contentPadding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                6,
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            AnimatedRotation(
-                              turns: _showPageRange ? 0.5 : 0,
-                              duration: const Duration(milliseconds: 200),
-                              child: Icon(Icons.expand_more, size: 16, color: theme.colorScheme.onSurfaceVariant),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeInOut,
-                    child: _showPageRange ? Column(
-                      children: [
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _startPageController,
-                                decoration: InputDecoration(
-                                  labelText: 'Start Page',
-                                  border: UnderlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  filled: true,
-                                  fillColor: theme.colorScheme.surfaceContainer,
-                                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                                ),
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                onChanged: (value) {
-                                  _calculatePagesRead();
-                                  setState(() {});
-                                },
-                                onTapOutside: (event) {
-                                  FocusManager.instance.primaryFocus?.unfocus();
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Icon(Icons.arrow_forward, color: theme.colorScheme.onSurface.withAlpha(153)),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextField(
-                                controller: _endPageController,
-                                decoration: InputDecoration(
-                                  labelText: 'End Page',
-                                  border: UnderlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  filled: true,
-                                  fillColor: theme.colorScheme.surfaceContainer,
-                                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                                ),
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                onChanged: (value) {
-                                  _calculatePagesRead();
-                                  setState(() {});
-                                },
-                                onTapOutside: (event) {
-                                  FocusManager.instance.primaryFocus?.unfocus();
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                    ) : const SizedBox.shrink(),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-
-            // Duration Field
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _hoursController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (_) => setState(() {}),
-                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-                    decoration: InputDecoration(
-                      labelText: 'Hours',
-                      filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest,
-                      border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _minutesController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (v) {
-                      final val = int.tryParse(v);
-                      if (val != null && val > 59) _minutesController.text = '59';
-                      setState(() {});
-                    },
-                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-                    decoration: InputDecoration(
-                      labelText: 'Minutes',
-                      filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest,
-                      border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: InkWell(
-                onTap: () => setState(() => _showTimeRange = !_showTimeRange),
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'or use time range',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      AnimatedRotation(
-                        turns: _showTimeRange ? 0.5 : 0,
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(Icons.expand_more, size: 16, color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              child: _showTimeRange ? Column(
-                children: [
-                  const SizedBox(height: 8),
-                  _buildTimeRow('Start Time', _startHoursController, _startMinutesController, theme),
-                  const SizedBox(height: 8),
-                  _buildTimeRow('End Time', _endHoursController, _endMinutesController, theme),
-                ],
-              ) : const SizedBox.shrink(),
-            ),
-
-            // Session Type Checkboxes (only for new sessions)
-            if (!widget.isEditing) ...[
-              const Divider(height: 48),
-              Text('Session Type', style: textTheme.bodyMedium),
-              const SizedBox(height: 8),
-              Column(
-                children: [
-                  if (_selectedBook != null)
-                    FutureBuilder<List<Session>>(
-                      future:
-                      widget.sessionRepository.getSessionsByBookId(_selectedBook!['id']),
-                      builder: (context, snapshot) {
-                        final hasExistingSessions =
-                            snapshot.hasData && snapshot.data!.isNotEmpty;
-
-                        return Visibility(
-                          visible: !hasExistingSessions,
-                          child: CheckboxListTile(
-                            title: const Text('First session'),
-                            value: _isFirstSession,
-                            onChanged: (value) {
-                              setState(() => _isFirstSession = value ?? false);
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            onChanged: (value) => setState(() {}),
+                            onTapOutside: (event) {
+                              FocusManager.instance.primaryFocus?.unfocus();
                             },
-                            controlAffinity: ListTileControlAffinity.leading,
                           ),
-                        );
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: theme.colorScheme.outlineVariant
+                                    .withAlpha(120),
+                              ),
+                            ),
+                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'calculate pages — not saved',
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _startPageController,
+                                        decoration: InputDecoration(
+                                          labelText: 'Start Page',
+                                          border: UnderlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            borderSide: BorderSide.none,
+                                          ),
+                                          enabledBorder: UnderlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            borderSide: BorderSide.none,
+                                          ),
+                                          focusedBorder: UnderlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            borderSide: BorderSide.none,
+                                          ),
+                                          filled: true,
+                                          fillColor: theme
+                                              .colorScheme
+                                              .surfaceContainer,
+                                          contentPadding:
+                                              const EdgeInsets.fromLTRB(
+                                                12,
+                                                10,
+                                                12,
+                                                6,
+                                              ),
+                                        ),
+                                        keyboardType: TextInputType.number,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .digitsOnly,
+                                        ],
+                                        onChanged: (value) {
+                                          _calculatePagesRead();
+                                          setState(() {});
+                                        },
+                                        onTapOutside: (event) {
+                                          FocusManager.instance.primaryFocus
+                                              ?.unfocus();
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Icon(
+                                      Icons.arrow_forward,
+                                      color: theme.colorScheme.onSurface
+                                          .withAlpha(100),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _endPageController,
+                                        decoration: InputDecoration(
+                                          labelText: 'End Page',
+                                          border: UnderlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            borderSide: BorderSide.none,
+                                          ),
+                                          enabledBorder: UnderlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            borderSide: BorderSide.none,
+                                          ),
+                                          focusedBorder: UnderlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            borderSide: BorderSide.none,
+                                          ),
+                                          filled: true,
+                                          fillColor: theme
+                                              .colorScheme
+                                              .surfaceContainer,
+                                          contentPadding:
+                                              const EdgeInsets.fromLTRB(
+                                                12,
+                                                10,
+                                                12,
+                                                6,
+                                              ),
+                                        ),
+                                        keyboardType: TextInputType.number,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .digitsOnly,
+                                        ],
+                                        onChanged: (value) {
+                                          _calculatePagesRead();
+                                          setState(() {});
+                                        },
+                                        onTapOutside: (event) {
+                                          FocusManager.instance.primaryFocus
+                                              ?.unfocus();
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+
+                    // Duration Field
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _hoursController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            onChanged: (_) => setState(() {}),
+                            onTapOutside: (_) =>
+                                FocusManager.instance.primaryFocus?.unfocus(),
+                            decoration: InputDecoration(
+                              labelText: 'Hours',
+                              filled: true,
+                              fillColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              border: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                6,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _minutesController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            onChanged: (v) {
+                              final val = int.tryParse(v);
+                              if (val != null && val > 59)
+                                _minutesController.text = '59';
+                              setState(() {});
+                            },
+                            onTapOutside: (_) =>
+                                FocusManager.instance.primaryFocus?.unfocus(),
+                            decoration: InputDecoration(
+                              labelText: 'Minutes',
+                              filled: true,
+                              fillColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              border: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                6,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: theme.colorScheme.outlineVariant.withAlpha(
+                            120,
+                          ),
+                        ),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InkWell(
+                            onTap: () => setState(
+                              () => _showTimeRange = !_showTimeRange,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'calculate duration — not saved',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                AnimatedRotation(
+                                  turns: _showTimeRange ? 0.5 : 0,
+                                  duration: const Duration(milliseconds: 200),
+                                  child: Icon(
+                                    Icons.expand_more,
+                                    size: 16,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeInOut,
+                            child: _showTimeRange
+                                ? Column(
+                                    children: [
+                                      const SizedBox(height: 8),
+                                      _buildTimeRow(
+                                        'Start Time',
+                                        _startHoursController,
+                                        _startMinutesController,
+                                        theme,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _buildTimeRow(
+                                        'End Time',
+                                        _endHoursController,
+                                        _endMinutesController,
+                                        theme,
+                                      ),
+                                    ],
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+                    Text('Move to shelf', style: textTheme.bodyMedium),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          for (final shelf in [
+                            (
+                              id: DatabaseHelper.shelfWantToRead,
+                              label: 'To Read',
+                              icon: Icons.bookmark,
+                            ),
+                            (
+                              id: DatabaseHelper.shelfCurrentlyReading,
+                              label: 'Reading',
+                              icon: Icons.menu_book_rounded,
+                            ),
+                            (
+                              id: DatabaseHelper.shelfFinished,
+                              label: 'Finished',
+                              icon: Icons.check,
+                            ),
+                            (
+                              id: DatabaseHelper.shelfUnfinished,
+                              label: 'Unfinished',
+                              icon: Icons.do_not_disturb_on,
+                            ),
+                          ])
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () =>
+                                    setState(() => _targetShelfId = shelf.id),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _targetShelfId == shelf.id
+                                        ? theme.colorScheme.primary
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        shelf.icon,
+                                        size: 18,
+                                        color: _targetShelfId == shelf.id
+                                            ? theme.colorScheme.onPrimary
+                                            : theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        shelf.label,
+                                        textAlign: TextAlign.center,
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                              color: _targetShelfId == shelf.id
+                                                  ? theme.colorScheme.onPrimary
+                                                  : theme
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
+                                              fontWeight:
+                                                  _targetShelfId == shelf.id
+                                                  ? FontWeight.w600
+                                                  : FontWeight.normal,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    TextField(
+                      controller: _notesController,
+                      decoration: InputDecoration(
+                        labelText: 'Notes',
+                        hintText: 'Reflect on your reading session...',
+                        filled: true,
+                        fillColor: theme.colorScheme.surfaceContainerHighest,
+                        border: UnderlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: UnderlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.fromLTRB(
+                          12,
+                          10,
+                          12,
+                          6,
+                        ),
+                        alignLabelWithHint: true,
+                        suffixIcon: _notesController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () =>
+                                    setState(() => _notesController.clear()),
+                              )
+                            : null,
+                      ),
+                      minLines: 2,
+                      maxLines: null,
+                      onChanged: (_) => setState(() {}),
+                      onTapOutside: (event) {
+                        FocusManager.instance.primaryFocus?.unfocus();
                       },
                     ),
-                  CheckboxListTile(
-                    title: const Text('Final session (book finished)'),
-                    value: _isFinalSession,
-                    onChanged: (value) {
-                      setState(() => _isFinalSession = value ?? false);
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                ],
-              ),
-            ],
-
-            const Divider(height: 48),
-            TextField(
-              controller: _notesController,
-              decoration: InputDecoration(
-                labelText: 'Notes',
-                hintText: 'Reflect on your reading session...',
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest,
-                border: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                    const SizedBox(height: 8),
+                  ],
                 ),
-                enabledBorder: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                alignLabelWithHint: true,
-                suffixIcon: _notesController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => setState(() => _notesController.clear()),
-                      )
-                    : null,
               ),
-              minLines: 2,
-              maxLines: null,
-              onChanged: (_) => setState(() {}),
-              onTapOutside: (event) {
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
-            ),
-            const SizedBox(height: 8),
-
-          ],
-        ),
-      ),
-      )),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: FilledButton(
-              onPressed: _saveSession,
-              style: FilledButton.styleFrom(
-                backgroundColor: accentColor,
-                minimumSize: const Size.fromHeight(48),
-              ),
-              child: Text(widget.isEditing ? 'Update Session' : 'Save Session'),
             ),
           ),
-        ),
-      ],
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Opacity(
+                opacity: _selectedBook == null ? 0.4 : 1.0,
+                child: FilledButton(
+                  onPressed: _saveSession,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: accentColor,
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                  child: Text(
+                    widget.isEditing ? 'Update Session' : 'Save Session',
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
