@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
@@ -38,16 +39,15 @@ class _SessionFormPageState extends State<SessionFormPage> {
   final TextEditingController _hoursController = TextEditingController();
   final TextEditingController _minutesController = TextEditingController();
   final TextEditingController _bookController = TextEditingController();
-  final TextEditingController _startTimeController = TextEditingController();
-  final TextEditingController _endTimeController = TextEditingController();
+  final TextEditingController _startHoursController = TextEditingController();
+  final TextEditingController _startMinutesController = TextEditingController();
+  final TextEditingController _endHoursController = TextEditingController();
+  final TextEditingController _endMinutesController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final FocusNode hoursFocusNode = FocusNode();
-  final FocusNode minutesFocusNode = FocusNode();
   late DateTime _sessionDate;
   bool _isFirstSession = false;
   bool _isFinalSession = false;
-  bool _useElapsedTimeFormat = false;
   bool _showPageRange = false;
   bool _showTimeRange = false;
   Map<String, dynamic>? _selectedBook;
@@ -57,13 +57,13 @@ class _SessionFormPageState extends State<SessionFormPage> {
     super.initState();
 
     if (widget.isEditing) {
-      int durationMinutes = widget.session!['duration_minutes'] ?? 0;
-      int hours = durationMinutes ~/ 60;
-      int minutes = durationMinutes % 60;
+      final editDuration = widget.session!['duration_minutes'] as int?;
+      if (editDuration != null && editDuration > 0) {
+        _hoursController.text = (editDuration ~/ 60).toString();
+        _minutesController.text = (editDuration % 60).toString();
+      }
 
       _pagesController.text = widget.session!['pages_read'].toString();
-      _hoursController.text = hours.toString();
-      _minutesController.text = minutes.toString();
       _sessionDate = DateTime.parse(widget.session!['date']);
       _notesController.text = widget.session!['notes'] ?? '';
       _selectedBook = widget.book;
@@ -71,11 +71,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
       _pagesController.text = '';
       _startPageController.text = '';
       _endPageController.text = '';
-      _hoursController.text = '0';
-      _minutesController.text = '0';
       _sessionDate = DateTime.now();
-      _startTimeController.text = '';
-      _endTimeController.text = '';
 
       if (widget.book != null) {
         _selectedBook = widget.availableBooks.firstWhere(
@@ -86,7 +82,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
         if (_selectedBook != null) {
           _checkIfFirstSession();
-          _useElapsedTimeFormat = _selectedBook?['book_type_id'] == 4;
         }
       }
     }
@@ -100,9 +95,11 @@ class _SessionFormPageState extends State<SessionFormPage> {
     _hoursController.dispose();
     _minutesController.dispose();
     _bookController.dispose();
+    _startHoursController.dispose();
+    _startMinutesController.dispose();
+    _endHoursController.dispose();
+    _endMinutesController.dispose();
     _scrollController.dispose();
-    _startTimeController.dispose();
-    _endTimeController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -115,70 +112,33 @@ class _SessionFormPageState extends State<SessionFormPage> {
   }
 
   int _calculateDurationFromTimeRange() {
-    try {
-      if (_useElapsedTimeFormat) {
-        final startParts = _startTimeController.text.split(':');
-        final endParts = _endTimeController.text.split(':');
+    final startH = int.tryParse(_startHoursController.text) ?? 0;
+    final startM = int.tryParse(_startMinutesController.text) ?? 0;
+    final endH = int.tryParse(_endHoursController.text) ?? 0;
+    final endM = int.tryParse(_endMinutesController.text) ?? 0;
 
-        if (startParts.length != 2 || endParts.length != 2) {
-          throw FormatException('Invalid time format');
-        }
+    final startTotal = startH * 60 + startM;
+    final endTotal = endH * 60 + endM;
 
-        final startHours = int.parse(startParts[0]);
-        final startMinutes = int.parse(startParts[1]);
-        final endHours = int.parse(endParts[0]);
-        final endMinutes = int.parse(endParts[1]);
-
-        final startTotalMinutes = (startHours * 60) + startMinutes;
-        final endTotalMinutes = (endHours * 60) + endMinutes;
-
-        if (endTotalMinutes < startTotalMinutes) {
-          _showSnackBar('End time must be after start time');
-          return 0;
-        }
-
-        return endTotalMinutes - startTotalMinutes;
-      } else {
-        final startTime = DateFormat('h:mm a').parse(_startTimeController.text);
-        final endTime = DateFormat('h:mm a').parse(_endTimeController.text);
-
-        DateTime endDateTime = DateTime(
-            _sessionDate.year, _sessionDate.month, _sessionDate.day, endTime.hour, endTime.minute);
-        DateTime startDateTime = DateTime(_sessionDate.year, _sessionDate.month, _sessionDate.day,
-            startTime.hour, startTime.minute);
-
-        if (endDateTime.isBefore(startDateTime)) {
-          endDateTime = endDateTime.add(const Duration(days: 1));
-        }
-
-        return endDateTime.difference(startDateTime).inMinutes;
-      }
-    } catch (e) {
-      final errorMessage = _useElapsedTimeFormat
-          ? 'Please enter valid times in the format HH:MM'
-          : 'Please enter valid times in the format h:mm AM/PM';
-
-      _showSnackBar(errorMessage);
+    if (endTotal <= startTotal) {
+      _showSnackBar('End time must be after start time');
       return 0;
     }
+
+    return endTotal - startTotal;
   }
 
   void _updateDurationFromTimeRange() {
-    if (_startTimeController.text.isNotEmpty && _endTimeController.text.isNotEmpty) {
-      try {
-        final durationMinutes = _calculateDurationFromTimeRange();
-        if (durationMinutes > 0) {
-          final hours = durationMinutes ~/ 60;
-          final minutes = durationMinutes % 60;
+    final hasStart = _startHoursController.text.isNotEmpty || _startMinutesController.text.isNotEmpty;
+    final hasEnd = _endHoursController.text.isNotEmpty || _endMinutesController.text.isNotEmpty;
+    if (!hasStart || !hasEnd) return;
 
-          setState(() {
-            _hoursController.text = hours.toString();
-            _minutesController.text = minutes.toString();
-          });
-        }
-      } catch (e) {
-        // Ignore parsing errors, user might still be typing
-      }
+    final durationMinutes = _calculateDurationFromTimeRange();
+    if (durationMinutes > 0) {
+      setState(() {
+        _hoursController.text = durationMinutes ~/ 60 > 0 ? (durationMinutes ~/ 60).toString() : '';
+        _minutesController.text = durationMinutes % 60 > 0 ? (durationMinutes % 60).toString() : '';
+      });
     }
   }
 
@@ -194,40 +154,20 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
   }
 
-  String _formatSessionDuration(String hours, String minutes) {
-    String hourText = hours != '0' ? '$hours hour${hours == "1" ? "" : "s"}' : '';
-    String minuteText = minutes != '0' ? '$minutes minute${minutes == "1" ? "" : "s"}' : '';
-    return [hourText, minuteText].where((e) => e.isNotEmpty).join(' ');
-  }
-
-  void _clearField(TextEditingController controller) {
-    controller.clear();
-    setState(() {});
-
-    if (controller == _startTimeController || controller == _endTimeController) {
-      if (_startTimeController.text.isEmpty && _endTimeController.text.isEmpty) {
-        setState(() {
-          _hoursController.text = '0';
-          _minutesController.text = '0';
-        });
-      } else {
-        _updateDurationFromTimeRange();
-      }
-    }
-  }
-
   void _resetInputs() {
     setState(() {
       _pagesController.clear();
       _startPageController.clear();
       _endPageController.clear();
-      _hoursController.text = '0';
-      _minutesController.text = '0';
+      _hoursController.clear();
+      _minutesController.clear();
+      _startHoursController.clear();
+      _startMinutesController.clear();
+      _endHoursController.clear();
+      _endMinutesController.clear();
       _sessionDate = DateTime.now();
       _isFirstSession = false;
       _isFinalSession = false;
-      _startTimeController.clear();
-      _endTimeController.clear();
     });
   }
 
@@ -240,17 +180,11 @@ class _SessionFormPageState extends State<SessionFormPage> {
     final int? pagesRead = int.tryParse(_pagesController.text);
     int? durationMinutes;
 
-    if (_startTimeController.text.isNotEmpty && _endTimeController.text.isNotEmpty) {
-      try {
-        durationMinutes = _calculateDurationFromTimeRange();
-        if (durationMinutes <= 0) {
-          _showSnackBar('End time must be after start time');
-          return;
-        }
-      } catch (e) {
-        _showSnackBar('Please enter valid times in the format "h:mm AM/PM"');
-        return;
-      }
+    final hasTimeRange = _startHoursController.text.isNotEmpty || _startMinutesController.text.isNotEmpty ||
+        _endHoursController.text.isNotEmpty || _endMinutesController.text.isNotEmpty;
+    if (hasTimeRange) {
+      durationMinutes = _calculateDurationFromTimeRange();
+      if (durationMinutes <= 0) return;
     } else if (_hoursController.text.isNotEmpty || _minutesController.text.isNotEmpty) {
       final int? hours = int.tryParse(_hoursController.text);
       final int? minutes = int.tryParse(_minutesController.text);
@@ -322,347 +256,59 @@ class _SessionFormPageState extends State<SessionFormPage> {
       );
   }
 
-  Future<void> _showDurationPicker(BuildContext context) async {
-    final hoursController = TextEditingController(
-      text: (int.tryParse(_hoursController.text) ?? 0).toString(),
-    );
-    final minutesController = TextEditingController(
-      text: (int.tryParse(_minutesController.text) ?? 0).toString(),
-    );
-    int hours = int.tryParse(_hoursController.text) ?? 0;
-    int minutes = int.tryParse(_minutesController.text) ?? 0;
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        final dialogWidth = screenWidth * 0.8;
-
-        return AlertDialog(
-          title: Text(
-            'Set Duration',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          content: SizedBox(
-            width: dialogWidth,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: hoursController,
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          filled: true,
-                        ),
-                        onTap: () => hoursController.selection = TextSelection(
-                          baseOffset: 0,
-                          extentOffset: hoursController.text.length,
-                        ),
-                        onChanged: (value) {
-                          hours = int.tryParse(value) ?? 0;
-                          if (hours < 0) hours = 0;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          ':',
-                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: minutesController,
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          filled: true,
-                        ),
-                        onTap: () => minutesController.selection = TextSelection(
-                          baseOffset: 0,
-                          extentOffset: minutesController.text.length,
-                        ),
-                        onChanged: (value) {
-                          minutes = int.tryParse(value) ?? 0;
-                          if (minutes > 59) minutes = 59;
-                          if (minutes < 0) minutes = 0;
-                        },
-                      ),
-                    ),
-                  ],
+  Widget _buildTimeRow(String label, TextEditingController hoursCtrl, TextEditingController minutesCtrl, ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: hoursCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                onChanged: (_) { setState(() {}); _updateDurationFromTimeRange(); },
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                decoration: InputDecoration(
+                  labelText: 'Hours',
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainer,
+                  border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Hours',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 32),
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Minutes',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    ),
-                  ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: minutesCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                onChanged: (v) {
+                  final val = int.tryParse(v);
+                  if (val != null && val > 59) minutesCtrl.text = '59';
+                  setState(() {});
+                  _updateDurationFromTimeRange();
+                },
+                onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                decoration: InputDecoration(
+                  labelText: 'Minutes',
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainer,
+                  border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                 ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _hoursController.text = hours.toString();
-                  _minutesController.text = minutes.toString();
-                  _startTimeController.clear();
-                  _endTimeController.clear();
-                });
-                Navigator.pop(context);
-              },
-              child: const Text('OK'),
+              ),
             ),
           ],
-        );
-      },
-    );
-  }
-
-  Future<void> _showTimePicker(BuildContext context, bool isStartTime) async {
-    final initialTime = TimeOfDay.now();
-    final pickedTime = await showTimePicker(
-      context: context,
-      initialTime: initialTime,
-      initialEntryMode: TimePickerEntryMode.inputOnly,
-    );
-
-    if (pickedTime != null) {
-      final formattedTime = pickedTime.format(context);
-      setState(() {
-        if (isStartTime) {
-          _startTimeController.text = formattedTime;
-        } else {
-          _endTimeController.text = formattedTime;
-        }
-      });
-
-      _updateDurationFromTimeRange();
-    }
-  }
-
-  Future<void> _showElapsedTimePicker(BuildContext context, bool isStartTime) async {
-    final currentText = isStartTime ? _startTimeController.text : _endTimeController.text;
-    int initialHours = 0;
-    int initialMinutes = 0;
-
-    if (currentText.isNotEmpty) {
-      final parts = currentText.split(':');
-      if (parts.length == 2) {
-        initialHours = int.tryParse(parts[0]) ?? 0;
-        initialMinutes = int.tryParse(parts[1]) ?? 0;
-      }
-    }
-
-    int selectedHours = initialHours;
-    int selectedMinutes = initialMinutes;
-
-    final hoursController = TextEditingController(text: initialHours.toString());
-    final minutesController = TextEditingController(text: initialMinutes.toString());
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        final dialogWidth = screenWidth * 0.8;
-
-        return AlertDialog(
-          title: Text(
-            'Enter Time',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          content: SizedBox(
-            width: dialogWidth,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: hoursController,
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          filled: true,
-                        ),
-                        onTap: () => hoursController.selection = TextSelection(
-                          baseOffset: 0,
-                          extentOffset: hoursController.text.length,
-                        ),
-                        onChanged: (value) {
-                          selectedHours = int.tryParse(value) ?? 0;
-                          if (selectedHours < 0) selectedHours = 0;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      ':',
-                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: minutesController,
-                        keyboardType: TextInputType.number,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        decoration: InputDecoration(
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          filled: true,
-                        ),
-                        onTap: () => minutesController.selection = TextSelection(
-                          baseOffset: 0,
-                          extentOffset: minutesController.text.length,
-                        ),
-                        onChanged: (value) {
-                          selectedMinutes = int.tryParse(value) ?? 0;
-                          if (selectedMinutes > 59) selectedMinutes = 59;
-                          if (selectedMinutes < 0) selectedMinutes = 0;
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Hour',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 32),
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Minute',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                final formattedTime =
-                    '${selectedHours.toString().padLeft(2, '0')}:${selectedMinutes.toString().padLeft(2, '0')}';
-                setState(() {
-                  if (isStartTime) {
-                    _startTimeController.text = formattedTime;
-                  } else {
-                    _endTimeController.text = formattedTime;
-                  }
-                });
-                Navigator.pop(context);
-                _updateDurationFromTimeRange();
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -683,44 +329,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     if (date != null) {
       setState(() => _sessionDate = date);
     }
-  }
-
-  Widget _buildTimeFormatToggle() {
-    return SizedBox(
-      width: double.infinity,
-      child: SegmentedButton<bool>(
-        segments: const [
-          ButtonSegment(
-            value: false,
-            icon: Icon(Icons.access_time, size: 18),
-            label: Text('Clock Time'),
-          ),
-          ButtonSegment(
-            value: true,
-            icon: Icon(Icons.timer, size: 18),
-            label: Text('Elapsed Time'),
-          ),
-        ],
-        selected: {_useElapsedTimeFormat},
-        onSelectionChanged: (Set<bool> newSelection) {
-          setState(() {
-            _useElapsedTimeFormat = newSelection.first;
-          });
-        },
-        style: SegmentedButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-          foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-          selectedBackgroundColor: Theme.of(context).colorScheme.primaryContainer,
-          selectedForegroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
-          side: const BorderSide(color: Colors.transparent),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          visualDensity: VisualDensity.compact,
-        ),
-      ),
-    );
   }
 
   @override
@@ -824,7 +432,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
                     _selectedBook = option;
                     _isFirstSession = false;
                     _isFinalSession = false;
-                    _useElapsedTimeFormat = option['book_type_id'] == 4;
                   });
                   _checkIfFirstSession();
                 },
@@ -950,14 +557,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
                       filled: true,
                       fillColor: theme.colorScheme.surfaceContainerHighest,
                       contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                      suffixIcon: _pagesController.text.isNotEmpty
-                          ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => _clearField(_pagesController),
-                      )
-                          : null,
                     ),
                     keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     onChanged: (value) => setState(() {}),
                     onTapOutside: (event) {
                       FocusManager.instance.primaryFocus?.unfocus();
@@ -1010,14 +612,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
                                   filled: true,
                                   fillColor: theme.colorScheme.surfaceContainer,
                                   contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                                  suffixIcon: _startPageController.text.isNotEmpty
-                                      ? IconButton(
-                                          icon: const Icon(Icons.clear),
-                                          onPressed: () => _clearField(_startPageController),
-                                        )
-                                      : null,
                                 ),
                                 keyboardType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                                 onChanged: (value) {
                                   _calculatePagesRead();
                                   setState(() {});
@@ -1042,14 +639,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
                                   filled: true,
                                   fillColor: theme.colorScheme.surfaceContainer,
                                   contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                                  suffixIcon: _endPageController.text.isNotEmpty
-                                      ? IconButton(
-                                          icon: const Icon(Icons.clear),
-                                          onPressed: () => _clearField(_endPageController),
-                                        )
-                                      : null,
                                 ),
                                 keyboardType: TextInputType.number,
+                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                                 onChanged: (value) {
                                   _calculatePagesRead();
                                   setState(() {});
@@ -1070,39 +662,50 @@ class _SessionFormPageState extends State<SessionFormPage> {
               ),
 
             // Duration Field
-            TextFormField(
-              readOnly: true,
-              onTap: () => _showDurationPicker(context),
-              controller: TextEditingController(
-                text: _formatSessionDuration(_hoursController.text, _minutesController.text),
-              ),
-              decoration: InputDecoration(
-                labelText: 'Duration',
-                hintText: 'Set duration',
-                border: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _hoursController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (_) => setState(() {}),
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                    decoration: InputDecoration(
+                      labelText: 'Hours',
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceContainerHighest,
+                      border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                    ),
+                  ),
                 ),
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest,
-                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                suffixIcon: (_hoursController.text != '0' || _minutesController.text != '0')
-                    ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    setState(() {
-                      _hoursController.text = '0';
-                      _minutesController.text = '0';
-                      _startTimeController.clear();
-                      _endTimeController.clear();
-                    });
-                  },
-                )
-                    : const Icon(Icons.access_time),
-              ),
-              onTapOutside: (event) {
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _minutesController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (v) {
+                      final val = int.tryParse(v);
+                      if (val != null && val > 59) _minutesController.text = '59';
+                      setState(() {});
+                    },
+                    onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                    decoration: InputDecoration(
+                      labelText: 'Minutes',
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceContainerHighest,
+                      border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Center(
@@ -1137,73 +740,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
               child: _showTimeRange ? Column(
                 children: [
                   const SizedBox(height: 8),
-                  _buildTimeFormatToggle(),
+                  _buildTimeRow('Start Time', _startHoursController, _startMinutesController, theme),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          readOnly: true,
-                          onTap: () => _useElapsedTimeFormat
-                              ? _showElapsedTimePicker(context, true)
-                              : _showTimePicker(context, true),
-                          controller: _startTimeController,
-                          decoration: InputDecoration(
-                            labelText: 'Start Time',
-                            hintText: 'Select start time',
-                            border: UnderlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            filled: true,
-                            fillColor: theme.colorScheme.surfaceContainer,
-                            contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                            suffixIcon: _startTimeController.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () => _clearField(_startTimeController),
-                                  )
-                                : null,
-                          ),
-                          onTapOutside: (event) {
-                            FocusManager.instance.primaryFocus?.unfocus();
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Icon(Icons.arrow_forward, color: theme.colorScheme.onSurface.withAlpha(153)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          readOnly: true,
-                          onTap: () => _useElapsedTimeFormat
-                              ? _showElapsedTimePicker(context, false)
-                              : _showTimePicker(context, false),
-                          controller: _endTimeController,
-                          decoration: InputDecoration(
-                            labelText: 'End Time',
-                            hintText: 'Select end time',
-                            border: UnderlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            filled: true,
-                            fillColor: theme.colorScheme.surfaceContainer,
-                            contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                            suffixIcon: _endTimeController.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () => _clearField(_endTimeController),
-                                  )
-                                : null,
-                          ),
-                          onTapOutside: (event) {
-                            FocusManager.instance.primaryFocus?.unfocus();
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
+                  _buildTimeRow('End Time', _endHoursController, _endMinutesController, theme),
                 ],
               ) : const SizedBox.shrink(),
             ),
@@ -1270,9 +809,16 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 ),
                 contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                 alignLabelWithHint: true,
+                suffixIcon: _notesController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () => setState(() => _notesController.clear()),
+                      )
+                    : null,
               ),
               minLines: 2,
               maxLines: null,
+              onChanged: (_) => setState(() {}),
               onTapOutside: (event) {
                 FocusManager.instance.primaryFocus?.unfocus();
               },
