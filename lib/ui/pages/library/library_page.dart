@@ -7,6 +7,7 @@ import 'widgets/book_detail_sheet.dart';
 import 'widgets/book_row.dart';
 import 'widgets/filter_sort_sheet.dart';
 import 'book_form_page.dart';
+import 'widgets/book_search_sheet.dart';
 import '../sessions/session_form_page.dart';
 import '../sessions/widgets/rate_book_dialog.dart';
 import '/data/database/database_helper.dart';
@@ -276,17 +277,18 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  void _navigateToAddBookPage() async {    await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => BookFormPage(
-        onSave: (book) async {
-          widget.refreshBooks();
-        },
-        settingsViewModel: widget.settingsViewModel,
+  void _navigateToAddBookPage() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BookSearchSheet(
+          settingsViewModel: widget.settingsViewModel,
+          onSave: (book) async {
+            widget.refreshBooks();
+          },
+        ),
       ),
-    ),
-  );
+    );
   }
 
   void _navigateToEditBookPage(Map<String, dynamic>? book) async {

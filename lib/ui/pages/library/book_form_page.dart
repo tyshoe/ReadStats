@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:read_stats/ui/pages/library/widgets/book_tag_editor_page.dart';
 import 'package:read_stats/ui/pages/library/widgets/barcode_scanner_page.dart';
+import 'package:read_stats/data/services/book_search_service.dart';
 import '../../../data/database/database_helper.dart';
 import '../../../data/models/book.dart';
 import '../../../data/models/tag.dart';
@@ -18,6 +19,7 @@ import '/viewmodels/SettingsViewModel.dart';
 
 class BookFormPage extends StatefulWidget {
   final Map<String, dynamic>? book;
+  final BookSearchResult? searchResult;
   final Function(Map<String, dynamic>) onSave;
   final SettingsViewModel settingsViewModel;
   final bool isEditing;
@@ -25,6 +27,7 @@ class BookFormPage extends StatefulWidget {
   const BookFormPage({
     super.key,
     this.book,
+    this.searchResult,
     required this.onSave,
     required this.settingsViewModel,
   }) : isEditing = book != null;
@@ -56,6 +59,7 @@ class _BookFormPageState extends State<BookFormPage> {
   bool _titleTitleCaseEnabled = true;
   bool _authorTitleCaseEnabled = true;
   File? _coverFile;
+  String? _coverUrl;
   bool _coverChanged = false;
   bool _isPickingCover = false;
 
@@ -65,6 +69,10 @@ class _BookFormPageState extends State<BookFormPage> {
     _useStarRating = widget.settingsViewModel.defaultRatingStyleNotifier.value == 0;
     _selectedBookType = widget.settingsViewModel.defaultBookTypeNotifier.value - 1;
     _loadShelves();
+
+    if (widget.searchResult != null) {
+      _prefillFromSearchResult(widget.searchResult!);
+    }
 
     if (widget.isEditing) {
       _titleController.text = widget.book!['title'];
@@ -302,6 +310,45 @@ class _BookFormPageState extends State<BookFormPage> {
     });
   }
 
+  void _prefillFromSearchResult(BookSearchResult result) {
+    _titleController.text = result.title;
+    _authorController.text = result.author;
+    if (result.pageCount != null) _pageCountController.text = result.pageCount.toString();
+    if (result.isbn != null) _isbnController.text = result.isbn!;
+    if (result.thumbnailUrl != null) {
+      _coverUrl = result.thumbnailUrl;
+      CoverService.downloadFromUrl(result.thumbnailUrl!).then((file) {
+        if (file != null && mounted) {
+          setState(() => _coverFile = file);
+        }
+      });
+    }
+  }
+
+  Future<void> _lookupByIsbn(String isbn) async {
+    final result = await BookSearchService.lookupByIsbn(isbn);
+    if (result == null || !mounted) return;
+    if (_titleController.text.isEmpty) {
+      _titleController.text = result.title;
+    }
+    if (_authorController.text.isEmpty) {
+      _authorController.text = result.author;
+    }
+    if (_pageCountController.text.isEmpty && result.pageCount != null) {
+      _pageCountController.text = result.pageCount.toString();
+    }
+    setState(() {});
+    if (_coverFile == null && result.thumbnailUrl != null) {
+      final file = await CoverService.downloadFromUrl(result.thumbnailUrl!);
+      if (file != null && mounted) {
+        setState(() {
+          _coverFile = file;
+          _coverChanged = true;
+        });
+      }
+    }
+  }
+
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -409,7 +456,8 @@ class _BookFormPageState extends State<BookFormPage> {
     final theme = Theme.of(context);
     const double coverW = 150;
     const double coverH = 230;
-    final double areaH = _coverFile != null ? 300.0 : 90.0;
+    final bool hasCover = _coverFile != null || _coverUrl != null;
+    final double areaH = hasCover ? 300.0 : 90.0;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -420,7 +468,14 @@ class _BookFormPageState extends State<BookFormPage> {
           alignment: Alignment.center,
           children: [
             // Background — blurred cover or plain surface
-            if (_coverFile != null)
+            if (_coverUrl != null)
+              Positioned.fill(
+                child: ImageFiltered(
+                  imageFilter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                  child: Image.network(_coverUrl!, fit: BoxFit.cover),
+                ),
+              )
+            else if (_coverFile != null)
               Positioned.fill(
                 child: ImageFiltered(
                   imageFilter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
@@ -433,7 +488,7 @@ class _BookFormPageState extends State<BookFormPage> {
               ),
 
             // Dim overlay so cover pops
-            if (_coverFile != null)
+            if (hasCover)
               Positioned.fill(
                 child: Container(color: Colors.black.withValues(alpha: 0.35)),
               ),
@@ -451,6 +506,7 @@ class _BookFormPageState extends State<BookFormPage> {
                       if (file != null && mounted) {
                         setState(() {
                           _coverFile = file;
+                          _coverUrl = null;
                           _coverChanged = true;
                         });
                       }
@@ -468,21 +524,40 @@ class _BookFormPageState extends State<BookFormPage> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: _coverFile != null
-                      ? Image.file(
-                          _coverFile!,
+                  child: _coverUrl != null
+                      ? Image.network(
+                          _coverUrl!,
                           width: coverW,
                           height: coverH,
                           fit: BoxFit.cover,
+                          loadingBuilder: (_, child, progress) {
+                            if (progress == null) return child;
+                            return _CoverLoadingPlaceholder(
+                              width: coverW,
+                              height: coverH,
+                              theme: theme,
+                              progress: progress.expectedTotalBytes != null
+                                  ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                                  : null,
+                            );
+                          },
                           errorBuilder: (_, __, ___) => _coverPlaceholder(theme, coverW, coverH),
                         )
-                      : _emptyPlaceholder(theme),
+                      : _coverFile != null
+                          ? Image.file(
+                              _coverFile!,
+                              width: coverW,
+                              height: coverH,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _coverPlaceholder(theme, coverW, coverH),
+                            )
+                          : _emptyPlaceholder(theme),
                 ),
               ],
             ),
 
             // Remove button — top-right corner
-            if (_coverFile != null)
+            if (hasCover)
               Positioned(
                 top: 8,
                 right: 8,
@@ -490,6 +565,7 @@ class _BookFormPageState extends State<BookFormPage> {
                   onPressed: () {
                     setState(() {
                       _coverFile = null;
+                      _coverUrl = null;
                       _coverChanged = true;
                     });
                   },
@@ -970,6 +1046,7 @@ class _BookFormPageState extends State<BookFormPage> {
                               setState(() {
                                 _isbnController.text = result;
                               });
+                              _lookupByIsbn(result);
                             }
                           },
                           child: const Center(
@@ -1368,6 +1445,73 @@ class _BookFormPageState extends State<BookFormPage> {
           ),
         ),
       ],
+      ),
+    );
+  }
+}
+
+class _CoverLoadingPlaceholder extends StatefulWidget {
+  final double width;
+  final double height;
+  final ThemeData theme;
+  final double? progress;
+
+  const _CoverLoadingPlaceholder({
+    required this.width,
+    required this.height,
+    required this.theme,
+    this.progress,
+  });
+
+  @override
+  State<_CoverLoadingPlaceholder> createState() => _CoverLoadingPlaceholderState();
+}
+
+class _CoverLoadingPlaceholderState extends State<_CoverLoadingPlaceholder>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _anim = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final base = widget.theme.colorScheme.surfaceContainerHighest;
+    final highlight = widget.theme.colorScheme.surfaceContainerHigh;
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Container(
+        width: widget.width,
+        height: widget.height,
+        decoration: BoxDecoration(
+          color: Color.lerp(base, highlight, _anim.value),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: widget.progress != null
+            ? Align(
+                alignment: Alignment.bottomCenter,
+                child: LinearProgressIndicator(
+                  value: widget.progress,
+                  minHeight: 2,
+                  backgroundColor: Colors.transparent,
+                  color: widget.theme.colorScheme.primary.withValues(alpha: 0.5),
+                ),
+              )
+            : null,
       ),
     );
   }

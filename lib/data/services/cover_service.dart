@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -45,6 +46,24 @@ class CoverService {
     final dir = await _coversDir();
     final file = File(p.join(dir.path, p.basename(path)));
     if (await file.exists()) await file.delete();
+  }
+
+  /// Download a cover image from [url] and return a temporary [File].
+  /// Returns null if the download fails or [url] is empty.
+  static Future<File?> downloadFromUrl(String url) async {
+    if (url.isEmpty) return null;
+    try {
+      final response =
+          await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) return null;
+      final dir = await getTemporaryDirectory();
+      final file = File(
+          '${dir.path}/api_cover_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await file.writeAsBytes(response.bodyBytes);
+      return file;
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<Directory> _coversDir() async {
