@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import '../../../widgets/app_snackbar.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
@@ -721,43 +720,37 @@ class BookPopup {
       return byteData?.buffer.asUint8List();
     }
 
-    Future<void> saveImage(GlobalKey key) async {
+    Future<bool> saveImage(GlobalKey key) async {
       try {
         final imageBytes = await captureKey(key);
-        if (imageBytes == null) return;
-
+        if (imageBytes == null) return false;
         final result = await ImageGallerySaverPlus.saveImage(
           imageBytes,
           quality: 100,
           name: 'book_share_${book['id']}_${DateTime.now().millisecondsSinceEpoch}',
         );
-
-        AppSnackbar.show(
-          result['isSuccess'] == true ? 'Image saved to gallery!' : 'Failed to save image',
-          isError: result['isSuccess'] != true,
-        );
+        return result['isSuccess'] == true;
       } catch (e) {
-        AppSnackbar.show('Error saving image', isError: true);
+        return false;
       }
     }
 
-    Future<void> shareImage(GlobalKey key) async {
+    Future<bool> shareImage(GlobalKey key) async {
       try {
         final imageBytes = await captureKey(key);
-        if (imageBytes == null) return;
-
+        if (imageBytes == null) return false;
         final directory = await getTemporaryDirectory();
         final imagePath = '${directory.path}/book_share_${book['id']}.png';
         await File(imagePath).writeAsBytes(imageBytes);
-
         await SharePlus.instance.share(
           ShareParams(
             files: [XFile(imagePath)],
             text: 'Just finished "${book['title']}" — here are my reading stats!',
           ),
         );
+        return true;
       } catch (e) {
-        AppSnackbar.show('Error sharing image', isError: true);
+        return false;
       }
     }
 
@@ -770,7 +763,12 @@ class BookPopup {
         final GlobalKey minimalKey = GlobalKey();
         final CarouselSliderController carouselController = CarouselSliderController();
         int currentPage = 0;
-        _ShareCardTheme selectedTheme = _ShareCardTheme.dark;
+        bool isSaving = false;
+        bool isSharing = false;
+        bool saveSuccess = false;
+        String? actionError;
+        final appIsDark = Theme.of(context).brightness == Brightness.dark;
+        _ShareCardTheme selectedTheme = appIsDark ? _ShareCardTheme.dark : _ShareCardTheme.light;
 
         final args = (
           title: book['title'] as String,
@@ -814,7 +812,7 @@ class BookPopup {
                   borderRadius: BorderRadius.circular(20),
                   child: Stack(
                     children: [
-                      const Positioned.fill(child: CheckerboardBackground()),
+                      const Positioned.fill(child: CheckerboardBackground(squareSize: _kCheckerSquareSize)),
                       RepaintBoundary(key: key, child: card),
                     ],
                   ),
@@ -848,7 +846,8 @@ class BookPopup {
                     carouselController: carouselController,
                     options: CarouselOptions(
                       height: 480,
-                      enlargeCenterPage: false,
+                      enlargeCenterPage: true,
+                      enlargeFactor: 0.08,
                       viewportFraction: 0.78,
                       enableInfiniteScroll: false,
                       onPageChanged: (index, _) =>
@@ -867,21 +866,28 @@ class BookPopup {
                     ],
                   ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   AnimatedSmoothIndicator(
                     activeIndex: currentPage,
                     count: 2,
                     effect: WormEffect(
-                      dotHeight: 8,
-                      dotWidth: 8,
+                      dotHeight: 7,
+                      dotWidth: 7,
                       activeDotColor: theme.colorScheme.primary,
                       dotColor: theme.colorScheme.onSurface.withValues(alpha: 0.25),
                     ),
                     onDotClicked: (index) =>
                         carouselController.animateToPage(index),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    currentPage == 0 ? 'Cover card' : 'Minimal card',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
                   // Theme selector
                   Row(
@@ -913,9 +919,34 @@ class BookPopup {
                         selected: selectedTheme == _ShareCardTheme.transparent,
                         onTap: () =>
                             setState(() => selectedTheme = _ShareCardTheme.transparent),
-                        child: ClipOval(child: CheckerboardBackground(squareSize: 12)),
+                        child: ClipOval(child: CheckerboardBackground(squareSize: _kCheckerSquareSize)),
                       ),
                     ],
+                  ),
+                  if (isTransparent) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Saves as PNG with transparency',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    child: actionError != null
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Text(
+                              actionError!,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.error,
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
                   ),
 
                   const SizedBox(height: 16),
@@ -926,18 +957,39 @@ class BookPopup {
                         icon: FluentIcons.arrow_download_16_filled,
                         label: 'Save',
                         theme: theme,
-                        onTap: () async {
+                        isLoading: isSaving,
+                        isSuccess: saveSuccess,
+                        onTap: isSaving || isSharing || saveSuccess ? null : () async {
+                          setState(() { isSaving = true; actionError = null; });
                           final key = currentPage == 0 ? coverKey : minimalKey;
-                          await saveImage(key);
+                          final success = await saveImage(key);
+                          if (success) {
+                            setState(() { isSaving = false; saveSuccess = true; });
+                            Future.delayed(const Duration(milliseconds: 1400), () {
+                              if (context.mounted) Navigator.pop(context);
+                            });
+                          } else {
+                            setState(() {
+                              isSaving = false;
+                              actionError = 'Failed to save. Please try again.';
+                            });
+                          }
                         },
                       ),
                       _ShareAction(
                         icon: FluentIcons.share_16_filled,
                         label: 'Share',
                         theme: theme,
-                        onTap: () async {
+                        isLoading: isSharing,
+                        onTap: isSaving || isSharing || saveSuccess ? null : () async {
+                          setState(() { isSharing = true; actionError = null; });
                           final key = currentPage == 0 ? coverKey : minimalKey;
-                          await shareImage(key);
+                          final success = await shareImage(key);
+                          if (!success) {
+                            setState(() { isSharing = false; actionError = 'Failed to share. Please try again.'; });
+                          } else {
+                            setState(() => isSharing = false);
+                          }
                         },
                       ),
                     ],
@@ -1107,17 +1159,23 @@ class _PopupAction extends StatelessWidget {
 
 enum _ShareCardTheme { light, dark, transparent }
 
+const double _kCheckerSquareSize = 22;
+
 class _ShareAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final ThemeData theme;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool isLoading;
+  final bool isSuccess;
 
   const _ShareAction({
     required this.icon,
     required this.label,
     required this.theme,
     required this.onTap,
+    this.isLoading = false,
+    this.isSuccess = false,
   });
 
   @override
@@ -1129,18 +1187,44 @@ class _ShareAction extends StatelessWidget {
           width: 56,
           height: 56,
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
+            color: isSuccess
+                ? const Color(0xFF34C759)
+                : theme.colorScheme.surfaceContainerHighest,
             shape: BoxShape.circle,
           ),
-          child: IconButton(
-            icon: Icon(icon, size: 26),
-            color: theme.colorScheme.onSurface,
-            onPressed: onTap,
-          ),
+          child: isLoading
+              ? Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                )
+              : isSuccess
+                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 28)
+                  : IconButton(
+                      icon: Icon(icon, size: 26),
+                      color: onTap != null
+                          ? theme.colorScheme.onSurface
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                      onPressed: onTap,
+                    ),
         ),
         const SizedBox(height: 6),
-        Text(label,
-            style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+        Text(
+          isSuccess ? 'Saved!' : label,
+          style: TextStyle(
+            fontSize: 12,
+            color: isSuccess
+                ? const Color(0xFF34C759)
+                : onTap != null
+                    ? theme.colorScheme.onSurfaceVariant
+                    : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+          ),
+        ),
       ],
     );
   }

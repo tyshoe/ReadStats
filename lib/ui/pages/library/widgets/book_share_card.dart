@@ -337,7 +337,7 @@ class _BookShareCardState extends State<BookShareCard> {
 class CheckerboardBackground extends StatelessWidget {
   final double squareSize;
 
-  const CheckerboardBackground({super.key, this.squareSize = 14});
+  const CheckerboardBackground({super.key, this.squareSize = 22});
 
   @override
   Widget build(BuildContext context) {
