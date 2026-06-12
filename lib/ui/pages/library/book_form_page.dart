@@ -208,6 +208,9 @@ class _BookFormPageState extends State<BookFormPage> {
       "user_review":
       _userReviewController.text.trim().isEmpty ? null : _userReviewController.text.trim(),
       "cover_path": widget.isEditing ? widget.book!['cover_path'] as String? : null,
+      "open_library_key": widget.isEditing
+          ? widget.book!['open_library_key'] as String?
+          : widget.searchResult?.workKey,
     };
 
     try {

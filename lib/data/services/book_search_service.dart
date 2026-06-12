@@ -10,6 +10,8 @@ class BookSearchResult {
   final int? firstPublishYear;
   final double? ratingsAverage;
   final int? ratingsCount;
+  // e.g. "/works/OL12345W" — stable Open Library identifier
+  final String? workKey;
 
   const BookSearchResult({
     required this.title,
@@ -20,6 +22,7 @@ class BookSearchResult {
     this.firstPublishYear,
     this.ratingsAverage,
     this.ratingsCount,
+    this.workKey,
   });
 }
 
@@ -65,10 +68,11 @@ enum BookSortOption {
 class BookSearchService {
   static const String _searchBase = 'https://openlibrary.org/search.json';
   static const String _coverBase = 'https://covers.openlibrary.org/b/id';
+  static const String _coverOlidBase = 'https://covers.openlibrary.org/b/olid';
   static const String _isbnBase = 'https://openlibrary.org/api/books';
 
   static const String _fields =
-      'title,author_name,number_of_pages_median,isbn,cover_i,'
+      'key,title,author_name,number_of_pages_median,isbn,cover_i,'
       'first_publish_year,ratings_average,ratings_count';
 
   static const int _pageSize = 20;
@@ -151,6 +155,7 @@ class BookSearchService {
       final firstPublishYear = map['first_publish_year'] as int?;
       final ratingsAverage = (map['ratings_average'] as num?)?.toDouble();
       final ratingsCount = map['ratings_count'] as int?;
+      final workKey = map['key'] as String?;
 
       final isbns = (map['isbn'] as List<dynamic>?)?.cast<String>() ?? [];
       final isbn = isbns.firstWhere(
@@ -170,6 +175,7 @@ class BookSearchService {
         firstPublishYear: firstPublishYear,
         ratingsAverage: ratingsAverage,
         ratingsCount: ratingsCount,
+        workKey: workKey,
       );
     } catch (_) {
       return null;

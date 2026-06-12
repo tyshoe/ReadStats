@@ -310,6 +310,18 @@ class _BookSearchSheetState extends State<BookSearchSheet> {
                 onPressed: () => _search(_searchController.text),
                 child: const Text('Try Again'),
               ),
+              const SizedBox(height: 40),
+              OutlinedButton.icon(
+                onPressed: _openManualForm,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add manually'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.onSurfaceVariant,
+                  side: BorderSide(color: theme.colorScheme.outlineVariant),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                ),
+              ),
             ],
           ),
         ),

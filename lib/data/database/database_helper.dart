@@ -9,7 +9,7 @@ class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
-  static const int _databaseVersion = 4;
+  static const int _databaseVersion = 5;
 
   // System shelf IDs — stable because shelves are seeded in a fixed order
   // and only exist from v2 onwards (v1 had no shelves).
@@ -324,6 +324,10 @@ class DatabaseHelper {
 
       // Drop is_completed — date_finished IS NOT NULL is the single source of truth.
       await db.execute('ALTER TABLE books DROP COLUMN is_completed');
+    }
+
+    if (oldVersion < 5) {
+      await db.execute('ALTER TABLE books ADD COLUMN open_library_key TEXT');
     }
 
   }
