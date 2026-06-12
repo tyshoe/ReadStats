@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../widgets/app_snackbar.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
@@ -266,9 +267,7 @@ class _BookFormPageState extends State<BookFormPage> {
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) {
-        _showSnackBar('Error saving book: ${e.toString()}');
-      }
+      debugPrint('Error saving book: $e');
     }
   }
 
@@ -281,14 +280,12 @@ class _BookFormPageState extends State<BookFormPage> {
         });
       }
     } catch (e) {
-      if (mounted) {
-        _showSnackBar('Error loading tags: ${e.toString()}');
-      }
+      debugPrint('Error loading tags: $e');
     }
   }
 
   void _handleSaveSuccess() {
-    _showSnackBar(widget.isEditing ? 'Book updated successfully!' : 'Book added successfully!');
+    AppSnackbar.show(widget.isEditing ? 'Book updated successfully!' : 'Book added successfully!');
     if (!widget.isEditing) {
       _clearFormInputs();
     }
@@ -352,21 +349,6 @@ class _BookFormPageState extends State<BookFormPage> {
     }
   }
 
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          margin: const EdgeInsets.only(left: 20, right: 20),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-  }
 
 
   void _clearStartDate() {

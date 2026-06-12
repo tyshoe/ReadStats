@@ -332,17 +332,6 @@ Future<void> showRatingDialogForBook({
     onRate: (rating, review) async {
       try {
         await bookRepository.updateBookRating(book['id'], rating, review: review);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Rating saved!'),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              margin: const EdgeInsets.only(left: 20, right: 20),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
       } catch (_) {
       } finally {
         completer.complete();

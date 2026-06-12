@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../../../widgets/app_snackbar.dart';
 
 class BarcodeScannerPage extends StatefulWidget {
   const BarcodeScannerPage({super.key});
@@ -35,9 +36,7 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
       HapticFeedback.mediumImpact();
       Navigator.of(context).pop(value);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No barcode found in image')),
-      );
+      AppSnackbar.show('No barcode found in image');
     }
   }
 

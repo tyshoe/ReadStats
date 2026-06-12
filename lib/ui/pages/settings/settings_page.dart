@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import '../../widgets/app_snackbar.dart';
 import 'package:intl/intl.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -269,14 +270,7 @@ class SettingsPage extends StatelessWidget {
       ) async {
     final result = await action();
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result.message),
-          backgroundColor: result.success
-              ? Theme.of(context).colorScheme.primary
-              : Theme.of(context).colorScheme.error,
-        ),
-      );
+      AppSnackbar.show(result.message, isError: !result.success);
       if (result.success) {
         refreshBooks();
         refreshSessions();

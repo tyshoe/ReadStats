@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../widgets/app_snackbar.dart';
 import 'package:read_stats/ui/pages/library/widgets/book_grid.dart';
 import '../../../data/repositories/tag_repository.dart';
 import 'widgets/bulk_tag_sheet.dart';
@@ -189,20 +190,8 @@ class _LibraryPageState extends State<LibraryPage> {
 
     if (!mounted) return;
 
-    final messenger = ScaffoldMessenger.of(context);
     final bookWord = updatedCount == 1 ? 'book' : 'books';
-
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('Tags updated for $updatedCount $bookWord'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    AppSnackbar.show('Tags updated for $updatedCount $bookWord');
 
     _clearSelection();
   }
@@ -611,25 +600,7 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   void _showRandomBook() {
-    if (_filteredBooks.isEmpty) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text('No books available to choose from'),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            margin: EdgeInsets.only(
-              left: 20,
-              right: 20,
-            ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      return;
-    }
+    if (_filteredBooks.isEmpty) return;
 
     final randomBook = (_filteredBooks.toList()..shuffle()).first;
     _showBookPopup(context, randomBook);
@@ -662,24 +633,12 @@ class _LibraryPageState extends State<LibraryPage> {
 
     if (confirmed != true || !mounted) return;
 
-    final messenger = ScaffoldMessenger.of(context);
     final bookRepository = BookRepository(DatabaseHelper());
     await bookRepository.deleteBooksBatch(_selectedBookIds.toList());
 
     widget.refreshBooks();
     _clearSelection();
-
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('$count $bookWord deleted'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    AppSnackbar.show('$count $bookWord deleted');
   }
 
   @override

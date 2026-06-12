@@ -17,6 +17,7 @@ import 'ui/pages/sessions/sessions_page.dart';
 import 'ui/pages/statistics/statistics_page.dart';
 import 'ui/themes/app_theme.dart';
 import 'viewmodels/SettingsViewModel.dart';
+import 'ui/widgets/app_snackbar.dart';
 import 'app_config.dart';
 
 void main() async {
@@ -229,6 +230,7 @@ class _MyAppState extends State<MyApp> {
                 return MaterialApp(
                   title: 'ReadStats',
                   debugShowCheckedModeBanner: false,
+                  scaffoldMessengerKey: scaffoldMessengerKey,
                   theme: AppTheme.lightTheme(_settingsViewModel),
                   darkTheme: AppTheme.darkTheme(_settingsViewModel),
                   themeMode: themeMode,

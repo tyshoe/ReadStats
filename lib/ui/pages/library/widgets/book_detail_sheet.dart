@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import '../../../widgets/app_snackbar.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
@@ -710,7 +711,6 @@ class BookPopup {
       String? dateRangeString,
       ) {
     final theme = Theme.of(context);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     Future<Uint8List?> captureKey(GlobalKey key) async {
       final boundary =
@@ -732,14 +732,12 @@ class BookPopup {
           name: 'book_share_${book['id']}_${DateTime.now().millisecondsSinceEpoch}',
         );
 
-        scaffoldMessenger.showSnackBar(SnackBar(
-          content: Text(result['isSuccess'] == true
-              ? 'Image saved to gallery!'
-              : 'Failed to save image'),
-        ));
+        AppSnackbar.show(
+          result['isSuccess'] == true ? 'Image saved to gallery!' : 'Failed to save image',
+          isError: result['isSuccess'] != true,
+        );
       } catch (e) {
-        scaffoldMessenger
-            .showSnackBar(SnackBar(content: Text('Error saving: $e')));
+        AppSnackbar.show('Error saving image', isError: true);
       }
     }
 
@@ -759,8 +757,7 @@ class BookPopup {
           ),
         );
       } catch (e) {
-        scaffoldMessenger
-            .showSnackBar(SnackBar(content: Text('Error sharing: $e')));
+        AppSnackbar.show('Error sharing image', isError: true);
       }
     }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import '../../widgets/app_snackbar.dart';
 import 'package:intl/intl.dart';
 import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
@@ -49,6 +50,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
   late DateTime _sessionDate;
   int? _targetShelfId;
   bool _showTimeRange = false;
+  String? _timeRangeError;
   Map<String, dynamic>? _selectedBook;
 
   @override
@@ -110,10 +112,11 @@ class _SessionFormPageState extends State<SessionFormPage> {
     final endTotal = endH * 60 + endM;
 
     if (endTotal <= startTotal) {
-      _showSnackBar('End time must be after start time');
+      setState(() => _timeRangeError = 'End time must be after start time');
       return 0;
     }
 
+    setState(() => _timeRangeError = null);
     return endTotal - startTotal;
   }
 
@@ -185,12 +188,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
         _minutesController.text.isNotEmpty) {
       final int? hours = int.tryParse(_hoursController.text);
       final int? minutes = int.tryParse(_minutesController.text);
-
-      if ((hours != null && hours < 0) || (minutes != null && minutes < 0)) {
-        _showSnackBar('Duration values cannot be negative');
-        return;
-      }
-
       final calculatedDuration = (hours ?? 0) * 60 + (minutes ?? 0);
       if (calculatedDuration > 0) {
         durationMinutes = calculatedDuration;
@@ -212,7 +209,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
       if (widget.isEditing) {
         await widget.sessionRepository.updateSession(session);
         widget.onSave();
-        _showSnackBar('Session updated successfully!');
+        AppSnackbar.show('Session updated successfully!');
         if (mounted) Navigator.pop(context);
       } else {
         await widget.sessionRepository.addSession(session);
@@ -239,7 +236,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
           );
         }
 
-        _showSnackBar('Session added successfully!');
+        AppSnackbar.show('Session added successfully!');
 
         widget.onSave();
         if (mounted) {
@@ -247,25 +244,10 @@ class _SessionFormPageState extends State<SessionFormPage> {
         }
       }
     } catch (e) {
-      _showSnackBar('Failed to save session. Please try again.');
+      debugPrint('Error saving session: $e');
     }
   }
 
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          margin: const EdgeInsets.only(left: 20, right: 20),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-  }
 
   Widget _buildTimeRow(
     String label,
@@ -937,6 +919,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                             curve: Curves.easeInOut,
                             child: _showTimeRange
                                 ? Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       const SizedBox(height: 8),
                                       _buildTimeRow(
@@ -952,6 +935,15 @@ class _SessionFormPageState extends State<SessionFormPage> {
                                         _endMinutesController,
                                         theme,
                                       ),
+                                      if (_timeRangeError != null) ...[
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          _timeRangeError!,
+                                          style: theme.textTheme.labelSmall?.copyWith(
+                                            color: theme.colorScheme.error,
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   )
                                 : const SizedBox.shrink(),
