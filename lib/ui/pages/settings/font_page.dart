@@ -72,7 +72,6 @@ class FontSelectionPage extends StatelessWidget {
                         book: _sampleBook,
                         textColor: colors.onSurface,
                         onTap: () {},
-                        isCompactView: false,
                         showStars: true,
                         dateFormatString: 'MMM d, yyyy',
                       ),

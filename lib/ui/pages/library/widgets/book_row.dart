@@ -6,7 +6,6 @@ class BookRow extends StatelessWidget {
   final Map<String, dynamic> book;
   final Color textColor;
   final VoidCallback onTap;
-  final bool isCompactView;
   final bool showStars;
   final String dateFormatString;
   final bool isSelected;
@@ -18,7 +17,6 @@ class BookRow extends StatelessWidget {
     required this.book,
     required this.textColor,
     required this.onTap,
-    required this.isCompactView,
     required this.showStars,
     required this.dateFormatString,
     this.isSelected = false,
@@ -89,7 +87,7 @@ class BookRow extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       elevation: 0,
-      color: isSelected ? selectionColor.withOpacity(0.45) : Theme.of(context).cardTheme.color,
+      color: isSelected ? selectionColor.withValues(alpha: 0.45) : theme.cardTheme.color,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
@@ -107,7 +105,7 @@ class BookRow extends StatelessWidget {
                     child: Text(
                       book['title'],
                       style: theme.textTheme.bodyLarge,
-                      maxLines: isCompactView ? 1 : 2,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -153,52 +151,50 @@ class BookRow extends StatelessWidget {
                 ),
               ),
 
-              // Expanded details section (only for non-compact view)
-              if (!isCompactView) ...[
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Rating
-                      if (showStars)
-                        RatingBarIndicator(
-                          rating: book['rating']?.toDouble() ?? 0.0,
-                          itemCount: 5,
-                          itemSize: 20,
-                          itemBuilder: (context, _) => const Icon(
-                            Icons.star,
-                            color: Color(0xFFFBCB04),
-                          ),
-                        )
-                      else
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              book['rating'] != null ? book['rating'].toStringAsFixed(1) : '-',
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.star, size: 16, color: Color(0xFFFBCB04)),
-                          ],
+              // Rating + date range
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Rating
+                    if (showStars)
+                      RatingBarIndicator(
+                        rating: book['rating']?.toDouble() ?? 0.0,
+                        itemCount: 5,
+                        itemSize: 20,
+                        itemBuilder: (context, _) => const Icon(
+                          Icons.star,
+                          color: Color(0xFFFBCB04),
                         ),
-
-                      // Date range
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          dateRangeString,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 153),
+                      )
+                    else
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            book['rating'] != null ? book['rating'].toStringAsFixed(1) : '-',
+                            style: theme.textTheme.bodyMedium,
                           ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.star, size: 16, color: Color(0xFFFBCB04)),
+                        ],
+                      ),
+
+                    // Date range
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        dateRangeString,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ],
           ),
         ),

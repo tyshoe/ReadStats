@@ -173,7 +173,10 @@ class SettingsViewModel {
   // Load saved book format filter
   static Future<String> getLibraryBookView() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('libraryBookView') ?? 'row_expanded';
+    final view = prefs.getString('libraryBookView');
+    // Only 'grid' survives; legacy 'row_expanded'/'row_compact', null, or
+    // anything unexpected all collapse to the default 'rows'.
+    return view == 'grid' ? 'grid' : 'rows';
   }
 
   // Save finished year filter

@@ -41,7 +41,7 @@ class LibraryPage extends StatefulWidget {
 
 class _LibraryPageState extends State<LibraryPage> {
   final DatabaseHelper _dbHelper = DatabaseHelper();
-  String _libraryBookView = 'row_expanded';
+  String _libraryBookView = 'rows';
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _filteredBooks = [];
@@ -695,8 +695,7 @@ class _LibraryPageState extends State<LibraryPage> {
             onSelected: (value) {
               if (value == 'random') {
                 _showRandomBook();
-              } else if (value == 'view_row_expanded' ||
-                  value == 'view_row_compact' ||
+              } else if (value == 'view_rows' ||
                   value == 'view_grid') {
                 _toggleView(value.replaceFirst('view_', ''));
               }
@@ -708,25 +707,13 @@ class _LibraryPageState extends State<LibraryPage> {
               ),
               const PopupMenuDivider(),
               PopupMenuItem<String>(
-                value: 'view_row_expanded',
+                value: 'view_rows',
                 child: ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.density_medium, size: 20),
-                  title: const Text('Expanded rows'),
-                  trailing: _libraryBookView == 'row_expanded'
-                      ? Icon(Icons.check, size: 18, color: theme.colorScheme.primary)
-                      : null,
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'view_row_compact',
-                child: ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.density_small, size: 20),
-                  title: const Text('Compact rows'),
-                  trailing: _libraryBookView == 'row_compact'
+                  leading: const Icon(Icons.view_agenda_outlined, size: 20),
+                  title: const Text('Rows'),
+                  trailing: _libraryBookView == 'rows'
                       ? Icon(Icons.check, size: 18, color: theme.colorScheme.primary)
                       : null,
                 ),
@@ -965,7 +952,6 @@ class _LibraryPageState extends State<LibraryPage> {
                                 child: BookRow(
                                   book: book,
                                   textColor: theme.colorScheme.onSurface,
-                                  isCompactView: _libraryBookView == "row_compact",
                                   showStars: widget.settingsViewModel
                                       .defaultRatingStyleNotifier.value ==
                                       0,
