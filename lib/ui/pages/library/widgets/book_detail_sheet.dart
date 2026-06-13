@@ -774,14 +774,17 @@ class BookPopup {
           title: book['title'] as String,
           author: book['author'] as String,
           rating: (book['rating'] as num?)?.toDouble() ?? 0.0,
-          totalWords: (book['word_count'] as num?)?.toInt() ?? 0,
           totalPages: (stats['total_pages'] as num?)?.toInt() ?? 0,
+          wordCount: (book['word_count'] as int?) ?? 0,
           daysToComplete:
               _calculateDaysToComplete(book['date_started'], book['date_finished']),
           pagesPerMinute: (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0,
           wordsPerMinute: (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0,
           totalTime: (stats['total_time'] as num?)?.toInt() ?? 0,
+          sessionCount: (stats['session_count'] as num?)?.toInt() ?? 0,
           dateRangeString: dateRangeString,
+          userReview: book['user_review'] as String?,
+          bookTypeName: _bookTypeName(book['book_type_id'] as int?),
         );
 
         return StatefulBuilder(
@@ -794,36 +797,49 @@ class BookPopup {
                 title: args.title,
                 author: args.author,
                 rating: args.rating,
-                totalWords: args.totalWords,
                 totalPages: args.totalPages,
+                wordCount: args.wordCount,
                 daysToComplete: args.daysToComplete,
                 pagesPerMinute: args.pagesPerMinute,
                 wordsPerMinute: args.wordsPerMinute,
                 totalTime: args.totalTime,
+                sessionCount: args.sessionCount,
                 dateRangeString: args.dateRangeString,
+                userReview: args.userReview,
+                bookTypeName: args.bookTypeName,
                 allowCoverUpload: allowCoverUpload,
+                headerColor: theme.colorScheme.primary,
                 isTransparent: isTransparent,
                 isDark: isDark,
                 initialCoverPath: book['cover_path'] as String?,
               );
 
               if (isTransparent) {
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
+                return Align(
+                  alignment: Alignment.topCenter,
                   child: Stack(
                     children: [
-                      const Positioned.fill(child: CheckerboardBackground(squareSize: _kCheckerSquareSize)),
+                      Positioned.fill(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: const CheckerboardBackground(squareSize: _kCheckerSquareSize),
+                        ),
+                      ),
                       RepaintBoundary(key: key, child: card),
                     ],
                   ),
                 );
               }
-              return RepaintBoundary(key: key, child: card);
+              return Align(
+                alignment: Alignment.topCenter,
+                child: RepaintBoundary(key: key, child: card),
+              );
             }
 
+            final sheetBg = appIsDark ? const Color(0xFF1E1E1E) : const Color(0xFFE8E8E8);
             return Container(
               decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
+                color: sheetBg,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: Column(
@@ -845,7 +861,7 @@ class BookPopup {
                   CarouselSlider(
                     carouselController: carouselController,
                     options: CarouselOptions(
-                      height: 480,
+                      height: 420,
                       enlargeCenterPage: true,
                       enlargeFactor: 0.08,
                       viewportFraction: 0.78,
@@ -855,18 +871,22 @@ class BookPopup {
                       padEnds: true,
                     ),
                     items: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: buildCard(coverKey, true),
+                      ClipRect(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: buildCard(coverKey, true),
+                        ),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: buildCard(minimalKey, false),
+                      ClipRect(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: buildCard(minimalKey, false),
+                        ),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   AnimatedSmoothIndicator(
                     activeIndex: currentPage,
                     count: 2,
@@ -1002,6 +1022,16 @@ class BookPopup {
         );
       },
     );
+  }
+
+  static String? _bookTypeName(int? id) {
+    switch (id) {
+      case 1: return 'Paperback';
+      case 2: return 'Hardback';
+      case 3: return 'eBook';
+      case 4: return 'Audiobook';
+      default: return null;
+    }
   }
 
   static int _calculateDaysToComplete(String? startDate, String? finishDate) {
