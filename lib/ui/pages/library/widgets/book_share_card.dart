@@ -1,9 +1,9 @@
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
+
+enum ShareCardStyle { cover, coverMinimal, coverDominant, review }
 
 class BookShareCard extends StatefulWidget {
   final String title;
@@ -20,10 +20,11 @@ class BookShareCard extends StatefulWidget {
   final String? userReview;
   final String? bookTypeName;
   final Color? headerColor;
-  final bool allowCoverUpload;
+  final bool useCoverBackground;
   final bool isTransparent;
   final bool isDark;
   final String? initialCoverPath;
+  final ShareCardStyle style;
 
   const BookShareCard({
     super.key,
@@ -38,13 +39,14 @@ class BookShareCard extends StatefulWidget {
     required this.totalTime,
     required this.sessionCount,
     required this.dateRangeString,
-    required this.allowCoverUpload,
     this.headerColor,
+    this.useCoverBackground = true,
     this.userReview,
     this.bookTypeName,
     this.isTransparent = false,
     this.isDark = false,
     this.initialCoverPath,
+    this.style = ShareCardStyle.cover,
   });
 
   @override
@@ -53,9 +55,9 @@ class BookShareCard extends StatefulWidget {
 
 class _BookShareCardState extends State<BookShareCard> {
   File? _coverImage;
-  final ImagePicker _picker = ImagePicker();
 
   static const Color _starYellow = Color(0xFFFBCB04);
+  static const double _coverImageHeight = 130;
 
   @override
   void initState() {
@@ -63,11 +65,6 @@ class _BookShareCardState extends State<BookShareCard> {
     if (widget.initialCoverPath != null) {
       _coverImage = File(widget.initialCoverPath!);
     }
-  }
-
-  Future<void> _pickImage() async {
-    final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) setState(() => _coverImage = File(picked.path));
   }
 
   @override
@@ -122,21 +119,37 @@ class _BookShareCardState extends State<BookShareCard> {
         ? Colors.black
         : Colors.white;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildHeader(headerGradient, headerFg),
-        _buildBody(bodyBg, bodyPrimary, bodySecondary, dividerColor),
-      ],
-    );
+    switch (widget.style) {
+      case ShareCardStyle.cover:
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildHeader(headerGradient, headerFg),
+            _buildBody(bodyBg, bodyPrimary, bodySecondary, dividerColor),
+          ],
+        );
+      case ShareCardStyle.coverMinimal:
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildHeader(headerGradient, headerFg, showWords: false),
+            _buildBody(bodyBg, bodyPrimary, bodySecondary, dividerColor,
+                minimal: true),
+          ],
+        );
+      case ShareCardStyle.coverDominant:
+        return _buildCoverDominantCard(headerGradient);
+      case ShareCardStyle.review:
+        return _buildReviewCard(headerGradient, headerFg, bodyBg, bodyPrimary, bodySecondary, dividerColor);
+    }
   }
 
   // ── Header ───────────────────────────────────────────────────────────
 
-  Widget _buildHeader(Gradient gradient, Color fg) {
+  Widget _buildHeader(Gradient gradient, Color fg, {bool showWords = true}) {
     const radius = BorderRadius.vertical(top: Radius.circular(20));
     // Don't use blurred cover in transparent mode — would look opaque against a see-through body
-    final hasCover = _coverImage != null && !widget.isTransparent;
+    final hasCover = _coverImage != null && !widget.isTransparent && widget.useCoverBackground;
     // Blurred cover is always dark, so fg is always white when cover is present
     final effectiveFg = hasCover ? Colors.white : fg;
     return ClipRRect(
@@ -159,21 +172,27 @@ class _BookShareCardState extends State<BookShareCard> {
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
-            child: widget.allowCoverUpload
-                ? _buildHeaderWithCover(effectiveFg)
-                : _buildHeaderMinimal(effectiveFg),
+            child: _coverImage != null
+                ? _buildHeaderWithCover(effectiveFg, showWords: showWords)
+                : _buildHeaderMinimal(effectiveFg, showWords: showWords),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHeaderWithCover(Color fg) {
+  Widget _buildHeaderWithCover(Color fg, {bool showWords = true}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildCoverImage(fg),
-        const SizedBox(width: 16),
+        // Reserve the cover's 130px-tall slot whether or not it's shown, so the
+        // header height stays identical when toggling. When hidden, the spacer is
+        // zero-width so the text reflows to the left edge.
+        if (widget.useCoverBackground) ...[
+          _buildCoverImage(),
+          const SizedBox(width: 16),
+        ] else
+          const SizedBox(height: _coverImageHeight),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,7 +222,7 @@ class _BookShareCardState extends State<BookShareCard> {
               const SizedBox(height: 12),
               _buildRatingRow(fg),
               const SizedBox(height: 8),
-              _buildSubLine(fg),
+              _buildSubLine(fg, showWords: showWords),
             ],
           ),
         ),
@@ -211,7 +230,7 @@ class _BookShareCardState extends State<BookShareCard> {
     );
   }
 
-  Widget _buildHeaderMinimal(Color fg) {
+  Widget _buildHeaderMinimal(Color fg, {bool showWords = true}) {
     return Row(
       children: [
         Expanded(
@@ -242,7 +261,7 @@ class _BookShareCardState extends State<BookShareCard> {
               const SizedBox(height: 12),
               _buildRatingRow(fg),
               const SizedBox(height: 8),
-              _buildSubLine(fg),
+              _buildSubLine(fg, showWords: showWords),
             ],
           ),
         ),
@@ -250,7 +269,27 @@ class _BookShareCardState extends State<BookShareCard> {
     );
   }
 
-  Widget _buildRatingRow(Color fg) {
+  Widget _buildRatingRow(Color fg, {bool stacked = false}) {
+    if (stacked) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            widget.rating.toStringAsFixed(1),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: fg, height: 1),
+          ),
+          const SizedBox(height: 2),
+          RatingBarIndicator(
+            rating: widget.rating,
+            itemBuilder: (context, _) => const Icon(Icons.star_rounded, color: _starYellow),
+            itemCount: 5,
+            itemSize: 26,
+            physics: const NeverScrollableScrollPhysics(),
+          ),
+        ],
+      );
+    }
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -271,7 +310,7 @@ class _BookShareCardState extends State<BookShareCard> {
     return FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: row);
   }
 
-  Widget _buildSubLine(Color fg) {
+  Widget _buildSubLine(Color fg, {bool showWords = true}) {
     final style = TextStyle(
       fontSize: 11,
       color: fg.withValues(alpha: 0.65),
@@ -280,7 +319,7 @@ class _BookShareCardState extends State<BookShareCard> {
 
     final countParts = <String>[];
     if (widget.totalPages > 0) countParts.add('${widget.totalPages} pages');
-    if (widget.wordCount > 0) countParts.add('${_formatNumber(widget.wordCount)} words');
+    if (showWords && widget.wordCount > 0) countParts.add('${_formatNumber(widget.wordCount)} words');
 
     final hasType = widget.bookTypeName != null;
     final hasCounts = countParts.isNotEmpty;
@@ -305,71 +344,255 @@ class _BookShareCardState extends State<BookShareCard> {
     );
   }
 
-  Widget _buildCoverImage(Color fg) {
-    return GestureDetector(
-      onTap: _pickImage,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: _coverImage != null
-            ? Image.file(_coverImage!, width: 90, height: 130, fit: BoxFit.cover)
-            : Container(
-                width: 90,
-                height: 130,
-                decoration: BoxDecoration(
-                  color: fg.withValues(alpha: 0.15),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      FluentIcons.book_add_20_filled,
-                      size: 26,
-                      color: fg.withValues(alpha: 0.70),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Add cover',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: fg.withValues(alpha: 0.70),
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-      ),
+  Widget _buildCoverImage() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.file(_coverImage!, width: 90, height: _coverImageHeight, fit: BoxFit.cover),
     );
   }
 
   // ── Body ─────────────────────────────────────────────────────────────
 
-  Widget _buildBody(Color bg, Color primary, Color secondary, Color divider) {
+  Widget _buildBody(Color bg, Color primary, Color secondary, Color divider,
+      {bool minimal = false}) {
     return Container(
       decoration: BoxDecoration(
         color: bg,
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeroStats(primary, secondary),
-          if (_hasSecondaryStats) ...[
+          if (!minimal && _hasSecondaryStats) ...[
             const SizedBox(height: 14),
             _buildThinDivider(divider),
             const SizedBox(height: 12),
             _buildSpeedRow(secondary),
           ],
-          if (_hasReview) ...[
+          if (!minimal && _hasReview) ...[
             const SizedBox(height: 12),
-            _buildReview(secondary),
+            _buildQuote(widget.userReview!.trim(),
+                color: secondary, fontSize: 12, maxLines: 3),
           ],
           const SizedBox(height: 14),
           _buildThinDivider(divider),
           const SizedBox(height: 10),
           _buildFooter(secondary),
+        ],
+      ),
+    );
+  }
+
+  // ── Cover-dominant card ───────────────────────────────────────────────
+
+  Widget _buildCoverDominantCard(Gradient gradient) {
+    final hasCover = _coverImage != null && widget.useCoverBackground;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: SizedBox(
+        height: 370,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (hasCover)
+              Image.file(_coverImage!, fit: BoxFit.cover)
+            else
+              Container(decoration: BoxDecoration(gradient: gradient)),
+            // Subtle uniform veil so bright covers don't overpower the text
+            if (hasCover)
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.18),
+                ),
+              ),
+            // Focused scrim behind the bottom text content
+            Positioned(
+              left: 0, right: 0, bottom: 0, height: 220,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.0, 0.4, 1.0],
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.75),
+                      Colors.black.withValues(alpha: 0.97),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0, right: 0, bottom: 0,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.author,
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.75)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    _buildRatingRow(Colors.white),
+                    const SizedBox(height: 6),
+                    _buildDominantStatsRow(),
+                    const SizedBox(height: 8),
+                    _buildFooter(Colors.white.withValues(alpha: 0.55), forceLight: true),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDominantStatsRow() {
+    final parts = <String>[];
+    if (widget.totalTime > 0) parts.add(_formatTime(widget.totalTime));
+    if (widget.daysToComplete > 0) parts.add('${widget.daysToComplete} days');
+    if (widget.sessionCount > 0) parts.add('${widget.sessionCount} sessions');
+    if (parts.isEmpty) return const SizedBox.shrink();
+    return Text(
+      parts.join('  ·  '),
+      style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: Colors.white.withValues(alpha: 0.85)),
+    );
+  }
+
+  // ── Quote card ────────────────────────────────────────────────────────
+
+  Widget _buildReviewCard(Gradient headerGradient, Color headerFg, Color bodyBg,
+      Color bodyPrimary, Color bodySecondary, Color dividerColor) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildCompactHeader(headerGradient, headerFg),
+        Container(
+          decoration: BoxDecoration(
+            color: bodyBg,
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_hasReview)
+                _buildQuote(
+                  widget.userReview!.trim(),
+                  color: bodyPrimary,
+                  fontSize: 15,
+                  maxLines: 7,
+                )
+              else
+                Text(
+                  'No review written for this book.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontStyle: FontStyle.italic,
+                    color: bodySecondary,
+                    height: 1.6,
+                  ),
+                ),
+              const SizedBox(height: 18),
+              Divider(height: 1, thickness: 1, color: dividerColor),
+              const SizedBox(height: 10),
+              _buildFooter(bodySecondary),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Shared compact header (review card) ─────────────────────────────
+
+  Widget _buildCompactHeader(Gradient gradient, Color fg,
+      {bool showSubLine = false}) {
+    const radius = BorderRadius.vertical(top: Radius.circular(20));
+    final hasCover = _coverImage != null && !widget.isTransparent && widget.useCoverBackground;
+    final effectiveFg = hasCover ? Colors.white : fg;
+    return ClipRRect(
+      borderRadius: radius,
+      child: Stack(
+        children: [
+          if (hasCover) ...[
+            Positioned.fill(
+              child: ImageFiltered(
+                imageFilter: ui.ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                child: Image.file(_coverImage!, fit: BoxFit.cover),
+              ),
+            ),
+            Positioned.fill(
+              child: Container(color: Colors.black.withValues(alpha: 0.45)),
+            ),
+          ] else
+            Positioned.fill(
+              child: Container(decoration: BoxDecoration(gradient: gradient)),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.title,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: effectiveFg,
+                          height: 1.25,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        widget.author,
+                        style: TextStyle(fontSize: 11, color: effectiveFg.withValues(alpha: 0.70)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (showSubLine) ...[
+                        const SizedBox(height: 4),
+                        _buildSubLine(effectiveFg),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _buildRatingRow(effectiveFg, stacked: true),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -458,38 +681,48 @@ class _BookShareCardState extends State<BookShareCard> {
   bool get _hasReview =>
       widget.userReview != null && widget.userReview!.trim().isNotEmpty;
 
-  Widget _buildReview(Color secondary) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 2.5,
-          height: 52,
-          decoration: BoxDecoration(
-            color: _starYellow,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            '"${widget.userReview}"',
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
-              fontStyle: FontStyle.italic,
-              color: secondary,
-              height: 1.5,
+  /// Shared pull-quote used by the cover and review cards. A yellow accent bar
+  /// (matching the rating stars) marks the text as a quote, so no literal
+  /// quotation marks are needed — and none get clipped when the text truncates.
+  /// [IntrinsicHeight] lets the bar stretch to the text's height exactly.
+  Widget _buildQuote(
+    String text, {
+    required Color color,
+    required double fontSize,
+    required int maxLines,
+  }) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            width: 3,
+            decoration: BoxDecoration(
+              color: _starYellow,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: maxLines,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: fontSize,
+                fontStyle: FontStyle.italic,
+                color: color,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildFooter(Color secondary) {
-    final brandColor = widget.isDark || widget.isTransparent
+  Widget _buildFooter(Color secondary, {bool forceLight = false}) {
+    final brandColor = forceLight || widget.isDark || widget.isTransparent
         ? Colors.white.withValues(alpha: 0.85)
         : const Color(0xFF111827);
     return Row(
@@ -507,15 +740,15 @@ class _BookShareCardState extends State<BookShareCard> {
           children: [
             Image.asset(
               'assets/icon/readstats_white.png',
-              width: 16,
-              height: 16,
+              width: 26,
+              height: 26,
               color: brandColor,
             ),
             const SizedBox(width: 5),
             Text(
               'ReadStats',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: brandColor,
               ),

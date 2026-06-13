@@ -760,7 +760,9 @@ class BookPopup {
       backgroundColor: Colors.transparent,
       builder: (context) {
         final GlobalKey coverKey = GlobalKey();
-        final GlobalKey minimalKey = GlobalKey();
+        final GlobalKey coverMinimalKey = GlobalKey();
+        final GlobalKey dominantKey = GlobalKey();
+        final GlobalKey reviewKey = GlobalKey();
         final CarouselSliderController carouselController = CarouselSliderController();
         int currentPage = 0;
         bool isSaving = false;
@@ -787,12 +789,15 @@ class BookPopup {
           bookTypeName: _bookTypeName(book['book_type_id'] as int?),
         );
 
+        final hasCoverImage = book['cover_path'] != null;
+        bool useCoverBackground = true;
+
         return StatefulBuilder(
           builder: (context, setState) {
             final isTransparent = selectedTheme == _ShareCardTheme.transparent;
             final isDark = selectedTheme == _ShareCardTheme.dark;
 
-            Widget buildCard(GlobalKey key, bool allowCoverUpload) {
+            Widget buildCard(GlobalKey key, ShareCardStyle style) {
               final card = BookShareCard(
                 title: args.title,
                 author: args.author,
@@ -807,32 +812,32 @@ class BookPopup {
                 dateRangeString: args.dateRangeString,
                 userReview: args.userReview,
                 bookTypeName: args.bookTypeName,
-                allowCoverUpload: allowCoverUpload,
                 headerColor: theme.colorScheme.primary,
+                useCoverBackground: useCoverBackground,
                 isTransparent: isTransparent,
                 isDark: isDark,
                 initialCoverPath: book['cover_path'] as String?,
+                style: style,
               );
 
-              if (isTransparent) {
-                return Align(
-                  alignment: Alignment.topCenter,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: const CheckerboardBackground(squareSize: _kCheckerSquareSize),
+              final repaint = RepaintBoundary(key: key, child: card);
+              final inner = isTransparent
+                  ? Stack(
+                      children: [
+                        Positioned.fill(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: const CheckerboardBackground(
+                                squareSize: _kCheckerSquareSize),
+                          ),
                         ),
-                      ),
-                      RepaintBoundary(key: key, child: card),
-                    ],
-                  ),
-                );
-              }
-              return Align(
-                alignment: Alignment.topCenter,
-                child: RepaintBoundary(key: key, child: card),
+                        repaint,
+                      ],
+                    )
+                  : repaint;
+              return SizedBox(
+                height: _kCardHeight,
+                child: Align(alignment: Alignment.topCenter, child: inner),
               );
             }
 
@@ -862,9 +867,8 @@ class BookPopup {
                     carouselController: carouselController,
                     options: CarouselOptions(
                       height: 420,
-                      enlargeCenterPage: true,
-                      enlargeFactor: 0.08,
-                      viewportFraction: 0.78,
+                      enlargeCenterPage: false,
+                      viewportFraction: 0.85,
                       enableInfiniteScroll: false,
                       onPageChanged: (index, _) =>
                           setState(() => currentPage = index),
@@ -874,13 +878,25 @@ class BookPopup {
                       ClipRect(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: buildCard(coverKey, true),
+                          child: buildCard(coverKey, ShareCardStyle.cover),
                         ),
                       ),
                       ClipRect(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: buildCard(minimalKey, false),
+                          child: buildCard(coverMinimalKey, ShareCardStyle.coverMinimal),
+                        ),
+                      ),
+                      ClipRect(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: buildCard(dominantKey, ShareCardStyle.coverDominant),
+                        ),
+                      ),
+                      ClipRect(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: buildCard(reviewKey, ShareCardStyle.review),
                         ),
                       ),
                     ],
@@ -889,7 +905,7 @@ class BookPopup {
                   const SizedBox(height: 4),
                   AnimatedSmoothIndicator(
                     activeIndex: currentPage,
-                    count: 2,
+                    count: 4,
                     effect: WormEffect(
                       dotHeight: 7,
                       dotWidth: 7,
@@ -901,50 +917,13 @@ class BookPopup {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    currentPage == 0 ? 'Cover card' : 'Minimal card',
+                    const ['Cover', 'Cover Simple', 'Poster', 'Review'][currentPage],
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-
-                  const SizedBox(height: 14),
-
-                  // Theme selector
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _ThemeCircle(
-                        selected: selectedTheme == _ShareCardTheme.dark,
-                        onTap: () => setState(() => selectedTheme = _ShareCardTheme.dark),
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF121212),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      _ThemeCircle(
-                        selected: selectedTheme == _ShareCardTheme.light,
-                        onTap: () => setState(() => selectedTheme = _ShareCardTheme.light),
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      _ThemeCircle(
-                        selected: selectedTheme == _ShareCardTheme.transparent,
-                        onTap: () =>
-                            setState(() => selectedTheme = _ShareCardTheme.transparent),
-                        child: ClipOval(child: CheckerboardBackground(squareSize: _kCheckerSquareSize)),
-                      ),
-                    ],
-                  ),
                   if (isTransparent) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       'Saves as PNG with transparency',
                       style: theme.textTheme.labelSmall?.copyWith(
@@ -953,6 +932,86 @@ class BookPopup {
                     ),
                   ],
 
+                  const SizedBox(height: 14),
+
+                  // Theme selector — circles centered, cover toggle in right spacer
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      children: [
+                        const Spacer(),
+                        _ThemeCircle(
+                          selected: selectedTheme == _ShareCardTheme.dark,
+                          onTap: () => setState(() => selectedTheme = _ShareCardTheme.dark),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF121212),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        _ThemeCircle(
+                          selected: selectedTheme == _ShareCardTheme.light,
+                          onTap: () => setState(() => selectedTheme = _ShareCardTheme.light),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        _ThemeCircle(
+                          selected: selectedTheme == _ShareCardTheme.transparent,
+                          onTap: () =>
+                              setState(() => selectedTheme = _ShareCardTheme.transparent),
+                          child: ClipOval(child: CheckerboardBackground(squareSize: 12)),
+                        ),
+                        Expanded(
+                          child: hasCoverImage
+                              ? FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 16),
+                                    child: FilterChip(
+                                      avatar: Icon(
+                                        Icons.image_outlined,
+                                        size: 14,
+                                        color: useCoverBackground
+                                            ? theme.colorScheme.onPrimaryContainer
+                                            : theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                      label: const Text('Cover'),
+                                      selected: useCoverBackground,
+                                      onSelected: (v) => setState(() => useCoverBackground = v),
+                                      showCheckmark: false,
+                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      visualDensity: VisualDensity.compact,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        side: BorderSide(
+                                          color: useCoverBackground
+                                              ? Colors.transparent
+                                              : theme.colorScheme.outline,
+                                        ),
+                                      ),
+                                      selectedColor: theme.colorScheme.primaryContainer,
+                                      labelStyle: theme.textTheme.labelSmall?.copyWith(
+                                        color: useCoverBackground
+                                            ? theme.colorScheme.onPrimaryContainer
+                                            : theme.colorScheme.onSurfaceVariant,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox(),
+                        ),
+                      ],
+                    ),
+                  ),
                   AnimatedSize(
                     duration: const Duration(milliseconds: 200),
                     curve: Curves.easeInOut,
@@ -981,7 +1040,7 @@ class BookPopup {
                         isSuccess: saveSuccess,
                         onTap: isSaving || isSharing || saveSuccess ? null : () async {
                           setState(() { isSaving = true; actionError = null; });
-                          final key = currentPage == 0 ? coverKey : minimalKey;
+                          final key = [coverKey, coverMinimalKey, dominantKey, reviewKey][currentPage];
                           final success = await saveImage(key);
                           if (success) {
                             setState(() { isSaving = false; saveSuccess = true; });
@@ -1003,7 +1062,7 @@ class BookPopup {
                         isLoading: isSharing,
                         onTap: isSaving || isSharing || saveSuccess ? null : () async {
                           setState(() { isSharing = true; actionError = null; });
-                          final key = currentPage == 0 ? coverKey : minimalKey;
+                          final key = [coverKey, coverMinimalKey, dominantKey, reviewKey][currentPage];
                           final success = await shareImage(key);
                           if (!success) {
                             setState(() { isSharing = false; actionError = 'Failed to share. Please try again.'; });
@@ -1190,6 +1249,7 @@ class _PopupAction extends StatelessWidget {
 enum _ShareCardTheme { light, dark, transparent }
 
 const double _kCheckerSquareSize = 22;
+const double _kCardHeight = 370;
 
 class _ShareAction extends StatelessWidget {
   final IconData icon;
@@ -1282,14 +1342,11 @@ class _ThemeCircle extends StatelessWidget {
         height: 42,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(
-            color: selected
-                ? primary
-                : Theme.of(context).colorScheme.outlineVariant,
-            width: 3.0,
-          ),
+          color: selected
+              ? primary
+              : Theme.of(context).colorScheme.outlineVariant,
         ),
-        padding: EdgeInsets.zero,
+        padding: const EdgeInsets.all(3),
         child: ClipOval(child: child),
       ),
     );
