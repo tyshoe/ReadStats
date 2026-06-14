@@ -40,7 +40,6 @@ class LibraryPage extends StatefulWidget {
 }
 
 class _LibraryPageState extends State<LibraryPage> {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
   String _libraryBookView = 'rows';
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
@@ -181,7 +180,7 @@ class _LibraryPageState extends State<LibraryPage> {
     final updatedCount = await showBulkTagSheet(
       context: context,
       selectedBookIds: _selectedBookIds.toList(),
-      tagRepository: TagRepository(DatabaseHelper()),
+      tagRepository: _tagRepository,
     );
 
     if (updatedCount == null || updatedCount == 0 || !mounted) return;
@@ -342,7 +341,7 @@ class _LibraryPageState extends State<LibraryPage> {
               foregroundColor: Theme.of(dialogContext).colorScheme.error,
             ),
             onPressed: () async {
-              await _dbHelper.deleteBook(bookId);
+              await widget.bookRepository.deleteBooksBatch([bookId]);
               widget.refreshBooks();
               if (mounted) {
                 Navigator.pop(dialogContext);
@@ -365,8 +364,8 @@ class _LibraryPageState extends State<LibraryPage> {
       _navigateToEditBookPage,
       _navigateToAddSessionPage,
       _confirmDelete,
-      TagRepository(DatabaseHelper()),
-      BookRepository(DatabaseHelper()),
+      _tagRepository,
+      widget.bookRepository,
       widget.settingsViewModel,
       refreshCallback: () {
         widget.refreshBooks();
@@ -386,13 +385,6 @@ class _LibraryPageState extends State<LibraryPage> {
       String tagFilterMode) {
     List<Map<String, dynamic>> filteredBooks =
     _filterBooks(books, selectedBookTypes, isFavorite, selectedShelfId, finishedYears, tags, tagFilterMode);
-
-    widget.settingsViewModel.setLibrarySortOption(selectedSortOption);
-    widget.settingsViewModel.setLibrarySortAscending(isAscending);
-    widget.settingsViewModel.setLibraryBookTypeFilter(selectedBookTypes);
-    widget.settingsViewModel.setLibraryIsFavorite(isFavorite);
-    widget.settingsViewModel.setLibraryFinishedYearFilter(finishedYears);
-    widget.settingsViewModel.setLibraryTagFilterMode(tagFilterMode);
 
     return _sortBooks(filteredBooks, selectedSortOption, isAscending);
   }
@@ -633,8 +625,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
     if (confirmed != true || !mounted) return;
 
-    final bookRepository = BookRepository(DatabaseHelper());
-    await bookRepository.deleteBooksBatch(_selectedBookIds.toList());
+    await widget.bookRepository.deleteBooksBatch(_selectedBookIds.toList());
 
     widget.refreshBooks();
     _clearSelection();
@@ -734,12 +725,7 @@ class _LibraryPageState extends State<LibraryPage> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              Expanded(
-                child: widget.books.isEmpty
+      body: widget.books.isEmpty
                     ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -899,25 +885,18 @@ class _LibraryPageState extends State<LibraryPage> {
                             : Scrollbar(
                           child: _libraryBookView == "grid"
                               ? GridView.builder(
-                            padding: const EdgeInsets.only(top: 0),
+                            padding: const EdgeInsets.only(top: 4),
                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 3,
                               childAspectRatio: 0.58,
-                              crossAxisSpacing: 0,
-                              mainAxisSpacing: 0,
+                              crossAxisSpacing: 4,
+                              mainAxisSpacing: 4,
                             ),
                             itemCount: _filteredBooks.length,
                             itemBuilder: (context, index) {
                               final book = _filteredBooks[index];
                               return GestureDetector(
                                 onLongPress: () => _startSelection(book['id']),
-                                onTap: () {
-                                  if (_selectionMode) {
-                                    _toggleSelection(book['id']);
-                                  } else {
-                                    _showBookPopup(context, book);
-                                  }
-                                },
                                 child: BookGridItem(
                                   book: book,
                                   onTap: () {
@@ -942,21 +921,12 @@ class _LibraryPageState extends State<LibraryPage> {
                               final isSelected = _selectedBookIds.contains(book['id']);
                               return GestureDetector(
                                 onLongPress: () => _startSelection(book['id']),
-                                onTap: () {
-                                  if (_selectionMode) {
-                                    _toggleSelection(book['id']);
-                                  } else {
-                                    _showBookPopup(context, book);
-                                  }
-                                },
                                 child: BookRow(
                                   book: book,
-                                  textColor: theme.colorScheme.onSurface,
                                   showStars: widget.settingsViewModel
                                       .defaultRatingStyleNotifier.value ==
                                       0,
-                                  dateFormatString: widget
-                                      .settingsViewModel.defaultDateFormatNotifier.value,
+                                  tags: _extractBookTags(book),
                                   isSelected: isSelected,
                                   selectionColor: theme.colorScheme.primary,
                                   isPinned: _pinnedBookIds.contains(book['id']),
@@ -976,11 +946,6 @@ class _LibraryPageState extends State<LibraryPage> {
                     ],
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
       floatingActionButton: _selectionMode
 
           ? Column(

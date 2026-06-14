@@ -28,7 +28,7 @@ class BookGridItem extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      color: hasCover ? null : (isSelected ? selectionColor.withOpacity(0.45) : theme.cardTheme.color),
+      color: hasCover ? null : (isSelected ? selectionColor.withValues(alpha: 0.45) : theme.cardTheme.color),
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(4),
@@ -62,7 +62,7 @@ class BookGridItem extends StatelessWidget {
                     Positioned.fill(
                       child: BackdropFilter(
                         filter: ImageFilter.blur(sigmaX: .8, sigmaY: .8),
-                        child: Container(color: Colors.black.withOpacity(0.35)),
+                        child: Container(color: Colors.black.withValues(alpha: 0.35)),
                       ),
                     ),
 
@@ -84,23 +84,19 @@ class BookGridItem extends StatelessWidget {
                           if (isPinned)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 4),
-                              child: _BadgePill(
-                                child: Icon(
-                                  Icons.push_pin,
-                                  size: 16,
-                                  color: theme.iconTheme.color?.withAlpha(153),
-                                ),
+                              child: Icon(
+                                Icons.push_pin,
+                                size: 16,
+                                color: theme.iconTheme.color?.withAlpha(153),
                               ),
                             ),
                           if (book['is_favorite'] == 1)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 4),
-                              child: _BadgePill(
-                                child: Icon(
-                                  Icons.favorite,
-                                  size: 16,
-                                  color: Colors.red,
-                                ),
+                              child: Icon(
+                                Icons.favorite,
+                                size: 16,
+                                color: Colors.red,
                               ),
                             ),
                         ],
@@ -142,12 +138,3 @@ Widget _textPlaceholder(ThemeData theme, Map<String, dynamic> book) {
   );
 }
 
-class _BadgePill extends StatelessWidget {
-  final Widget child;
-  const _BadgePill({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(child: child);
-  }
-}

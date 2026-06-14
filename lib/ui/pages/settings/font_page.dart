@@ -70,10 +70,8 @@ class FontSelectionPage extends StatelessWidget {
                       ),
                       child: BookRow(
                         book: _sampleBook,
-                        textColor: colors.onSurface,
                         onTap: () {},
                         showStars: true,
-                        dateFormatString: 'MMM d, yyyy',
                       ),
                     ),
                   ],

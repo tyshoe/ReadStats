@@ -1,13 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:intl/intl.dart';
 
 class BookRow extends StatelessWidget {
   final Map<String, dynamic> book;
-  final Color textColor;
   final VoidCallback onTap;
   final bool showStars;
-  final String dateFormatString;
+  final List<String> tags;
   final bool isSelected;
   final Color selectionColor;
   final bool isPinned;
@@ -15,189 +14,173 @@ class BookRow extends StatelessWidget {
   const BookRow({
     super.key,
     required this.book,
-    required this.textColor,
     required this.onTap,
     required this.showStars,
-    required this.dateFormatString,
+    this.tags = const [],
     this.isSelected = false,
     this.selectionColor = Colors.blue,
     this.isPinned = false,
   });
 
+  static const Color _starColor = Color(0xFFFBCB04);
+  static const double _coverWidth = 70;
+  static const double _coverHeight = 110;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    // Determine the icon based on the book type
-    IconData bookTypeIcon;
-    switch (book['book_type_id']) {
-      case 1:
-        bookTypeIcon = Icons.book_outlined;
-        break;
-      case 2:
-        bookTypeIcon = Icons.book;
-        break;
-      case 3:
-        bookTypeIcon = Icons.computer;
-        break;
-      case 4:
-        bookTypeIcon = Icons.headset;
-        break;
-      default:
-        bookTypeIcon = Icons.book;
-    }
-
-    // Helper function to format date
-    String formatDate(String? date) {
-      if (date == null || date.isEmpty) return "N/A";
-      try {
-        return DateFormat(dateFormatString).format(DateTime.parse(date));
-      } catch (e) {
-        return "Invalid Date";
-      }
-    }
-
-    // Helper function to calculate days to complete
-    String calculateDaysToComplete(String? startDate, String? finishDate) {
-      if (startDate != null && finishDate != null) {
-        DateTime startDateTime = DateTime.parse(startDate);
-        DateTime finishDateTime = DateTime.parse(finishDate);
-        int days = finishDateTime.difference(startDateTime).inDays;
-        int adjustedDays = days == 0 ? 1 : days;
-        return "($adjustedDays ${adjustedDays == 1 ? 'day' : 'days'})";
-      }
-      return "";
-    }
-
-    // Get start and finish dates
-    String? startDate = book['date_started'];
-    String? finishDate = book['date_finished'];
-
-    String daysToCompleteString = calculateDaysToComplete(startDate, finishDate);
-
-    String dateRangeString = "";
-    if (startDate != null && finishDate != null) {
-      dateRangeString = "${formatDate(startDate)} - ${formatDate(finishDate)} $daysToCompleteString";
-    } else if (startDate != null) {
-      dateRangeString = "Started ${formatDate(startDate)}";
-    } else if (finishDate != null) {
-      dateRangeString = "Finished ${formatDate(finishDate)}";
-    }
+    final rating = (book['rating'] as num?)?.toDouble();
+    final hasRating = rating != null && rating > 0;
+    final coverPath = book['cover_path'] as String?;
+    final mutedColor = theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6);
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       elevation: 0,
-      color: isSelected ? selectionColor.withValues(alpha: 0.45) : theme.cardTheme.color,
+      color: isSelected
+          ? selectionColor.withValues(alpha: 0.45)
+          : theme.cardTheme.color,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title Row
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      book['title'],
-                      style: theme.textTheme.bodyLarge,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (isPinned)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: Icon(
-                        Icons.push_pin,
-                        color: theme.iconTheme.color?.withAlpha(153),
-                        size: 16,
-                      ),
-                    ),
-                  if (book["is_favorite"] == 1)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: Icon(
-                        Icons.favorite,
-                        color: Colors.red,
-                        size: 16,
-                      ),
-                    ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Icon(
-                      bookTypeIcon,
-                      color: theme.iconTheme.color?.withAlpha(153),
-                      size: 16,
-                    ),
-                  ),
-                ],
-              ),
-
-              // Author
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  "by ${book['author']}",
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.textTheme.bodyMedium?.color?.withAlpha(153),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-
-              // Rating + date range
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
+              // Cover only when one exists — no placeholder otherwise.
+              if (coverPath != null) ...[
+                _buildCover(coverPath),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Rating
-                    if (showStars)
-                      RatingBarIndicator(
-                        rating: book['rating']?.toDouble() ?? 0.0,
-                        itemCount: 5,
-                        itemSize: 20,
-                        itemBuilder: (context, _) => const Icon(
-                          Icons.star,
-                          color: Color(0xFFFBCB04),
-                        ),
-                      )
-                    else
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            book['rating'] != null ? book['rating'].toStringAsFixed(1) : '-',
-                            style: theme.textTheme.bodyMedium,
+                    // Title + corner badges
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            book['title'],
+                            style: theme.textTheme.bodyLarge,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.star, size: 16, color: Color(0xFFFBCB04)),
-                        ],
-                      ),
-
-                    // Date range
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        dateRangeString,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.6),
                         ),
-                      ),
+                        if (isPinned)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: Icon(Icons.push_pin,
+                                size: 16,
+                                color: theme.iconTheme.color?.withValues(alpha: 0.6)),
+                          ),
+                        if (book['is_favorite'] == 1)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8),
+                            child:
+                                Icon(Icons.favorite, size: 16, color: Colors.red),
+                          ),
+                      ],
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      book['author'],
+                      style:
+                          theme.textTheme.bodyMedium?.copyWith(color: mutedColor),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (hasRating) ...[
+                      const SizedBox(height: 8),
+                      _buildRating(theme, rating),
+                    ],
+                    const SizedBox(height: 8),
+                    if (tags.isNotEmpty)
+                      _buildTags(theme)
+                    else
+                      const SizedBox(height: 24),
                   ],
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCover(String path) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Image.file(
+        File(path),
+        width: _coverWidth,
+        height: _coverHeight,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+      ),
+    );
+  }
+
+  Widget _buildRating(ThemeData theme, double rating) {
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          rating.toStringAsFixed(1),
+          style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(width: 6),
+        RatingBarIndicator(
+          rating: rating,
+          itemCount: 5,
+          itemSize: showStars ? 18 : 14,
+          physics: const NeverScrollableScrollPhysics(),
+          itemBuilder: (context, _) =>
+              const Icon(Icons.star_rounded, color: _starColor),
+        ),
+      ],
+    );
+    return FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: row);
+  }
+
+  Widget _buildTags(ThemeData theme) {
+    final shown = tags.take(3).toList();
+    final extra = tags.length - shown.length;
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final tag in shown) _tagChip(theme, tag),
+        if (extra > 0) _tagChip(theme, '+$extra', showIcon: false),
+      ],
+    );
+  }
+
+  Widget _tagChip(ThemeData theme, String label, {bool showIcon = true}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showIcon) ...[
+            Icon(Icons.sell,
+                size: 12, color: theme.colorScheme.onSecondaryContainer),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSecondaryContainer),
+          ),
+        ],
       ),
     );
   }
