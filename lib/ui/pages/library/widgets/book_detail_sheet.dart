@@ -18,8 +18,8 @@ import '../../sessions/widgets/rate_book_dialog.dart';
 import '../book_form_page.dart';
 import '/data/database/database_helper.dart';
 import 'book_share_card.dart';
+import 'book_sessions_content.dart';
 import 'bulk_tag_sheet.dart';
-import 'session_notes_sheet.dart';
 
 class BookPopup {
   static void showBookPopup(
@@ -215,7 +215,7 @@ class BookPopup {
                                                 isPinnedState
                                                     ? Icons.push_pin
                                                     : Icons.push_pin_outlined,
-                                                size: 20,
+                                                size: 24,
                                                 color: isPinnedState
                                                     ? (book['cover_path'] != null
                                                         ? Colors.white
@@ -243,7 +243,7 @@ class BookPopup {
                                                 mutableBook['is_favorite'] == 1
                                                     ? Icons.favorite
                                                     : Icons.favorite_border,
-                                                size: 22,
+                                                size: 24,
                                                 color: mutableBook['is_favorite'] == 1
                                                     ? Colors.red
                                                     : book['cover_path'] != null
@@ -526,7 +526,7 @@ class BookPopup {
                       indicatorColor: settingsViewModel.accentColorNotifier.value,
                       labelColor: settingsViewModel.accentColorNotifier.value,
                       unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 0.63),
-                      tabs: const [Tab(text: 'Stats'), Tab(text: 'Review'), Tab(text: 'Notes')],
+                      tabs: const [Tab(text: 'Stats'), Tab(text: 'Review'), Tab(text: 'Sessions')],
                     ),
                     SizedBox(
                       height: statsHeight ?? MediaQuery.sizeOf(context).height * 0.32,
@@ -856,9 +856,11 @@ class BookPopup {
                       ),
                       Container(
                         color: theme.colorScheme.surfaceContainerHigh,
-                        child: SessionNotesContent(
-                          bookId: book['id'] as int,
+                        child: BookSessionsContent(
+                          book: mutableBook,
                           dateFormatString: dateFormatString,
+                          settingsViewModel: settingsViewModel,
+                          onChanged: refreshCallback,
                         ),
                       ),
                     ],
