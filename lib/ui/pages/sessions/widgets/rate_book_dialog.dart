@@ -136,11 +136,11 @@ void showRateBookDialog({
                                   direction: Axis.horizontal,
                                   allowHalfRating: true,
                                   itemCount: 5,
-                                  itemSize: 40,
-                                  itemPadding: const EdgeInsets.symmetric(horizontal: 6.0),
+                                  itemSize: 32,
+                                  itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
                                   itemBuilder: (context, _) => const Icon(
-                                    Icons.star,
-                                    color: Colors.amber,
+                                    Icons.star_rounded,
+                                    color: Color(0xFFFBCB04),
                                   ),
                                   glow: false,
                                   onRatingUpdate: (newRating) {
@@ -163,56 +163,64 @@ void showRateBookDialog({
                               ),
                             ],
                           )
-                        : Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: TextField(
-                              textAlign: TextAlign.center,
-                              controller: ratingController,
-                              decoration: InputDecoration(
-                                labelText: 'Rating',
-                                hintText: 'Enter rating (0–5)',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                suffixIcon: ratingController.text.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear),
-                                        onPressed: () {
-                                          setState(() {
-                                            rating = 0;
-                                            ratingController.clear();
-                                          });
-                                        },
-                                      )
-                                    : null,
+                        : TextField(
+                            controller: ratingController,
+                            decoration: InputDecoration(
+                              labelText: 'Rating',
+                              hintText: 'Enter rating (0–5)',
+                              filled: true,
+                              fillColor: theme.colorScheme.surfaceContainerHighest,
+                              border: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
                               ),
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(RegExp(r'^\d{0,1}(\.\d{0,2})?$')),
-                              ],
-                              onChanged: (value) {
-                                if (value.isEmpty) {
-                                  setState(() => rating = 0);
-                                } else {
-                                  final parsed = double.tryParse(value);
-                                  if (parsed != null) {
-                                    if (parsed > 5.0) {
-                                      rating = 5.0;
-                                      ratingController.text = '5.00';
-                                      ratingController.selection = TextSelection.fromPosition(
-                                        const TextPosition(offset: 4),
-                                      );
-                                    } else {
-                                      rating = parsed;
-                                    }
-                                    setState(() {});
-                                  }
-                                }
-                              },
-                              onTapOutside: (event) {
-                                FocusManager.instance.primaryFocus?.unfocus();
-                              },
+                              enabledBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                              suffixIcon: ratingController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        setState(() {
+                                          rating = 0;
+                                          ratingController.clear();
+                                        });
+                                      },
+                                    )
+                                  : null,
                             ),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'^\d{0,1}(\.\d{0,2})?$')),
+                            ],
+                            onChanged: (value) {
+                              if (value.isEmpty) {
+                                setState(() => rating = 0);
+                              } else {
+                                final parsed = double.tryParse(value);
+                                if (parsed != null) {
+                                  if (parsed > 5.0) {
+                                    rating = 5.0;
+                                    ratingController.text = '5.00';
+                                    ratingController.selection = TextSelection.fromPosition(
+                                      const TextPosition(offset: 4),
+                                    );
+                                  } else {
+                                    rating = parsed;
+                                  }
+                                  setState(() {});
+                                }
+                              }
+                            },
+                            onTapOutside: (event) {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                            },
                           ),
 
                     const SizedBox(height: 16),
@@ -320,6 +328,7 @@ Future<void> showRatingDialogForBook({
   required Map<String, dynamic> book,
   required BookRepository bookRepository,
   required SettingsViewModel settingsViewModel,
+  void Function(double rating, String? review)? onSaved,
 }) async {
   final completer = Completer<void>();
 
@@ -329,9 +338,12 @@ Future<void> showRatingDialogForBook({
     author: book['author'] as String?,
     coverPath: book['cover_path'] as String?,
     accentColor: settingsViewModel.accentColorNotifier.value,
+    initialRating: (book['rating'] as num?)?.toDouble() ?? 0.0,
+    initialReview: book['user_review'] as String?,
     onRate: (rating, review) async {
       try {
         await bookRepository.updateBookRating(book['id'], rating, review: review);
+        onSaved?.call(rating, review);
       } catch (_) {
       } finally {
         completer.complete();

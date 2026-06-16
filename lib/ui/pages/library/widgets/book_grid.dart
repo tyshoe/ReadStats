@@ -87,7 +87,7 @@ class BookGridItem extends StatelessWidget {
                               child: Icon(
                                 Icons.push_pin,
                                 size: 16,
-                                color: theme.iconTheme.color?.withAlpha(153),
+                                color: theme.iconTheme.color?.withValues(alpha: 0.6),
                               ),
                             ),
                           if (book['is_favorite'] == 1)
@@ -128,7 +128,7 @@ Widget _textPlaceholder(ThemeData theme, Map<String, dynamic> book) {
         Text(
           book['author'],
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.textTheme.bodySmall?.color?.withAlpha(153),
+            color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
           ),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,

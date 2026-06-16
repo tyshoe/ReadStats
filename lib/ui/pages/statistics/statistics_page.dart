@@ -498,6 +498,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
       BookRepository(DatabaseHelper()),
       widget.settingsViewModel,
       refreshCallback: loadStats,
+      isPinned: false,
+      onTogglePin: (_) {},
     );
   }
 

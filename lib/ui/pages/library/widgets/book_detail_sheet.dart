@@ -14,9 +14,11 @@ import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../../../data/repositories/book_repository.dart';
 import '../../../../data/repositories/tag_repository.dart';
 import '../../../../viewmodels/SettingsViewModel.dart';
+import '../../sessions/widgets/rate_book_dialog.dart';
 import '../book_form_page.dart';
 import '/data/database/database_helper.dart';
 import 'book_share_card.dart';
+import 'bulk_tag_sheet.dart';
 import 'session_notes_sheet.dart';
 
 class BookPopup {
@@ -31,31 +33,26 @@ class BookPopup {
       TagRepository tagRepository,
       BookRepository bookRepository,
       SettingsViewModel settingsViewModel,
-      {required Function() refreshCallback}) async {
+      {required Function() refreshCallback,
+      bool isPinned = false,
+      required Function(int) onTogglePin}) async {
     final DatabaseHelper dbHelper = DatabaseHelper();
     final stats = await dbHelper.getBookStats(book['id']);
     final ThemeData theme = Theme.of(context);
     final Color textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
     final Color subtitleColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
 
-    final tags = await tagRepository.getTagsForBook(book['id']);
+    var tags = await tagRepository.getTagsForBook(book['id']);
     final shelves = await dbHelper.getShelves();
 
     final mutableBook = Map<String, dynamic>.from(book);
+    var isPinnedState = isPinned;
 
     DateTime? startDateTime =
     book['date_started'] != null ? DateTime.parse(book['date_started']) : null;
 
     DateTime? finishDateTime =
     book['date_finished'] != null ? DateTime.parse(book['date_finished']) : null;
-
-    String daysToCompleteString = "";
-
-    if (startDateTime != null && finishDateTime != null) {
-      int days = finishDateTime.difference(startDateTime).inDays;
-      int adjustedDays = days == 0 ? 1 : days;
-      daysToCompleteString = " ($adjustedDays ${adjustedDays == 1 ? 'day' : 'days'})";
-    }
 
     final dateFormat = DateFormat(dateFormatString);
     final String? startDate = startDateTime != null ? dateFormat.format(startDateTime) : null;
@@ -71,27 +68,17 @@ class BookPopup {
       dateRangeString = "Finished $finishDate";
     }
 
-    // Format counts
-    int pageCount = book['page_count'] ?? 0;
-    int wordCount = book['word_count'] ?? 0;
     final bool isAudiobook = book['book_type_id'] == 4;
+    final int pageCount = book['page_count'] ?? 0;
+    final int wordCount = book['word_count'] ?? 0;
 
-    String formatNumberWithCommas(int number) {
-      return number.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (Match m) => '${m[1]},',
-      );
-    }
+    final String pageCountString = pageCount == 0
+        ? ''
+        : '${_formatCount(pageCount)} ${pageCount == 1 ? 'page' : 'pages'}';
+    final String wordCountString = wordCount == 0
+        ? ''
+        : '${_formatCount(wordCount)} ${wordCount == 1 ? 'word' : 'words'}';
 
-    String pageCountString = pageCount == 0
-        ? ""
-        : "${formatNumberWithCommas(pageCount)} ${pageCount == 1 ? 'page' : 'pages'}";
-
-    String wordCountString = wordCount == 0
-        ? ""
-        : "${formatNumberWithCommas(wordCount)} ${wordCount == 1 ? 'word' : 'words'}";
-
-    // Audiobook duration string for top-right display
     String durationString = '';
     if (isAudiobook && (book['duration_minutes'] ?? 0) > 0) {
       final totalMins = book['duration_minutes'] as int;
@@ -100,88 +87,7 @@ class BookPopup {
       durationString = hours > 0 ? '${hours}h ${mins}m' : '${mins}m';
     }
 
-    String formatTime(int totalTimeInMinutes) {
-      int days = totalTimeInMinutes ~/ (24 * 60);
-      int hours = (totalTimeInMinutes % (24 * 60)) ~/ 60;
-      int minutes = totalTimeInMinutes % 60;
-
-      String formattedTime = '';
-      if (days > 0) {
-        formattedTime += '${days}d ';
-      }
-      if (hours > 0 || days > 0) {
-        formattedTime += '${hours}h ';
-      }
-      formattedTime += '${minutes}m';
-      return formattedTime;
-    }
-
-    // Book type
-    IconData bookTypeIcon;
-    switch (book['book_type_id']) {
-      case 1:
-        bookTypeIcon = Icons.book_outlined;
-        break;
-      case 2:
-        bookTypeIcon = Icons.book;
-        break;
-      case 3:
-        bookTypeIcon = Icons.computer;
-        break;
-      case 4:
-        bookTypeIcon = Icons.headset;
-        break;
-      default:
-        bookTypeIcon = Icons.book;
-    }
-
-    String bookTypeString;
-    switch (book['book_type_id']) {
-      case 1:
-        bookTypeString = 'Paperback';
-        break;
-      case 2:
-        bookTypeString = 'Hardback';
-        break;
-      case 3:
-        bookTypeString = 'eBook';
-        break;
-      case 4:
-        bookTypeString = 'Audiobook';
-        break;
-      default:
-        bookTypeString = 'Paperback';
-    }
-
-    void duplicateBook(BuildContext context, Map<String, dynamic> book, Function refreshCallback,
-        dynamic settingsViewModel) {
-      Navigator.pop(context);
-      Map<String, dynamic> duplicatedBook = {
-        'title': '${book['title']} (Copy)',
-        'author': book['author'],
-        'word_count': book['word_count'],
-        'page_count': book['page_count'],
-        'book_type_id': book['book_type_id'],
-        'rating': null,
-        'is_favorite': 0,
-        'date_started': null,
-        'date_finished': null,
-        'date_added': DateTime.now().toIso8601String(),
-      };
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => BookFormPage(
-            book: duplicatedBook,
-            onSave: (newBookData) {
-              refreshCallback();
-            },
-            settingsViewModel: settingsViewModel,
-          ),
-        ),
-      );
-    }
+    final (bookTypeIcon, bookTypeString) = _bookTypeDetails(book['book_type_id'] as int?);
 
     final statsKey = GlobalKey();
     double? statsHeight;
@@ -202,12 +108,23 @@ class BookPopup {
                 setState(() => statsHeight = box.size.height);
               }
             });
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: DefaultTabController(
-                length: 2,
+
+            Future<void> openRateReview() => showRatingDialogForBook(
+              context: context,
+              book: mutableBook,
+              bookRepository: bookRepository,
+              settingsViewModel: settingsViewModel,
+              onSaved: (rating, review) {
+                setState(() {
+                  mutableBook['rating'] = rating;
+                  mutableBook['user_review'] = review;
+                });
+                refreshCallback();
+              },
+            );
+
+            return DefaultTabController(
+                length: 3,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,13 +197,36 @@ class BookPopup {
                                             Expanded(
                                               child: Text(
                                                 book['title'],
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
                                                 style: theme.textTheme.titleLarge?.copyWith(
                                                   color: book['cover_path'] != null ? Colors.white : null,
                                                 ),
                                               ),
                                             ),
                                             const SizedBox(width: 8),
-                                            GestureDetector(
+                                            InkWell(
+                                              onTap: () {
+                                                onTogglePin(book['id']);
+                                                setState(() => isPinnedState = !isPinnedState);
+                                              },
+                                              borderRadius: BorderRadius.circular(20),
+                                              child: Icon(
+                                                isPinnedState
+                                                    ? Icons.push_pin
+                                                    : Icons.push_pin_outlined,
+                                                size: 20,
+                                                color: isPinnedState
+                                                    ? (book['cover_path'] != null
+                                                        ? Colors.white
+                                                        : theme.colorScheme.primary)
+                                                    : book['cover_path'] != null
+                                                        ? Colors.white.withValues(alpha: 0.7)
+                                                        : Colors.grey,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            InkWell(
                                               onTap: () async {
                                                 final newStatus = mutableBook['is_favorite'] != 1;
                                                 await bookRepository.toggleFavoriteStatus(
@@ -298,6 +238,7 @@ class BookPopup {
                                                 });
                                                 refreshCallback();
                                               },
+                                              borderRadius: BorderRadius.circular(20),
                                               child: Icon(
                                                 mutableBook['is_favorite'] == 1
                                                     ? Icons.favorite
@@ -306,7 +247,7 @@ class BookPopup {
                                                 color: mutableBook['is_favorite'] == 1
                                                     ? Colors.red
                                                     : book['cover_path'] != null
-                                                        ? Colors.white70
+                                                        ? Colors.white.withValues(alpha: 0.7)
                                                         : Colors.grey,
                                               ),
                                             ),
@@ -318,7 +259,7 @@ class BookPopup {
                                           style: TextStyle(
                                             fontSize: 14,
                                             color: book['cover_path'] != null
-                                                ? Colors.white70
+                                                ? Colors.white.withValues(alpha: 0.7)
                                                 : subtitleColor,
                                           ),
                                           maxLines: 2,
@@ -328,11 +269,11 @@ class BookPopup {
                                         Row(
                                           children: [
                                             Icon(bookTypeIcon, size: 16,
-                                              color: book['cover_path'] != null ? Colors.white70 : subtitleColor),
+                                              color: book['cover_path'] != null ? Colors.white.withValues(alpha: 0.7) : subtitleColor),
                                             const SizedBox(width: 5),
                                             Text(bookTypeString, style: TextStyle(
                                               fontSize: 14,
-                                              color: book['cover_path'] != null ? Colors.white70 : subtitleColor,
+                                              color: book['cover_path'] != null ? Colors.white.withValues(alpha: 0.7) : subtitleColor,
                                             )),
                                           ],
                                         ),
@@ -342,7 +283,7 @@ class BookPopup {
                                             [pageCountString, wordCountString].where((s) => s.isNotEmpty).join(' · '),
                                             style: TextStyle(
                                               fontSize: 14,
-                                              color: book['cover_path'] != null ? Colors.white70 : subtitleColor,
+                                              color: book['cover_path'] != null ? Colors.white.withValues(alpha: 0.7) : subtitleColor,
                                             ),
                                           ),
                                         ],
@@ -350,46 +291,148 @@ class BookPopup {
                                           const SizedBox(height: 4),
                                           Text(durationString, style: TextStyle(
                                             fontSize: 14,
-                                            color: book['cover_path'] != null ? Colors.white70 : subtitleColor,
+                                            color: book['cover_path'] != null ? Colors.white.withValues(alpha: 0.7) : subtitleColor,
                                           )),
                                         ],
+                                        const SizedBox(height: 8),
+                                        Builder(builder: (context) {
+                                          final ratingValue =
+                                              (mutableBook['rating'] as num?)?.toDouble();
+                                          final starColor = ratingValue == null
+                                              ? Colors.grey.shade400
+                                              : const Color(0xFFFBCB04);
+                                          return Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (ratingValue != null) ...[
+                                                Text(
+                                                  ratingValue.toStringAsFixed(1),
+                                                  style: TextStyle(
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: book['cover_path'] != null
+                                                        ? Colors.white
+                                                        : null,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                              ],
+                                              // Star preference → 5 stars; numeric → single star
+                                              ratingStyle == 0
+                                                  ? RatingBarIndicator(
+                                                      rating: ratingValue ?? 0.0,
+                                                      itemCount: 5,
+                                                      itemSize: 24.0,
+                                                      physics:
+                                                          const NeverScrollableScrollPhysics(),
+                                                      itemBuilder: (context, _) => Icon(
+                                                        Icons.star_rounded,
+                                                        color: starColor,
+                                                      ),
+                                                    )
+                                                  : Icon(
+                                                      Icons.star_rounded,
+                                                      size: 22,
+                                                      color: starColor,
+                                                    ),
+                                            ],
+                                          );
+                                        }),
                                       ],
                                     ),
                                   ),
                                 ],
                               ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    ), // ClipRect
+                              const SizedBox(height: 14),
+                              Builder(builder: (context) {
+                                      Future<void> openTagSheet() async {
+                                        await showBulkTagSheet(
+                                          context: context,
+                                          selectedBookIds: [book['id']],
+                                          tagRepository: tagRepository,
+                                        );
+                                        if (!context.mounted) return;
+                                        final updatedTags = await tagRepository.getTagsForBook(book['id']);
+                                        setState(() => tags = updatedTags);
+                                        refreshCallback();
+                                      }
 
-                    // ── TABBED CONTENT ────────────────────────────────────
-                    TabBar(
-                      indicatorColor: settingsViewModel.accentColorNotifier.value,
-                      labelColor: settingsViewModel.accentColorNotifier.value,
-                      unselectedLabelColor: theme.colorScheme.onSurface.withAlpha(160),
-                      tabs: const [Tab(text: 'Stats'), Tab(text: 'Notes')],
-                    ),
-                    SizedBox(
-                      height: statsHeight ?? MediaQuery.sizeOf(context).height * 0.32,
-                      child: TabBarView(
-                      children: [
-                      Container(
-                        color: theme.colorScheme.surfaceContainerHigh,
-                        child: SingleChildScrollView(
-                          physics: const NeverScrollableScrollPhysics(),
-                          child: Padding(
-                            key: statsKey,
-                            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                            child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Shelf chip + rating
-                          Row(
-                            children: [
-                              GestureDetector(
+                                      Widget tagChip(String label) => Container(
+                                        decoration: BoxDecoration(
+                                          color: theme.colorScheme.secondaryContainer,
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                        child: Text(label,
+                                          style: theme.textTheme.bodySmall?.copyWith(
+                                            color: theme.colorScheme.onSecondaryContainer,
+                                          ),
+                                        ),
+                                      );
+
+                                      final addChip = GestureDetector(
+                                        onTap: openTagSheet,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                              color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                                            ),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.add, size: 12,
+                                                color: theme.colorScheme.onSurfaceVariant),
+                                              const SizedBox(width: 3),
+                                              Text('Add',
+                                                style: theme.textTheme.bodySmall?.copyWith(
+                                                  color: theme.colorScheme.onSurfaceVariant,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+
+                                      final tagIcon = Padding(
+                                        padding: const EdgeInsets.only(top: 4, right: 6),
+                                        child: Icon(Icons.sell, size: 16,
+                                          color: book['cover_path'] != null
+                                              ? Colors.white.withValues(alpha: 0.7)
+                                              : theme.colorScheme.onSecondaryContainer),
+                                      );
+
+                                      if (tags.isEmpty) {
+                                        return Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [tagIcon, addChip],
+                                        );
+                                      }
+
+                                      return Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          tagIcon,
+                                          Expanded(
+                                            child: Wrap(
+                                              spacing: 6,
+                                              runSpacing: 6,
+                                              children: [
+                                                for (final tag in tags.take(5)) tagChip(tag.name),
+                                                if (tags.length > 5) tagChip('+${tags.length - 5}'),
+                                                addChip,
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }),
+                              const SizedBox(height: 12),
+                              InkWell(
+                                borderRadius: BorderRadius.circular(20),
                                 onTap: () async {
                                   final currentShelfId = mutableBook['shelf_id'] as int?;
                                   await showModalBottomSheet(
@@ -406,8 +449,7 @@ class BookPopup {
                                           children: [
                                             const SizedBox(height: 12),
                                             Container(
-                                              width: 36,
-                                              height: 4,
+                                              width: 36, height: 4,
                                               decoration: BoxDecoration(
                                                 color: sheetTheme.colorScheme.outlineVariant,
                                                 borderRadius: BorderRadius.circular(2),
@@ -415,17 +457,14 @@ class BookPopup {
                                             ),
                                             Padding(
                                               padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                                              child: Text(
-                                                'Move to shelf',
-                                                style: sheetTheme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                                              ),
+                                              child: Text('Move to shelf',
+                                                style: sheetTheme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                                             ),
                                             ...shelves.map((shelf) {
                                               final isSelected = shelf['id'] == currentShelfId;
                                               return ListTile(
                                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                                                title: Text(
-                                                  shelf['name'],
+                                                title: Text(shelf['name'],
                                                   style: TextStyle(
                                                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                                                     color: isSelected ? sheetTheme.colorScheme.primary : null,
@@ -469,16 +508,40 @@ class BookPopup {
                                         ),
                                       ),
                                       const SizedBox(width: 4),
-                                      Icon(Icons.expand_more, size: 14, color: theme.colorScheme.onPrimaryContainer),
+                                      Icon(Icons.expand_more, size: 14,
+                                        color: theme.colorScheme.onPrimaryContainer),
                                     ],
                                   ),
                                 ),
                               ),
-                              const Spacer(),
-                              _buildRatingDisplay(ratingStyle, book['rating']),
                             ],
                           ),
+                        ),
+                      ],
+                    ),
+                    ), // ClipRRect
 
+                    // ── TABBED CONTENT ────────────────────────────────────
+                    TabBar(
+                      indicatorColor: settingsViewModel.accentColorNotifier.value,
+                      labelColor: settingsViewModel.accentColorNotifier.value,
+                      unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 0.63),
+                      tabs: const [Tab(text: 'Stats'), Tab(text: 'Review'), Tab(text: 'Notes')],
+                    ),
+                    SizedBox(
+                      height: statsHeight ?? MediaQuery.sizeOf(context).height * 0.32,
+                      child: TabBarView(
+                      children: [
+                      Container(
+                        color: theme.colorScheme.surfaceContainerHigh,
+                        child: SingleChildScrollView(
+                          physics: const NeverScrollableScrollPhysics(),
+                          child: Padding(
+                            key: statsKey,
+                            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                            child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                           // Progress bar for currently reading books only
                           if (mutableBook['shelf_id'] == DatabaseHelper.shelfCurrentlyReading &&
                               (isAudiobook
@@ -505,20 +568,169 @@ class BookPopup {
                             ),
                           ],
 
-                          // Date range
-                          if (dateRangeString != '') ...[
-                            const SizedBox(height: 10),
-                            Text(
-                              dateRangeString + daysToCompleteString,
-                              style: TextStyle(fontSize: 14, color: textColor),
-                            ),
+                          if (startDate != null || finishDate != null) ...[
+                            const SizedBox(height: 12),
+                            Builder(builder: (context) {
+                              final daysValue = startDateTime != null && finishDateTime != null
+                                  ? (finishDateTime.difference(startDateTime).inDays == 0
+                                      ? 1
+                                      : finishDateTime.difference(startDateTime).inDays)
+                                  : null;
+                              final lineColor = Theme.of(context).colorScheme.outlineVariant;
+
+                              final cs = Theme.of(context).colorScheme;
+
+                              Widget dateCard(String label, String? date, {bool alignEnd = false}) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: cs.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: alignEnd
+                                        ? CrossAxisAlignment.end
+                                        : CrossAxisAlignment.start,
+                                    children: [
+                                      Text(label,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: subtitleColor,
+                                          letterSpacing: 0.3,
+                                        )),
+                                      const SizedBox(height: 2),
+                                      Text(date ?? '—',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: textColor,
+                                        )),
+                                    ],
+                                  ),
+                                );
+                              }
+
+                              return IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    dateCard('Started', startDate),
+                                    Expanded(
+                                      child: Center(
+                                        child: Row(
+                                          children: [
+                                            Expanded(child: Container(height: 1.5, color: lineColor)),
+                                            if (daysValue != null) ...[
+                                              Container(
+                                                margin: const EdgeInsets.symmetric(horizontal: 6),
+                                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                                                  borderRadius: BorderRadius.circular(10),
+                                                  border: Border.all(color: lineColor),
+                                                ),
+                                                child: Column(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Text('$daysValue',
+                                                      style: TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.w700,
+                                                        color: textColor,
+                                                        height: 1.1,
+                                                      )),
+                                                    Text('days',
+                                                      style: TextStyle(fontSize: 10, color: subtitleColor)),
+                                                  ],
+                                                ),
+                                              ),
+                                              Expanded(child: Container(height: 1.5, color: lineColor)),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    dateCard('Finished', finishDate, alignEnd: true),
+                                  ],
+                                ),
+                              );
+                            }),
                           ],
 
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
 
                           // Stats grid
                           Builder(builder: (context) {
                             final sessionCount = (stats['session_count'] as int?) ?? 0;
+
+                            // Empty state — no sessions logged yet
+                            if (sessionCount == 0) {
+                              final shelfId = mutableBook['shelf_id'] as int?;
+                              final isFinished = shelfId == DatabaseHelper.shelfFinished ||
+                                  shelfId == DatabaseHelper.shelfUnfinished;
+                              final isCurrentlyReading =
+                                  shelfId == DatabaseHelper.shelfCurrentlyReading;
+                              final accent = settingsViewModel.accentColorNotifier.value;
+
+                              final String title;
+                              final String subtitle;
+                              if (isFinished) {
+                                title = 'No session data';
+                                subtitle = 'This book was finished without logged sessions.';
+                              } else if (isCurrentlyReading) {
+                                title = 'No sessions yet';
+                                subtitle = 'Log a session to start tracking time and pace.';
+                              } else {
+                                title = 'Nothing tracked yet';
+                                subtitle = 'Stats appear once you start reading.';
+                              }
+
+                              return SizedBox(
+                                width: double.infinity,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 24),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.bar_chart_rounded,
+                                          size: 32,
+                                          color: subtitleColor.withValues(alpha: 0.4)),
+                                      const SizedBox(height: 12),
+                                      Text(title,
+                                          style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                              color: textColor)),
+                                      const SizedBox(height: 4),
+                                      Text(subtitle,
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: subtitleColor.withValues(alpha: 0.7))),
+                                      if (isCurrentlyReading) ...[
+                                        const SizedBox(height: 16),
+                                        FilledButton.tonalIcon(
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                            navigateToAddSessionPage(book);
+                                          },
+                                          style: FilledButton.styleFrom(
+                                            backgroundColor: accent.withValues(alpha: 0.15),
+                                            foregroundColor: accent,
+                                            elevation: 0,
+                                          ),
+                                          icon: const Icon(
+                                              FluentIcons.calendar_add_16_filled, size: 17),
+                                          label: const Text('Log a session'),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }
+
                             final totalTime = (stats['total_time'] as int?) ?? 0;
                             final ppm = (stats['pages_per_minute'] as num?)?.toDouble() ?? 0.0;
                             final wpm = (stats['words_per_minute'] as num?)?.toDouble() ?? 0.0;
@@ -526,9 +738,9 @@ class BookPopup {
 
                             final cells = <(String, String)>[
                               ('Sessions', sessionCount.toString()),
-                              ('Read Time', formatTime(totalTime)),
+                              ('Read Time', _formatTime(totalTime)),
                               if (!isAudiobook) ('Pages Read', stats['total_pages']?.toString() ?? '0'),
-                              if (totalTime > 0) ('Avg Session', formatTime(avgSession)),
+                              if (totalTime > 0) ('Avg Session', _formatTime(avgSession)),
                               if (wpm > 0) ('Words/Min', wpm.round().toString()),
                               if (!isAudiobook && ppm > 0) ('Pages/Min', ppm.toStringAsFixed(1)),
                             ];
@@ -555,44 +767,92 @@ class BookPopup {
                             );
                           }),
 
-                          // Tags
-                          if (tags.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            SizedBox(
-                              height: 28,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: tags.length,
-                                separatorBuilder: (context, index) => const SizedBox(width: 6),
-                                itemBuilder: (context, index) {
-                                  return Container(
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.secondaryContainer,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.sell, size: 12, color: theme.colorScheme.onSecondaryContainer),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          tags[index].name,
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: theme.colorScheme.onSecondaryContainer,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
                             ],
                           ),
                           ),
                         ),
+                      ),
+                      Container(
+                        color: theme.colorScheme.surfaceContainerHigh,
+                        child: Builder(builder: (context) {
+                          final review = mutableBook['user_review'] as String?;
+                          final hasReview = review != null && review.trim().isNotEmpty;
+                          final accent = settingsViewModel.accentColorNotifier.value;
+                          final openEditor = openRateReview;
+
+                          if (!hasReview) {
+                            return Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.rate_review_outlined,
+                                    size: 32, color: subtitleColor.withValues(alpha: 0.4)),
+                                  const SizedBox(height: 12),
+                                  Text('No review yet',
+                                    style: TextStyle(
+                                      fontSize: 14, fontWeight: FontWeight.w500, color: textColor)),
+                                  const SizedBox(height: 4),
+                                  Text('Capture your thoughts on this book',
+                                    style: TextStyle(
+                                      fontSize: 12, color: subtitleColor.withValues(alpha: 0.7))),
+                                  const SizedBox(height: 16),
+                                  FilledButton.tonalIcon(
+                                    onPressed: openEditor,
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: accent.withValues(alpha: 0.15),
+                                      foregroundColor: accent,
+                                      elevation: 0,
+                                    ),
+                                    icon: const Icon(FluentIcons.compose_16_filled, size: 17),
+                                    label: const Text('Write a review'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: openEditor,
+                                  child: SingleChildScrollView(
+                                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+                                    child: Text(
+                                      review.trim(),
+                                      style: TextStyle(fontSize: 15, color: textColor, height: 1.6),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton.icon(
+                                    onPressed: openEditor,
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: accent,
+                                      backgroundColor: accent.withValues(alpha: 0.12),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      textStyle: const TextStyle(
+                                        fontSize: 13, fontWeight: FontWeight.w600),
+                                    ),
+                                    icon: const Icon(FluentIcons.edit_16_filled, size: 15),
+                                    label: const Text('Edit review'),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
                       ),
                       Container(
                         color: theme.colorScheme.surfaceContainerHigh,
@@ -623,36 +883,29 @@ class BookPopup {
                             },
                           ),
                           _PopupAction(
-                            icon: Icons.edit,
-                            label: 'Edit',
-                            color: Theme.of(context).colorScheme.onSurface,
-                            onTap: () {
-                              Navigator.pop(context);
-                              navigateToEditBookPage(book);
-                            },
-                          ),
-                          _PopupAction(
                             icon: FluentIcons.share_16_filled,
                             label: 'Share',
                             color: Theme.of(context).colorScheme.onSurface,
                             onTap: () {
-                              _showShareModal(context, book, stats, ratingStyle, dateRangeString);
+                              _showShareModal(context, mutableBook, stats, ratingStyle, dateRangeString);
                             },
                           ),
-                          SizedBox(
-                            width: 64,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                PopupMenuButton<String>(
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              PopupMenuButton<String>(
                                   icon: Icon(Icons.more_vert,
-                                      color: Theme.of(context).colorScheme.onSurface, size: 32),
+                                      color: Theme.of(context).colorScheme.onSurface, size: 28),
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12)),
                                   onSelected: (value) {
                                     switch (value) {
+                                      case 'edit':
+                                        Navigator.pop(context);
+                                        navigateToEditBookPage(book);
+                                        break;
                                       case 'duplicate':
-                                        duplicateBook(context, book, refreshCallback, settingsViewModel);
+                                        _duplicateBook(context, book, refreshCallback, settingsViewModel);
                                         break;
                                       case 'delete':
                                         confirmDelete(book['id']);
@@ -660,6 +913,17 @@ class BookPopup {
                                     }
                                   },
                                   itemBuilder: (context) => [
+                                    PopupMenuItem(
+                                      value: 'edit',
+                                      child: ListTile(
+                                        dense: true,
+                                        leading: Icon(Icons.edit, size: 20,
+                                            color: Theme.of(context).colorScheme.onSurface),
+                                        title: Text('Edit',
+                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                                color: Theme.of(context).colorScheme.onSurface)),
+                                      ),
+                                    ),
                                     PopupMenuItem(
                                       value: 'duplicate',
                                       child: ListTile(
@@ -683,18 +947,15 @@ class BookPopup {
                                     ),
                                   ],
                                 ),
-                                Text('More', style: TextStyle(fontSize: 14,
-                                    color: Theme.of(context).colorScheme.onSurface)),
-                              ],
-                            ),
+                              Text('More', style: TextStyle(fontSize: 11,
+                                  color: Theme.of(context).colorScheme.onSurface)),
+                            ],
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
                   ],
                 ),
-              ),
             );
           },
         );
@@ -1084,13 +1345,13 @@ class BookPopup {
   }
 
   static String? _bookTypeName(int? id) {
-    switch (id) {
-      case 1: return 'Paperback';
-      case 2: return 'Hardback';
-      case 3: return 'eBook';
-      case 4: return 'Audiobook';
-      default: return null;
-    }
+    return switch (id) {
+      1 => 'Paperback',
+      2 => 'Hardback',
+      3 => 'eBook',
+      4 => 'Audiobook',
+      _ => null,
+    };
   }
 
   static int _calculateDaysToComplete(String? startDate, String? finishDate) {
@@ -1150,40 +1411,61 @@ class BookPopup {
     return "$percentage% ($timeString)";
   }
 
-  static Widget _buildRatingStars(double? rating) {
-    final safeRating = rating ?? 0.0;
+  static (IconData, String) _bookTypeDetails(int? id) {
+    return switch (id) {
+      1 => (Icons.book_outlined, 'Paperback'),
+      2 => (Icons.book, 'Hardback'),
+      3 => (Icons.computer, 'eBook'),
+      4 => (Icons.headset, 'Audiobook'),
+      _ => (Icons.book, 'Paperback'),
+    };
+  }
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: RatingBarIndicator(
-        rating: safeRating,
-        itemCount: 5,
-        itemSize: 24.0,
-        physics: const NeverScrollableScrollPhysics(),
-        itemBuilder: (context, _) => Icon(
-          Icons.star,
-          color: rating == null ? Colors.grey.shade400 : Color(0xFFFBCB04),
-        ),
-      ),
+  static String _formatTime(int totalMinutes) {
+    final days = totalMinutes ~/ (24 * 60);
+    final hours = (totalMinutes % (24 * 60)) ~/ 60;
+    final minutes = totalMinutes % 60;
+    final buf = StringBuffer();
+    if (days > 0) buf.write('${days}d ');
+    if (hours > 0 || days > 0) buf.write('${hours}h ');
+    buf.write('${minutes}m');
+    return buf.toString();
+  }
+
+  static String _formatCount(int number) {
+    return number.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (m) => '${m[1]},',
     );
   }
 
-  static Widget _buildRatingDisplay(int ratingStyle, double? rating) {
-    if (ratingStyle == 0) {
-      return _buildRatingStars(rating);
-    } else {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            rating != null ? rating.toStringAsFixed(1) : '-',
-            style: const TextStyle(fontSize: 14),
-          ),
-          const SizedBox(width: 4),
-          const Icon(Icons.star, size: 16, color: Color(0xFFFBCB04)),
-        ],
-      );
-    }
+  static void _duplicateBook(
+      BuildContext context,
+      Map<String, dynamic> book,
+      Function refreshCallback,
+      SettingsViewModel settingsViewModel) {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BookFormPage(
+          book: {
+            'title': '${book['title']} (Copy)',
+            'author': book['author'],
+            'word_count': book['word_count'],
+            'page_count': book['page_count'],
+            'book_type_id': book['book_type_id'],
+            'rating': null,
+            'is_favorite': 0,
+            'date_started': null,
+            'date_finished': null,
+            'date_added': DateTime.now().toIso8601String(),
+          },
+          onSave: (_) => refreshCallback(),
+          settingsViewModel: settingsViewModel,
+        ),
+      ),
+    );
   }
 
   static Widget _buildStatCell(BuildContext context, String label, String value) {
@@ -1233,13 +1515,13 @@ class _PopupAction extends StatelessWidget {
     return Column(
       children: [
         IconButton(
-          icon: Icon(icon, size: 32),
+          icon: Icon(icon, size: 28),
           color: color,
           onPressed: onTap,
         ),
         Text(
           label,
-          style: TextStyle(fontSize: 14, color: color),
+          style: TextStyle(fontSize: 11, color: color),
         ),
       ],
     );

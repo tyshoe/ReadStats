@@ -1188,8 +1188,8 @@ class _BookFormPageState extends State<BookFormPage> {
                     itemSize: 32,
                     itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
                     itemBuilder: (context, _) => const Icon(
-                      Icons.star,
-                      color: Colors.amber,
+                      Icons.star_rounded,
+                      color: Color(0xFFFBCB04),
                     ),
                     glow: false,
                     onRatingUpdate: (rating) {
@@ -1376,31 +1376,25 @@ class _BookFormPageState extends State<BookFormPage> {
                           final tags = snapshot.data ?? [];
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),
-                            child: Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
-                              children: tags.map((tag) => Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.secondaryContainer,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.sell, size: 12,
-                                        color: theme.colorScheme.onSecondaryContainer),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      tag.name,
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.onSecondaryContainer,
+                            child: tags.isEmpty
+                                ? const SizedBox.shrink()
+                                : Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: tags.map((tag) => Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: theme.colorScheme.secondaryContainer,
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              )).toList(),
-                            ),
+                                      child: Text(
+                                        tag.name,
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: theme.colorScheme.onSecondaryContainer,
+                                        ),
+                                      ),
+                                    )).toList(),
+                                  ),
                           );
                         },
                       ),

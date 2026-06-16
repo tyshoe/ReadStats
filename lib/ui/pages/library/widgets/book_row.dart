@@ -133,15 +133,19 @@ class BookRow extends StatelessWidget {
           rating.toStringAsFixed(1),
           style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800),
         ),
-        const SizedBox(width: 6),
-        RatingBarIndicator(
-          rating: rating,
-          itemCount: 5,
-          itemSize: showStars ? 18 : 14,
-          physics: const NeverScrollableScrollPhysics(),
-          itemBuilder: (context, _) =>
-              const Icon(Icons.star_rounded, color: _starColor),
-        ),
+        SizedBox(width: showStars ? 6 : 4),
+        // Star preference → 5 stars; numeric → single star
+        if (showStars)
+          RatingBarIndicator(
+            rating: rating,
+            itemCount: 5,
+            itemSize: 18,
+            physics: const NeverScrollableScrollPhysics(),
+            itemBuilder: (context, _) =>
+                const Icon(Icons.star_rounded, color: _starColor),
+          )
+        else
+          const Icon(Icons.star_rounded, size: 14, color: _starColor),
       ],
     );
     return FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: row);
@@ -150,37 +154,39 @@ class BookRow extends StatelessWidget {
   Widget _buildTags(ThemeData theme) {
     final shown = tags.take(3).toList();
     final extra = tags.length - shown.length;
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final tag in shown) _tagChip(theme, tag),
-        if (extra > 0) _tagChip(theme, '+$extra', showIcon: false),
+        Padding(
+          padding: const EdgeInsets.only(top: 4, right: 6),
+          child: Icon(Icons.sell, size: 16, color: theme.colorScheme.onSecondaryContainer),
+        ),
+        Expanded(
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final tag in shown) _tagChip(theme, tag),
+              if (extra > 0) _tagChip(theme, '+$extra'),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _tagChip(ThemeData theme, String label, {bool showIcon = true}) {
+  Widget _tagChip(ThemeData theme, String label) {
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.secondaryContainer,
         borderRadius: BorderRadius.circular(20),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (showIcon) ...[
-            Icon(Icons.sell,
-                size: 12, color: theme.colorScheme.onSecondaryContainer),
-            const SizedBox(width: 4),
-          ],
-          Text(
-            label,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSecondaryContainer),
-          ),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      child: Text(
+        label,
+        style: theme.textTheme.bodySmall
+            ?.copyWith(color: theme.colorScheme.onSecondaryContainer),
       ),
     );
   }

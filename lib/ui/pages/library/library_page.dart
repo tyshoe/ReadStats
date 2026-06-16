@@ -152,6 +152,27 @@ class _LibraryPageState extends State<LibraryPage> {
     });
   }
 
+  void _togglePin(int bookId) {
+    setState(() {
+      if (_pinnedBookIds.contains(bookId)) {
+        _pinnedBookIds.remove(bookId);
+      } else {
+        _pinnedBookIds.add(bookId);
+      }
+      _filteredBooks = _sortAndFilterBooks(
+          List<Map<String, dynamic>>.from(widget.books),
+          _selectedSortOption,
+          _isAscending,
+          _selectedBookTypes,
+          _isFavorite,
+          _selectedShelfId,
+          _selectedFinishedYears,
+          _selectedTags,
+          _selectedTagFilterMode);
+    });
+    widget.settingsViewModel.setPinnedBookIds(_pinnedBookIds.toList());
+  }
+
   void _pinSelectedBooks() {
     setState(() {
       for (final id in _selectedBookIds) {
@@ -369,7 +390,10 @@ class _LibraryPageState extends State<LibraryPage> {
       widget.settingsViewModel,
       refreshCallback: () {
         widget.refreshBooks();
+        _refreshTags();
       },
+      isPinned: _pinnedBookIds.contains(book['id']),
+      onTogglePin: _togglePin,
     );
   }
 
