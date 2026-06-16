@@ -119,6 +119,7 @@ class _MyAppState extends State<MyApp> {
     final tagFilterMode = await SettingsViewModel.getLibraryTagFilterMode();
     final pinnedBookIds = await SettingsViewModel.getPinnedBookIds();
     final shelfId = await SettingsViewModel.getLibraryShelfFilter();
+    final statsYearFilter = await SettingsViewModel.getStatsYearFilter();
 
     if (kDebugMode) {
       final preferencesDebugMessage = '''
@@ -166,6 +167,7 @@ class _MyAppState extends State<MyApp> {
         tagFilterMode: tagFilterMode,
         pinnedBookIds: pinnedBookIds,
         shelfId: shelfId,
+        statsYearFilter: statsYearFilter,
       );
       _isReady = true;
     });

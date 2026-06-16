@@ -76,10 +76,19 @@ class _StatisticsPageState extends State<StatisticsPage> {
   @override
   void initState() {
     super.initState();
+    selectedYear = widget.settingsViewModel.statsYearFilterNotifier.value;
     WidgetsBinding.instance.addPostFrameCallback((_) => loadStats());
   }
 
   void loadStats() async {
+    // Safeguard: if the saved year no longer has any data, fall back to All.
+    if (selectedYear != 0) {
+      final years = await getCombinedYears();
+      if (!years.contains(selectedYear)) {
+        selectedYear = 0;
+        widget.settingsViewModel.setStatsYearFilter(0);
+      }
+    }
     final newStats = await calculateStats(selectedYear);
     if (!mounted) return;
     setState(() {
@@ -608,6 +617,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                         selected: isSelected,
                         onSelected: (_) {
                           setState(() => selectedYear = year);
+                          widget.settingsViewModel.setStatsYearFilter(year);
                           loadStats();
                         },
                         showCheckmark: false,

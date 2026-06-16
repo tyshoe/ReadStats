@@ -23,6 +23,8 @@ class SettingsViewModel {
   final ValueNotifier<List<int>> pinnedBookIdsNotifier;
   // Library Shelf Filter
   final ValueNotifier<int?> libraryShelfFilterNotifier;
+  // Statistics
+  final ValueNotifier<int> statsYearFilterNotifier;
 
   SettingsViewModel({
     required ThemeMode themeMode,
@@ -42,6 +44,7 @@ class SettingsViewModel {
     required String tagFilterMode,
     required List<int> pinnedBookIds,
     required int? shelfId,
+    required int statsYearFilter,
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
@@ -58,7 +61,8 @@ class SettingsViewModel {
         libraryFavoriteFilterNotifier = ValueNotifier(isFavorite),
         libraryFinishedYearFilterNotifier = ValueNotifier(finishedYears),
         pinnedBookIdsNotifier = ValueNotifier(pinnedBookIds),
-        libraryShelfFilterNotifier = ValueNotifier(shelfId);
+        libraryShelfFilterNotifier = ValueNotifier(shelfId),
+        statsYearFilterNotifier = ValueNotifier(statsYearFilter);
 
 
   // Method to toggle theme mode (light, dark, system)
@@ -227,6 +231,19 @@ class SettingsViewModel {
   static Future<int> getDefaultRatingStyle() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getInt('defaultRatingStyle') ?? 0;
+  }
+
+  // Save stats year filter (0 = All years)
+  Future<void> setStatsYearFilter(int year) async {
+    statsYearFilterNotifier.value = year;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('statsYearFilter', year);
+  }
+
+  // Load saved stats year filter
+  static Future<int> getStatsYearFilter() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('statsYearFilter') ?? 0;
   }
 
   Future<void> setDefaultTab(int defaultTab) async {
