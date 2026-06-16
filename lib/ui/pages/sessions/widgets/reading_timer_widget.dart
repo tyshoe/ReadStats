@@ -50,6 +50,13 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
       widget.timerService.addListener(_onTimerChanged);
     }
     if (oldWidget.books != widget.books) _syncSelectedBook();
+    // When a session is logged elsewhere (e.g. the session form), the
+    // most-recent book changes — reflect it in the idle timer.
+    if (oldWidget.defaultBook?['id'] != widget.defaultBook?['id'] &&
+        widget.timerService.bookId == null &&
+        widget.defaultBook != null) {
+      setState(() => _selectedBook = widget.defaultBook);
+    }
   }
 
   @override
