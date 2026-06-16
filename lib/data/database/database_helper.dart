@@ -544,22 +544,33 @@ class DatabaseHelper {
 
   Future<int> updateBook(Map<String, dynamic> book) async {
     final db = await database;
-    return await db.update(
+    final result = await db.update(
       'books',
       book,
       where: 'id = ?',
       whereArgs: [book['id']],
     );
+    // Finished books don't belong in the reading planner.
+    if (book['shelf_id'] == shelfFinished) {
+      await db.delete('planner_books',
+          where: 'book_id = ?', whereArgs: [book['id']]);
+    }
+    return result;
   }
 
   Future<int> updateBookPartial(int id, Map<String, dynamic> updates) async {
     final db = await database;
-    return await db.update(
+    final result = await db.update(
       'books',
       updates,
       where: 'id = ?',
       whereArgs: [id],
     );
+    // Finished books don't belong in the reading planner.
+    if (updates['shelf_id'] == shelfFinished) {
+      await db.delete('planner_books', where: 'book_id = ?', whereArgs: [id]);
+    }
+    return result;
   }
 
   Future<int> deleteBook(int id) async {
@@ -953,6 +964,11 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [bookId],
     );
+    // Finished books don't belong in the reading planner.
+    if (shelfId == shelfFinished) {
+      await db
+          .delete('planner_books', where: 'book_id = ?', whereArgs: [bookId]);
+    }
   }
 
   Future<List<Map<String, dynamic>>> getBookCountsPerType() async {
