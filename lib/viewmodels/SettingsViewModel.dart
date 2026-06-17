@@ -19,6 +19,7 @@ class SettingsViewModel {
   final ValueNotifier<bool> libraryFavoriteFilterNotifier;
   final ValueNotifier<List<String>> libraryFinishedYearFilterNotifier;
   final ValueNotifier<String> libraryTagFilterModeNotifier;
+  final ValueNotifier<bool> libraryReviewedFilterNotifier;
   // Pinned Books
   final ValueNotifier<List<int>> pinnedBookIdsNotifier;
   // Library Shelf Filter
@@ -42,6 +43,7 @@ class SettingsViewModel {
     required bool isFavorite,
     required List<String> finishedYears,
     required String tagFilterMode,
+    required bool isReviewed,
     required List<int> pinnedBookIds,
     required int? shelfId,
     required int statsYearFilter,
@@ -60,6 +62,7 @@ class SettingsViewModel {
         libraryBookTypeFilterNotifier = ValueNotifier(bookTypes),
         libraryFavoriteFilterNotifier = ValueNotifier(isFavorite),
         libraryFinishedYearFilterNotifier = ValueNotifier(finishedYears),
+        libraryReviewedFilterNotifier = ValueNotifier(isReviewed),
         pinnedBookIdsNotifier = ValueNotifier(pinnedBookIds),
         libraryShelfFilterNotifier = ValueNotifier(shelfId),
         statsYearFilterNotifier = ValueNotifier(statsYearFilter);
@@ -150,6 +153,17 @@ class SettingsViewModel {
   static Future<bool> getLibraryIsFavorite() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getBool('libraryIsFavorite') ?? false;
+  }
+
+  Future<void> setLibraryReviewed(bool isReviewed) async {
+    libraryReviewedFilterNotifier.value = isReviewed;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool('libraryReviewed', isReviewed);
+  }
+
+  static Future<bool> getLibraryReviewed() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('libraryReviewed') ?? false;
   }
 
   // Save book format filter

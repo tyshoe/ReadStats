@@ -53,6 +53,7 @@ class _LibraryPageState extends State<LibraryPage> {
   List<String> _selectedBookTypes = [];
   List<String> _selectedTags = [];
   String _selectedTagFilterMode = 'any';
+  bool _isReviewed = false;
   late TagRepository _tagRepository;
   List<String> _availableTags = [];
   Map<int, List<String>> _bookTagsCache = {};
@@ -76,6 +77,7 @@ class _LibraryPageState extends State<LibraryPage> {
     _libraryBookView = widget.settingsViewModel.libraryBookViewNotifier.value;
     _selectedFinishedYears = widget.settingsViewModel.libraryFinishedYearFilterNotifier.value;
     _selectedTagFilterMode = widget.settingsViewModel.libraryTagFilterModeNotifier.value;
+    _isReviewed = widget.settingsViewModel.libraryReviewedFilterNotifier.value;
     _pinnedBookIds = widget.settingsViewModel.pinnedBookIdsNotifier.value.toSet();
     _selectedShelfId = widget.settingsViewModel.libraryShelfFilterNotifier.value;
 
@@ -441,6 +443,10 @@ class _LibraryPageState extends State<LibraryPage> {
       final favoriteMatch =
           !isFavorite || (book['is_favorite'] != null && book['is_favorite'] == 1);
 
+      final reviewedMatch = !_isReviewed ||
+          (book['user_review'] != null &&
+              (book['user_review'] as String).trim().isNotEmpty);
+
       final shelfMatch = selectedShelfId == null ||
           (book['shelf_id'] as int?) == selectedShelfId;
 
@@ -473,7 +479,12 @@ class _LibraryPageState extends State<LibraryPage> {
         }
       }
 
-      return typeMatch && favoriteMatch && shelfMatch && yearMatch && tagMatch;
+      return typeMatch &&
+          favoriteMatch &&
+          reviewedMatch &&
+          shelfMatch &&
+          yearMatch &&
+          tagMatch;
     }).toList();
   }
 
@@ -556,7 +567,8 @@ class _LibraryPageState extends State<LibraryPage> {
         isFavorite: _isFavorite,
         finishedYears: _selectedFinishedYears,
         tags: _selectedTags,
-        tagFilterMode: _selectedTagFilterMode);
+        tagFilterMode: _selectedTagFilterMode,
+        isReviewed: _isReviewed);
 
     SortFilterPopup.show(
         context: context,
@@ -570,6 +582,7 @@ class _LibraryPageState extends State<LibraryPage> {
             _selectedFinishedYears = newOptions.finishedYears;
             _selectedTags = newOptions.tags;
             _selectedTagFilterMode = newOptions.tagFilterMode;
+            _isReviewed = newOptions.isReviewed;
           });
           _searchBooks();
           widget.settingsViewModel.setLibrarySortOption(_selectedSortOption);
@@ -578,6 +591,7 @@ class _LibraryPageState extends State<LibraryPage> {
           widget.settingsViewModel.setLibraryIsFavorite(_isFavorite);
           widget.settingsViewModel.setLibraryFinishedYearFilter(_selectedFinishedYears);
           widget.settingsViewModel.setLibraryTagFilterMode(_selectedTagFilterMode);
+          widget.settingsViewModel.setLibraryReviewed(_isReviewed);
         },
         availableYears: availableYears,
         settingsViewModel: widget.settingsViewModel,
@@ -696,6 +710,7 @@ class _LibraryPageState extends State<LibraryPage> {
           IconButton(
             icon: Badge(
               isLabelVisible: _isFavorite ||
+                  _isReviewed ||
                   _selectedBookTypes.isNotEmpty ||
                   _selectedFinishedYears.isNotEmpty ||
                   _selectedTags.isNotEmpty,
@@ -874,6 +889,7 @@ class _LibraryPageState extends State<LibraryPage> {
                                   final bool isShelfEmpty = _selectedShelfId != null &&
                                       !_isSearching &&
                                       !_isFavorite &&
+                                      !_isReviewed &&
                                       _selectedBookTypes.isEmpty &&
                                       _selectedFinishedYears.isEmpty &&
                                       _selectedTags.isEmpty;

@@ -117,6 +117,7 @@ class _MyAppState extends State<MyApp> {
     final isFavorite = await SettingsViewModel.getLibraryIsFavorite();
     final finishedYears = await SettingsViewModel.getLibraryFinishedYears();
     final tagFilterMode = await SettingsViewModel.getLibraryTagFilterMode();
+    final isReviewed = await SettingsViewModel.getLibraryReviewed();
     final pinnedBookIds = await SettingsViewModel.getPinnedBookIds();
     final shelfId = await SettingsViewModel.getLibraryShelfFilter();
     final statsYearFilter = await SettingsViewModel.getStatsYearFilter();
@@ -143,6 +144,7 @@ class _MyAppState extends State<MyApp> {
       • Book Types: ${bookTypes.isEmpty ? 'All' : bookTypes.join(', ')}
       • Finished Years: ${finishedYears.isEmpty ? 'All' : finishedYears.join(', ')}
       • Tag filter mode: $tagFilterMode
+      • Reviewed Filter: ${isReviewed ? 'ON' : 'OFF'}
       ═══════════════════════════════════════════
       ''';
       debugPrint(preferencesDebugMessage);
@@ -165,6 +167,7 @@ class _MyAppState extends State<MyApp> {
         isFavorite: isFavorite,
         finishedYears: finishedYears,
         tagFilterMode: tagFilterMode,
+        isReviewed: isReviewed,
         pinnedBookIds: pinnedBookIds,
         shelfId: shelfId,
         statsYearFilter: statsYearFilter,

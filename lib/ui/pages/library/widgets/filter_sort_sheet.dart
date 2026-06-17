@@ -10,6 +10,7 @@ class SortFilterOptions {
   final List<String> finishedYears;
   final List<String> tags;
   final String tagFilterMode;
+  final bool isReviewed;
 
   const SortFilterOptions({
     required this.sortOption,
@@ -19,6 +20,7 @@ class SortFilterOptions {
     this.finishedYears = const [],
     this.tags = const [],
     this.tagFilterMode = 'any',
+    this.isReviewed = false,
   });
 
   SortFilterOptions copyWith({
@@ -29,6 +31,7 @@ class SortFilterOptions {
     List<String>? finishedYears,
     List<String>? tags,
     String? tagFilterMode,
+    bool? isReviewed,
   }) {
     return SortFilterOptions(
       sortOption: sortOption ?? this.sortOption,
@@ -38,6 +41,7 @@ class SortFilterOptions {
       finishedYears: finishedYears ?? this.finishedYears,
       tags: tags ?? this.tags,
       tagFilterMode: tagFilterMode ?? this.tagFilterMode,
+      isReviewed: isReviewed ?? this.isReviewed,
     );
   }
 }
@@ -54,9 +58,9 @@ class SortFilterPopup {
     final result = await showModalBottomSheet<SortFilterOptions>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
       builder: (context) {
         return _SortFilterView(
@@ -125,25 +129,27 @@ class _SortFilterViewState extends State<_SortFilterView> {
         finishedYears: [],
         tags: [],
         tagFilterMode: 'any',
+        isReviewed: false,
       );
     });
   }
 
   Widget _buildSectionHeader(String title) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 0, top: 4),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Text(
         title,
-        style: Theme.of(
-          context,
-        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
 
   Widget _buildSortControls() {
     final theme = Theme.of(context);
-    final borderColor = theme.colorScheme.outline;
+    final fieldColor = theme.colorScheme.surfaceContainerHighest;
 
     // Decide which icon to show based on sort option
     IconData sortIcon;
@@ -158,120 +164,112 @@ class _SortFilterViewState extends State<_SortFilterView> {
           : FluentIcons.arrow_sort_down_lines_20_regular;
     }
 
-    return Row(
-      children: [
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            value: currentOptions.sortOption,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: borderColor),
+    final fieldBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide.none,
+    );
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              initialValue: currentOptions.sortOption,
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: fieldColor,
+                border: fieldBorder,
+                enabledBorder: fieldBorder,
+                focusedBorder: fieldBorder,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: borderColor),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: borderColor),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-            ),
-            items: sortOptions.map((option) {
-              return DropdownMenuItem<String>(
-                value: option,
-                child: Text(option, overflow: TextOverflow.ellipsis),
-              );
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  currentOptions = currentOptions.copyWith(sortOption: value);
-                });
-              }
-            },
-            isExpanded: true,
-            dropdownColor: theme.colorScheme.secondaryContainer,
-            menuMaxHeight: 200,
-            alignment: AlignmentDirectional.centerStart,
-            style: theme.textTheme.bodyLarge,
-          ),
-        ),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 48,
-          height: 48,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () {
-              setState(() {
-                currentOptions = currentOptions.copyWith(
-                  isAscending: !currentOptions.isAscending,
+              items: sortOptions.map((option) {
+                return DropdownMenuItem<String>(
+                  value: option,
+                  child: Text(option, overflow: TextOverflow.ellipsis),
                 );
-              });
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: borderColor, width: 1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.center,
-              child: Icon(
-                sortIcon,
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(204),
-              ),
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    currentOptions = currentOptions.copyWith(
+                      sortOption: value,
+                    );
+                  });
+                }
+              },
+              isExpanded: true,
+              borderRadius: BorderRadius.circular(12),
+              dropdownColor: fieldColor,
+              menuMaxHeight: 200,
+              alignment: AlignmentDirectional.centerStart,
+              style: theme.textTheme.bodyLarge,
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 56,
+            child: FilledButton(
+              onPressed: () {
+                setState(() {
+                  currentOptions = currentOptions.copyWith(
+                    isAscending: !currentOptions.isAscending,
+                  );
+                });
+              },
+              style: FilledButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                elevation: 0,
+                backgroundColor: fieldColor,
+                foregroundColor: theme.colorScheme.onSurfaceVariant,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Icon(sortIcon),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildTagFilterModeSelector() {
     final theme = Theme.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: SegmentedButton<String>(
-                segments: [
-                  ButtonSegment<String>(value: 'any', label: Text('Match Any')),
-                  ButtonSegment<String>(value: 'all', label: Text('Match All')),
-                  ButtonSegment<String>(
-                    value: 'exclude',
-                    label: Text('Exclude'),
-                  ),
-                ],
-                selected: {currentOptions.tagFilterMode},
-                onSelectionChanged: (Set<String> newSelection) {
-                  setState(() {
-                    currentOptions = currentOptions.copyWith(
-                      tagFilterMode: newSelection.first,
-                    );
-                  });
-                },
-                style: SegmentedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  foregroundColor: theme.colorScheme.onSurface,
-                  selectedBackgroundColor: theme.colorScheme.primaryContainer,
-                  selectedForegroundColor: theme.colorScheme.onPrimaryContainer,
-                  side: BorderSide(color: theme.colorScheme.outline, width: 1),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                ),
-                showSelectedIcon: true,
-              ),
-            ),
-          ],
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<String>(
+        segments: const [
+          ButtonSegment<String>(value: 'any', label: Text('Any')),
+          ButtonSegment<String>(value: 'all', label: Text('All')),
+          ButtonSegment<String>(value: 'exclude', label: Text('Exclude')),
+        ],
+        selected: {currentOptions.tagFilterMode},
+        onSelectionChanged: (Set<String> newSelection) {
+          setState(() {
+            currentOptions = currentOptions.copyWith(
+              tagFilterMode: newSelection.first,
+            );
+          });
+        },
+        showSelectedIcon: false,
+        style: SegmentedButton.styleFrom(
+          backgroundColor: theme.colorScheme.surfaceContainerHighest,
+          foregroundColor: theme.colorScheme.onSurfaceVariant,
+          selectedBackgroundColor: theme.colorScheme.primaryContainer,
+          selectedForegroundColor: theme.colorScheme.onPrimaryContainer,
+          side: BorderSide.none,
+          shape: const StadiumBorder(),
+          textStyle: theme.textTheme.bodySmall,
+          padding: const EdgeInsets.symmetric(vertical: 10),
         ),
-        const SizedBox(height: 8),
-      ],
+      ),
     );
   }
 
@@ -280,9 +278,10 @@ class _SortFilterViewState extends State<_SortFilterView> {
     required List<String> selected,
     required Function(List<String>) onChanged,
   }) {
+    final theme = Theme.of(context);
     return Wrap(
       spacing: 8,
-      runSpacing: 0,
+      runSpacing: 8,
       children: options.map((option) {
         final isSelected = selected.contains(option);
         return FilterChip(
@@ -302,19 +301,56 @@ class _SortFilterViewState extends State<_SortFilterView> {
               onChanged(newSelection.isEmpty ? ['All'] : newSelection);
             }
           },
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: BorderSide(
-              color: isSelected
-                  ? Colors.transparent
-                  : Theme.of(context).colorScheme.outline,
-              width: 1,
-            ),
-          ),
-          selectedColor: Theme.of(context).colorScheme.primaryContainer,
-          labelStyle: Theme.of(context).textTheme.bodyMedium,
+          showCheckmark: false,
+          labelStyle: theme.textTheme.bodySmall,
+          labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          backgroundColor: theme.colorScheme.surfaceContainerHighest,
+          selectedColor: theme.colorScheme.primaryContainer,
+          elevation: 0,
+          pressElevation: 0,
+          side: BorderSide.none,
+          shape: const StadiumBorder(),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildStatusChip({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    Color? selectedIconColor,
+    required ValueChanged<bool> onSelected,
+  }) {
+    final theme = Theme.of(context);
+    return FilterChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: onSelected,
+      avatar: Icon(
+        icon,
+        size: 18,
+        color: selected
+            ? (selectedIconColor ?? theme.colorScheme.onPrimaryContainer)
+            : theme.colorScheme.onSurface.withAlpha(153),
+      ),
+      labelStyle: theme.textTheme.bodySmall?.copyWith(
+        color: selected
+            ? theme.colorScheme.onPrimaryContainer
+            : theme.colorScheme.onSurface,
+      ),
+      backgroundColor: theme.colorScheme.surfaceContainerHighest,
+      selectedColor: theme.colorScheme.primaryContainer,
+      elevation: 0,
+      pressElevation: 0,
+      side: BorderSide.none,
+      shape: const StadiumBorder(),
+      labelPadding: const EdgeInsets.only(left: 6, right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      showCheckmark: false,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 
@@ -326,6 +362,10 @@ class _SortFilterViewState extends State<_SortFilterView> {
     }
 
     if (currentOptions.isFavorite) {
+      count += 1;
+    }
+
+    if (currentOptions.isReviewed) {
       count += 1;
     }
 
@@ -363,7 +403,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
                 decoration: BoxDecoration(
                   color: Theme.of(
                     context,
-                  ).colorScheme.onSurface.withOpacity(0.3),
+                  ).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -382,19 +422,19 @@ class _SortFilterViewState extends State<_SortFilterView> {
                         child: Text(
                           'Sort',
                           style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w600),
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                       ),
                       const SizedBox(height: 16),
                       _buildSortControls(),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 24),
 
                       // ===== FILTERS SECTION =====
                       Center(
                         child: Text(
                           'Filters',
                           style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w600),
+                              ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -416,29 +456,19 @@ class _SortFilterViewState extends State<_SortFilterView> {
                           });
                         },
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
                       // Status Filter
                       _buildSectionHeader('Status'),
                       Wrap(
                         spacing: 8,
-                        runSpacing: 0,
+                        runSpacing: 8,
                         children: [
-                          FilterChip(
-                            label: Text(
-                              'Favorites',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: currentOptions.isFavorite
-                                        ? Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimaryContainer
-                                        : Theme.of(
-                                            context,
-                                          ).colorScheme.onSurface,
-                                  ),
-                            ),
+                          _buildStatusChip(
+                            label: 'Favorites',
+                            icon: Icons.favorite,
                             selected: currentOptions.isFavorite,
+                            selectedIconColor: Colors.red,
                             onSelected: (value) {
                               setState(() {
                                 currentOptions = currentOptions.copyWith(
@@ -446,34 +476,22 @@ class _SortFilterViewState extends State<_SortFilterView> {
                                 );
                               });
                             },
-                            avatar: Icon(
-                              Icons.favorite,
-                              color: currentOptions.isFavorite
-                                  ? Colors.red
-                                  : Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface.withAlpha(153),
-                              size: 20,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              side: BorderSide(
-                                color: currentOptions.isFavorite
-                                    ? Colors.transparent
-                                    : Theme.of(context).colorScheme.outline,
-                                width: 1,
-                              ),
-                            ),
-                            selectedColor: Theme.of(
-                              context,
-                            ).colorScheme.primaryContainer,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            labelPadding: const EdgeInsets.only(right: 8),
-                            showCheckmark: false,
+                          ),
+                          _buildStatusChip(
+                            label: 'Reviewed',
+                            icon: Icons.rate_review_rounded,
+                            selected: currentOptions.isReviewed,
+                            onSelected: (value) {
+                              setState(() {
+                                currentOptions = currentOptions.copyWith(
+                                  isReviewed: value,
+                                );
+                              });
+                            },
                           ),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
                       // Year Filter
                       if (widget.availableYears.isNotEmpty) ...[
@@ -493,13 +511,12 @@ class _SortFilterViewState extends State<_SortFilterView> {
                             });
                           },
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 16),
                       ],
 
                       // Tag Filter
                       if (widget.availableTags.isNotEmpty) ...[
                         _buildSectionHeader('Tags'),
-                        _buildTagFilterModeSelector(),
                         _buildFilterChips(
                           options: ['All', ...widget.availableTags],
                           selected: currentOptions.tags.isEmpty
@@ -513,6 +530,10 @@ class _SortFilterViewState extends State<_SortFilterView> {
                             });
                           },
                         ),
+                        if (currentOptions.tags.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _buildTagFilterModeSelector(),
+                        ],
                         const SizedBox(height: 8),
                       ],
                     ],
@@ -523,19 +544,19 @@ class _SortFilterViewState extends State<_SortFilterView> {
 
             // Bottom Buttons
             Container(
-              padding: const EdgeInsets.only(
+              padding: EdgeInsets.only(
                 top: 16,
                 left: 16,
                 right: 16,
-                bottom: 24,
+                bottom: 16 + MediaQuery.of(context).padding.bottom,
               ),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
                 border: Border(
                   top: BorderSide(
                     color: Theme.of(
                       context,
-                    ).colorScheme.outline.withOpacity(0.2),
+                    ).colorScheme.outline.withValues(alpha: 0.2),
                     width: 1,
                   ),
                 ),
@@ -547,17 +568,18 @@ class _SortFilterViewState extends State<_SortFilterView> {
                     child: OutlinedButton(
                       onPressed: () => _clearAllFilters(),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        minimumSize: const Size.fromHeight(48),
                         side: BorderSide(
                           color: Theme.of(context).colorScheme.outline,
                         ),
                       ),
-                      child: _countActiveFilters() > 0
-                          ? Text('Reset Filters (${_countActiveFilters()})')
-                          : const Text('Reset Filters'),
+                      child: Text(
+                        _countActiveFilters() > 0
+                            ? 'Reset (${_countActiveFilters()})'
+                            : 'Reset',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -566,11 +588,9 @@ class _SortFilterViewState extends State<_SortFilterView> {
                     child: FilledButton(
                       onPressed: () => Navigator.pop(context, currentOptions),
                       style: FilledButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        backgroundColor:
+                            widget.settingsViewModel.accentColorNotifier.value,
+                        minimumSize: const Size.fromHeight(48),
                       ),
                       child: const Text('Apply'),
                     ),
