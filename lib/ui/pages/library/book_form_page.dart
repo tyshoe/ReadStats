@@ -45,8 +45,10 @@ class _BookFormPageState extends State<BookFormPage> {
   final TextEditingController _ratingController = TextEditingController();
   final TextEditingController _isbnController = TextEditingController();
   final TextEditingController _userReviewController = TextEditingController();
-  final TextEditingController _durationHoursController = TextEditingController();
-  final TextEditingController _durationMinutesController = TextEditingController();
+  final TextEditingController _durationHoursController =
+      TextEditingController();
+  final TextEditingController _durationMinutesController =
+      TextEditingController();
   final DateTime _dateToday = DateTime.now();
   double? _rating;
   bool _isFavorite = false;
@@ -67,8 +69,10 @@ class _BookFormPageState extends State<BookFormPage> {
   @override
   void initState() {
     super.initState();
-    _useStarRating = widget.settingsViewModel.defaultRatingStyleNotifier.value == 0;
-    _selectedBookType = widget.settingsViewModel.defaultBookTypeNotifier.value - 1;
+    _useStarRating =
+        widget.settingsViewModel.defaultRatingStyleNotifier.value == 0;
+    _selectedBookType =
+        widget.settingsViewModel.defaultBookTypeNotifier.value - 1;
     _loadShelves();
 
     if (widget.searchResult != null) {
@@ -80,8 +84,10 @@ class _BookFormPageState extends State<BookFormPage> {
       _authorController.text = widget.book!['author'];
       final editWordCount = widget.book!['word_count'] as int?;
       final editPageCount = widget.book!['page_count'] as int?;
-      if (editWordCount != null && editWordCount > 0) _wordCountController.text = editWordCount.toString();
-      if (editPageCount != null && editPageCount > 0) _pageCountController.text = editPageCount.toString();
+      if (editWordCount != null && editWordCount > 0)
+        _wordCountController.text = editWordCount.toString();
+      if (editPageCount != null && editPageCount > 0)
+        _pageCountController.text = editPageCount.toString();
       _rating = widget.book!['rating']?.toDouble();
       _ratingController.text = _rating?.toStringAsFixed(2) ?? '';
       _shelfId = (widget.book!['shelf_id'] as int?) ?? 1;
@@ -113,8 +119,7 @@ class _BookFormPageState extends State<BookFormPage> {
       setState(() {
         _shelves = shelves;
         // Guard: if current shelfId isn't in the loaded list, fall back to first
-        if (_shelves.isNotEmpty &&
-            !_shelves.any((s) => s['id'] == _shelfId)) {
+        if (_shelves.isNotEmpty && !_shelves.any((s) => s['id'] == _shelfId)) {
           _shelfId = DatabaseHelper.shelfWantToRead;
         }
       });
@@ -139,8 +144,12 @@ class _BookFormPageState extends State<BookFormPage> {
     String title = _titleController.text.trim();
     String author = _authorController.text.trim();
     final bool savingAsAudiobook = _selectedBookType == 3;
-    final int? wordCount = savingAsAudiobook ? null : int.tryParse(_wordCountController.text);
-    final int? pageCount = savingAsAudiobook ? null : int.tryParse(_pageCountController.text);
+    final int? wordCount = savingAsAudiobook
+        ? null
+        : int.tryParse(_wordCountController.text);
+    final int? pageCount = savingAsAudiobook
+        ? null
+        : int.tryParse(_pageCountController.text);
 
     if (title.isEmpty || author.isEmpty) return;
 
@@ -158,12 +167,15 @@ class _BookFormPageState extends State<BookFormPage> {
           title: const Text('Duplicate Book'),
           content: const Text(
             'A book with this title and author already exists. '
-                'Are you sure you want to add it anyway?',
+            'Are you sure you want to add it anyway?',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text('Cancel', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
@@ -181,7 +193,8 @@ class _BookFormPageState extends State<BookFormPage> {
     const finishedShelfId = DatabaseHelper.shelfFinished;
 
     final bookData = {
-      if (widget.isEditing && widget.book!['id'] != null) "id": widget.book!['id'],
+      if (widget.isEditing && widget.book!['id'] != null)
+        "id": widget.book!['id'],
       "title": title,
       "author": author,
       "word_count": wordCount,
@@ -194,8 +207,9 @@ class _BookFormPageState extends State<BookFormPage> {
       "date_finished": _shelfId == finishedShelfId
           ? (_dateFinished ?? DateTime.now()).toIso8601String()
           : _dateFinished?.toIso8601String(),
-      "date_added":
-      widget.isEditing ? widget.book!['date_added'] : DateTime.now().toIso8601String(),
+      "date_added": widget.isEditing
+          ? widget.book!['date_added']
+          : DateTime.now().toIso8601String(),
       "isbn": _isbnController.text.trim().isEmpty
           ? null
           : _isbnController.text.replaceAll(RegExp(r'[\s-]'), ''),
@@ -206,9 +220,12 @@ class _BookFormPageState extends State<BookFormPage> {
         final total = h * 60 + m;
         return total > 0 ? total : null;
       }(),
-      "user_review":
-      _userReviewController.text.trim().isEmpty ? null : _userReviewController.text.trim(),
-      "cover_path": widget.isEditing ? widget.book!['cover_path'] as String? : null,
+      "user_review": _userReviewController.text.trim().isEmpty
+          ? null
+          : _userReviewController.text.trim(),
+      "cover_path": widget.isEditing
+          ? widget.book!['cover_path'] as String?
+          : null,
       "open_library_key": widget.isEditing
           ? widget.book!['open_library_key'] as String?
           : widget.searchResult?.workKey,
@@ -237,10 +254,15 @@ class _BookFormPageState extends State<BookFormPage> {
 
         if (_coverChanged) {
           if (_coverFile == null) {
-            await CoverService.deleteByPath(widget.book!['cover_path'] as String?);
+            await CoverService.deleteByPath(
+              widget.book!['cover_path'] as String?,
+            );
             await bookRepository.updateCoverPath(bookId, null);
           } else {
-            final newPath = await CoverService.saveFromPath(bookId, _coverFile!.path);
+            final newPath = await CoverService.saveFromPath(
+              bookId,
+              _coverFile!.path,
+            );
             await bookRepository.updateCoverPath(bookId, newPath);
           }
         }
@@ -255,7 +277,10 @@ class _BookFormPageState extends State<BookFormPage> {
         }
 
         if (_coverFile != null) {
-          final newPath = await CoverService.saveFromPath(newBookId, _coverFile!.path);
+          final newPath = await CoverService.saveFromPath(
+            newBookId,
+            _coverFile!.path,
+          );
           await bookRepository.updateCoverPath(newBookId, newPath);
         }
       }
@@ -274,7 +299,9 @@ class _BookFormPageState extends State<BookFormPage> {
   Future<void> _loadExistingTags() async {
     try {
       if (widget.book!['id'] != null) {
-        final tags = await TagRepository(DatabaseHelper()).getTagsForBook(widget.book!['id']);
+        final tags = await TagRepository(
+          DatabaseHelper(),
+        ).getTagsForBook(widget.book!['id']);
         setState(() {
           _selectedTagIds = tags.map((tag) => tag.id!).toSet();
         });
@@ -285,7 +312,11 @@ class _BookFormPageState extends State<BookFormPage> {
   }
 
   void _handleSaveSuccess() {
-    AppSnackbar.show(widget.isEditing ? 'Book updated successfully!' : 'Book added successfully!');
+    AppSnackbar.show(
+      widget.isEditing
+          ? 'Book updated successfully!'
+          : 'Book added successfully!',
+    );
     if (!widget.isEditing) {
       _clearFormInputs();
     }
@@ -304,7 +335,8 @@ class _BookFormPageState extends State<BookFormPage> {
       _shelfId = DatabaseHelper.shelfWantToRead;
       _durationHoursController.clear();
       _durationMinutesController.clear();
-      _selectedBookType = widget.settingsViewModel.defaultBookTypeNotifier.value - 1;
+      _selectedBookType =
+          widget.settingsViewModel.defaultBookTypeNotifier.value - 1;
       _dateStarted = null;
       _dateFinished = null;
     });
@@ -313,7 +345,8 @@ class _BookFormPageState extends State<BookFormPage> {
   void _prefillFromSearchResult(BookSearchResult result) {
     _titleController.text = result.title;
     _authorController.text = result.author;
-    if (result.pageCount != null) _pageCountController.text = result.pageCount.toString();
+    if (result.pageCount != null)
+      _pageCountController.text = result.pageCount.toString();
     if (result.isbn != null) _isbnController.text = result.isbn!;
     if (result.thumbnailUrl != null) {
       _coverUrl = result.thumbnailUrl;
@@ -349,8 +382,6 @@ class _BookFormPageState extends State<BookFormPage> {
     }
   }
 
-
-
   void _clearStartDate() {
     setState(() {
       _dateStarted = null;
@@ -366,15 +397,13 @@ class _BookFormPageState extends State<BookFormPage> {
   Future<void> _selectDate(BuildContext context, bool isStartDate) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate:
-      isStartDate ? _dateStarted ?? _dateToday : _dateFinished ?? _dateStarted ?? _dateToday,
+      initialDate: isStartDate
+          ? _dateStarted ?? _dateToday
+          : _dateFinished ?? _dateStarted ?? _dateToday,
       firstDate: isStartDate ? DateTime(1900) : _dateStarted ?? DateTime(1900),
       lastDate: _dateToday,
       builder: (BuildContext context, Widget? child) {
-        return Theme(
-          data: Theme.of(context),
-          child: child!,
-        );
+        return Theme(data: Theme.of(context), child: child!);
       },
     );
 
@@ -407,9 +436,26 @@ class _BookFormPageState extends State<BookFormPage> {
     if (text.isEmpty) return text;
 
     final wordsToLowercase = {
-      'a', 'an', 'the', 'and', 'but', 'or',
-      'nor', 'as', 'at', 'by', 'for', 'from', 'in',
-      'into', 'near', 'of', 'on', 'onto', 'to', 'with'
+      'a',
+      'an',
+      'the',
+      'and',
+      'but',
+      'or',
+      'nor',
+      'as',
+      'at',
+      'by',
+      'for',
+      'from',
+      'in',
+      'into',
+      'near',
+      'of',
+      'on',
+      'onto',
+      'to',
+      'with',
     };
 
     final words = text.split(' ');
@@ -469,7 +515,9 @@ class _BookFormPageState extends State<BookFormPage> {
               )
             else
               Positioned.fill(
-                child: Container(color: theme.colorScheme.surfaceContainerHighest),
+                child: Container(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                ),
               ),
 
             // Dim overlay so cover pops
@@ -522,21 +570,24 @@ class _BookFormPageState extends State<BookFormPage> {
                               height: coverH,
                               theme: theme,
                               progress: progress.expectedTotalBytes != null
-                                  ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                                  ? progress.cumulativeBytesLoaded /
+                                        progress.expectedTotalBytes!
                                   : null,
                             );
                           },
-                          errorBuilder: (_, __, ___) => _coverPlaceholder(theme, coverW, coverH),
+                          errorBuilder: (_, __, ___) =>
+                              _coverPlaceholder(theme, coverW, coverH),
                         )
                       : _coverFile != null
-                          ? Image.file(
-                              _coverFile!,
-                              width: coverW,
-                              height: coverH,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => _coverPlaceholder(theme, coverW, coverH),
-                            )
-                          : _emptyPlaceholder(theme),
+                      ? Image.file(
+                          _coverFile!,
+                          width: coverW,
+                          height: coverH,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              _coverPlaceholder(theme, coverW, coverH),
+                        )
+                      : _emptyPlaceholder(theme),
                 ),
               ],
             ),
@@ -557,7 +608,9 @@ class _BookFormPageState extends State<BookFormPage> {
                   icon: const Icon(Icons.delete, size: 22),
                   color: Colors.white,
                   style: IconButton.styleFrom(
-                    backgroundColor: theme.colorScheme.error.withValues(alpha: 0.85),
+                    backgroundColor: theme.colorScheme.error.withValues(
+                      alpha: 0.85,
+                    ),
                     minimumSize: const Size(44, 44),
                     padding: EdgeInsets.zero,
                   ),
@@ -573,12 +626,18 @@ class _BookFormPageState extends State<BookFormPage> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.add_photo_alternate_outlined,
-            size: 20, color: theme.colorScheme.onSurfaceVariant),
+        Icon(
+          Icons.add_photo_alternate_outlined,
+          size: 20,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
         const SizedBox(width: 8),
         Text(
           'Add cover image',
-          style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
+          style: TextStyle(
+            fontSize: 13,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -595,12 +654,18 @@ class _BookFormPageState extends State<BookFormPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.add_photo_alternate_outlined,
-              size: 32, color: theme.colorScheme.onSurfaceVariant),
+          Icon(
+            Icons.add_photo_alternate_outlined,
+            size: 32,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(height: 6),
           Text(
             'Add cover',
-            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 11,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -700,57 +765,65 @@ class _BookFormPageState extends State<BookFormPage> {
               if (textEditingValue.text.isEmpty) {
                 return const Iterable<String>.empty();
               }
-              return BookRepository(DatabaseHelper()).getAuthorSuggestions(textEditingValue.text);
+              return BookRepository(
+                DatabaseHelper(),
+              ).getAuthorSuggestions(textEditingValue.text);
             },
-            fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-              textEditingController.text = _authorController.text;
-              _authorController.addListener(() {
-                if (textEditingController.text != _authorController.text) {
+            fieldViewBuilder:
+                (context, textEditingController, focusNode, onFieldSubmitted) {
                   textEditingController.text = _authorController.text;
-                }
-              });
-
-              return TextField(
-                controller: _authorController,
-                focusNode: focusNode,
-                decoration: InputDecoration(
-                  labelText: 'Author',
-                  hintText: 'Enter author',
-                  floatingLabelBehavior: FloatingLabelBehavior.auto,
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest,
-                  border: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                    ),
-                onChanged: (value) {
-                  if (_authorTitleCaseEnabled && value.isNotEmpty) {
-                    final formattedValue = _toTitleCase(value);
-                    if (value != formattedValue) {
-                      final cursorPos = _authorController.selection.baseOffset;
-                      _authorController.value = _authorController.value.copyWith(
-                        text: formattedValue,
-                        selection: TextSelection.collapsed(offset: cursorPos),
-                      );
+                  _authorController.addListener(() {
+                    if (textEditingController.text != _authorController.text) {
+                      textEditingController.text = _authorController.text;
                     }
-                  }
-                  setState(() {});
+                  });
+
+                  return TextField(
+                    controller: _authorController,
+                    focusNode: focusNode,
+                    decoration: InputDecoration(
+                      labelText: 'Author',
+                      hintText: 'Enter author',
+                      floatingLabelBehavior: FloatingLabelBehavior.auto,
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceContainerHighest,
+                      border: UnderlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: UnderlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                    ),
+                    onChanged: (value) {
+                      if (_authorTitleCaseEnabled && value.isNotEmpty) {
+                        final formattedValue = _toTitleCase(value);
+                        if (value != formattedValue) {
+                          final cursorPos =
+                              _authorController.selection.baseOffset;
+                          _authorController.value = _authorController.value
+                              .copyWith(
+                                text: formattedValue,
+                                selection: TextSelection.collapsed(
+                                  offset: cursorPos,
+                                ),
+                              );
+                        }
+                      }
+                      setState(() {});
+                    },
+                  );
                 },
-              );
-            },
             onSelected: (selection) {
-              final formatted =
-              _authorTitleCaseEnabled ? _toTitleCase(selection) : selection;
+              final formatted = _authorTitleCaseEnabled
+                  ? _toTitleCase(selection)
+                  : selection;
               _authorController.text = formatted;
               _authorController.selection = TextSelection.fromPosition(
                 TextPosition(offset: formatted.length),
@@ -809,184 +882,32 @@ class _BookFormPageState extends State<BookFormPage> {
       ),
       body: Column(
         children: [
-        Expanded(child: NotificationListener<UserScrollNotification>(
-        onNotification: (n) {
-          if (n.direction != ScrollDirection.idle) FocusScope.of(context).unfocus();
-          return false;
-        },
-        child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildCoverPicker(),
-            const SizedBox(height: 16),
-            _buildTitleField(),
-            const SizedBox(height: 16),
-            _buildAuthorField(),
-
-            const Divider(height: 32),
-
-            // Book Type
-            DropdownButtonFormField<int>(
-              value: _selectedBookType,
-              style: theme.textTheme.bodyLarge,
-              decoration: InputDecoration(
-                labelText: 'Format',
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest,
-                border: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-              ),
-              items: const [
-                DropdownMenuItem(value: 0, child: Text('Paperback')),
-                DropdownMenuItem(value: 1, child: Text('Hardback')),
-                DropdownMenuItem(value: 2, child: Text('eBook')),
-                DropdownMenuItem(value: 3, child: Text('Audiobook')),
-              ],
-              onChanged: (int? newValue) {
-                if (newValue != null) {
-                  setState(() {
-                    _selectedBookType = newValue;
-                  });
-                }
+          Expanded(
+            child: NotificationListener<UserScrollNotification>(
+              onNotification: (n) {
+                if (n.direction != ScrollDirection.idle)
+                  FocusScope.of(context).unfocus();
+                return false;
               },
-            ),
-            const SizedBox(height: 16),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildCoverPicker(),
+                    const SizedBox(height: 16),
+                    _buildTitleField(),
+                    const SizedBox(height: 16),
+                    _buildAuthorField(),
 
-            // Pages and Words — hidden for audiobooks
-            if (!isAudiobook) ...[
-              TextField(
-                controller: _pageCountController,
-                decoration: InputDecoration(
-                  labelText: 'Pages',
-                  hintText: 'Enter number of pages',
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest,
-                  border: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                    ),
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onChanged: (value) => setState(() {}),
-                onTapOutside: (event) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _wordCountController,
-                decoration: InputDecoration(
-                  labelText: 'Words',
-                  hintText: 'Enter number of words',
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest,
-                  border: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                    ),
-                keyboardType: TextInputType.number,
-                onChanged: (value) => setState(() {}),
-                onTapOutside: (event) {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
+                    const Divider(height: 32),
 
-            // Duration — shown only for audiobooks
-            if (isAudiobook) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _durationHoursController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      onChanged: (_) => setState(() {}),
-                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+                    // Book Type
+                    DropdownButtonFormField<int>(
+                      value: _selectedBookType,
+                      style: theme.textTheme.bodyLarge,
                       decoration: InputDecoration(
-                        labelText: 'Hours',
-                        filled: true,
-                        fillColor: theme.colorScheme.surfaceContainerHighest,
-                        border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                        enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                        focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _durationMinutesController,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      onChanged: (v) {
-                        final val = int.tryParse(v);
-                        if (val != null && val > 59) _durationMinutesController.text = '59';
-                        setState(() {});
-                      },
-                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-                      decoration: InputDecoration(
-                        labelText: 'Minutes',
-                        filled: true,
-                        fillColor: theme.colorScheme.surfaceContainerHighest,
-                        border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                        enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                        focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // ISBN
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _isbnController,
-                      decoration: InputDecoration(
-                        labelText: 'ISBN',
-                        hintText: '978-X-XX-XXXXXX-X',
+                        labelText: 'Format',
                         filled: true,
                         fillColor: theme.colorScheme.surfaceContainerHighest,
                         border: UnderlineInputBorder(
@@ -1001,429 +922,715 @@ class _BookFormPageState extends State<BookFormPage> {
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
-                        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                        contentPadding: const EdgeInsets.fromLTRB(
+                          12,
+                          10,
+                          12,
+                          6,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 0, child: Text('Paperback')),
+                        DropdownMenuItem(value: 1, child: Text('Hardback')),
+                        DropdownMenuItem(value: 2, child: Text('eBook')),
+                        DropdownMenuItem(value: 3, child: Text('Audiobook')),
+                      ],
+                      onChanged: (int? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _selectedBookType = newValue;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Pages and Words — hidden for audiobooks
+                    if (!isAudiobook) ...[
+                      TextField(
+                        controller: _pageCountController,
+                        decoration: InputDecoration(
+                          labelText: 'Pages',
+                          hintText: 'Enter number of pages',
+                          filled: true,
+                          fillColor: theme.colorScheme.surfaceContainerHighest,
+                          border: UnderlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: UnderlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.fromLTRB(
+                            12,
+                            10,
+                            12,
+                            6,
+                          ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        onChanged: (value) => setState(() {}),
+                        onTapOutside: (event) {
+                          FocusManager.instance.primaryFocus?.unfocus();
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _wordCountController,
+                        decoration: InputDecoration(
+                          labelText: 'Words',
+                          hintText: 'Enter number of words',
+                          filled: true,
+                          fillColor: theme.colorScheme.surfaceContainerHighest,
+                          border: UnderlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: UnderlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.fromLTRB(
+                            12,
+                            10,
+                            12,
+                            6,
+                          ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) => setState(() {}),
+                        onTapOutside: (event) {
+                          FocusManager.instance.primaryFocus?.unfocus();
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Duration — shown only for audiobooks
+                    if (isAudiobook) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _durationHoursController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              onChanged: (_) => setState(() {}),
+                              onTapOutside: (_) =>
+                                  FocusManager.instance.primaryFocus?.unfocus(),
+                              decoration: InputDecoration(
+                                labelText: 'Hours',
+                                filled: true,
+                                fillColor:
+                                    theme.colorScheme.surfaceContainerHighest,
+                                border: UnderlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
                                 ),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [IsbnInputFormatter()],
-                      onChanged: (value) => setState(() {}),
+                                enabledBorder: UnderlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.fromLTRB(
+                                  12,
+                                  10,
+                                  12,
+                                  6,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _durationMinutesController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              onChanged: (v) {
+                                final val = int.tryParse(v);
+                                if (val != null && val > 59)
+                                  _durationMinutesController.text = '59';
+                                setState(() {});
+                              },
+                              onTapOutside: (_) =>
+                                  FocusManager.instance.primaryFocus?.unfocus(),
+                              decoration: InputDecoration(
+                                labelText: 'Minutes',
+                                filled: true,
+                                fillColor:
+                                    theme.colorScheme.surfaceContainerHighest,
+                                border: UnderlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                enabledBorder: UnderlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.fromLTRB(
+                                  12,
+                                  10,
+                                  12,
+                                  6,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // ISBN
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _isbnController,
+                              decoration: InputDecoration(
+                                labelText: 'ISBN',
+                                hintText: '978-X-XX-XXXXXX-X',
+                                filled: true,
+                                fillColor:
+                                    theme.colorScheme.surfaceContainerHighest,
+                                border: UnderlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                enabledBorder: UnderlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.fromLTRB(
+                                  12,
+                                  10,
+                                  12,
+                                  6,
+                                ),
+                              ),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [IsbnInputFormatter()],
+                              onChanged: (value) => setState(() {}),
+                              onTapOutside: (event) {
+                                FocusManager.instance.primaryFocus?.unfocus();
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          AspectRatio(
+                            aspectRatio: 1,
+                            child: Tooltip(
+                              message: 'Scan barcode',
+                              child: Material(
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(12),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () async {
+                                    final result = await Navigator.of(context)
+                                        .push<String>(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const BarcodeScannerPage(),
+                                          ),
+                                        );
+                                    if (result != null) {
+                                      setState(() {
+                                        _isbnController.text = result;
+                                      });
+                                      _lookupByIsbn(result);
+                                    }
+                                  },
+                                  child: const Center(
+                                    child: Icon(
+                                      FluentIcons.barcode_scanner_24_regular,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const Divider(height: 32),
+
+                    // Shelf selector
+                    if (_shelves.isNotEmpty) ...[
+                      DropdownButtonFormField<int>(
+                        value: _shelfId,
+                        style: theme.textTheme.bodyLarge,
+                        decoration: InputDecoration(
+                          labelText: 'Shelf',
+                          filled: true,
+                          fillColor: theme.colorScheme.surfaceContainerHighest,
+                          border: UnderlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: UnderlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.fromLTRB(
+                            12,
+                            10,
+                            12,
+                            6,
+                          ),
+                        ),
+                        items: _shelves.map((shelf) {
+                          return DropdownMenuItem<int>(
+                            value: shelf['id'] as int,
+                            child: Text(shelf['name'] as String),
+                          );
+                        }).toList(),
+                        onChanged: (int? newValue) {
+                          if (newValue != null) {
+                            setState(() {
+                              _shelfId = newValue;
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Date Selection
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            readOnly: true,
+                            onTap: () => _selectDate(context, true),
+                            controller: TextEditingController(
+                              text: _dateStarted == null
+                                  ? ''
+                                  : DateFormat(
+                                      'MMM d, y',
+                                    ).format(_dateStarted!),
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Start Date',
+                              filled: true,
+                              fillColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              border: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                6,
+                              ),
+                              suffixIcon: _dateStarted != null
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: _clearStartDate,
+                                    )
+                                  : const Icon(Icons.calendar_today),
+                            ),
+                            onTapOutside: (event) {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextFormField(
+                            readOnly: true,
+                            onTap: () => _selectDate(context, false),
+                            controller: TextEditingController(
+                              text: _dateFinished == null
+                                  ? ''
+                                  : DateFormat(
+                                      'MMM d, y',
+                                    ).format(_dateFinished!),
+                            ),
+                            decoration: InputDecoration(
+                              labelText: 'Finish Date',
+                              filled: true,
+                              fillColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              border: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                6,
+                              ),
+                              suffixIcon: _dateFinished != null
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: _clearFinishDate,
+                                    )
+                                  : const Icon(Icons.calendar_today),
+                            ),
+                            onTapOutside: (event) {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Rating
+                    const SizedBox(height: 16),
+                    if (_useStarRating) ...[
+                      Text('Rating', style: theme.textTheme.bodyMedium),
+                    ],
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _useStarRating
+                              ? RatingBar.builder(
+                                  initialRating: _rating ?? 0,
+                                  minRating: 0,
+                                  direction: Axis.horizontal,
+                                  allowHalfRating: true,
+                                  itemCount: 5,
+                                  itemSize: 32,
+                                  itemPadding: const EdgeInsets.symmetric(
+                                    horizontal: 4.0,
+                                  ),
+                                  itemBuilder: (context, _) => const Icon(
+                                    Icons.star_rounded,
+                                    color: Color(0xFFFBCB04),
+                                  ),
+                                  glow: false,
+                                  onRatingUpdate: (rating) {
+                                    setState(() {
+                                      _rating = rating;
+                                    });
+                                  },
+                                )
+                              : TextField(
+                                  controller: _ratingController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Rating',
+                                    hintText: 'Enter rating (0–5)',
+                                    filled: true,
+                                    fillColor: theme
+                                        .colorScheme
+                                        .surfaceContainerHighest,
+                                    border: UnderlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    enabledBorder: UnderlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    focusedBorder: UnderlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    contentPadding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      10,
+                                      12,
+                                      6,
+                                    ),
+                                    suffixIcon:
+                                        _ratingController.text.isNotEmpty
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear),
+                                            onPressed: () {
+                                              setState(() {
+                                                _rating = null;
+                                                _ratingController.clear();
+                                              });
+                                            },
+                                          )
+                                        : null,
+                                  ),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                      RegExp(r'^\d{0,1}(\.\d{0,2})?$'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value.isEmpty) {
+                                      setState(() {
+                                        _rating = null;
+                                      });
+                                    } else {
+                                      final parsed = double.tryParse(value);
+                                      if (parsed != null) {
+                                        if (parsed > 5.0) {
+                                          _rating = 5.0;
+                                          _ratingController.text = '5.00';
+                                          _ratingController.selection =
+                                              TextSelection.fromPosition(
+                                                const TextPosition(offset: 4),
+                                              );
+                                        } else {
+                                          _rating = parsed;
+                                        }
+                                        setState(() {});
+                                      }
+                                    }
+                                  },
+                                  onTapOutside: (event) {
+                                    FocusManager.instance.primaryFocus
+                                        ?.unfocus();
+                                  },
+                                ),
+                        ),
+                        const SizedBox(width: 16),
+                        IconButton(
+                          icon: Icon(
+                            _isFavorite
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: _isFavorite
+                                ? Colors.red
+                                : theme.colorScheme.onSurface.withAlpha(153),
+                            size: 32,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _isFavorite = !_isFavorite;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // User Review
+                    TextField(
+                      controller: _userReviewController,
+                      decoration: InputDecoration(
+                        labelText: 'Review',
+                        hintText: 'Write your thoughts on this book...',
+                        filled: true,
+                        fillColor: theme.colorScheme.surfaceContainerHighest,
+                        border: UnderlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: UnderlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.fromLTRB(
+                          12,
+                          10,
+                          12,
+                          6,
+                        ),
+                        alignLabelWithHint: true,
+                        suffixIcon: _userReviewController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () => setState(
+                                  () => _userReviewController.clear(),
+                                ),
+                              )
+                            : null,
+                      ),
+                      minLines: 2,
+                      maxLines: null,
+                      onChanged: (_) => setState(() {}),
                       onTapOutside: (event) {
                         FocusManager.instance.primaryFocus?.unfocus();
                       },
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  AspectRatio(
-                    aspectRatio: 1,
-                    child: Tooltip(
-                      message: 'Scan barcode',
-                      child: Material(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
+                    const SizedBox(height: 16),
+
+                    // Tags Section
+                    InkWell(
+                      onTap: () async {
+                        final result = await showTagSelectorSheet(
+                          context: context,
+                          initialSelectedTagIds: _selectedTagIds,
+                          tagRepository: TagRepository(DatabaseHelper()),
+                          settingsViewModel: widget.settingsViewModel,
+                        );
+
+                        if (result != null && mounted) {
+                          setState(() {
+                            _selectedTagIds = result.toSet();
+                          });
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        constraints: const BoxConstraints(minHeight: 48),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
-                          onTap: () async {
-                            final result = await Navigator.of(context).push<String>(
-                              MaterialPageRoute(
-                                builder: (_) => const BarcodeScannerPage(),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.sell,
+                                  size: 18,
+                                  color: theme.colorScheme.onSurface.withAlpha(
+                                    153,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Tags',
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_selectedTagIds.isNotEmpty)
+                              FutureBuilder<List<Tag>>(
+                                future: _getTagsByIds(_selectedTagIds.toList()),
+                                builder: (context, snapshot) {
+                                  final tags = snapshot.data ?? [];
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: tags.isEmpty
+                                        ? const SizedBox.shrink()
+                                        : Wrap(
+                                            spacing: 6,
+                                            runSpacing: 6,
+                                            children: tags
+                                                .map(
+                                                  (tag) => Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 10,
+                                                          vertical: 5,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: theme
+                                                          .colorScheme
+                                                          .secondaryContainer,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            20,
+                                                          ),
+                                                    ),
+                                                    child: Text(
+                                                      tag.name,
+                                                      style: theme
+                                                          .textTheme
+                                                          .bodySmall
+                                                          ?.copyWith(
+                                                            color: theme
+                                                                .colorScheme
+                                                                .onSecondaryContainer,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                )
+                                                .toList(),
+                                          ),
+                                  );
+                                },
                               ),
-                            );
-                            if (result != null) {
-                              setState(() {
-                                _isbnController.text = result;
-                              });
-                              _lookupByIsbn(result);
-                            }
-                          },
-                          child: const Center(
-                            child: Icon(FluentIcons.barcode_scanner_24_regular),
-                          ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-            const Divider(height: 32),
-
-            // Shelf selector
-            if (_shelves.isNotEmpty) ...[
-              DropdownButtonFormField<int>(
-                value: _shelfId,
-                style: theme.textTheme.bodyLarge,
-                decoration: InputDecoration(
-                  labelText: 'Shelf',
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest,
-                  border: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                ),
-                items: _shelves.map((shelf) {
-                  return DropdownMenuItem<int>(
-                    value: shelf['id'] as int,
-                    child: Text(shelf['name'] as String),
-                  );
-                }).toList(),
-                onChanged: (int? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _shelfId = newValue;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // Date Selection
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    readOnly: true,
-                    onTap: () => _selectDate(context, true),
-                    controller: TextEditingController(
-                      text: _dateStarted == null
-                          ? ''
-                          : DateFormat('MMM d, y').format(_dateStarted!),
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Start Date',
-                      filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest,
-                      border: UnderlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: UnderlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                      suffixIcon: _dateStarted != null
-                          ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: _clearStartDate,
-                      )
-                          : const Icon(Icons.calendar_today),
-                    ),
-                    onTapOutside: (event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextFormField(
-                    readOnly: true,
-                    onTap: () => _selectDate(context, false),
-                    controller: TextEditingController(
-                      text: _dateFinished == null
-                          ? ''
-                          : DateFormat('MMM d, y').format(_dateFinished!),
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Finish Date',
-                      filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest,
-                      border: UnderlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: UnderlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                      suffixIcon: _dateFinished != null
-                          ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: _clearFinishDate,
-                      )
-                          : const Icon(Icons.calendar_today),
-                    ),
-                    onTapOutside: (event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
-                  ),
-                ),
-              ],
-            ),
-
-            // Rating
-            const SizedBox(height: 16),
-            if (_useStarRating) ...[
-              Text('Rating', style: theme.textTheme.bodyMedium),
-            ],
-            Row(
-              children: [
-                Expanded(
-                  child: _useStarRating
-                      ? RatingBar.builder(
-                    initialRating: _rating ?? 0,
-                    minRating: 0,
-                    direction: Axis.horizontal,
-                    allowHalfRating: true,
-                    itemCount: 5,
-                    itemSize: 32,
-                    itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    itemBuilder: (context, _) => const Icon(
-                      Icons.star_rounded,
-                      color: Color(0xFFFBCB04),
-                    ),
-                    glow: false,
-                    onRatingUpdate: (rating) {
-                      setState(() {
-                        _rating = rating;
-                      });
-                    },
-                  )
-                      : TextField(
-                    controller: _ratingController,
-                    decoration: InputDecoration(
-                      labelText: 'Rating',
-                      hintText: 'Enter rating (0–5)',
-                      filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest,
-                      border: UnderlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: UnderlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                      suffixIcon: _ratingController.text.isNotEmpty
-                          ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            _rating = null;
-                            _ratingController.clear();
-                          });
-                        },
-                      )
-                          : null,
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d{0,1}(\.\d{0,2})?$')),
-                    ],
-                    onChanged: (value) {
-                      if (value.isEmpty) {
-                        setState(() {
-                          _rating = null;
-                        });
-                      } else {
-                        final parsed = double.tryParse(value);
-                        if (parsed != null) {
-                          if (parsed > 5.0) {
-                            _rating = 5.0;
-                            _ratingController.text = '5.00';
-                            _ratingController.selection = TextSelection.fromPosition(
-                              const TextPosition(offset: 4),
-                            );
-                          } else {
-                            _rating = parsed;
-                          }
-                          setState(() {});
-                        }
-                      }
-                    },
-                    onTapOutside: (event) {
-                      FocusManager.instance.primaryFocus?.unfocus();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                IconButton(
-                  icon: Icon(
-                    _isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: _isFavorite ? Colors.red : theme.colorScheme.onSurface.withAlpha(153),
-                    size: 32,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isFavorite = !_isFavorite;
-                    });
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // User Review
-            TextField(
-              controller: _userReviewController,
-              decoration: InputDecoration(
-                labelText: 'Review',
-                hintText: 'Write your thoughts on this book...',
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest,
-                border: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: UnderlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                alignLabelWithHint: true,
-                suffixIcon: _userReviewController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => setState(() => _userReviewController.clear()),
-                      )
-                    : null,
-              ),
-              minLines: 2,
-              maxLines: null,
-              onChanged: (_) => setState(() {}),
-              onTapOutside: (event) {
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Tags Section
-            InkWell(
-              onTap: () async {
-                final result = await Navigator.of(context).push<List<int>>(
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) => TagSelectorSheet(
-                      initialSelectedTagIds: _selectedTagIds,
-                      tagRepository: TagRepository(DatabaseHelper()),
-                      settingsViewModel: widget.settingsViewModel,
-                      isCreationMode: !widget.isEditing,
-                    ),
-                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                      const begin = Offset(1.0, 0.0);
-                      const end = Offset.zero;
-                      const curve = Curves.easeInOut;
-
-                      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                      var offsetAnimation = animation.drive(tween);
-
-                      return SlideTransition(
-                        position: offsetAnimation,
-                        child: child,
-                      );
-                    },
-                  ),
-                );
-
-                if (result != null && mounted) {
-                  setState(() {
-                    _selectedTagIds = result.toSet();
-                  });
-                }
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                constraints: const BoxConstraints(minHeight: 48),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.sell, size: 18, color: theme.colorScheme.onSurface.withAlpha(153)),
-                        const SizedBox(width: 8),
-                        Text('Tags', style: theme.textTheme.bodyLarge?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        )),
-                      ],
-                    ),
-                    if (_selectedTagIds.isNotEmpty)
-                      FutureBuilder<List<Tag>>(
-                        future: _getTagsByIds(_selectedTagIds.toList()),
-                        builder: (context, snapshot) {
-                          final tags = snapshot.data ?? [];
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: tags.isEmpty
-                                ? const SizedBox.shrink()
-                                : Wrap(
-                                    spacing: 6,
-                                    runSpacing: 6,
-                                    children: tags.map((tag) => Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                      decoration: BoxDecoration(
-                                        color: theme.colorScheme.secondaryContainer,
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        tag.name,
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: theme.colorScheme.onSecondaryContainer,
-                                        ),
-                                      ),
-                                    )).toList(),
-                                  ),
-                          );
-                        },
-                      ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-      )),
-        SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Opacity(
-              opacity: _titleController.text.trim().isEmpty || _authorController.text.trim().isEmpty ? 0.4 : 1.0,
-              child: FilledButton(
-                onPressed: _saveBook,
-                style: FilledButton.styleFrom(
-                  backgroundColor: accentColor,
-                  minimumSize: const Size.fromHeight(48),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Opacity(
+                opacity:
+                    _titleController.text.trim().isEmpty ||
+                        _authorController.text.trim().isEmpty
+                    ? 0.4
+                    : 1.0,
+                child: FilledButton(
+                  onPressed: _saveBook,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: accentColor,
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                  child: Text(widget.isEditing ? 'Update Book' : 'Save Book'),
                 ),
-                child: Text(widget.isEditing ? 'Update Book' : 'Save Book'),
               ),
             ),
           ),
-        ),
-      ],
+        ],
       ),
     );
   }
@@ -1443,7 +1650,8 @@ class _CoverLoadingPlaceholder extends StatefulWidget {
   });
 
   @override
-  State<_CoverLoadingPlaceholder> createState() => _CoverLoadingPlaceholderState();
+  State<_CoverLoadingPlaceholder> createState() =>
+      _CoverLoadingPlaceholderState();
 }
 
 class _CoverLoadingPlaceholderState extends State<_CoverLoadingPlaceholder>
@@ -1487,7 +1695,9 @@ class _CoverLoadingPlaceholderState extends State<_CoverLoadingPlaceholder>
                   value: widget.progress,
                   minHeight: 2,
                   backgroundColor: Colors.transparent,
-                  color: widget.theme.colorScheme.primary.withValues(alpha: 0.5),
+                  color: widget.theme.colorScheme.primary.withValues(
+                    alpha: 0.5,
+                  ),
                 ),
               )
             : null,
@@ -1499,9 +1709,9 @@ class _CoverLoadingPlaceholderState extends State<_CoverLoadingPlaceholder>
 class IsbnInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue,
-      TextEditingValue newValue,
-      ) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
     final capped = digits.length > 13 ? digits.substring(0, 13) : digits;
 

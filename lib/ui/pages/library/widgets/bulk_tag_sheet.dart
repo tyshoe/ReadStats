@@ -259,10 +259,11 @@ class _BulkTagSheetState extends State<_BulkTagSheet> {
                 ),
                 FilledButton(
                   onPressed: _loading ? null : _save,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.primaryColor,
+                  ),
                   child: Text(
-                    pendingChanges == 0
-                        ? 'Done'
-                        : 'Apply ($pendingChanges)',
+                    pendingChanges == 0 ? 'Done' : 'Apply ($pendingChanges)',
                   ),
                 ),
               ],
@@ -305,11 +306,17 @@ class _BulkTagSheetState extends State<_BulkTagSheet> {
               decoration: InputDecoration(
                 hintText: 'Search tags…',
                 prefixIcon: const Icon(Icons.search, size: 20),
-                isDense: true,
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
