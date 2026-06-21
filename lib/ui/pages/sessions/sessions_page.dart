@@ -839,8 +839,8 @@ class _SessionsPageState extends State<SessionsPage>
           labelColor: accentColor,
           unselectedLabelColor: theme.colorScheme.onSurface.withAlpha(160),
           tabs: const [
-            Tab(text: 'Sessions'),
-            Tab(text: 'Goals'),
+            Tab(height: 40, text: 'Sessions'),
+            Tab(height: 40, text: 'Goals'),
           ],
         ),
       ),

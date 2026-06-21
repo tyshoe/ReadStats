@@ -1605,6 +1605,7 @@ class _BookFormPageState extends State<BookFormPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    if (widget.isEditing) _buildAddedDate(theme),
                   ],
                 ),
               ),
@@ -1631,6 +1632,36 @@ class _BookFormPageState extends State<BookFormPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Small "Added <date>" line shown at the bottom when editing an existing
+  // book. date_added is stored by the DB on insert.
+  Widget _buildAddedDate(ThemeData theme) {
+    final raw = widget.book?['date_added']?.toString();
+    final added = (raw == null || raw.isEmpty) ? null : DateTime.tryParse(raw);
+    if (added == null) return const SizedBox.shrink();
+
+    final format = widget.settingsViewModel.defaultDateFormatNotifier.value;
+    String formatted;
+    try {
+      formatted = DateFormat(format).format(added);
+    } catch (_) {
+      formatted = DateFormat('MMM d, yyyy').format(added);
+    }
+    final time = DateFormat('h:mm a').format(added);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Added $formatted at $time',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
     );
   }
