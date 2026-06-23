@@ -26,6 +26,10 @@ class SettingsViewModel {
   final ValueNotifier<int?> libraryShelfFilterNotifier;
   // Statistics
   final ValueNotifier<int> statsYearFilterNotifier;
+  // Profile (loaded asynchronously after construction; default to empty)
+  final ValueNotifier<String> profileNameNotifier = ValueNotifier('');
+  final ValueNotifier<String?> profileAvatarNotifier =
+      ValueNotifier<String?>(null);
 
   SettingsViewModel({
     required ThemeMode themeMode,
@@ -65,8 +69,37 @@ class SettingsViewModel {
         libraryReviewedFilterNotifier = ValueNotifier(isReviewed),
         pinnedBookIdsNotifier = ValueNotifier(pinnedBookIds),
         libraryShelfFilterNotifier = ValueNotifier(shelfId),
-        statsYearFilterNotifier = ValueNotifier(statsYearFilter);
+        statsYearFilterNotifier = ValueNotifier(statsYearFilter) {
+    _loadProfile();
+  }
 
+  // ── Profile ────────────────────────────────────────────────────────────────
+
+  // Hydrate the profile notifiers from storage. Kept out of the constructor's
+  // required params since a brief async load is fine for non-critical chrome.
+  Future<void> _loadProfile() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    profileNameNotifier.value = prefs.getString('profileName') ?? '';
+    profileAvatarNotifier.value = prefs.getString('profileAvatar');
+  }
+
+  Future<void> setProfileName(String name) async {
+    final trimmed = name.trim();
+    profileNameNotifier.value = trimmed;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('profileName', trimmed);
+  }
+
+  // Stores the avatar filename only (resolved to a path at display time).
+  Future<void> setProfileAvatar(String? filename) async {
+    profileAvatarNotifier.value = filename;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (filename == null) {
+      await prefs.remove('profileAvatar');
+    } else {
+      await prefs.setString('profileAvatar', filename);
+    }
+  }
 
   // Method to toggle theme mode (light, dark, system)
   Future<void> toggleTheme(ThemeMode themeMode) async {

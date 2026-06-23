@@ -12,6 +12,7 @@ import 'data/services/import_export_service.dart';
 import 'data/services/reading_timer_service.dart';
 import 'ui/pages/library/library_page.dart';
 import 'ui/pages/onboarding/onboarding_page.dart';
+import 'ui/pages/profile/profile_page.dart';
 import 'ui/pages/settings/settings_page.dart';
 import 'ui/pages/sessions/sessions_page.dart';
 import 'ui/pages/statistics/statistics_page.dart';
@@ -387,9 +388,9 @@ class _NavigationMenuState extends State<NavigationMenu> {
         selectedColor: accentColor,
       ),
       BottomBarItem(
-        icon: Icon(FluentIcons.settings_24_filled),
-        selectedIcon: Icon(FluentIcons.settings_24_filled, color: accentColor),
-        title: Text('Settings'),
+        icon: Icon(FluentIcons.person_16_filled),
+        selectedIcon: Icon(FluentIcons.person_16_filled, color: accentColor),
+        title: Text('Profile'),
         unSelectedColor: Colors.grey,
         selectedColor: accentColor,
       ),
@@ -427,13 +428,23 @@ class _NavigationMenuState extends State<NavigationMenu> {
         );
       case 3:
       default:
-        return SettingsPage(
-          toggleTheme: widget.toggleTheme,
-          themeMode: widget.themeMode,
-          importExportService: widget.importExportService,
-          refreshBooks: widget.refreshBooks,
-          refreshSessions: widget.refreshSessions,
+        return ProfilePage(
+          books: widget.books,
+          sessions: widget.sessions,
           settingsViewModel: widget.settingsViewModel,
+          goalRepository: widget.goalRepository,
+          onOpenSettings: (ctx) => Navigator.of(ctx).push(
+            MaterialPageRoute(
+              builder: (_) => SettingsPage(
+                toggleTheme: widget.toggleTheme,
+                themeMode: widget.themeMode,
+                importExportService: widget.importExportService,
+                refreshBooks: widget.refreshBooks,
+                refreshSessions: widget.refreshSessions,
+                settingsViewModel: widget.settingsViewModel,
+              ),
+            ),
+          ),
         );
     }
   }

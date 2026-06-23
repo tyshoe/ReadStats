@@ -54,7 +54,7 @@ void showDefaultTabPicker(BuildContext context, SettingsViewModel settingsViewMo
               },
             ),
             _DefaultTabOption(
-              label: 'Settings',
+              label: 'Profile',
               isSelected: currentTabIndex == 3,
               accentColor: accentColor,
               textColor: textColor,

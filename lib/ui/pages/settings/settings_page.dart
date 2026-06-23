@@ -366,7 +366,7 @@ class SettingsPage extends StatelessWidget {
         return 'Stats';
       case 3:
       default:
-        return 'Settings';
+        return 'Profile';
     }
   }
 
