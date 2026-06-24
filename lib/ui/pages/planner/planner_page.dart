@@ -6,9 +6,7 @@ import 'widgets/planner_book_card.dart';
 import 'widgets/planner_book_sheet.dart';
 
 class PlannerPage extends StatefulWidget {
-  final List<Map<String, dynamic>> wantToReadBooks;
-
-  const PlannerPage({super.key, this.wantToReadBooks = const []});
+  const PlannerPage({super.key});
 
   @override
   State<PlannerPage> createState() => _PlannerPageState();
@@ -29,22 +27,24 @@ class _PlannerPageState extends State<PlannerPage> {
     _loadBooks();
   }
 
+  // Refreshes the list without toggling [_isLoading], so the full-screen
+  // spinner only ever shows on the initial load — not on every add/delete.
   Future<void> _loadBooks() async {
-    setState(() => _isLoading = true);
     final books = await _repository.getPlannerBooks();
-    if (mounted) {
-      setState(() {
-        _books = books;
-        _isLoading = false;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _books = books;
+      _isLoading = false;
+    });
   }
 
   Future<void> _addBook() async {
+    final wantToReadBooks = await _repository.getWantToReadBooks();
+    if (!mounted) return;
     final existingIds = _books.map((b) => b.bookId).toSet();
     await showPlannerBookSheet(
       context: context,
-      wantToReadBooks: widget.wantToReadBooks,
+      wantToReadBooks: wantToReadBooks,
       existingBookIds: existingIds,
       onAdd: (book) async {
         await _repository.addPlannerBook(book);
@@ -66,20 +66,30 @@ class _PlannerPageState extends State<PlannerPage> {
   void _clearSelection() => setState(() => _selectedIds.clear());
 
   Future<void> _deleteSelected() async {
-    for (final id in _selectedIds) {
+    final ids = Set<int>.from(_selectedIds);
+    setState(() {
+      _books.removeWhere((b) => ids.contains(b.id));
+      _selectedIds.clear();
+    });
+    for (final id in ids) {
       await _repository.deletePlannerBook(id);
     }
-    _selectedIds.clear();
-    await _loadBooks();
   }
 
-  void _onReorder(int oldIndex, int newIndex) {
+  Future<void> _deleteBook(PlannerBook book) async {
+    // Remove from the list synchronously so a swipe-dismissed item never
+    // lingers in the tree (Dismissible asserts on this), then persist.
+    setState(() => _books.removeWhere((b) => b.id == book.id));
+    await _repository.deletePlannerBook(book.id!);
+  }
+
+  Future<void> _onReorder(int oldIndex, int newIndex) async {
     setState(() {
       if (newIndex > oldIndex) newIndex--;
       final book = _books.removeAt(oldIndex);
       _books.insert(newIndex, book);
     });
-    _repository.reorderBooks(_books);
+    await _repository.reorderBooks(_books);
   }
 
   @override
@@ -115,7 +125,7 @@ class _PlannerPageState extends State<PlannerPage> {
                       itemCount: _books.length,
                       onReorder: _onReorder,
                       buildDefaultDragHandles: false,
-                      proxyDecorator: (child, _, __) => child,
+                      proxyDecorator: (child, _, _) => child,
                       itemBuilder: (_, index) {
                         final book = _books[index];
                         final isSelected = _selectedIds.contains(book.id);
@@ -129,10 +139,7 @@ class _PlannerPageState extends State<PlannerPage> {
                           onTap: _selectionMode
                               ? () => _toggleSelection(book.id!)
                               : null,
-                          onDismissed: () async {
-                            await _repository.deletePlannerBook(book.id!);
-                            await _loadBooks();
-                          },
+                          onDismissed: () => _deleteBook(book),
                         );
                       },
                     ),
@@ -153,7 +160,7 @@ class _PlannerPageState extends State<PlannerPage> {
   }
 }
 
-class _PlannerItem extends StatefulWidget {
+class _PlannerItem extends StatelessWidget {
   final PlannerBook book;
   final int index;
   final bool selectionMode;
@@ -174,44 +181,38 @@ class _PlannerItem extends StatefulWidget {
   });
 
   @override
-  State<_PlannerItem> createState() => _PlannerItemState();
-}
-
-class _PlannerItemState extends State<_PlannerItem> {
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Dismissible(
-            key: ValueKey(widget.book.id),
-            direction: widget.selectionMode
-                ? DismissDirection.none
-                : DismissDirection.endToStart,
-            background: Container(
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 20),
-              margin: const EdgeInsets.symmetric(vertical: 4),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.error,
-                borderRadius:
-                    const BorderRadius.horizontal(right: Radius.circular(12)),
-              ),
-              child: Icon(
-                Icons.playlist_remove_rounded,
-                size: 32,
-                color: theme.colorScheme.onPrimary,
-              ),
-            ),
-            onDismissed: (_) => widget.onDismissed(),
-            child: PlannerBookCard(
-              key: ValueKey('card_${widget.book.id}'),
-              book: widget.book,
-              index: widget.index,
-              isSelected: widget.isSelected,
-              onTap: widget.onTap,
-              onLongPress: widget.onLongPress,
-            ),
-          );
+      key: ValueKey(book.id),
+      direction: selectionMode
+          ? DismissDirection.none
+          : DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.error,
+          borderRadius:
+              const BorderRadius.horizontal(right: Radius.circular(12)),
+        ),
+        child: Icon(
+          Icons.playlist_remove_rounded,
+          size: 32,
+          color: theme.colorScheme.onPrimary,
+        ),
+      ),
+      onDismissed: (_) => onDismissed(),
+      child: PlannerBookCard(
+        book: book,
+        index: index,
+        isSelected: isSelected,
+        onTap: onTap,
+        onLongPress: onLongPress,
+      ),
+    );
   }
 }
 

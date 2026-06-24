@@ -1,7 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '/data/models/planner_book.dart';
 
-class PlannerBookCard extends StatefulWidget {
+class PlannerBookCard extends StatelessWidget {
   final PlannerBook book;
   final int index;
   final bool isSelected;
@@ -17,24 +18,19 @@ class PlannerBookCard extends StatefulWidget {
     required this.onLongPress,
   });
 
-  @override
-  State<PlannerBookCard> createState() => _PlannerBookCardState();
-}
-
-class _PlannerBookCardState extends State<PlannerBookCard> {
-  bool _isSwiping = false;
+  static const int _audiobookTypeId = 4;
+  static const double _coverWidth = 40;
+  static const double _coverHeight = 60;
 
   String? _metadata() {
-    const audiobookTypeId = 4;
-    if (widget.book.bookTypeId == audiobookTypeId &&
-        widget.book.durationMinutes > 0) {
-      final h = widget.book.durationMinutes ~/ 60;
-      final m = widget.book.durationMinutes % 60;
+    if (book.bookTypeId == _audiobookTypeId && book.durationMinutes > 0) {
+      final h = book.durationMinutes ~/ 60;
+      final m = book.durationMinutes % 60;
       if (h > 0 && m > 0) return '${h}h ${m}m';
       if (h > 0) return '${h}h';
       return '${m}m';
     }
-    if (widget.book.pageCount > 0) return '${widget.book.pageCount} pages';
+    if (book.pageCount > 0) return '${book.pageCount} pages';
     return null;
   }
 
@@ -44,87 +40,90 @@ class _PlannerBookCardState extends State<PlannerBookCard> {
     final meta = _metadata();
 
     return GestureDetector(
-      onTap: widget.onTap,
-      onLongPress: widget.onLongPress,
-      child: Listener(
-        onPointerMove: (event) {
-          if (event.delta.dx < -1 && !_isSwiping) {
-            setState(() => _isSwiping = true);
-          }
-        },
-        onPointerUp: (_) {
-          if (_isSwiping) setState(() => _isSwiping = false);
-        },
-        onPointerCancel: (_) {
-          if (_isSwiping) setState(() => _isSwiping = false);
-        },
-        child: Card(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          elevation: 0,
-          color: widget.isSelected
-              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
-              : theme.cardTheme.color,
-          shape: RoundedRectangleBorder(
-            borderRadius: _isSwiping
-                ? const BorderRadius.horizontal(left: Radius.circular(12))
-                : BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: Row(
-              children: [
-                ReorderableDragStartListener(
-                  index: widget.index - 1,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.drag_handle,
-                        size: 18,
-                        color: theme.colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.4),
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Card(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        elevation: 0,
+        color: isSelected
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.5)
+            : theme.cardTheme.color,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            children: [
+              ReorderableDragStartListener(
+                index: index - 1,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.drag_handle,
+                      size: 18,
+                      color: theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.4),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$index',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${widget.index}',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(width: 12),
+              // Cover only when one exists — no placeholder otherwise.
+              if (book.coverPath != null) ...[
+                _buildCover(book.coverPath!),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.book.bookTitle,
-                        style: theme.textTheme.bodyLarge,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        meta != null
-                            ? '${widget.book.bookAuthor} · $meta'
-                            : widget.book.bookAuthor,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
               ],
-            ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      book.bookTitle,
+                      style: theme.textTheme.bodyLarge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      meta != null
+                          ? '${book.bookAuthor} · $meta'
+                          : book.bookAuthor,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCover(String path) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: Image.file(
+        File(path),
+        width: _coverWidth,
+        height: _coverHeight,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
       ),
     );
   }

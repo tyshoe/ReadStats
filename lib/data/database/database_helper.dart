@@ -1046,8 +1046,12 @@ class DatabaseHelper {
 
   Future<int> insertPlannerBook(Map<String, dynamic> plannerBook) async {
     final db = await database;
-    final result = await db.rawQuery('SELECT COUNT(*) as count FROM planner_books');
-    final sortOrder = (result.first['count'] as int?) ?? 0;
+    // Append after the current last item. MAX+1 (not COUNT) so a gap left by a
+    // deleted row can't collide with an existing sort_order.
+    final result =
+        await db.rawQuery('SELECT MAX(sort_order) as max_order FROM planner_books');
+    final maxOrder = result.first['max_order'] as int?;
+    final sortOrder = maxOrder == null ? 0 : maxOrder + 1;
     return await db.insert('planner_books', {
       'book_id': plannerBook['book_id'],
       'sort_order': sortOrder,
@@ -1059,7 +1063,7 @@ class DatabaseHelper {
     final db = await database;
     return await db.rawQuery('''
       SELECT t.id, t.book_id, t.sort_order, t.date_added,
-             b.title, b.author, b.page_count, b.book_type_id, b.duration_minutes
+             b.title, b.author, b.cover_path, b.page_count, b.book_type_id, b.duration_minutes
       FROM planner_books t
       INNER JOIN books b ON t.book_id = b.id
       ORDER BY t.sort_order ASC

@@ -6,6 +6,7 @@ class PlannerBook {
   // Populated from JOIN with books table — not stored in planner_books
   final String bookTitle;
   final String bookAuthor;
+  final String? coverPath;
   final int pageCount;
   final int bookTypeId;
   final int durationMinutes;
@@ -17,6 +18,7 @@ class PlannerBook {
     required this.dateAdded,
     required this.bookTitle,
     required this.bookAuthor,
+    this.coverPath,
     this.pageCount = 0,
     this.bookTypeId = 0,
     this.durationMinutes = 0,
@@ -39,6 +41,7 @@ class PlannerBook {
       dateAdded: map['date_added'] as String? ?? DateTime.now().toIso8601String(),
       bookTitle: map['title'] as String? ?? '',
       bookAuthor: map['author'] as String? ?? '',
+      coverPath: map['cover_path'] as String?,
       pageCount: map['page_count'] as int? ?? 0,
       bookTypeId: map['book_type_id'] as int? ?? 0,
       durationMinutes: map['duration_minutes'] as int? ?? 0,
@@ -52,6 +55,7 @@ class PlannerBook {
     String? dateAdded,
     String? bookTitle,
     String? bookAuthor,
+    String? coverPath,
     int? pageCount,
     int? bookTypeId,
     int? durationMinutes,
@@ -63,6 +67,7 @@ class PlannerBook {
       dateAdded: dateAdded ?? this.dateAdded,
       bookTitle: bookTitle ?? this.bookTitle,
       bookAuthor: bookAuthor ?? this.bookAuthor,
+      coverPath: coverPath ?? this.coverPath,
       pageCount: pageCount ?? this.pageCount,
       bookTypeId: bookTypeId ?? this.bookTypeId,
       durationMinutes: durationMinutes ?? this.durationMinutes,

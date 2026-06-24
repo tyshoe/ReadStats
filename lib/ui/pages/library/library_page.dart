@@ -277,13 +277,10 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   void _navigateToPlannerPage() {
-    final wantToReadBooks = widget.books
-        .where((b) => b['shelf_id'] == DatabaseHelper.shelfWantToRead)
-        .toList();
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => PlannerPage(wantToReadBooks: wantToReadBooks),
+        builder: (_) => const PlannerPage(),
       ),
     );
   }
