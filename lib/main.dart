@@ -1,6 +1,7 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 import 'data/database/database_helper.dart';
 import 'data/repositories/book_repository.dart';
@@ -23,6 +24,10 @@ import 'app_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   await AppConfig.init();
 
   final dbHelper = DatabaseHelper();
