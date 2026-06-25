@@ -31,6 +31,12 @@ class ProfilePage extends StatefulWidget {
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
+
+  /// Warm the goals cache at app startup so the first Profile visit paints with
+  /// goals already present, instead of loading them in after navigation.
+  static Future<void> preloadGoals(GoalRepository repo) async {
+    _ProfilePageState._cachedGoals = await _ProfilePageState._fetchGoals(repo);
+  }
 }
 
 class _GoalProgress {
@@ -40,10 +46,17 @@ class _GoalProgress {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  // The Profile tab is rebuilt on every nav switch, so cache the async-resolved
+  // avatar and goals across instances. Seeding from these caches lets a revisit
+  // paint complete on the first frame and just refresh in the background,
+  // instead of popping the avatar/goals in after the page has appeared.
+  static String? _cachedAvatarPath;
+  static List<_GoalProgress>? _cachedGoals;
+
   late ReadingStats _stats;
-  String? _avatarPath;
-  List<_GoalProgress> _goals = [];
-  bool _goalsLoaded = false;
+  String? _avatarPath = _cachedAvatarPath;
+  List<_GoalProgress> _goals = _cachedGoals ?? [];
+  bool _goalsLoaded = _cachedGoals != null;
   final ScrollController _scrollController = ScrollController();
   double _appBarOpacity = 0;
 
@@ -72,13 +85,19 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> _loadGoals() async {
-    final goals = await widget.goalRepository.getGoals();
+  static Future<List<_GoalProgress>> _fetchGoals(GoalRepository repo) async {
+    final goals = await repo.getGoals();
     final result = <_GoalProgress>[];
     for (final goal in goals) {
-      final progress = await widget.goalRepository.getCurrentProgress(goal);
+      final progress = await repo.getCurrentProgress(goal);
       result.add(_GoalProgress(goal, progress));
     }
+    return result;
+  }
+
+  Future<void> _loadGoals() async {
+    final result = await _fetchGoals(widget.goalRepository);
+    _cachedGoals = result;
     if (mounted) {
       setState(() {
         _goals = result;
@@ -111,10 +130,12 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _resolveAvatar() async {
     final filename = widget.settingsViewModel.profileAvatarNotifier.value;
     if (filename == null) {
+      _cachedAvatarPath = null;
       if (mounted) setState(() => _avatarPath = null);
       return;
     }
     final path = await AvatarService.resolve(filename);
+    _cachedAvatarPath = path;
     if (mounted) setState(() => _avatarPath = path);
   }
 
@@ -287,54 +308,61 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
       ),
-      child: Column(
+      child: Row(
         children: [
           _buildAvatar(theme, accent),
-          const SizedBox(height: 12),
-          ValueListenableBuilder<String>(
-            valueListenable: widget.settingsViewModel.profileNameNotifier,
-            builder: (context, name, _) {
-              final hasName = name.trim().isNotEmpty;
-              return InkWell(
-                onTap: _editName,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          hasName ? name : 'Add your name',
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: hasName ? theme.colorScheme.onSurface : muted,
-                          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ValueListenableBuilder<String>(
+                  valueListenable: widget.settingsViewModel.profileNameNotifier,
+                  builder: (context, name, _) {
+                    final hasName = name.trim().isNotEmpty;
+                    return InkWell(
+                      onTap: _editName,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                hasName ? name : 'Add your name',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: hasName
+                                      ? theme.colorScheme.onSurface
+                                      : muted,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(Icons.edit, size: 16, color: muted),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Icon(Icons.edit_outlined, size: 16, color: muted),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.auto_stories_outlined, size: 13, color: muted),
-              const SizedBox(width: 6),
-              Text(
-                _readingSinceLabel(),
-                style: theme.textTheme.bodySmall?.copyWith(color: muted),
-              ),
-            ],
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_stories_outlined, size: 13, color: muted),
+                    const SizedBox(width: 6),
+                    Text(
+                      _readingSinceLabel(),
+                      style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -349,6 +377,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return GestureDetector(
       onTap: _editAvatar,
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           CircleAvatar(
             radius: 42,
@@ -368,8 +397,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     : Icon(Icons.person, size: 40, color: accent)),
           ),
           Positioned(
-            right: 2,
-            bottom: 2,
+            right: -4,
+            bottom: -4,
             child: Container(
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
