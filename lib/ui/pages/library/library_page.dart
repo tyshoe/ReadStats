@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../widgets/app_snackbar.dart';
 import 'package:read_stats/ui/pages/library/widgets/book_grid.dart';
 import '../../../data/repositories/tag_repository.dart';
@@ -633,6 +634,36 @@ class _LibraryPageState extends State<LibraryPage> {
     _showBookPopup(context, randomBook);
   }
 
+  Future<void> _shareLibraryAsText() async {
+    if (_filteredBooks.isEmpty) {
+      AppSnackbar.show('No books to share');
+      return;
+    }
+
+    final count = _filteredBooks.length;
+    final bookWord = count == 1 ? 'book' : 'books';
+
+    String header = 'My Reading List';
+    if (_selectedShelfId != null) {
+      final shelf = _shelves.firstWhere(
+        (s) => s['id'] == _selectedShelfId,
+        orElse: () => const {},
+      );
+      final name = shelf['name'] as String?;
+      if (name != null && name.isNotEmpty) header = name;
+    }
+
+    final bullets = _filteredBooks.map((book) {
+      final title = (book['title'] as String? ?? '').trim();
+      final author = (book['author'] as String? ?? '').trim();
+      return author.isEmpty ? '• $title' : '• $title — $author';
+    }).join('\n');
+
+    final text = '$header ($count $bookWord)\n\n$bullets\n\nShared from ReadStats';
+
+    await SharePlus.instance.share(ShareParams(text: text));
+  }
+
   Future<void> _deleteSelectedBooks() async {
     final count = _selectedBookIds.length;
     final bookWord = count == 1 ? 'book' : 'books';
@@ -722,6 +753,8 @@ class _LibraryPageState extends State<LibraryPage> {
             onSelected: (value) {
               if (value == 'random') {
                 _showRandomBook();
+              } else if (value == 'share_text') {
+                _shareLibraryAsText();
               } else if (value == 'view_rows' ||
                   value == 'view_grid') {
                 _toggleView(value.replaceFirst('view_', ''));
@@ -731,6 +764,10 @@ class _LibraryPageState extends State<LibraryPage> {
               const PopupMenuItem<String>(
                 value: 'random',
                 child: Text('Random Book'),
+              ),
+              const PopupMenuItem<String>(
+                value: 'share_text',
+                child: Text('Share as text'),
               ),
               const PopupMenuDivider(),
               PopupMenuItem<String>(
