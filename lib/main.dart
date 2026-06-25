@@ -106,9 +106,17 @@ class _MyAppState extends State<MyApp> {
     _initializeSettingsViewModel();
     _loadBooks();
     _loadSessions();
-    // Warm the Profile goals cache at launch so goals are ready before the
-    // Profile tab is ever opened, instead of popping in after navigation.
+    // Warm the Profile goals and Statistics caches at launch so they are ready
+    // before those tabs are ever opened, instead of popping in after
+    // navigation.
     ProfilePage.preloadGoals(widget.goalRepository);
+    SettingsViewModel.getStatsYearFilter().then((year) {
+      StatisticsPage.preload(
+        bookRepo: widget.bookRepository,
+        sessionRepo: widget.sessionRepository,
+        year: year,
+      );
+    });
   }
 
   Future<void> _initializeSettingsViewModel() async {

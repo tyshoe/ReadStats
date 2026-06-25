@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:read_stats/data/services/cover_service.dart';
@@ -19,6 +18,33 @@ import '/ui/pages/library/book_form_page.dart';
 import '/ui/pages/sessions/session_form_page.dart';
 import '/ui/pages/sessions/widgets/rate_book_dialog.dart';
 
+/// Immutable snapshot of everything the Statistics page renders for one year
+/// filter. Computed in a single pass ([_StatisticsPageState._compute]) so the
+/// page reads from one source of truth instead of many inline FutureBuilders.
+class StatsData {
+  final int year;
+  final Map<String, dynamic> stats;
+  final List<Map<String, dynamic>> shelfData;
+  final List<Map<String, dynamic>> bookTypeData;
+  final Map<String, int> booksDist;
+  final Map<String, int> sessionsDist;
+  final Map<String, int> readingTimeDist;
+  final Map<String, int> pagesDist;
+  final Map<double, int> ratingDist;
+
+  const StatsData({
+    required this.year,
+    required this.stats,
+    required this.shelfData,
+    required this.bookTypeData,
+    required this.booksDist,
+    required this.sessionsDist,
+    required this.readingTimeDist,
+    required this.pagesDist,
+    required this.ratingDist,
+  });
+}
+
 class StatisticsPage extends StatefulWidget {
   final BookRepository bookRepository;
   final SessionRepository sessionRepository;
@@ -33,13 +59,40 @@ class StatisticsPage extends StatefulWidget {
 
   @override
   State<StatisticsPage> createState() => _StatisticsPageState();
+
+  /// Warm the stats cache at app startup so the first Statistics visit paints
+  /// complete instead of computing after navigation. [year] is the persisted
+  /// year filter so the warmed payload matches what the page will show.
+  static Future<void> preload({
+    required BookRepository bookRepo,
+    required SessionRepository sessionRepo,
+    required int year,
+  }) async {
+    final years = await _StatisticsPageState._fetchYears(sessionRepo, bookRepo);
+    _StatisticsPageState._cachedYears = years;
+    final y = (year != 0 && !years.contains(year)) ? 0 : year;
+    _StatisticsPageState._cachedData = await _StatisticsPageState._compute(
+      year: y,
+      bookRepo: bookRepo,
+      sessionRepo: sessionRepo,
+    );
+  }
 }
 
 class _StatisticsPageState extends State<StatisticsPage> {
   int selectedYear = 0;
-  Map<double, int> _cachedRatingData = {};
 
-  Map<String, dynamic> _stats = {
+  // The Statistics tab is rebuilt on every nav switch and recomputes from the
+  // DB. Cache the last-computed payload (and available years) across instances
+  // so a revisit paints immediately and just refreshes in the background,
+  // instead of every chart popping in after the page appears.
+  static List<int>? _cachedYears;
+  static StatsData? _cachedData;
+
+  List<int>? _years = _cachedYears;
+  StatsData? _data = _cachedData;
+
+  static final Map<String, dynamic> _defaultStats = {
     'totalSessions': 0,
     'booksCompleted': 0,
     'highestRating': '-',
@@ -73,6 +126,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
     'lowestPagesBookId': null,
   };
 
+  Map<String, dynamic> get _stats => _data?.stats ?? _defaultStats;
+
   @override
   void initState() {
     super.initState();
@@ -80,94 +135,154 @@ class _StatisticsPageState extends State<StatisticsPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => loadStats());
   }
 
-  void loadStats() async {
+  /// Single entry point for (re)loading the page: refresh the available years,
+  /// validate the selected year, then recompute the full payload in one pass.
+  /// Previously loaded data stays on screen while the new data loads (no flash).
+  Future<void> loadStats() async {
+    final years =
+        await _fetchYears(widget.sessionRepository, widget.bookRepository);
+    _cachedYears = years;
+    if (mounted) setState(() => _years = years);
+
     // Safeguard: if the saved year no longer has any data, fall back to All.
-    if (selectedYear != 0) {
-      final years = await getCombinedYears();
-      if (!years.contains(selectedYear)) {
-        selectedYear = 0;
-        widget.settingsViewModel.setStatsYearFilter(0);
-      }
+    if (selectedYear != 0 && !years.contains(selectedYear)) {
+      selectedYear = 0;
+      widget.settingsViewModel.setStatsYearFilter(0);
     }
-    final newStats = await calculateStats(selectedYear);
+
+    final data = await _compute(
+      year: selectedYear,
+      bookRepo: widget.bookRepository,
+      sessionRepo: widget.sessionRepository,
+    );
+    _cachedData = data;
     if (!mounted) return;
-    setState(() {
-      _stats = newStats;
-    });
+    setState(() => _data = data);
   }
 
-  Future<Map<String, dynamic>> calculateStats(int selectedYear) async {
-    // Fetch session stats filtered by the selected year
-    List<Session> sessions = await widget.sessionRepository.getSessions(yearFilter: selectedYear);
+  static Future<List<int>> _fetchYears(
+      SessionRepository sessionRepo, BookRepository bookRepo) async {
+    final sessionYears = await sessionRepo.getSessionYears();
+    final bookYears = await bookRepo.getBookYears();
+    final combined = {...sessionYears, ...bookYears}.toList()
+      ..sort((a, b) => b.compareTo(a));
+    return combined;
+  }
 
-    int totalSessions = sessions.length;
-    int totalPagesRead = 0;
-    int totalMinutes = 0;
+  /// Compute the entire page payload for [year] in a single pass: the six
+  /// distinct queries run in parallel once, and all per-period distributions
+  /// are derived in memory from the same session/book lists (instead of each
+  /// chart re-querying the DB).
+  static Future<StatsData> _compute({
+    required int year,
+    required BookRepository bookRepo,
+    required SessionRepository sessionRepo,
+  }) async {
+    final results = await Future.wait([
+      sessionRepo.getSessions(yearFilter: year),
+      bookRepo.getBooks(yearFilter: year),
+      bookRepo.getAllBookStats(year),
+      bookRepo.getBookCountsPerShelf(),
+      bookRepo.getBookCountsPerType(),
+      bookRepo.getRatingDistribution(selectedYear: year),
+    ]);
+    final sessions = results[0] as List<Session>;
+    final books = results[1] as List<Book>;
+    final bookStats = results[2] as Map<String, dynamic>;
+    final shelfData = results[3] as List<Map<String, dynamic>>;
+    final bookTypeData = results[4] as List<Map<String, dynamic>>;
+    final ratingDist = results[5] as Map<double, int>;
 
-    for (var session in sessions) {
-      totalPagesRead += session.pagesRead ?? 0;
-      totalMinutes += session.durationMinutes ?? 0;
+    String periodKey(String date) {
+      final d = DateTime.parse(date);
+      return year == 0 ? d.year.toString() : DateFormat('MMM').format(d);
     }
 
-    double avgPagesPerMinute = totalMinutes > 0 ? totalPagesRead / totalMinutes : 0;
-    String totalTimeSpent = _formatMinutes(totalMinutes);
+    int totalPagesRead = 0;
+    int totalMinutes = 0;
+    final sessionsDist = <String, int>{};
+    final pagesDist = <String, int>{};
+    final readingTimeDist = <String, int>{};
+    for (final s in sessions) {
+      final pages = s.pagesRead ?? 0;
+      final minutes = s.durationMinutes ?? 0;
+      totalPagesRead += pages;
+      totalMinutes += minutes;
+      final key = periodKey(s.date);
+      sessionsDist[key] = (sessionsDist[key] ?? 0) + 1;
+      pagesDist[key] = (pagesDist[key] ?? 0) + pages;
+      readingTimeDist[key] = (readingTimeDist[key] ?? 0) + minutes;
+    }
 
-    // Fetch book stats filtered by the selected year
-    Map<String, dynamic> bookStats = await widget.bookRepository.getAllBookStats(selectedYear);
+    final booksDist = <String, int>{};
+    for (final b in books) {
+      if (b.dateFinished != null) {
+        final key = periodKey(b.dateFinished!);
+        booksDist[key] = (booksDist[key] ?? 0) + 1;
+      }
+    }
 
     Future<String?> resolveCover(dynamic raw) async {
       if (raw == null) return null;
       final path = raw as String;
       if (path.isEmpty) return null;
-      return await CoverService.resolveFullPath(path);
+      return CoverService.resolveFullPath(path);
     }
 
-    return {
-      'totalSessions': totalSessions,
+    final covers = await Future.wait([
+      resolveCover(bookStats['highest_rating_cover_path']),
+      resolveCover(bookStats['lowest_rating_cover_path']),
+      resolveCover(bookStats['highest_pages_cover_path']),
+      resolveCover(bookStats['lowest_pages_cover_path']),
+      resolveCover(bookStats['slowest_read_cover_path']),
+      resolveCover(bookStats['fastest_read_cover_path']),
+    ]);
+
+    final stats = <String, dynamic>{
+      'totalSessions': sessions.length,
       'totalPagesRead': totalPagesRead,
-      'totalTimeSpent': totalTimeSpent,
-      'avgPagesPerMinute': avgPagesPerMinute,
+      'totalTimeSpent': _formatMinutes(totalMinutes),
+      'avgPagesPerMinute': totalMinutes > 0 ? totalPagesRead / totalMinutes : 0.0,
       'highestRating': bookStats['highest_rating'] ?? 0,
       'highestRatingBookTitle': bookStats['highest_rating_book_title'],
-      'highestRatingCoverPath': await resolveCover(bookStats['highest_rating_cover_path']),
+      'highestRatingCoverPath': covers[0],
       'highestRatingBookId': bookStats['highest_rating_book_id'],
       'lowestRating': bookStats['lowest_rating'] ?? 0,
       'lowestRatingBookTitle': bookStats['lowest_rating_book_title'],
-      'lowestRatingCoverPath': await resolveCover(bookStats['lowest_rating_cover_path']),
+      'lowestRatingCoverPath': covers[1],
       'lowestRatingBookId': bookStats['lowest_rating_book_id'],
       'averageRating': bookStats['average_rating'] ?? 0,
       'highestPages': bookStats['highest_pages'] ?? 0,
       'highestPagesBookTitle': bookStats['highest_pages_book_title'],
-      'highestPagesCoverPath': await resolveCover(bookStats['highest_pages_cover_path']),
+      'highestPagesCoverPath': covers[2],
       'highestPagesBookId': bookStats['highest_pages_book_id'],
       'lowestPages': bookStats['lowest_pages'] ?? 0,
       'lowestPagesBookTitle': bookStats['lowest_pages_book_title'],
-      'lowestPagesCoverPath': await resolveCover(bookStats['lowest_pages_cover_path']),
+      'lowestPagesCoverPath': covers[3],
       'lowestPagesBookId': bookStats['lowest_pages_book_id'],
       'averagePages': bookStats['average_pages'] ?? 0,
       'slowestReadTime': _formatMinutes(bookStats['slowest_read_time'] ?? 0),
       'slowestReadBookTitle': bookStats['slowest_read_book_title'],
-      'slowestReadCoverPath': await resolveCover(bookStats['slowest_read_cover_path']),
+      'slowestReadCoverPath': covers[4],
       'slowestReadBookId': bookStats['slowest_read_book_id'],
       'fastestReadTime': _formatMinutes(bookStats['fastest_read_time'] ?? 0),
       'fastestReadBookTitle': bookStats['fastest_read_book_title'],
-      'fastestReadCoverPath': await resolveCover(bookStats['fastest_read_cover_path']),
+      'fastestReadCoverPath': covers[5],
       'fastestReadBookId': bookStats['fastest_read_book_id'],
       'booksCompleted': bookStats['books_completed'] ?? 0,
     };
-  }
 
-  Future<List<int>> getCombinedYears() async {
-    final sessionYears = await widget.sessionRepository.getSessionYears();
-    final bookYears = await widget.bookRepository.getBookYears();
-
-    if (kDebugMode) {
-      print('SessionYears: $sessionYears, bookYears: $bookYears');
-    }
-
-    final combinedYears = {...sessionYears, ...bookYears}.toList();
-    combinedYears.sort((a, b) => b.compareTo(a));
-    return combinedYears;
+    return StatsData(
+      year: year,
+      stats: stats,
+      shelfData: shelfData,
+      bookTypeData: bookTypeData,
+      booksDist: booksDist,
+      sessionsDist: sessionsDist,
+      readingTimeDist: readingTimeDist,
+      pagesDist: pagesDist,
+      ratingDist: ratingDist,
+    );
   }
 
   Widget _buildSectionHeader(String title) {
@@ -208,7 +323,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
   }
 
-  String _formatMinutes(int minutes) {
+  static String _formatMinutes(int minutes) {
     if (minutes < 60) return "${minutes}m";
 
     final hours = minutes ~/ 60;
@@ -229,25 +344,6 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return result;
   }
 
-  Future<Map<String, int>> _getReadingTimeDistribution() async {
-    List<Session> sessions = await widget.sessionRepository.getSessions(
-      yearFilter: selectedYear,
-    );
-
-    Map<String, int> groupedMinutes = {};
-
-    for (var s in sessions) {
-      final date = DateTime.parse(s.date);
-      final key = selectedYear == 0
-          ? date.year.toString() // group by year
-          : DateFormat('MMM').format(date); // group by month
-
-      groupedMinutes[key] = (groupedMinutes[key] ?? 0) + (s.durationMinutes ?? 0);
-    }
-
-    return groupedMinutes;
-  }
-
   String _shortFormatMinutes(int minutes) {
     if (minutes < 60) return '${minutes}m';
     final hours = minutes ~/ 60;
@@ -255,107 +351,43 @@ class _StatisticsPageState extends State<StatisticsPage> {
   }
 
   Widget _buildReadingTimeChart() {
-    return FutureBuilder<Map<String, int>>(
-      future: _getReadingTimeDistribution(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink();
-        final data = snapshot.data!;
-        final activeMinutes = data.values.where((v) => v > 0).toList();
-        final avgMinutes = activeMinutes.isEmpty
-            ? '0'
-            : _shortFormatMinutes((activeMinutes.reduce((a, b) => a + b) / activeMinutes.length).round());
-        return BarChartWidget(
-          data: data,
-          selectedYear: selectedYear,
-          barColor: Theme.of(context).primaryColor,
-          title: 'Reading Time',
-          subtitleValue: _stats['totalTimeSpent'],
-          averageValue: avgMinutes,
-          averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
-          shortFormatter: _shortFormatMinutes,
-          tooltipFormatter: _formatMinutes,
-        );
-      },
+    final data = _data!.readingTimeDist;
+    final activeMinutes = data.values.where((v) => v > 0).toList();
+    final avgMinutes = activeMinutes.isEmpty
+        ? '0'
+        : _shortFormatMinutes(
+            (activeMinutes.reduce((a, b) => a + b) / activeMinutes.length)
+                .round());
+    return BarChartWidget(
+      data: data,
+      selectedYear: selectedYear,
+      barColor: Theme.of(context).primaryColor,
+      title: 'Reading Time',
+      subtitleValue: _stats['totalTimeSpent'],
+      averageValue: avgMinutes,
+      averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
+      shortFormatter: _shortFormatMinutes,
+      tooltipFormatter: _formatMinutes,
     );
-  }
-
-  Future<Map<String, int>> _getPagesDistribution() async {
-    List<Session> sessions = await widget.sessionRepository.getSessions(
-      yearFilter: selectedYear,
-    );
-
-    Map<String, int> groupedPages = {};
-
-    for (var s in sessions) {
-      final date = DateTime.parse(s.date);
-      final key = selectedYear == 0
-          ? date.year.toString() // group by year
-          : DateFormat('MMM').format(date); // group by month
-
-      groupedPages[key] = (groupedPages[key] ?? 0) + (s.pagesRead ?? 0);
-    }
-
-    return groupedPages;
   }
 
   Widget _buildPagesChart() {
-    return FutureBuilder<Map<String, int>>(
-      future: _getPagesDistribution(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink();
-        final data = snapshot.data!;
-        final activePages = data.values.where((v) => v > 0).toList();
-        final avgPages = activePages.isEmpty
-            ? '0'
-            : NumberFormat('#,###').format((activePages.reduce((a, b) => a + b) / activePages.length).round());
-        return BarChartWidget(
-          data: data,
-          selectedYear: selectedYear,
-          barColor: Theme.of(context).primaryColor,
-          title: 'Pages Read',
-          subtitleValue: NumberFormat('#,###').format(_stats['totalPagesRead']),
-          averageValue: avgPages,
-          averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
-        );
-      },
+    final data = _data!.pagesDist;
+    final activePages = data.values.where((v) => v > 0).toList();
+    final avgPages = activePages.isEmpty
+        ? '0'
+        : NumberFormat('#,###').format(
+            (activePages.reduce((a, b) => a + b) / activePages.length).round());
+    return BarChartWidget(
+      data: data,
+      selectedYear: selectedYear,
+      barColor: Theme.of(context).primaryColor,
+      title: 'Pages Read',
+      subtitleValue: NumberFormat('#,###').format(_stats['totalPagesRead']),
+      averageValue: avgPages,
+      averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
     );
   }
-
-  Future<Map<String, int>> _getBooksDistribution() async {
-    List<Book> books = await widget.bookRepository.getBooks(
-      yearFilter: selectedYear,
-    );
-
-    Map<String, int> grouped = {};
-    for (var book in books) {
-      // Use date_finished for books (assuming books have a date_finished field)
-      if (book.dateFinished != null) {
-        final date = DateTime.parse(book.dateFinished!);
-        final key =
-            selectedYear == 0 ? date.year.toString() : DateFormat('MMM').format(date); // month name
-
-        grouped[key] = (grouped[key] ?? 0) + 1; // count per book
-      }
-    }
-    return grouped;
-  }
-
-  Future<Map<String, int>> _getSessionsDistribution() async {
-    List<Session> sessions = await widget.sessionRepository.getSessions(
-      yearFilter: selectedYear,
-    );
-
-    Map<String, int> grouped = {};
-    for (var s in sessions) {
-      final date = DateTime.parse(s.date);
-      final key =
-          selectedYear == 0 ? date.year.toString() : DateFormat('MMM').format(date); // month name
-
-      grouped[key] = (grouped[key] ?? 0) + 1; // count per session
-    }
-    return grouped;
-  }
-
 
   String _formatAverage(Map<String, int> data) {
     final active = data.values.where((v) => v > 0).toList();
@@ -364,38 +396,28 @@ class _StatisticsPageState extends State<StatisticsPage> {
   }
 
   Widget _buildBooksChart() {
-    return FutureBuilder<Map<String, int>>(
-      future: _getBooksDistribution(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink();
-        return BarChartWidget(
-          data: snapshot.data!,
-          selectedYear: selectedYear,
-          barColor: Theme.of(context).primaryColor,
-          title: 'Books Finished',
-          subtitleValue: _stats['booksCompleted'].toString(),
-          averageValue: _formatAverage(snapshot.data!),
-          averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
-        );
-      },
+    final data = _data!.booksDist;
+    return BarChartWidget(
+      data: data,
+      selectedYear: selectedYear,
+      barColor: Theme.of(context).primaryColor,
+      title: 'Books Finished',
+      subtitleValue: _stats['booksCompleted'].toString(),
+      averageValue: _formatAverage(data),
+      averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
     );
   }
 
   Widget _buildSessionsChart() {
-    return FutureBuilder<Map<String, int>>(
-      future: _getSessionsDistribution(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink();
-        return BarChartWidget(
-          data: snapshot.data!,
-          selectedYear: selectedYear,
-          barColor: Theme.of(context).primaryColor,
-          title: 'Sessions',
-          subtitleValue: _stats['totalSessions'].toString(),
-          averageValue: _formatAverage(snapshot.data!),
-          averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
-        );
-      },
+    final data = _data!.sessionsDist;
+    return BarChartWidget(
+      data: data,
+      selectedYear: selectedYear,
+      barColor: Theme.of(context).primaryColor,
+      title: 'Sessions',
+      subtitleValue: _stats['totalSessions'].toString(),
+      averageValue: _formatAverage(data),
+      averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
     );
   }
 
@@ -421,66 +443,45 @@ class _StatisticsPageState extends State<StatisticsPage> {
   };
 
   Widget _buildBookTypeChart() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: widget.bookRepository.getBookCountsPerType(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink();
-        return PieChartWidget(
-          title: 'Book Formats',
-          data: snapshot.data!,
-          icons: _typeIcons,
-          sortByCount: true,
-          colors: {
-            'Paperback':  Theme.of(context).primaryColor,
-            'Hardback':   _safeColor(const Color(0xFF9575CD), Theme.of(context).primaryColor),
-            'EBook':      _safeColor(const Color(0xFF4CAF50), Theme.of(context).primaryColor),
-            'Audiobook':  _safeColor(const Color(0xFFFF9800), Theme.of(context).primaryColor),
-          },
-        );
+    return PieChartWidget(
+      title: 'Book Formats',
+      data: _data!.bookTypeData,
+      icons: _typeIcons,
+      sortByCount: true,
+      colors: {
+        'Paperback':  Theme.of(context).primaryColor,
+        'Hardback':   _safeColor(const Color(0xFF9575CD), Theme.of(context).primaryColor),
+        'EBook':      _safeColor(const Color(0xFF4CAF50), Theme.of(context).primaryColor),
+        'Audiobook':  _safeColor(const Color(0xFFFF9800), Theme.of(context).primaryColor),
       },
     );
   }
 
   Widget _buildShelfChart() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: widget.bookRepository.getBookCountsPerShelf(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const SizedBox.shrink();
-        final primary = Theme.of(context).primaryColor;
-        const shelfOrder = ['Want to Read', 'Currently Reading', 'Finished', 'Unfinished'];
-        final sorted = [...snapshot.data!]..sort((a, b) {
-            final ai = shelfOrder.indexOf(a['name'] as String);
-            final bi = shelfOrder.indexOf(b['name'] as String);
-            return (ai == -1 ? 999 : ai).compareTo(bi == -1 ? 999 : bi);
-          });
-        return StackedBarChartWidget(
-          title: 'Library Shelves',
-          data: sorted,
-          colors: {
-            'Currently Reading': primary,
-            'Want to Read':      _safeColor(const Color(0xFF9575CD), primary),
-            'Finished':          _safeColor(const Color(0xFF4CAF50), primary),
-            'Unfinished':        _safeColor(const Color(0xFFFF9800), primary),
-          },
-        );
+    final primary = Theme.of(context).primaryColor;
+    const shelfOrder = ['Want to Read', 'Currently Reading', 'Finished', 'Unfinished'];
+    final sorted = [..._data!.shelfData]..sort((a, b) {
+        final ai = shelfOrder.indexOf(a['name'] as String);
+        final bi = shelfOrder.indexOf(b['name'] as String);
+        return (ai == -1 ? 999 : ai).compareTo(bi == -1 ? 999 : bi);
+      });
+    return StackedBarChartWidget(
+      title: 'Library Shelves',
+      data: sorted,
+      colors: {
+        'Currently Reading': primary,
+        'Want to Read':      _safeColor(const Color(0xFF9575CD), primary),
+        'Finished':          _safeColor(const Color(0xFF4CAF50), primary),
+        'Unfinished':        _safeColor(const Color(0xFFFF9800), primary),
       },
     );
   }
 
   Widget _buildRatingSummary() {
-    return FutureBuilder<Map<double, int>>(
-      future: widget.bookRepository.getRatingDistribution(selectedYear: selectedYear),
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          _cachedRatingData = snapshot.data!;
-        }
-
-        return RatingSummaryWidget(
-          ratingData: _cachedRatingData,
-          selectedYear: selectedYear,
-          title: 'My Ratings',
-        );
-      },
+    return RatingSummaryWidget(
+      ratingData: _data!.ratingDist,
+      selectedYear: selectedYear,
+      title: 'My Ratings',
     );
   }
 
@@ -612,11 +613,9 @@ class _StatisticsPageState extends State<StatisticsPage> {
         child: Column(
         children: [
           // Year selection row
-          FutureBuilder<List<int>>(
-            future: getCombinedYears(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const SizedBox.shrink();
-              final allYears = [0, ...snapshot.data!];
+          if (_years != null)
+            Builder(builder: (context) {
+              final allYears = [0, ..._years!];
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: SizedBox(
@@ -653,8 +652,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                 ),
                 ),
               );
-            },
-          ),
+            }),
 
           Divider(
             height: .5,
@@ -664,7 +662,9 @@ class _StatisticsPageState extends State<StatisticsPage> {
           ),
           // Statistics content
           Expanded(
-            child: SingleChildScrollView(
+            child: _data == null
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
               padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
