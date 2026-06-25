@@ -169,8 +169,9 @@ class _PostSessionPageState extends State<PostSessionPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Save Session'),
-          backgroundColor: theme.scaffoldBackgroundColor,
+          backgroundColor: theme.colorScheme.surfaceContainer,
           elevation: 0,
+          scrolledUnderElevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: _goBack,

@@ -580,6 +580,20 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
   }
 
+  double _statsDividerOpacity = 0;
+
+  // Fade a hairline in under the pinned year-filter row once the stats content
+  // scrolls beneath it, matching the bottom nav line. Keeps the app bar flush.
+  bool _onStatsScroll(ScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    final raw = (n.metrics.pixels / 12).clamp(0.0, 1.0);
+    final stepped = (raw * 8).round() / 8;
+    if (stepped != _statsDividerOpacity) {
+      setState(() => _statsDividerOpacity = stepped);
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -589,9 +603,13 @@ class _StatisticsPageState extends State<StatisticsPage> {
         title: const Text('Statistics'),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: false,
+        toolbarHeight: 40,
       ),
-      body: Column(
+      body: NotificationListener<ScrollNotification>(
+        onNotification: _onStatsScroll,
+        child: Column(
         children: [
           // Year selection row
           FutureBuilder<List<int>>(
@@ -638,6 +656,12 @@ class _StatisticsPageState extends State<StatisticsPage> {
             },
           ),
 
+          Divider(
+            height: .5,
+            thickness: .25,
+            color: theme.dividerColor
+                .withAlpha((128 * _statsDividerOpacity).round()),
+          ),
           // Statistics content
           Expanded(
             child: SingleChildScrollView(
@@ -713,6 +737,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

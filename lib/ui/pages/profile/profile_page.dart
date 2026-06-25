@@ -44,14 +44,32 @@ class _ProfilePageState extends State<ProfilePage> {
   String? _avatarPath;
   List<_GoalProgress> _goals = [];
   bool _goalsLoaded = false;
+  final ScrollController _scrollController = ScrollController();
+  double _appBarOpacity = 0;
 
   @override
   void initState() {
     super.initState();
     _stats = ReadingStats.from(books: widget.books, sessions: widget.sessions);
     widget.settingsViewModel.profileAvatarNotifier.addListener(_resolveAvatar);
+    _scrollController.addListener(_onScroll);
     _resolveAvatar();
     _loadGoals();
+  }
+
+  void _onScroll() {
+    // Fade the app bar background in as the header gradient scrolls up behind
+    // it, so the title and settings icon stay legible without snapping. Starts
+    // once the avatar nears the bar and reaches full opacity shortly after.
+    const fadeStart = 40.0;
+    const fadeEnd = 160.0;
+    final offset = _scrollController.offset;
+    final raw = ((offset - fadeStart) / (fadeEnd - fadeStart)).clamp(0.0, 1.0);
+    // Quantize so setState fires in steps instead of every scroll pixel.
+    final stepped = (raw * 20).round() / 20;
+    if (stepped != _appBarOpacity) {
+      setState(() => _appBarOpacity = stepped);
+    }
   }
 
   Future<void> _loadGoals() async {
@@ -86,6 +104,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void dispose() {
     widget.settingsViewModel.profileAvatarNotifier
         .removeListener(_resolveAvatar);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -212,11 +231,21 @@ class _ProfilePageState extends State<ProfilePage> {
     final accent = widget.settingsViewModel.accentColorNotifier.value;
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text('Profile'),
-        backgroundColor: theme.scaffoldBackgroundColor,
+        backgroundColor:
+            theme.scaffoldBackgroundColor.withValues(alpha: _appBarOpacity),
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: false,
+        toolbarHeight: 40,
+        shape: Border(
+          bottom: BorderSide(
+            color: theme.dividerColor.withAlpha((128 * _appBarOpacity).round()),
+            width: .25,
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -226,6 +255,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ],
       ),
       body: ListView(
+        controller: _scrollController,
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           _buildHeader(theme, accent),
@@ -243,7 +273,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final muted = theme.colorScheme.onSurfaceVariant;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 48, 16, 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,

@@ -62,6 +62,20 @@ class _LibraryPageState extends State<LibraryPage> {
   final Set<int> _selectedBookIds = {};
   Set<int> _pinnedBookIds = {};
   final GlobalKey _selectedShelfChipKey = GlobalKey();
+  double _filterDividerOpacity = 0;
+
+  // Fade a hairline in under the pinned filter band once the book list scrolls
+  // beneath it, so the cue lands where scroll content begins (not on the app
+  // bar, which sits above the static shelf chips). Mirrors the bottom nav line.
+  bool _onBodyScroll(ScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    final raw = (n.metrics.pixels / 12).clamp(0.0, 1.0);
+    final stepped = (raw * 8).round() / 8;
+    if (stepped != _filterDividerOpacity) {
+      setState(() => _filterDividerOpacity = stepped);
+    }
+    return false;
+  }
 
   @override
   void initState() {
@@ -718,7 +732,10 @@ class _LibraryPageState extends State<LibraryPage> {
           autofocus: true,
           style: TextStyle(color: theme.colorScheme.onSurface),
         )
-            : const Text('Library'),
+            : Text(
+                'Library',
+                style: theme.textTheme.titleLarge,
+              ),
         leading: _selectionMode
             ? IconButton(
           icon: const Icon(Icons.close),
@@ -728,6 +745,10 @@ class _LibraryPageState extends State<LibraryPage> {
         backgroundColor: _isSearching
             ? theme.colorScheme.surfaceContainerHighest
             : theme.scaffoldBackgroundColor,
+        centerTitle: false,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        toolbarHeight: 40,
         actions: _selectionMode
             ? null
             : [
@@ -812,12 +833,14 @@ class _LibraryPageState extends State<LibraryPage> {
                     ],
                   ),
                 )
-                    : Padding(
+                    : NotificationListener<ScrollNotification>(
+                  onNotification: _onBodyScroll,
+                  child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Column(
                     children: [
                       // Shelf filter chips
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       SizedBox(
                         height: 32,
                         child: ListView(
@@ -916,6 +939,21 @@ class _LibraryPageState extends State<LibraryPage> {
                         ),
                         const SizedBox(height: 8),
                       ],
+                      // Break out of the body's 8px horizontal padding so the
+                      // hairline spans the full screen width like the bottom nav.
+                      SizedBox(
+                        height: .5,
+                        child: OverflowBox(
+                          minWidth: MediaQuery.of(context).size.width,
+                          maxWidth: MediaQuery.of(context).size.width,
+                          child: Divider(
+                            height: .5,
+                            thickness: .25,
+                            color: theme.dividerColor
+                                .withAlpha((128 * _filterDividerOpacity).round()),
+                          ),
+                        ),
+                      ),
                       Expanded(
                         child: _filteredBooks.isEmpty
                             ? Center(
@@ -1019,6 +1057,7 @@ class _LibraryPageState extends State<LibraryPage> {
                       ),
                     ],
                   ),
+                ),
                 ),
       floatingActionButton: _selectionMode
 

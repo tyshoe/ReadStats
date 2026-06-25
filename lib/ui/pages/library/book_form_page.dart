@@ -878,7 +878,9 @@ class _BookFormPageState extends State<BookFormPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.isEditing ? 'Edit Book' : 'Add Book'),
-        backgroundColor: theme.scaffoldBackgroundColor,
+        backgroundColor: theme.colorScheme.surfaceContainer,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       body: Column(
         children: [

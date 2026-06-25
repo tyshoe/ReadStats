@@ -364,7 +364,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.isEditing ? 'Edit Session' : 'Add Session'),
-        backgroundColor: theme.scaffoldBackgroundColor,
+        backgroundColor: theme.colorScheme.surfaceContainer,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         actions: const [],
       ),
       body: Column(

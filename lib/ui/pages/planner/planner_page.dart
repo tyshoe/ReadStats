@@ -103,7 +103,9 @@ class _PlannerPageState extends State<PlannerPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: theme.scaffoldBackgroundColor,
+          backgroundColor: theme.colorScheme.surfaceContainer,
+          elevation: 0,
+          scrolledUnderElevation: 0,
           leading: _selectionMode
               ? IconButton(
                   icon: const Icon(Icons.close_rounded),

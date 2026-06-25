@@ -833,10 +833,14 @@ class _SessionsPageState extends State<SessionsPage>
         backgroundColor: theme.scaffoldBackgroundColor,
         centerTitle: false,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        toolbarHeight: 40,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: accentColor,
           labelColor: accentColor,
+          dividerColor: theme.dividerColor.withAlpha(128),
+          dividerHeight: .25,
           unselectedLabelColor: theme.colorScheme.onSurface.withAlpha(160),
           tabs: const [
             Tab(height: 40, text: 'Sessions'),

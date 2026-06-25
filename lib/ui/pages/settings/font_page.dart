@@ -41,8 +41,9 @@ class FontSelectionPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Font Style'),
-        backgroundColor: colors.surface,
+        backgroundColor: colors.surfaceContainer,
         elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       backgroundColor: theme.scaffoldBackgroundColor,
       body: ValueListenableBuilder<String>(
