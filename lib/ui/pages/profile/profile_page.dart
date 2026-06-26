@@ -555,7 +555,10 @@ class _ProfilePageState extends State<ProfilePage> {
     final metric = gp.goal.metric;
     final p = gp.progress;
     final met = p.met;
-    final barColor = met ? accent : accent.withAlpha(200);
+    // When complete, switch to the same green completion color used by the
+    // tracking goals so a met goal reads as "done" rather than just accented.
+    final completionColor = _completionColor(accent);
+    final barColor = met ? completionColor : accent.withAlpha(200);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -584,7 +587,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const Spacer(),
                     if (met)
-                      Icon(Icons.check_circle, size: 16, color: accent),
+                      Icon(Icons.check_circle, size: 16, color: completionColor),
                     if (met) const SizedBox(width: 4),
                     Text(
                       '${metric.cardDisplay(p.actual)} / ${metric.unitLabel(p.target)}',
@@ -610,6 +613,15 @@ class _ProfilePageState extends State<ProfilePage> {
         ],
       ),
     );
+  }
+
+  // Mirrors the tracking goals' completion color: green normally, with a blue
+  // fallback when the accent itself is green-ish so the "complete" state stays
+  // visually distinct from the accent.
+  Color _completionColor(Color accent) {
+    final hue = HSLColor.fromColor(accent).hue;
+    if (hue >= 80 && hue <= 170) return const Color(0xFF2196F3);
+    return Colors.green.shade600;
   }
 
   IconData _metricIcon(GoalMetric metric) {
