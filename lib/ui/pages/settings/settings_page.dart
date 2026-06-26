@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../widgets/app_snackbar.dart';
 import 'package:intl/intl.dart';
-import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app_config.dart';
 import '../../../data/services/import_export_service.dart';
@@ -10,11 +9,10 @@ import '../onboarding/onboarding_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import 'font_page.dart';
 import 'widgets/accent_color_picker.dart';
-import 'widgets/nav_style_picker.dart';
+import 'widgets/nav_preview.dart';
 import 'widgets/rating_style_picker.dart';
 import '../settings/widgets/book_type_picker.dart';
 import '../settings/widgets/theme_mode_picker.dart';
-import 'widgets/default_tab_picker.dart';
 import 'widgets/date_format_picker.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -51,35 +49,34 @@ class SettingsPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
-          // Appearance Section — everything about how the app looks, including
-          // how individual values (ratings, dates) render.
+          // Appearance Section — global app chrome: theme, accent, typeface.
           _buildSettingsSection(
             context,
             header: 'Appearance',
             children: [
-              _buildSettingsTile(
+              _buildValueTile(
                 context,
+                icon: Icons.brightness_6,
                 title: 'Theme',
-                trailing: ValueListenableBuilder<ThemeMode>(
+                value: ValueListenableBuilder<ThemeMode>(
                   valueListenable: settingsViewModel.themeModeNotifier,
-                  builder: (context, mode, _) => Text(
-                    _getThemeModeString(mode),
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
+                  builder: (context, mode, _) =>
+                      _valueLabel(context, _getThemeModeString(mode)),
                 ),
                 onTap: () => showThemeModePicker(context, settingsViewModel, toggleTheme),
               ),
-              _buildSettingsTile(
+              _buildValueTile(
                 context,
+                icon: Icons.palette,
                 title: 'Accent Color',
-                trailing: ValueListenableBuilder<Color>(
+                value: ValueListenableBuilder<Color>(
                   valueListenable: settingsViewModel.accentColorNotifier,
                   builder: (context, color, _) => Container(
                     width: 48,
-                    height: 32,
+                    height: 28,
                     decoration: BoxDecoration(
                       color: color,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                 ),
@@ -89,26 +86,14 @@ class SettingsPage extends StatelessWidget {
                       (newColor) => settingsViewModel.setAccentColor(newColor),
                 ),
               ),
-              _buildSettingsTile(
+              _buildValueTile(
                 context,
+                icon: Icons.text_fields_outlined,
                 title: 'Font',
-                trailing: ValueListenableBuilder<String>(
+                value: ValueListenableBuilder<String>(
                   valueListenable: settingsViewModel.selectedFontNotifier,
-                  builder: (context, selectedFont, _) => Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        selectedFont,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.chevron_right,
-                        size: 18,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ),
+                  builder: (context, selectedFont, _) =>
+                      _valueLabel(context, selectedFont),
                 ),
                 onTap: () => Navigator.push(
                   context,
@@ -118,123 +103,121 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ),
               ),
-              _buildSettingsTile(
+            ],
+          ),
+
+          // Navigation Section — an interactive preview of the bottom tab bar.
+          // The segmented control sets the bar's style; tapping a tab sets the
+          // startup tab. Both settings are configured live, in place.
+          _buildSettingsSection(
+            context,
+            header: 'Navigation',
+            children: [
+              NavPreview(settingsViewModel: settingsViewModel),
+            ],
+          ),
+
+          // Defaults Section — how new entries are pre-filled and how stored
+          // values (ratings, dates) are formatted throughout the app.
+          _buildSettingsSection(
+            context,
+            header: 'Defaults',
+            children: [
+              _buildValueTile(
                 context,
-                title: 'Navigation Style',
-                trailing: ValueListenableBuilder<IconStyle>(
-                  valueListenable: settingsViewModel.navStyleNotifier,
-                  builder: (context, value, _) => Text(
-                    _iconStyleToString(value),
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
+                icon: Icons.menu_book,
+                title: 'Default Book Format',
+                value: ValueListenableBuilder<int>(
+                  valueListenable: settingsViewModel.defaultBookTypeNotifier,
+                  builder: (context, type, _) =>
+                      _valueLabel(context, bookTypeNames[type] ?? "Unknown"),
                 ),
-                onTap: () => showNavStylePicker(context, settingsViewModel),
+                onTap: () => showBookTypePicker(context, settingsViewModel),
               ),
-              _buildSettingsTile(
+              _buildValueTile(
                 context,
+                icon: Icons.star,
                 title: 'Rating Style',
-                trailing: ValueListenableBuilder<int>(
+                value: ValueListenableBuilder<int>(
                   valueListenable: settingsViewModel.defaultRatingStyleNotifier,
-                  builder: (context, style, _) => Text(
-                    ratingStyleNames[style] ?? "Unknown",
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
+                  builder: (context, style, _) =>
+                      _valueLabel(context, ratingStyleNames[style] ?? "Unknown"),
                 ),
                 onTap: () => showRatingStylePicker(context, settingsViewModel),
               ),
-              _buildSettingsTile(
+              _buildValueTile(
                 context,
+                icon: Icons.event,
                 title: 'Date Format',
-                trailing: ValueListenableBuilder<String>(
+                value: ValueListenableBuilder<String>(
                   valueListenable: settingsViewModel.defaultDateFormatNotifier,
-                  builder: (context, format, _) => Text(
-                    _getFormattedDate(DateTime.now(), format),
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
+                  builder: (context, format, _) => _valueLabel(
+                      context, _getFormattedDate(DateTime.now(), format)),
                 ),
                 onTap: () => showDateFormatPicker(context, settingsViewModel),
               ),
             ],
           ),
 
-          // Defaults Section — pre-selected choices for new content & launch.
-          _buildSettingsSection(
-            context,
-            header: 'Defaults',
-            children: [
-              _buildSettingsTile(
-                context,
-                title: 'Startup Tab',
-                trailing: ValueListenableBuilder<int>(
-                  valueListenable: settingsViewModel.defaultTabNotifier,
-                  builder: (context, index, _) => Text(
-                    _getTabName(index),
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ),
-                onTap: () => showDefaultTabPicker(context, settingsViewModel),
-              ),
-              _buildSettingsTile(
-                context,
-                title: 'Default Book Format',
-                trailing: ValueListenableBuilder<int>(
-                  valueListenable: settingsViewModel.defaultBookTypeNotifier,
-                  builder: (context, type, _) => Text(
-                    bookTypeNames[type] ?? "Unknown",
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ),
-                onTap: () => showBookTypePicker(context, settingsViewModel),
-              ),
-            ],
-          ),
-
-          // Data Management Section
+          // Data Section — import/export actions.
           _buildSettingsSection(
             context,
             header: 'Data',
             children: [
-              _buildSettingsTile(
+              _buildActionTile(
                 context,
+                icon: Icons.file_upload,
                 title: 'Export to CSV',
                 onTap: () =>
                     _handleImportExport(context, importExportService.exportDataToCSV),
               ),
-              _buildSettingsTile(
+              _buildActionTile(
                 context,
+                icon: Icons.file_download,
                 title: 'Import from Goodreads',
                 onTap: () =>
                     _handleImportExport(context, importExportService.importGoodreadsCSV),
               ),
               ExpansionTile(
+                leading: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Center(
+                    child: Icon(
+                      Icons.description,
+                      size: 22,
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
                 title: Text(
                   'Import from CSV',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                  style: TextStyle(color: colors.onSurface),
                 ),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                collapsedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: const RoundedRectangleBorder(),
+                collapsedShape: const RoundedRectangleBorder(),
                 tilePadding: const EdgeInsets.symmetric(horizontal: 16),
                 childrenPadding: const EdgeInsets.only(bottom: 4),
                 children: [
-                  _buildSettingsTile(
+                  _buildSubActionTile(
                     context,
                     title: 'Books',
                     onTap: () =>
                         _handleImportExport(context, importExportService.importBooksFromCSV),
                   ),
-                  _buildSettingsTile(
+                  _buildSubActionTile(
                     context,
                     title: 'Sessions',
                     onTap: () =>
                         _handleImportExport(context, importExportService.importSessionsFromCSV),
                   ),
-                  _buildSettingsTile(
+                  _buildSubActionTile(
                     context,
                     title: 'Tags',
                     onTap: () =>
                         _handleImportExport(context, importExportService.importTagsFromCSV),
                   ),
-                  _buildSettingsTile(
+                  _buildSubActionTile(
                     context,
                     title: 'Book Tags',
                     onTap: () =>
@@ -242,10 +225,11 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ],
               ),
-              _buildSettingsTile(
+              _buildActionTile(
                 context,
+                icon: Icons.delete,
                 title: 'Delete All Data',
-                textColor: colors.error,
+                color: colors.error,
                 onTap: () => _confirmDeleteData(context),
               ),
             ],
@@ -256,32 +240,29 @@ class SettingsPage extends StatelessWidget {
             context,
             header: 'Help & Feedback',
             children: [
-              _buildSettingsTile(
+              _buildActionTile(
                 context,
+                icon: Icons.play_circle,
                 title: 'Replay Tutorial',
-                leading: const Icon(Icons.play_circle, size: 22),
                 onTap: () => _replayOnboarding(context),
               ),
-              _buildSettingsTile(
+              _buildLinkTile(
                 context,
+                icon: const Icon(Icons.bug_report, size: 22),
                 title: 'Report a Bug',
-                leading: const Icon(Icons.bug_report, size: 24),
-                trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () =>
                     _launchUrl('https://github.com/tyshoe/ReadStats/issues/new'),
               ),
-              _buildSettingsTile(
+              _buildLinkTile(
                 context,
+                icon: const FaIcon(FontAwesomeIcons.discord, size: 20),
                 title: 'Join our Discord',
-                leading: const FaIcon(FontAwesomeIcons.discord, size: 20),
-                trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () => _launchUrl('https://discord.gg/cA6CDkUY4x'),
               ),
-              _buildSettingsTile(
+              _buildLinkTile(
                 context,
+                icon: const FaIcon(FontAwesomeIcons.github, size: 20),
                 title: 'GitHub',
-                leading: const FaIcon(FontAwesomeIcons.github, size: 20),
-                trailing: const Icon(Icons.open_in_new, size: 16),
                 onTap: () => _launchUrl('https://github.com/tyshoe/ReadStats'),
               ),
             ],
@@ -377,34 +358,97 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSettingsTile(
+  // Normalize every leading icon into an identical 24x24 centered slot so icons
+  // of different sizes (Material vs brand) share one vertical line.
+  Widget _leadingSlot(BuildContext context, Widget icon) {
+    return SizedBox(
+      width: 24,
+      height: 24,
+      child: Center(
+        child: IconTheme.merge(
+          data: IconThemeData(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          child: icon,
+        ),
+      ),
+    );
+  }
+
+  // The right-aligned current-value text shared by every picker row.
+  Widget _valueLabel(BuildContext context, String text) {
+    return Text(text, style: Theme.of(context).textTheme.bodyMedium);
+  }
+
+  // Value row: a setting that holds a current value and opens a picker.
+  // Reads as "icon · title ............ value ›".
+  Widget _buildValueTile(
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        required Widget value,
+        VoidCallback? onTap,
+      }) {
+    final colors = Theme.of(context).colorScheme;
+    return ListTile(
+      leading: _leadingSlot(context, Icon(icon, size: 22)),
+      title: Text(title, style: TextStyle(color: colors.onSurface)),
+      trailing: value,
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    );
+  }
+
+  // Action row: performs something immediately (export, delete, replay). No
+  // trailing chevron — it's a button, not a drill-in.
+  Widget _buildActionTile(
+      BuildContext context, {
+        required IconData icon,
+        required String title,
+        VoidCallback? onTap,
+        Color? color,
+      }) {
+    final colors = Theme.of(context).colorScheme;
+    return ListTile(
+      leading: _leadingSlot(
+        context,
+        Icon(icon, size: 22, color: color ?? colors.onSurfaceVariant),
+      ),
+      title: Text(title, style: TextStyle(color: color ?? colors.onSurface)),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    );
+  }
+
+  // External link row: opens a URL off-app, signalled with open_in_new.
+  Widget _buildLinkTile(
+      BuildContext context, {
+        required Widget icon,
+        required String title,
+        VoidCallback? onTap,
+      }) {
+    final colors = Theme.of(context).colorScheme;
+    return ListTile(
+      leading: _leadingSlot(context, icon),
+      title: Text(title, style: TextStyle(color: colors.onSurface)),
+      trailing: Icon(Icons.open_in_new, size: 16, color: colors.onSurfaceVariant),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    );
+  }
+
+  // Indented child action inside the "Import from CSV" expansion.
+  Widget _buildSubActionTile(
       BuildContext context, {
         required String title,
-        Widget? trailing,
-        Widget? leading,
         VoidCallback? onTap,
-        Color? textColor,
       }) {
+    final colors = Theme.of(context).colorScheme;
     return ListTile(
-      title: Text(
-        title,
-        style: TextStyle(
-            color: textColor ?? Theme.of(context).colorScheme.onSurface),
-      ),
-      // Normalize every leading icon into an identical 24x24 centered slot so
-      // icons of different sizes (Material vs brand) share one vertical line.
-      leading: leading == null
-          ? null
-          : SizedBox(
-              width: 24,
-              height: 24,
-              child: Center(child: leading),
-            ),
-      trailing: trailing,
+      contentPadding: const EdgeInsets.only(left: 56, right: 16),
+      title: Text(title, style: TextStyle(color: colors.onSurface)),
       onTap: onTap,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 
@@ -429,20 +473,6 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
-  String _getTabName(int index) {
-    switch (index) {
-      case 0:
-        return 'Library';
-      case 1:
-        return 'Sessions';
-      case 2:
-        return 'Stats';
-      case 3:
-      default:
-        return 'Profile';
-    }
-  }
-
   String _getFormattedDate(DateTime date, String format) {
     try {
       return DateFormat(format).format(date);
@@ -459,17 +489,6 @@ class SettingsPage extends StatelessWidget {
         return 'Dark';
       case ThemeMode.system:
         return 'System';
-    }
-  }
-
-  static String _iconStyleToString(IconStyle style) {
-    switch (style) {
-      case IconStyle.animated:
-        return 'Animated';
-      case IconStyle.Default:
-        return 'Standard';
-      default:
-        return 'Simple';
     }
   }
 
