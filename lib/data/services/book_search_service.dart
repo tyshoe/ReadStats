@@ -109,6 +109,40 @@ class BookSearchService {
     return BookSearchResponse(totalFound: totalFound, results: results);
   }
 
+  /// Search Open Library for cover images matching [query], returning distinct
+  /// large cover URLs (one per edition that has a cover). Used by the cover
+  /// picker so the user can browse and attach a cover independent of the book's
+  /// other metadata.
+  ///
+  /// Throws [BookSearchException] on network or server errors.
+  static Future<List<String>> searchCovers(String query, {int offset = 0}) async {
+    if (query.trim().isEmpty) return [];
+
+    final url = '$_searchBase?q=${Uri.encodeComponent(query.trim())}'
+        '&limit=$_pageSize&offset=$offset&fields=cover_i';
+
+    final http.Response response;
+    try {
+      response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+    } catch (e) {
+      throw const BookSearchException('Check your connection and try again.');
+    }
+    if (response.statusCode != 200) {
+      throw const BookSearchException('Something went wrong. Try again.');
+    }
+
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final docs = json['docs'] as List<dynamic>? ?? [];
+
+    // Preserve order but drop duplicates and editions without a cover.
+    final ids = <int>{};
+    for (final doc in docs) {
+      final id = (doc as Map<String, dynamic>)['cover_i'];
+      if (id is int) ids.add(id);
+    }
+    return ids.map((id) => '$_coverBase/$id-L.jpg').toList();
+  }
+
   static Future<BookSearchResult?> lookupByIsbn(String isbn) async {
     final clean = isbn.replaceAll(RegExp(r'[^\dX]'), '');
     if (clean.isEmpty) return null;

@@ -16,6 +16,7 @@ import '../../../data/models/tag.dart';
 import '../../../data/repositories/book_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../data/services/cover_service.dart';
+import 'widgets/cover_search_sheet.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
 class BookFormPage extends StatefulWidget {
@@ -483,6 +484,84 @@ class _BookFormPageState extends State<BookFormPage> {
     return result.toString();
   }
 
+  /// Bottom-sheet chooser for where the cover comes from. Currently online
+  /// (Open Library) search and the device photo library; leaves room for a
+  /// general internet image search later.
+  Future<void> _showCoverSourceSheet() async {
+    final theme = Theme.of(context);
+    final source = await showModalBottomSheet<_CoverSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.cloud_outlined),
+              title: const Text('Search online'),
+              subtitle: const Text('Find a cover from Open Library'),
+              onTap: () => Navigator.pop(ctx, _CoverSource.online),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Photo library'),
+              subtitle: const Text('Choose an image from your device'),
+              onTap: () => Navigator.pop(ctx, _CoverSource.gallery),
+            ),
+          ],
+        ),
+      ),
+      backgroundColor: theme.colorScheme.surfaceContainer,
+    );
+
+    if (source == null || !mounted) return;
+    switch (source) {
+      case _CoverSource.online:
+        await _searchCoverOnline();
+      case _CoverSource.gallery:
+        await _pickCoverFromGallery();
+    }
+  }
+
+  Future<void> _pickCoverFromGallery() async {
+    if (_isPickingCover) return;
+    setState(() => _isPickingCover = true);
+    try {
+      final file = await CoverService.pickImage();
+      if (file != null && mounted) {
+        setState(() {
+          _coverFile = file;
+          _coverUrl = null;
+          _coverChanged = true;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isPickingCover = false);
+    }
+  }
+
+  Future<void> _searchCoverOnline() async {
+    final query = [_titleController.text.trim(), _authorController.text.trim()]
+        .where((s) => s.isNotEmpty)
+        .join(' ');
+    final url = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => CoverSearchSheet(initialQuery: query),
+      ),
+    );
+    if (url == null || !mounted) return;
+
+    // Show the remote image immediately, then swap in the downloaded file that
+    // gets persisted on save (mirrors the search-result cover flow).
+    setState(() {
+      _coverUrl = url;
+      _coverChanged = true;
+    });
+    final file = await CoverService.downloadFromUrl(url);
+    if (file != null && mounted) {
+      setState(() => _coverFile = file);
+    }
+  }
+
   Widget _buildCoverPicker() {
     final theme = Theme.of(context);
     const double coverW = 150;
@@ -531,22 +610,7 @@ class _BookFormPageState extends State<BookFormPage> {
               child: Material(
                 type: MaterialType.transparency,
                 child: InkWell(
-                  onTap: () async {
-                    if (_isPickingCover) return;
-                    setState(() => _isPickingCover = true);
-                    try {
-                      final file = await CoverService.pickImage();
-                      if (file != null && mounted) {
-                        setState(() {
-                          _coverFile = file;
-                          _coverUrl = null;
-                          _coverChanged = true;
-                        });
-                      }
-                    } finally {
-                      if (mounted) setState(() => _isPickingCover = false);
-                    }
-                  },
+                  onTap: _isPickingCover ? null : _showCoverSourceSheet,
                 ),
               ),
             ),
@@ -1761,3 +1825,6 @@ class IsbnInputFormatter extends TextInputFormatter {
     );
   }
 }
+
+/// Where a book cover is sourced from in the cover-source chooser.
+enum _CoverSource { online, gallery }
