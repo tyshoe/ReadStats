@@ -1,9 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:google_fonts/google_fonts.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import '../../../viewmodels/SettingsViewModel.dart';
 import '../library/widgets/book_row.dart';
 
-class FontSelectionPage extends StatelessWidget {
+class FontSelectionPage extends StatefulWidget {
   final SettingsViewModel settingsViewModel;
 
   const FontSelectionPage({
@@ -11,6 +15,11 @@ class FontSelectionPage extends StatelessWidget {
     required this.settingsViewModel,
   });
 
+  @override
+  State<FontSelectionPage> createState() => _FontSelectionPageState();
+}
+
+class _FontSelectionPageState extends State<FontSelectionPage> {
   static const List<String> _fonts = [
     'Roboto',
     'Inter',
@@ -23,15 +32,54 @@ class FontSelectionPage extends StatelessWidget {
     'EB Garamond',
   ];
 
-  static const _sampleBook = {
-    'title': 'The Art of War',
-    'author': 'Sun Tzu',
-    'book_type_id': 1,
-    'is_favorite': 1,
-    'rating': 4.5,
-    'date_started': '2024-08-16',
-    'date_finished': '2024-08-24',
-  };
+  // A handful of sample tags; three are picked at random so the preview reads
+  // like a real, fully-populated library row rather than a bare sample.
+  static const List<String> _tagPool = [
+    'Strategy',
+    'Classic',
+    'Philosophy',
+    'Nonfiction',
+    'History',
+    'War',
+    'Leadership',
+  ];
+
+  String? _coverPath;
+  late final List<String> _tags;
+
+  @override
+  void initState() {
+    super.initState();
+    _tags = (_tagPool.toList()..shuffle()).take(3).toList();
+    _prepareCover();
+  }
+
+  // BookRow renders covers via Image.file, so the bundled cover asset has to
+  // live on disk to show up. Copy it into app storage once and reuse it.
+  Future<void> _prepareCover() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File(p.join(dir.path, 'font_preview_cover.jpg'));
+      if (!await file.exists()) {
+        final bytes = await rootBundle.load('assets/images/art_of_war.jpg');
+        await file.writeAsBytes(bytes.buffer.asUint8List());
+      }
+      if (mounted) setState(() => _coverPath = file.path);
+    } catch (_) {
+      // Non-fatal: the preview simply renders without a cover.
+    }
+  }
+
+  Map<String, dynamic> get _sampleBook => {
+        'title': 'The Art of War',
+        'author': 'Sun Tzu',
+        'book_type_id': 1,
+        'is_favorite': 1,
+        'rating': 4.5,
+        'date_started': '2024-08-16',
+        'date_finished': '2024-08-24',
+        if (_coverPath != null) 'cover_path': _coverPath,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +95,7 @@ class FontSelectionPage extends StatelessWidget {
       ),
       backgroundColor: theme.scaffoldBackgroundColor,
       body: ValueListenableBuilder<String>(
-        valueListenable: settingsViewModel.selectedFontNotifier,
+        valueListenable: widget.settingsViewModel.selectedFontNotifier,
         builder: (context, selectedFont, _) {
           return Column(
             children: [
@@ -73,6 +121,7 @@ class FontSelectionPage extends StatelessWidget {
                         book: _sampleBook,
                         onTap: () {},
                         showStars: true,
+                        tags: _tags,
                       ),
                     ),
                   ],
@@ -86,14 +135,15 @@ class FontSelectionPage extends StatelessWidget {
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   itemCount: _fonts.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final fontName = _fonts[index];
                     final isSelected = fontName == selectedFont;
                     return _FontOption(
                       fontName: fontName,
                       isSelected: isSelected,
-                      onTap: () async => await settingsViewModel.setSelectedFont(fontName),
+                      onTap: () async =>
+                          await widget.settingsViewModel.setSelectedFont(fontName),
                     );
                   },
                 ),
