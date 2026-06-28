@@ -235,7 +235,9 @@ class SettingsPage extends StatelessWidget {
             ],
           ),
 
-          // Help & Feedback Section — support actions and community links.
+          // Help & Feedback Section — how a user gets help or reaches us.
+          // Email is the primary, no-account-needed channel for bugs and
+          // feature requests; Discord is the community option.
           _buildSettingsSection(
             context,
             header: 'Help & Feedback',
@@ -248,10 +250,10 @@ class SettingsPage extends StatelessWidget {
               ),
               _buildLinkTile(
                 context,
-                icon: const Icon(Icons.bug_report, size: 22),
-                title: 'Report a Bug',
-                onTap: () =>
-                    _launchUrl('https://github.com/tyshoe/ReadStats/issues/new'),
+                icon: const Icon(Icons.email_outlined, size: 22),
+                title: 'Send Feedback',
+                onTap: () => _launchUrl(
+                    'mailto:readstatsdev@gmail.com?subject=ReadStats%20Feedback'),
               ),
               _buildLinkTile(
                 context,
@@ -259,11 +261,26 @@ class SettingsPage extends StatelessWidget {
                 title: 'Join our Discord',
                 onTap: () => _launchUrl('https://discord.gg/cA6CDkUY4x'),
               ),
+            ],
+          ),
+
+          // About Section — project and legal references (not contact).
+          _buildSettingsSection(
+            context,
+            header: 'About',
+            children: [
               _buildLinkTile(
                 context,
                 icon: const FaIcon(FontAwesomeIcons.github, size: 20),
-                title: 'GitHub',
+                title: 'Source Code',
                 onTap: () => _launchUrl('https://github.com/tyshoe/ReadStats'),
+              ),
+              _buildLinkTile(
+                context,
+                icon: const Icon(Icons.privacy_tip_outlined, size: 22),
+                title: 'Privacy Policy',
+                onTap: () => _launchUrl(
+                    'https://github.com/tyshoe/ReadStats/blob/main/PRIVACY.md'),
               ),
             ],
           ),
