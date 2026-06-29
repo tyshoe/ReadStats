@@ -42,6 +42,7 @@ void main() async {
     bookRepository: bookRepository,
     sessionRepository: sessionRepository,
     tagRepository: tagRepository,
+    goalRepository: goalRepository,
   );
 
   final themeMode = await SettingsViewModel.loadSavedThemeMode();

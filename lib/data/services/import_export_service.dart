@@ -13,6 +13,7 @@ import '../database/database_helper.dart';
 import '../repositories/book_repository.dart';
 import '../repositories/session_repository.dart';
 import '../repositories/tag_repository.dart';
+import '../repositories/goal_repository.dart';
 import '../utils/date_utils.dart';
 
 class ImportExportResult {
@@ -25,11 +26,13 @@ class ImportExportService {
   final BookRepository bookRepository;
   final SessionRepository sessionRepository;
   final TagRepository tagRepository;
+  final GoalRepository goalRepository;
 
   ImportExportService({
     required this.bookRepository,
     required this.sessionRepository,
     required this.tagRepository,
+    required this.goalRepository,
   });
 
   // ─── DELETE ───────────────────────────────────────────────────────────────
@@ -38,6 +41,7 @@ class ImportExportService {
     try {
       await bookRepository.deleteAllBooks();
       await tagRepository.deleteAllTags();
+      await goalRepository.deleteAllGoals();
       return const ImportExportResult(success: true, message: 'All data deleted.');
     } catch (e) {
       if (kDebugMode) print('Delete error: $e');
@@ -79,7 +83,7 @@ class ImportExportService {
         'id', 'title', 'author', 'word_count', 'page_count', 'rating',
         'is_complete', 'is_favorite', 'book_type_id', 'date_added',
         'date_started', 'date_finished', 'isbn', 'user_review',
-        'duration_minutes', 'shelf_id',
+        'duration_minutes', 'shelf_id', 'cover_path', 'open_library_key',
       ],
       ...books.map((b) => [
         b.id.toString(),
@@ -98,6 +102,8 @@ class ImportExportService {
         b.userReview ?? '',
         b.durationMinutes?.toString() ?? '',
         b.shelfId.toString(),
+        b.coverPath ?? '',
+        b.openLibraryKey ?? '',
       ]),
     ];
     await _writeCSV(path, rows);
@@ -268,6 +274,8 @@ class ImportExportService {
           shelfId: row.length > 15
               ? int.tryParse(row[15].toString()) ?? DatabaseHelper.shelfWantToRead
               : DatabaseHelper.shelfWantToRead,
+          coverPath: row.length > 16 ? _nullableString(row[16]) : null,
+          openLibraryKey: row.length > 17 ? _nullableString(row[17]) : null,
         ));
       } catch (e) {
         if (kDebugMode) print('Skipping book row: $e');

@@ -9,7 +9,7 @@ class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
-  static const int _databaseVersion = 5;
+  static const int _databaseVersion = 6;
 
   // System shelf IDs — stable because shelves are seeded in a fixed order
   // and only exist from v2 onwards (v1 had no shelves).
@@ -92,8 +92,9 @@ class DatabaseHelper {
         isbn TEXT,
         user_review TEXT,
         duration_minutes INTEGER DEFAULT 0,
-        shelf_id INTEGER NOT NULL DEFAULT 1,
+        shelf_id INTEGER NOT NULL DEFAULT 2,
         cover_path TEXT,
+        open_library_key TEXT,
         FOREIGN KEY(book_type_id) REFERENCES book_types(id),
         FOREIGN KEY(shelf_id) REFERENCES shelves(id)
       )
@@ -328,6 +329,20 @@ class DatabaseHelper {
 
     if (oldVersion < 5) {
       await db.execute('ALTER TABLE books ADD COLUMN open_library_key TEXT');
+    }
+
+    if (oldVersion < 6) {
+      // Repair: an earlier _onCreate omitted open_library_key, so databases
+      // first created AT v5 (fresh installs) lack the column while upgraded
+      // databases have it. _onUpgrade isn't called for a same-version install,
+      // so those broken DBs can only be fixed by a later version bump. Add the
+      // column only if missing so this is safe whichever state the DB is in.
+      final cols = await db.rawQuery('PRAGMA table_info(books)');
+      final hasOpenLibraryKey =
+          cols.any((c) => c['name'] == 'open_library_key');
+      if (!hasOpenLibraryKey) {
+        await db.execute('ALTER TABLE books ADD COLUMN open_library_key TEXT');
+      }
     }
 
   }
@@ -605,6 +620,17 @@ class DatabaseHelper {
   Future<int> deleteAllBooks() async {
     final db = await database;
     return await db.delete('books');
+  }
+
+  /// Delete all goals and their target-change history. goal_target_changes
+  /// cascades from goals, but we clear it explicitly so the wipe doesn't rely
+  /// on foreign_keys being enabled.
+  Future<void> deleteAllGoals() async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('goal_target_changes');
+      await txn.delete('goals');
+    });
   }
 
   Future<List<Map<String, dynamic>>> getSessionsByBookId(int bookId) async {
@@ -1016,7 +1042,7 @@ class DatabaseHelper {
   }
 
   /// Only non-system shelves can be deleted. Books on a deleted shelf
-  /// are moved to "Want to Read" (id = 1, the first seeded shelf).
+  /// are moved to "Want to Read" (id = 2).
   Future<void> deleteShelf(int shelfId) async {
     final db = await database;
     final rows = await db.query('shelves',

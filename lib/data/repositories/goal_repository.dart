@@ -53,6 +53,10 @@ class GoalRepository {
     await _db.deleteGoal(id);
   }
 
+  Future<void> deleteAllGoals() async {
+    await _db.deleteAllGoals();
+  }
+
   Future<PeriodProgress> getCurrentProgress(Goal goal) async {
     final now = DateTime.now();
     final start = _periodStart(goal.period, now);
