@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app_config.dart';
 import '../../../data/services/import_export_service.dart';
+import '../../../data/services/rating_service.dart';
 import '../onboarding/onboarding_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import 'font_page.dart';
@@ -242,6 +243,12 @@ class SettingsPage extends StatelessWidget {
             context,
             header: 'Help & Feedback',
             children: [
+              _buildLinkTile(
+                context,
+                icon: const Icon(Icons.star, size: 22),
+                title: 'Rate ReadStats',
+                onTap: () => RatingService.instance.openStoreListing(),
+              ),
               _buildActionTile(
                 context,
                 icon: Icons.play_circle,

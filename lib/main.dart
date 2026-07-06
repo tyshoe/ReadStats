@@ -11,6 +11,7 @@ import 'data/repositories/tag_repository.dart';
 import 'data/services/cover_service.dart';
 import 'data/services/import_export_service.dart';
 import 'data/services/reading_timer_service.dart';
+import 'data/services/rating_service.dart';
 import 'ui/pages/library/library_page.dart';
 import 'ui/pages/onboarding/onboarding_page.dart';
 import 'ui/pages/profile/profile_page.dart';
@@ -29,6 +30,7 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
   await AppConfig.init();
+  await RatingService.instance.registerAppStart();
 
   final dbHelper = DatabaseHelper();
   await dbHelper.database;

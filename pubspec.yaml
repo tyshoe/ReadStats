@@ -35,6 +35,7 @@ dependencies:
   url_launcher: ^6.3.2
   mobile_scanner: ^7.2.0
   http: ^1.6.0
+  in_app_review: ^2.0.10
 
 
 dev_dependencies:

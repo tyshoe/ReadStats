@@ -7,6 +7,7 @@ import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/database/database_helper.dart';
+import '/data/services/rating_service.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
 class SessionFormPage extends StatefulWidget {
@@ -239,8 +240,23 @@ class _SessionFormPageState extends State<SessionFormPage> {
         AppSnackbar.show('Session added successfully!');
 
         widget.onSave();
+
+        // Finishing a book is a moment of accomplishment — the right time to
+        // (best-effort) ask for an App Store review. Gated inside the service.
+        int? finishedBookCount;
+        if (isFinalSession) {
+          final finished = await widget.bookRepository
+              .getBooks(shelfId: DatabaseHelper.shelfFinished);
+          finishedBookCount = finished.length;
+        }
+
         if (mounted) {
           Navigator.pop(context, isFinalSession ? _selectedBook : null);
+        }
+
+        if (finishedBookCount != null) {
+          RatingService.instance
+              .maybePromptAfterFinish(finishedBookCount: finishedBookCount);
         }
       }
     } catch (e) {
