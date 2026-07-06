@@ -330,9 +330,11 @@ class _BookShareCardState extends State<BookShareCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (hasType) Text(widget.bookTypeName!, style: style),
+        if (hasType)
+          Text(widget.bookTypeName!, style: style, maxLines: 1, overflow: TextOverflow.ellipsis),
         if (hasType && hasCounts) const SizedBox(height: 2),
-        if (hasCounts) Text(countParts.join('  ·  '), style: style),
+        if (hasCounts)
+          Text(countParts.join('  ·  '), style: style, maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
     );
   }
@@ -624,18 +626,25 @@ class _BookShareCardState extends State<BookShareCard> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              items[i].$1,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                color: primary,
-                letterSpacing: -0.5,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                items[i].$1,
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: primary,
+                  letterSpacing: -0.5,
+                ),
               ),
             ),
             const SizedBox(height: 3),
             Text(
               items[i].$2.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
@@ -668,12 +677,18 @@ class _BookShareCardState extends State<BookShareCard> {
       parts.add('${_formatTime(avg)} avg session');
     }
 
-    return Text(
-      parts.join('  ·  '),
-      style: TextStyle(
-        fontSize: 12,
-        color: secondary,
-        fontWeight: FontWeight.w500,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(
+        parts.join('  ·  '),
+        maxLines: 1,
+        softWrap: false,
+        style: TextStyle(
+          fontSize: 12,
+          color: secondary,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
