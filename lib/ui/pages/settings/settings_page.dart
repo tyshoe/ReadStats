@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../app_config.dart';
 import '../../../data/services/import_export_service.dart';
 import '../../../data/services/rating_service.dart';
+import '../../../data/services/reading_timer_service.dart';
 import '../onboarding/onboarding_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import 'font_page.dart';
@@ -23,6 +24,7 @@ class SettingsPage extends StatelessWidget {
   final Function() refreshBooks;
   final Function() refreshSessions;
   final SettingsViewModel settingsViewModel;
+  final ReadingTimerService timerService;
 
   const SettingsPage({
     super.key,
@@ -32,6 +34,7 @@ class SettingsPage extends StatelessWidget {
     required this.refreshBooks,
     required this.refreshSessions,
     required this.settingsViewModel,
+    required this.timerService,
   });
 
   @override
@@ -337,6 +340,9 @@ class SettingsPage extends StatelessWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
+              // Stop any active reading timer — its state lives in
+              // SharedPreferences, so it would otherwise survive the wipe.
+              timerService.stop();
               await _handleImportExport(context, importExportService.deleteAllData);
             },
             child: Text(
