@@ -299,9 +299,11 @@ class _ImportContentState extends State<_ImportContent> {
             subtitle: null,
             state: _states['books']!,
             message: _messages['books'],
+            // Accepts a full backup zip (books, sessions, tags, covers) or a
+            // legacy books-only CSV export.
             onTap: () => _runImport(
               'books',
-              widget.importExportService.importBooksFromCSV,
+              widget.importExportService.importBackup,
             ),
           ),
           const SizedBox(height: 16),
@@ -315,7 +317,7 @@ class _ImportContentState extends State<_ImportContent> {
               ),
               const SizedBox(width: 6),
               Text(
-                'You can import sessions and more in Settings',
+                'You can also restore a backup later in Settings',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),

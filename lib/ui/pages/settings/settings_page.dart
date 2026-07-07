@@ -171,9 +171,16 @@ class SettingsPage extends StatelessWidget {
               _buildActionTile(
                 context,
                 icon: Icons.file_upload,
-                title: 'Export to CSV',
+                title: 'Export Backup',
                 onTap: () =>
-                    _handleImportExport(context, importExportService.exportDataToCSV),
+                    _handleImportExport(context, importExportService.exportBackup),
+              ),
+              _buildActionTile(
+                context,
+                icon: Icons.settings_backup_restore,
+                title: 'Restore Backup',
+                onTap: () =>
+                    _handleImportExport(context, importExportService.importBackup),
               ),
               _buildActionTile(
                 context,
@@ -181,53 +188,6 @@ class SettingsPage extends StatelessWidget {
                 title: 'Import from Goodreads',
                 onTap: () =>
                     _handleImportExport(context, importExportService.importGoodreadsCSV),
-              ),
-              ExpansionTile(
-                leading: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: Center(
-                    child: Icon(
-                      Icons.description,
-                      size: 22,
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                title: Text(
-                  'Import from CSV',
-                  style: TextStyle(color: colors.onSurface),
-                ),
-                shape: const RoundedRectangleBorder(),
-                collapsedShape: const RoundedRectangleBorder(),
-                tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-                childrenPadding: const EdgeInsets.only(bottom: 4),
-                children: [
-                  _buildSubActionTile(
-                    context,
-                    title: 'Books',
-                    onTap: () =>
-                        _handleImportExport(context, importExportService.importBooksFromCSV),
-                  ),
-                  _buildSubActionTile(
-                    context,
-                    title: 'Sessions',
-                    onTap: () =>
-                        _handleImportExport(context, importExportService.importSessionsFromCSV),
-                  ),
-                  _buildSubActionTile(
-                    context,
-                    title: 'Tags',
-                    onTap: () =>
-                        _handleImportExport(context, importExportService.importTagsFromCSV),
-                  ),
-                  _buildSubActionTile(
-                    context,
-                    title: 'Book Tags',
-                    onTap: () =>
-                        _handleImportExport(context, importExportService.importBookTagsFromCSV),
-                  ),
-                ],
               ),
               _buildActionTile(
                 context,
@@ -462,21 +422,6 @@ class SettingsPage extends StatelessWidget {
       leading: _leadingSlot(context, icon),
       title: Text(title, style: TextStyle(color: colors.onSurface)),
       trailing: Icon(Icons.open_in_new, size: 16, color: colors.onSurfaceVariant),
-      onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-    );
-  }
-
-  // Indented child action inside the "Import from CSV" expansion.
-  Widget _buildSubActionTile(
-      BuildContext context, {
-        required String title,
-        VoidCallback? onTap,
-      }) {
-    final colors = Theme.of(context).colorScheme;
-    return ListTile(
-      contentPadding: const EdgeInsets.only(left: 56, right: 16),
-      title: Text(title, style: TextStyle(color: colors.onSurface)),
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );

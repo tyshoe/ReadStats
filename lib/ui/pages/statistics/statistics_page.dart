@@ -570,7 +570,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
             onPressed: () async {
-              await DatabaseHelper().deleteBook(bookId);
+              // Repository delete also removes the stored cover image file.
+              await widget.bookRepository.deleteBook(bookId);
               if (mounted) Navigator.pop(context);
               loadStats();
             },

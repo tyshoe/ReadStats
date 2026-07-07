@@ -48,6 +48,18 @@ class CoverService {
     if (await file.exists()) await file.delete();
   }
 
+  /// The directory where covers live. Exposed for backup export/restore.
+  static Future<Directory> coversDirectory() => _coversDir();
+
+  /// Delete every stored cover file. Used by the full data wipe so images
+  /// don't linger after their books are gone.
+  static Future<void> deleteAllCovers() async {
+    final dir = await _coversDir();
+    if (await dir.exists()) {
+      await dir.delete(recursive: true);
+    }
+  }
+
   /// Download a cover image from [url] and return a temporary [File].
   /// Returns null if the download fails or [url] is empty.
   static Future<File?> downloadFromUrl(String url) async {

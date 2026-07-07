@@ -1,5 +1,6 @@
 import '/data/models/book.dart';
 import '/data/database/database_helper.dart';
+import '/data/services/cover_service.dart';
 
 class BookRepository {
   final DatabaseHelper _databaseHelper;
@@ -27,10 +28,14 @@ class BookRepository {
   }
 
   Future<int> deleteBook(int id) async {
+    await CoverService.delete(id);
     return await _databaseHelper.deleteBook(id);
   }
 
   Future<void> deleteBooksBatch(List<int> ids) async {
+    for (final id in ids) {
+      await CoverService.delete(id);
+    }
     await _databaseHelper.deleteBooksBatch(ids);
   }
 
@@ -39,6 +44,7 @@ class BookRepository {
   }
 
   Future<int> deleteAllBooks() async {
+    await CoverService.deleteAllCovers();
     return await _databaseHelper.deleteAllBooks();
   }
 

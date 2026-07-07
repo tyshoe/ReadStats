@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as p;
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:read_stats/ui/pages/library/widgets/book_tag_editor_page.dart';
 import 'package:read_stats/ui/pages/library/widgets/barcode_scanner_page.dart';
@@ -65,7 +66,14 @@ class _BookFormPageState extends State<BookFormPage> {
   File? _coverFile;
   String? _coverUrl;
   bool _coverChanged = false;
+  // True only when the user explicitly removed the cover. Distinguishes
+  // "remove it" from "a replacement was chosen but hasn't downloaded yet" so a
+  // failed download never deletes the existing cover.
+  bool _coverRemoved = false;
   bool _isPickingCover = false;
+  // In-flight cover download (search result, online search, or ISBN lookup).
+  // _saveBook awaits this so saving quickly can't drop the image.
+  Future<File?>? _pendingCoverDownload;
 
   @override
   void initState() {
@@ -224,13 +232,27 @@ class _BookFormPageState extends State<BookFormPage> {
       "user_review": _userReviewController.text.trim().isEmpty
           ? null
           : _userReviewController.text.trim(),
-      "cover_path": widget.isEditing
-          ? widget.book!['cover_path'] as String?
+      // Filename only. The form receives a resolved absolute path for display;
+      // writing that back would break after an iOS app update changes the
+      // sandbox UUID.
+      "cover_path": widget.isEditing && widget.book!['cover_path'] != null
+          ? p.basename(widget.book!['cover_path'] as String)
           : null,
       "open_library_key": widget.isEditing
           ? widget.book!['open_library_key'] as String?
           : widget.searchResult?.workKey,
     };
+
+    // A cover picked from search or a URL may still be downloading — wait for
+    // it here rather than silently saving the book without its image.
+    File? coverFile = _coverFile;
+    if (coverFile == null && _pendingCoverDownload != null) {
+      coverFile = await _pendingCoverDownload;
+    }
+    if (coverFile == null && _coverUrl != null) {
+      // The background download failed (or never ran) — one direct attempt.
+      coverFile = await CoverService.downloadFromUrl(_coverUrl!);
+    }
 
     try {
       if (widget.isEditing && widget.book!['id'] != null) {
@@ -254,18 +276,19 @@ class _BookFormPageState extends State<BookFormPage> {
         }
 
         if (_coverChanged) {
-          if (_coverFile == null) {
+          if (coverFile != null) {
+            final newPath = await CoverService.saveFromPath(
+              bookId,
+              coverFile.path,
+            );
+            await bookRepository.updateCoverPath(bookId, newPath);
+          } else if (_coverRemoved) {
             await CoverService.deleteByPath(
               widget.book!['cover_path'] as String?,
             );
             await bookRepository.updateCoverPath(bookId, null);
-          } else {
-            final newPath = await CoverService.saveFromPath(
-              bookId,
-              _coverFile!.path,
-            );
-            await bookRepository.updateCoverPath(bookId, newPath);
           }
+          // Otherwise a replacement failed to download — keep the old cover.
         }
       } else {
         final newBookId = await bookRepository.addBook(Book.fromMap(bookData));
@@ -277,10 +300,10 @@ class _BookFormPageState extends State<BookFormPage> {
           }
         }
 
-        if (_coverFile != null) {
+        if (coverFile != null) {
           final newPath = await CoverService.saveFromPath(
             newBookId,
-            _coverFile!.path,
+            coverFile.path,
           );
           await bookRepository.updateCoverPath(newBookId, newPath);
         }
@@ -351,11 +374,12 @@ class _BookFormPageState extends State<BookFormPage> {
     if (result.isbn != null) _isbnController.text = result.isbn!;
     if (result.thumbnailUrl != null) {
       _coverUrl = result.thumbnailUrl;
-      CoverService.downloadFromUrl(result.thumbnailUrl!).then((file) {
-        if (file != null && mounted) {
-          setState(() => _coverFile = file);
-        }
-      });
+      _pendingCoverDownload = CoverService.downloadFromUrl(result.thumbnailUrl!)
+        ..then((file) {
+          if (file != null && mounted) {
+            setState(() => _coverFile = file);
+          }
+        });
     }
   }
 
@@ -373,12 +397,16 @@ class _BookFormPageState extends State<BookFormPage> {
     }
     setState(() {});
     if (_coverFile == null && result.thumbnailUrl != null) {
-      final file = await CoverService.downloadFromUrl(result.thumbnailUrl!);
+      // Mark the cover as changed up front so a save that lands mid-download
+      // still applies the image once _saveBook awaits the pending future.
+      _coverUrl = result.thumbnailUrl;
+      _coverChanged = true;
+      _coverRemoved = false;
+      final download = CoverService.downloadFromUrl(result.thumbnailUrl!);
+      _pendingCoverDownload = download;
+      final file = await download;
       if (file != null && mounted) {
-        setState(() {
-          _coverFile = file;
-          _coverChanged = true;
-        });
+        setState(() => _coverFile = file);
       }
     }
   }
@@ -532,6 +560,8 @@ class _BookFormPageState extends State<BookFormPage> {
           _coverFile = file;
           _coverUrl = null;
           _coverChanged = true;
+          _coverRemoved = false;
+          _pendingCoverDownload = null;
         });
       }
     } finally {
@@ -554,9 +584,13 @@ class _BookFormPageState extends State<BookFormPage> {
     // gets persisted on save (mirrors the search-result cover flow).
     setState(() {
       _coverUrl = url;
+      _coverFile = null;
       _coverChanged = true;
+      _coverRemoved = false;
     });
-    final file = await CoverService.downloadFromUrl(url);
+    final download = CoverService.downloadFromUrl(url);
+    _pendingCoverDownload = download;
+    final file = await download;
     if (file != null && mounted) {
       setState(() => _coverFile = file);
     }
@@ -667,6 +701,8 @@ class _BookFormPageState extends State<BookFormPage> {
                       _coverFile = null;
                       _coverUrl = null;
                       _coverChanged = true;
+                      _coverRemoved = true;
+                      _pendingCoverDownload = null;
                     });
                   },
                   icon: const Icon(Icons.delete, size: 22),
