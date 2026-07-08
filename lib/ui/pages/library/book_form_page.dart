@@ -71,6 +71,7 @@ class _BookFormPageState extends State<BookFormPage> {
   // failed download never deletes the existing cover.
   bool _coverRemoved = false;
   bool _isPickingCover = false;
+  bool _isSaving = false;
   // In-flight cover download (search result, online search, or ISBN lookup).
   // _saveBook awaits this so saving quickly can't drop the image.
   Future<File?>? _pendingCoverDownload;
@@ -150,6 +151,11 @@ class _BookFormPageState extends State<BookFormPage> {
   }
 
   void _saveBook() async {
+    // Saving awaits cover downloads/file writes, so a quick second tap would
+    // run a second save and pop the route twice — leaving a black screen.
+    if (_isSaving) return;
+    _isSaving = true;
+
     String title = _titleController.text.trim();
     String author = _authorController.text.trim();
     final bool savingAsAudiobook = _selectedBookType == 3;
@@ -160,7 +166,10 @@ class _BookFormPageState extends State<BookFormPage> {
         ? null
         : int.tryParse(_pageCountController.text);
 
-    if (title.isEmpty || author.isEmpty) return;
+    if (title.isEmpty || author.isEmpty) {
+      _isSaving = false;
+      return;
+    }
 
     final bookRepository = BookRepository(DatabaseHelper());
     final bookExists = await bookRepository.doesBookExist(
@@ -195,6 +204,7 @@ class _BookFormPageState extends State<BookFormPage> {
       );
 
       if (shouldProceed != true) {
+        _isSaving = false;
         return;
       }
     }
@@ -317,6 +327,7 @@ class _BookFormPageState extends State<BookFormPage> {
       }
     } catch (e) {
       debugPrint('Error saving book: $e');
+      _isSaving = false;
     }
   }
 
