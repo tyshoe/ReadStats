@@ -25,15 +25,17 @@
 
 ReadStats is a clean, private reading tracker. Log the books you read and the sessions you spend reading them, then watch your stats, streaks, and goals grow — all stored locally on your device, no account required.
 
-<!-- Screenshots: drop images in assets/screenshots/ and uncomment.
 <p align="center">
-  <img src="assets/screenshots/library.png" width="19%" />
-  <img src="assets/screenshots/sessions.png" width="19%" />
-  <img src="assets/screenshots/stats.png" width="19%" />
-  <img src="assets/screenshots/goals.png" width="19%" />
-  <img src="assets/screenshots/book.png" width="19%" />
+  <img src="docs/mockup/1-hero.png" width="31%" alt="Library" />
+  <img src="docs/mockup/2-stats.png" width="31%" alt="Statistics" />
+  <img src="docs/mockup/3-tracking.png" width="31%" alt="Tracking" />
 </p>
--->
+<p align="center">
+  <img src="docs/mockup/4-library.png" width="23%" alt="Library views" />
+  <img src="docs/mockup/5-goals.png" width="23%" alt="Goals" />
+  <img src="docs/mockup/6-backup.png" width="23%" alt="Backup" />
+  <img src="docs/mockup/7-personalization.png" width="23%" alt="Personalization" />
+</p>
 
 ## Features
 
