@@ -13,6 +13,7 @@
   <img src="https://img.shields.io/badge/Made%20with-Flutter-02569B?logo=flutter&logoColor=white" alt="Flutter" />
   <a href="https://discord.gg/cA6CDkUY4x"><img src="https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white" alt="Discord" /></a>
   <a href="https://github.com/sponsors/tyshoe"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-EA4AAA?logo=githubsponsors&logoColor=white" alt="Sponsor" /></a>
+  <a href="https://buymeacoffee.com/tyshoe"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee" /></a>
 </p>
 
 <p align="center">
@@ -88,4 +89,4 @@ flutter run
 - 🐛 Found a bug or want a feature? [Open an issue](https://github.com/tyshoe/ReadStats/issues) or email [readstatsdev@gmail.com](mailto:readstatsdev@gmail.com)
 - 💬 Join the [Discord](https://discord.gg/cA6CDkUY4x) to chat about the app
 - ⭐ Enjoying ReadStats? A rating on the [App Store](https://apps.apple.com/app/id6748966946) helps a lot
-- ❤️ Want to support development? [Sponsor on GitHub](https://github.com/sponsors/tyshoe)
+- ❤️ Want to support development? [Sponsor on GitHub](https://github.com/sponsors/tyshoe) or [buy me a coffee](https://buymeacoffee.com/tyshoe)
