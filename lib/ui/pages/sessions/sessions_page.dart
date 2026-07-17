@@ -397,6 +397,11 @@ class _SessionsPageState extends State<SessionsPage>
                               GridView.count(
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
+                                // Without this, GridView falls back to
+                                // MediaQuery.padding for its vertical insets and
+                                // pads itself with the status bar and home
+                                // indicator heights inside the dialog.
+                                padding: EdgeInsets.zero,
                                 crossAxisCount: 3,
                                 mainAxisSpacing: 8,
                                 crossAxisSpacing: 8,
