@@ -300,11 +300,25 @@ class SettingsPage extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete All Data?'),
-        content: const Text('This action cannot be undone.'),
+        content: const Text(
+          'This permanently deletes every book, session, tag, and goal. '
+          'This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
+          ),
+          // Exporting cancels the delete rather than chaining into it. The
+          // export can fail or be dismissed at the share sheet, and chaining
+          // would wipe data whose backup never actually saved — so the user
+          // returns and confirms the delete explicitly.
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _handleImportExport(context, importExportService.exportBackup);
+            },
+            child: const Text('Export Backup'),
           ),
           TextButton(
             onPressed: () async {
