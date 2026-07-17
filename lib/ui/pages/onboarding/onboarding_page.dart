@@ -1,6 +1,8 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../app_config.dart';
 import '../../../data/services/import_export_service.dart';
 import '../../../viewmodels/SettingsViewModel.dart';
 
@@ -50,13 +52,22 @@ class _OnboardingPageState extends State<OnboardingPage> {
     ),
   ];
 
-  int get _totalPages => _infoPages.length + (widget.hasBooks ? 0 : 1);
+  // Info slides, then the first-run import step, then the support page last —
+  // the ask comes only after the tour has shown what the app actually does.
+  int get _totalPages => _infoPages.length + (widget.hasBooks ? 0 : 1) + 1;
 
   bool get _isLastPage => _currentPage == _totalPages - 1;
 
   Future<void> _finish() async {
     await SettingsViewModel.setHasSeenOnboarding();
     widget.onDone();
+  }
+
+  Future<void> _openSupport() async {
+    await launchUrl(
+      Uri.parse(AppConfig.supportUrl),
+      mode: LaunchMode.externalApplication,
+    );
   }
 
   @override
@@ -83,10 +94,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   if (i < _infoPages.length) {
                     return _PageContent(data: _infoPages[i]);
                   }
-                  return _ImportContent(
-                    importExportService: widget.importExportService,
-                    onImportSuccess: () => setState(() => _hasImported = true),
-                  );
+                  if (!widget.hasBooks && i == _infoPages.length) {
+                    return _ImportContent(
+                      importExportService: widget.importExportService,
+                      onImportSuccess: () => setState(() => _hasImported = true),
+                    );
+                  }
+                  return _SupportContent(onSupport: _openSupport);
                 },
               ),
             ),
@@ -389,6 +403,91 @@ class _ImportTile extends StatelessWidget {
                         color: colorScheme.onSurfaceVariant,
                       ),
         onTap: isLoading || state == _ImportState.success ? null : onTap,
+      ),
+    );
+  }
+}
+
+// ─── Support page ─────────────────────────────────────────────────────────────
+
+class _SupportContent extends StatelessWidget {
+  final VoidCallback onSupport;
+
+  const _SupportContent({required this.onSupport});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(32),
+                ),
+                child: Icon(
+                  FluentIcons.drink_coffee_24_filled,
+                  size: 80,
+                  color: colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 40),
+              Text(
+                'Support ReadStats',
+                style: textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'ReadStats is free and ad-free, built and maintained by one '
+                'person in their spare time. If you find it useful, a coffee '
+                'helps cover the developer fees that keep it on the store.',
+                style: textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 28),
+              // Deliberately not full-width: the bottom CTA is the primary
+              // action on this page, and skipping must stay the easy path.
+              FilledButton.tonalIcon(
+                onPressed: onSupport,
+                icon: const Icon(FluentIcons.drink_coffee_24_regular, size: 20),
+                label: const Text('Buy Me a Coffee'),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // States the zero-reciprocity rule in the UI itself. Keep this
+              // true — see AppConfig.supportUrl for why it matters.
+              Text(
+                'Completely optional — every feature stays free either way.',
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
       ),
     );
   }

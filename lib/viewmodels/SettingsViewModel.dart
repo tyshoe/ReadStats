@@ -402,7 +402,7 @@ class SettingsViewModel {
     return prefs.getInt('libraryShelfFilter');
   }
 
-  static const String _onboardingVersion = '1.0';
+  static const String _onboardingVersion = '1.1';
 
   // Returns true if the user has seen the current onboarding version
   static Future<bool> getHasSeenOnboarding() async {

@@ -212,6 +212,15 @@ class SettingsPage extends StatelessWidget {
                 title: 'Rate ReadStats',
                 onTap: () => RatingService.instance.openStoreListing(),
               ),
+              _buildLinkTile(
+                context,
+                icon: const Icon(Icons.coffee, size: 22),
+                title: 'Buy Me a Coffee',
+                onTap: () => _launchUrl(
+                  AppConfig.supportUrl,
+                  mode: LaunchMode.externalApplication,
+                ),
+              ),
               _buildActionTile(
                 context,
                 icon: Icons.play_circle,
@@ -220,7 +229,7 @@ class SettingsPage extends StatelessWidget {
               ),
               _buildLinkTile(
                 context,
-                icon: const Icon(Icons.email_outlined, size: 22),
+                icon: const Icon(Icons.email, size: 22),
                 title: 'Send Feedback',
                 onTap: () => _launchUrl(
                     'mailto:readstatsdev@gmail.com?subject=ReadStats%20Feedback'),
@@ -247,7 +256,7 @@ class SettingsPage extends StatelessWidget {
               ),
               _buildLinkTile(
                 context,
-                icon: const Icon(Icons.privacy_tip_outlined, size: 22),
+                icon: const Icon(Icons.privacy_tip, size: 22),
                 title: 'Privacy Policy',
                 onTap: () => _launchUrl(
                     'https://github.com/tyshoe/ReadStats/blob/main/PRIVACY.md'),
@@ -441,9 +450,12 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Future<void> _launchUrl(String url) async {
+  Future<void> _launchUrl(
+    String url, {
+    LaunchMode mode = LaunchMode.platformDefault,
+  }) async {
     final Uri uri = Uri.parse(url);
-    if (!await launchUrl(uri)) {
+    if (!await launchUrl(uri, mode: mode)) {
       throw Exception('Could not launch $url');
     }
   }
