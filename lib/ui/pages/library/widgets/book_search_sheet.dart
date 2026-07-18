@@ -3,7 +3,7 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import '../../../../data/services/book_search_service.dart';
 import '../../../../viewmodels/SettingsViewModel.dart';
 import '../book_form_page.dart';
-import 'barcode_scanner_page.dart';
+import 'book_scanner_page.dart';
 
 class BookSearchSheet extends StatefulWidget {
   final SettingsViewModel settingsViewModel;
@@ -144,31 +144,16 @@ class _BookSearchSheetState extends State<BookSearchSheet> {
     }
   }
 
-  Future<void> _scanBarcode() async {
-    final isbn = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
+  void _openScanner() {
+    _dismissKeyboard();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BookScannerPage(
+          settingsViewModel: widget.settingsViewModel,
+          onSaved: () => widget.onSave(const {}),
+        ),
+      ),
     );
-    if (isbn == null || !mounted) return;
-
-    setState(() {
-      _isLoading = true;
-      _searched = true;
-      _error = null;
-    });
-
-    final result = await BookSearchService.lookupByIsbn(isbn);
-
-    if (!mounted) return;
-
-    if (result != null) {
-      _openForm(result);
-      setState(() => _isLoading = false);
-    } else {
-      setState(() {
-        _isLoading = false;
-        _error = 'No book found for ISBN $isbn. Try searching by title.';
-      });
-    }
   }
 
   void _openForm(BookSearchResult? result) {
@@ -224,8 +209,8 @@ class _BookSearchSheetState extends State<BookSearchSheet> {
             ),
           IconButton(
             icon: const Icon(FluentIcons.barcode_scanner_24_regular),
-            tooltip: 'Scan ISBN',
-            onPressed: _scanBarcode,
+            tooltip: 'Scan',
+            onPressed: _openScanner,
           ),
         ],
       ),

@@ -29,13 +29,31 @@ class BookFormPage extends StatefulWidget {
   final SettingsViewModel settingsViewModel;
   final bool isEditing;
 
+  // ── Return-only mode (used by batch scan) ──────────────────────────────────
+  // When [onSubmitData] is set, the form persists nothing: Save assembles the
+  // book data and hands it back (with any chosen cover file and tag ids) so the
+  // caller can save it later. [initialData]/[initialTagIds] prefill the fields.
+  final Map<String, dynamic>? initialData;
+  final Set<int>? initialTagIds;
+  final void Function(
+    Map<String, dynamic> data,
+    File? coverFile,
+    List<int> tagIds,
+  )?
+  onSubmitData;
+
   const BookFormPage({
     super.key,
     this.book,
     this.searchResult,
     required this.onSave,
     required this.settingsViewModel,
+    this.initialData,
+    this.initialTagIds,
+    this.onSubmitData,
   }) : isEditing = book != null;
+
+  bool get isReturnMode => onSubmitData != null;
 
   @override
   State<BookFormPage> createState() => _BookFormPageState();
@@ -94,6 +112,24 @@ class _BookFormPageState extends State<BookFormPage> {
 
     if (widget.searchResult != null) {
       _prefillFromSearchResult(widget.searchResult!);
+    }
+
+    if (widget.isReturnMode && widget.initialData != null) {
+      // Override the search-result prefill with the queued item's current
+      // values so edits round-trip.
+      final d = widget.initialData!;
+      _titleController.text = d['title'] ?? _titleController.text;
+      _authorController.text = d['author'] ?? _authorController.text;
+      if (d['page_count'] != null) {
+        _pageCountController.text = d['page_count'].toString();
+      }
+      _isbnController.text = d['isbn'] ?? _isbnController.text;
+      _rating = (d['rating'] as num?)?.toDouble();
+      _ratingController.text = _rating?.toStringAsFixed(2) ?? '';
+      _shelfId = (d['shelf_id'] as int?) ?? DatabaseHelper.shelfWantToRead;
+      _isFavorite = d['is_favorite'] == 1;
+      _selectedBookType = ((d['book_type_id'] as int?) ?? 1) - 1;
+      _selectedTagIds = {...?widget.initialTagIds};
     }
 
     if (widget.isEditing) {
@@ -179,11 +215,15 @@ class _BookFormPageState extends State<BookFormPage> {
     }
 
     final bookRepository = BookRepository(DatabaseHelper());
-    final bookExists = await bookRepository.doesBookExist(
-      title,
-      author,
-      excludeId: widget.isEditing ? widget.book!['id'] : null,
-    );
+    // Return mode never touches the DB, so skip the duplicate lookup/dialog —
+    // the batch review list handles duplicate flagging itself.
+    final bookExists = widget.isReturnMode
+        ? false
+        : await bookRepository.doesBookExist(
+            title,
+            author,
+            excludeId: widget.isEditing ? widget.book!['id'] : null,
+          );
 
     if (bookExists && !widget.isEditing) {
       final shouldProceed = await showDialog<bool>(
@@ -269,6 +309,13 @@ class _BookFormPageState extends State<BookFormPage> {
     if (coverFile == null && _coverUrl != null) {
       // The background download failed (or never ran) — one direct attempt.
       coverFile = await CoverService.downloadFromUrl(_coverUrl!);
+    }
+
+    // Return mode: hand the assembled data back and let the caller persist.
+    if (widget.isReturnMode) {
+      widget.onSubmitData!(bookData, coverFile, _selectedTagIds.toList());
+      if (mounted) Navigator.pop(context);
+      return;
     }
 
     try {
@@ -888,7 +935,6 @@ class _BookFormPageState extends State<BookFormPage> {
 
   Widget _buildTitleField() {
     final theme = Theme.of(context);
-    final borderColor = theme.colorScheme.outline;
 
     return Row(
       children: [
@@ -969,7 +1015,6 @@ class _BookFormPageState extends State<BookFormPage> {
 
   Widget _buildAuthorField() {
     final theme = Theme.of(context);
-    final borderColor = theme.colorScheme.outline;
 
     return Row(
       children: [
