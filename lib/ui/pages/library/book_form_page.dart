@@ -18,6 +18,7 @@ import '../../../data/repositories/book_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../data/services/cover_service.dart';
 import 'widgets/cover_search_sheet.dart';
+import 'widgets/cover_editor_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
 class BookFormPage extends StatefulWidget {
@@ -64,6 +65,11 @@ class _BookFormPageState extends State<BookFormPage> {
   bool _titleTitleCaseEnabled = true;
   bool _authorTitleCaseEnabled = true;
   File? _coverFile;
+  // The full, pre-crop image behind the current cover. The editor re-loads this
+  // so the user can always zoom out / reposition against the whole image rather
+  // than the already-cropped result. Null when the cover was never run through
+  // the editor (an online/search cover is itself already the full image).
+  File? _coverOriginalFile;
   String? _coverUrl;
   bool _coverChanged = false;
   // True only when the user explicitly removed the cover. Distinguishes
@@ -292,10 +298,12 @@ class _BookFormPageState extends State<BookFormPage> {
               coverFile.path,
             );
             await bookRepository.updateCoverPath(bookId, newPath);
+            await _persistCoverOriginal(bookId);
           } else if (_coverRemoved) {
             await CoverService.deleteByPath(
               widget.book!['cover_path'] as String?,
             );
+            await CoverService.delete(bookId);
             await bookRepository.updateCoverPath(bookId, null);
           }
           // Otherwise a replacement failed to download — keep the old cover.
@@ -316,6 +324,7 @@ class _BookFormPageState extends State<BookFormPage> {
             coverFile.path,
           );
           await bookRepository.updateCoverPath(newBookId, newPath);
+          await _persistCoverOriginal(newBookId);
         }
       }
 
@@ -385,6 +394,7 @@ class _BookFormPageState extends State<BookFormPage> {
     if (result.isbn != null) _isbnController.text = result.isbn!;
     if (result.thumbnailUrl != null) {
       _coverUrl = result.thumbnailUrl;
+      _coverOriginalFile = null;
       _pendingCoverDownload = CoverService.downloadFromUrl(result.thumbnailUrl!)
         ..then((file) {
           if (file != null && mounted) {
@@ -411,6 +421,7 @@ class _BookFormPageState extends State<BookFormPage> {
       // Mark the cover as changed up front so a save that lands mid-download
       // still applies the image once _saveBook awaits the pending future.
       _coverUrl = result.thumbnailUrl;
+      _coverOriginalFile = null;
       _coverChanged = true;
       _coverRemoved = false;
       final download = CoverService.downloadFromUrl(result.thumbnailUrl!);
@@ -566,18 +577,59 @@ class _BookFormPageState extends State<BookFormPage> {
     setState(() => _isPickingCover = true);
     try {
       final file = await CoverService.pickImage();
-      if (file != null && mounted) {
-        setState(() {
-          _coverFile = file;
-          _coverUrl = null;
-          _coverChanged = true;
-          _coverRemoved = false;
-          _pendingCoverDownload = null;
-        });
-      }
+      if (file == null || !mounted) return;
+      final edited = await Navigator.of(context).push<File>(
+        MaterialPageRoute(builder: (_) => CoverEditorPage(imageFile: file)),
+      );
+      if (edited == null || !mounted) return;
+      setState(() {
+        _coverFile = edited;
+        _coverOriginalFile = file;
+        _coverUrl = null;
+        _coverChanged = true;
+        _coverRemoved = false;
+        _pendingCoverDownload = null;
+      });
     } finally {
       if (mounted) setState(() => _isPickingCover = false);
     }
+  }
+
+  /// Persist (or clear) the pre-crop original that backs a saved cover.
+  Future<void> _persistCoverOriginal(int bookId) async {
+    if (_coverOriginalFile != null) {
+      await CoverService.saveOriginalFromPath(bookId, _coverOriginalFile!.path);
+    } else {
+      // The cover is itself a full image (online/unedited); drop any stale
+      // original from a previous edit so re-editing uses the current cover.
+      await CoverService.deleteOriginal(bookId);
+    }
+  }
+
+  /// Re-open the editor for the current cover so it can be re-cropped/adjusted.
+  /// Edits from the full, pre-crop original when one exists — in-session, then a
+  /// previously-saved original on disk — so the user can zoom back out instead
+  /// of being stuck with the already-cropped image. Falls back to the current
+  /// cover for online covers (already full images) and legacy pre-original data.
+  Future<void> _editCurrentCover() async {
+    File? source = _coverOriginalFile;
+    if (source == null && widget.isEditing && widget.book!['id'] != null) {
+      source = await CoverService.originalFile(widget.book!['id'] as int);
+    }
+    source ??= _coverFile;
+    if (source == null || !mounted) return;
+    final edited = await Navigator.of(context).push<File>(
+      MaterialPageRoute(builder: (_) => CoverEditorPage(imageFile: source!)),
+    );
+    if (edited == null || !mounted) return;
+    setState(() {
+      _coverFile = edited;
+      _coverOriginalFile = source;
+      _coverUrl = null;
+      _coverChanged = true;
+      _coverRemoved = false;
+      _pendingCoverDownload = null;
+    });
   }
 
   Future<void> _searchCoverOnline() async {
@@ -596,6 +648,7 @@ class _BookFormPageState extends State<BookFormPage> {
     setState(() {
       _coverUrl = url;
       _coverFile = null;
+      _coverOriginalFile = null;
       _coverChanged = true;
       _coverRemoved = false;
     });
@@ -701,6 +754,24 @@ class _BookFormPageState extends State<BookFormPage> {
               ],
             ),
 
+            // Edit button — top-left corner. Only shown once a local file is
+            // available to feed the editor.
+            if (hasCover && _coverFile != null)
+              Positioned(
+                top: 8,
+                left: 8,
+                child: IconButton(
+                  onPressed: _editCurrentCover,
+                  icon: const Icon(Icons.crop, size: 22),
+                  color: Colors.white,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black.withValues(alpha: 0.45),
+                    minimumSize: const Size(44, 44),
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+
             // Remove button — top-right corner
             if (hasCover)
               Positioned(
@@ -710,6 +781,7 @@ class _BookFormPageState extends State<BookFormPage> {
                   onPressed: () {
                     setState(() {
                       _coverFile = null;
+                      _coverOriginalFile = null;
                       _coverUrl = null;
                       _coverChanged = true;
                       _coverRemoved = true;

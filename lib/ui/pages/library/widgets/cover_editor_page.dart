@@ -1,0 +1,560 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+
+/// Full-screen editor for a book cover. The user pans, pinch-zooms and rotates
+/// the image inside a fixed 2:3 frame (book covers are portrait), and the
+/// framed region is captured on confirm.
+///
+/// Takes a temporary [imageFile] and returns the edited image as a new
+/// temporary [File] via [Navigator.pop], or null if the user cancels.
+class CoverEditorPage extends StatefulWidget {
+  final File imageFile;
+
+  const CoverEditorPage({super.key, required this.imageFile});
+
+  @override
+  State<CoverEditorPage> createState() => _CoverEditorPageState();
+}
+
+class _CoverEditorPageState extends State<CoverEditorPage> {
+  final GlobalKey _boundaryKey = GlobalKey();
+
+  // Transform applied to the image within the frame, composed in frame space.
+  // Pan + zoom only. Rotation is deliberately kept out of the pinch gesture so
+  // zooming never tilts the image; it lives in [_quarterTurns] / [_fineRotation]
+  // and is only adjustable from the pinned rotate bar.
+  Matrix4 _matrix = Matrix4.identity();
+  Matrix4 _startMatrix = Matrix4.identity();
+  Offset _startFocal = Offset.zero;
+
+  // Rotation, applied about the frame centre. Quarter turns come from the 90°
+  // button; the slider adds a fine tilt of +/- [_fineRotationRange].
+  int _quarterTurns = 0;
+  double _fineRotation = 0;
+  static const double _fineRotationRange = 0.7853981633974483; // pi/4 (45°)
+
+  // The reposition hint fades out once the user first touches the image.
+  bool _showHint = true;
+
+  // Editable tilt (degrees) field, kept in sync with the ruler both ways.
+  final TextEditingController _degController = TextEditingController(text: '0');
+  final FocusNode _degFocus = FocusNode();
+
+  // Frame geometry, recomputed each build and read back by the capture step.
+  Size _frameSize = Size.zero;
+
+  bool _isSaving = false;
+
+  static const double _deg2rad = 3.1415926535897932 / 180;
+  static const double _rad2deg = 180 / 3.1415926535897932;
+
+  @override
+  void initState() {
+    super.initState();
+    // On losing focus, snap the field text back to the (clamped) value.
+    _degFocus.addListener(() {
+      if (!_degFocus.hasFocus) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _degController.dispose();
+    _degFocus.dispose();
+    super.dispose();
+  }
+
+  String _fmtDeg(double deg) {
+    if (deg == 0) return '0';
+    return deg == deg.roundToDouble()
+        ? deg.toStringAsFixed(0)
+        : deg.toStringAsFixed(1);
+  }
+
+  void _onDegInput(String s) {
+    final v = double.tryParse(s);
+    if (v == null) return;
+    final maxDeg = _fineRotationRange * _rad2deg;
+    setState(() => _fineRotation = v.clamp(-maxDeg, maxDeg) * _deg2rad);
+  }
+
+  double get _totalRotation =>
+      _quarterTurns * 1.5707963267948966 + _fineRotation; // pi/2 per turn
+
+  /// The full transform for the image: rotation about the frame centre, then
+  /// the pan/zoom matrix in screen space.
+  Matrix4 get _renderTransform {
+    final c = Offset(_frameSize.width / 2, _frameSize.height / 2);
+    final rot = Matrix4.identity()
+      ..translateByDouble(c.dx, c.dy, 0, 1)
+      ..rotateZ(_totalRotation)
+      ..translateByDouble(-c.dx, -c.dy, 0, 1);
+    return _matrix.multiplied(rot);
+  }
+
+  void _onScaleStart(ScaleStartDetails d) {
+    _startMatrix = _matrix.clone();
+    _startFocal = d.localFocalPoint;
+    if (_showHint) setState(() => _showHint = false);
+  }
+
+  void _onScaleUpdate(ScaleUpdateDetails d) {
+    final focal = d.localFocalPoint;
+    // Incremental pan/zoom in screen space around the focal point. No rotation:
+    // pinching only scales and moves the image.
+    final delta = Matrix4.identity()
+      ..translateByDouble(focal.dx, focal.dy, 0, 1)
+      ..scaleByDouble(d.scale, d.scale, 1, 1)
+      ..translateByDouble(-_startFocal.dx, -_startFocal.dy, 0, 1);
+    setState(() => _matrix = _clampToCover(delta.multiplied(_startMatrix)));
+  }
+
+  /// Keep the image filling the frame: never smaller than cover scale, and
+  /// never panned far enough to expose a gap. [_matrix] carries only uniform
+  /// scale + translation (rotation is handled separately), so it decomposes
+  /// directly. Rotation can still reveal corners; this covers the zoom/pan case.
+  Matrix4 _clampToCover(Matrix4 m) {
+    double s = m.storage[0];
+    double tx = m.storage[12];
+    double ty = m.storage[13];
+    if (s < 1.0) s = 1.0;
+    tx = tx.clamp(-(s - 1) * _frameSize.width, 0.0);
+    ty = ty.clamp(-(s - 1) * _frameSize.height, 0.0);
+    return Matrix4.identity()
+      ..scaleByDouble(s, s, 1, 1)
+      ..setTranslationRaw(tx, ty, 0);
+  }
+
+  void _rotate90() => setState(() => _quarterTurns += 1);
+
+  Future<void> _confirm() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    try {
+      final boundary = _boundaryKey.currentContext!.findRenderObject()
+          as RenderRepaintBoundary;
+      // Aim for roughly a 1000px-wide export while respecting screen density.
+      final dpr = MediaQuery.of(context).devicePixelRatio;
+      final pixelRatio = _frameSize.width > 0
+          ? (1000 / _frameSize.width).clamp(dpr, 4.0).toDouble()
+          : dpr;
+      final image = await boundary.toImage(pixelRatio: pixelRatio);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) {
+        if (mounted) setState(() => _isSaving = false);
+        return;
+      }
+      final bytes = byteData.buffer.asUint8List();
+      final dir = await getTemporaryDirectory();
+      final file = File(
+        '${dir.path}/edited_cover_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await file.writeAsBytes(bytes);
+      if (mounted) Navigator.of(context).pop(file);
+    } catch (_) {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Scaffold(
+      backgroundColor: cs.surface,
+      appBar: AppBar(
+        backgroundColor: cs.surface,
+        foregroundColor: cs.onSurface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+        ),
+        title: const Text('Adjust cover'),
+      ),
+      body: Column(
+        children: [
+          // Reposition hint — sits above the image and fades out once the user
+          // starts adjusting.
+          AnimatedOpacity(
+            opacity: _showHint ? 1 : 0,
+            duration: const Duration(milliseconds: 250),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Text(
+                'Drag to reposition · pinch to zoom',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Largest 2:3 frame that fits the available area.
+                  double frameW = constraints.maxWidth;
+                  double frameH = frameW * 3 / 2;
+                  if (frameH > constraints.maxHeight) {
+                    frameH = constraints.maxHeight;
+                    frameW = frameH * 2 / 3;
+                  }
+                  _frameSize = Size(frameW, frameH);
+
+                  return Center(
+                    child: SizedBox(
+                      width: frameW,
+                      height: frameH,
+                      child: GestureDetector(
+                        onScaleStart: _onScaleStart,
+                        onScaleUpdate: _onScaleUpdate,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // Captured region — clipped to the frame.
+                            RepaintBoundary(
+                              key: _boundaryKey,
+                              child: ClipRect(
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Container(color: cs.surfaceContainerHighest),
+                                    Transform(
+                                      transform: _renderTransform,
+                                      child: Image.file(
+                                        widget.imageFile,
+                                        width: frameW,
+                                        height: frameH,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // Rule-of-thirds guides, drawn on top and excluded
+                            // from the capture.
+                            IgnorePointer(
+                              child: CustomPaint(
+                                painter: _GridPainter(),
+                                size: Size(frameW, frameH),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          _buildRotateBar(cs),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+              child: FilledButton(
+                onPressed: _isSaving ? null : _confirm,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: _isSaving
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: cs.onPrimary,
+                        ),
+                      )
+                    : const Text('Done'),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Rotation controls pinned to the bottom: a 90° quarter-turn button and a
+  /// draggable fine-tilt ruler with a live degree readout. Dragging the ruler
+  /// maps distance to a small angle change, so sub-degree adjustments are easy.
+  /// Rotation stays separate from the pinch gesture.
+  Widget _buildRotateBar(ColorScheme cs) {
+    final degrees = _fineRotation * _rad2deg;
+    // Mirror ruler/reset/90° changes into the field, but never while the user is
+    // typing (that would fight the cursor).
+    if (!_degFocus.hasFocus) {
+      final t = _fmtDeg(degrees);
+      if (_degController.text != t) {
+        _degController.value = TextEditingValue(
+          text: t,
+          selection: TextSelection.collapsed(offset: t.length),
+        );
+      }
+    }
+    final tiltColor = _fineRotation == 0 ? cs.onSurfaceVariant : cs.primary;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 52,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Perfectly centred degree field with a trailing clear (×).
+                _buildDegField(cs, tiltColor),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    icon: const Icon(Icons.rotate_90_degrees_cw_outlined),
+                    color: cs.onSurface,
+                    tooltip: 'Rotate 90°',
+                    onPressed: _isSaving ? null : _rotate90,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _RotationRuler(
+            valueDeg: degrees,
+            rangeDeg: _fineRotationRange * _rad2deg,
+            onChangedDeg: _isSaving
+                ? null
+                : (d) => setState(() => _fineRotation = d * _deg2rad),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The editable tilt field, styled like the app's other inputs (filled,
+  /// rounded). A fixed height keeps it compact and vertically centred; a spacer
+  /// matching the trailing × keeps the number horizontally centred. The ×
+  /// resets the tilt to 0.
+  Widget _buildDegField(ColorScheme cs, Color tiltColor) {
+    final canClear = !_isSaving && _fineRotation != 0;
+    return Container(
+      width: 96,
+      height: 34,
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          // Balances the trailing × so the number sits centred in the box.
+          const SizedBox(width: 24),
+          Expanded(
+            child: TextField(
+              controller: _degController,
+              focusNode: _degFocus,
+              enabled: !_isSaving,
+              textAlign: TextAlign.center,
+              textAlignVertical: TextAlignVertical.center,
+              keyboardType: const TextInputType.numberWithOptions(
+                signed: true,
+                decimal: true,
+              ),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
+              ],
+              style: TextStyle(
+                color: tiltColor,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: const InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onChanged: _onDegInput,
+              onSubmitted: (_) => _degFocus.unfocus(),
+            ),
+          ),
+          SizedBox(
+            width: 24,
+            child: IconButton(
+              icon: const Icon(Icons.close, size: 15),
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints.tightFor(width: 24, height: 24),
+              color: cs.onSurfaceVariant,
+              tooltip: 'Reset tilt',
+              onPressed: canClear
+                  ? () {
+                      _degFocus.unfocus();
+                      setState(() => _fineRotation = 0);
+                    }
+                  : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A horizontal, draggable rotation dial: tick marks scroll under a fixed centre
+/// needle. Drag distance maps to degrees via [_pxPerDeg], giving fine (sub-
+/// degree) control, clamped to +/- [rangeDeg]. Reports values in degrees.
+class _RotationRuler extends StatefulWidget {
+  final double valueDeg;
+  final double rangeDeg;
+  final ValueChanged<double>? onChangedDeg;
+
+  const _RotationRuler({
+    required this.valueDeg,
+    required this.rangeDeg,
+    required this.onChangedDeg,
+  });
+
+  @override
+  State<_RotationRuler> createState() => _RotationRulerState();
+}
+
+class _RotationRulerState extends State<_RotationRuler> {
+  // Visual tick spacing (wide, spread-out dashes).
+  static const double _pxPerDeg = 12;
+  // Drag sensitivity — smaller than [_pxPerDeg] so the finger moves the value
+  // faster than the ticks would 1:1, without narrowing the dash gaps.
+  static const double _dragPxPerDeg = 6;
+  int _lastTick = 0;
+
+  void _onStart(DragStartDetails d) => _lastTick = widget.valueDeg.round();
+
+  void _onUpdate(DragUpdateDetails d) {
+    final cb = widget.onChangedDeg;
+    if (cb == null) return;
+    // Drag left rotates clockwise (positive).
+    double next = widget.valueDeg - d.delta.dx / _dragPxPerDeg;
+    next = next.clamp(-widget.rangeDeg, widget.rangeDeg);
+    final tick = next.round();
+    if (tick != _lastTick) {
+      _lastTick = tick;
+      HapticFeedback.selectionClick();
+    }
+    cb(next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final enabled = widget.onChangedDeg != null;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragStart: enabled ? _onStart : null,
+      onHorizontalDragUpdate: enabled ? _onUpdate : null,
+      child: SizedBox(
+        height: 64,
+        child: CustomPaint(
+          painter: _RulerPainter(
+            valueDeg: widget.valueDeg,
+            rangeDeg: widget.rangeDeg,
+            pxPerDeg: _pxPerDeg,
+            tickColor: cs.onSurfaceVariant,
+            needleColor: cs.primary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RulerPainter extends CustomPainter {
+  final double valueDeg;
+  final double rangeDeg;
+  final double pxPerDeg;
+  final Color tickColor;
+  final Color needleColor;
+
+  _RulerPainter({
+    required this.valueDeg,
+    required this.rangeDeg,
+    required this.pxPerDeg,
+    required this.tickColor,
+    required this.needleColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final midY = size.height / 2;
+    final tick = Paint()..strokeWidth = 1.5;
+
+    final firstDeg = (valueDeg - cx / pxPerDeg).floor();
+    final lastDeg = (valueDeg + cx / pxPerDeg).ceil();
+    for (int d = firstDeg; d <= lastDeg; d++) {
+      if (d < -rangeDeg || d > rangeDeg) continue;
+      final x = cx + (d - valueDeg) * pxPerDeg;
+      if (x < 0 || x > size.width) continue;
+      final isMajor = d % 5 == 0;
+      final isLabeled = d % 10 == 0;
+      final h = isMajor ? 20.0 : 11.0;
+      tick.color = tickColor.withValues(alpha: isMajor ? 0.85 : 0.4);
+      canvas.drawLine(Offset(x, midY - h / 2), Offset(x, midY + h / 2), tick);
+      if (isLabeled) {
+        final tp = TextPainter(
+          text: TextSpan(
+            text: '$d',
+            style: TextStyle(
+              color: tickColor.withValues(alpha: 0.7),
+              fontSize: 11,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        tp.paint(canvas, Offset(x - tp.width / 2, midY + h / 2 + 3));
+      }
+    }
+
+    // Fixed centre needle marking the current angle.
+    final needle = Paint()
+      ..color = needleColor
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(cx, midY - 14), Offset(cx, midY + 14), needle);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RulerPainter old) =>
+      old.valueDeg != valueDeg ||
+      old.tickColor != tickColor ||
+      old.needleColor != needleColor;
+}
+
+class _GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final border = Paint()
+      ..color = Colors.white.withValues(alpha: 0.9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    final line = Paint()
+      ..color = Colors.white.withValues(alpha: 0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.75;
+
+    canvas.drawRect(Offset.zero & size, border);
+    for (int i = 1; i < 3; i++) {
+      final dx = size.width * i / 3;
+      final dy = size.height * i / 3;
+      canvas.drawLine(Offset(dx, 0), Offset(dx, size.height), line);
+      canvas.drawLine(Offset(0, dy), Offset(size.width, dy), line);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _GridPainter oldDelegate) => false;
+}

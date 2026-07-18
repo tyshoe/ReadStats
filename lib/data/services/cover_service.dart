@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
@@ -23,7 +24,48 @@ class CoverService {
     final filename = '$bookId.jpg';
     final dest = File(p.join(dir.path, filename));
     await File(sourcePath).copy(dest.path);
+    // Covers overwrite the same path (<bookId>.jpg), but FileImage caches by
+    // path — without evicting, the library keeps showing the old decoded image
+    // until an app restart.
+    await FileImage(dest).evict();
     return filename;
+  }
+
+  /// Copy [sourcePath] to permanent storage as the book's *original*
+  /// (pre-crop) image, named `<bookId>_original.jpg`. The editor re-loads this
+  /// so a cover can always be re-cropped from the full image instead of the
+  /// already-cropped result. Returns the filename only. No-op copy if the
+  /// source already is the stored original.
+  static Future<String> saveOriginalFromPath(
+      int bookId, String sourcePath) async {
+    final dir = await _coversDir();
+    final filename = '${bookId}_original.jpg';
+    final dest = File(p.join(dir.path, filename));
+    if (!p.equals(sourcePath, dest.path)) {
+      await File(sourcePath).copy(dest.path);
+      // Same path is reused across swaps; evict so the editor doesn't re-load
+      // the previous original's cached bytes.
+      await FileImage(dest).evict();
+    }
+    return filename;
+  }
+
+  /// The stored original (pre-crop) image for [bookId], or null if none exists.
+  static Future<File?> originalFile(int bookId) async {
+    final dir = await _coversDir();
+    final file = File(p.join(dir.path, '${bookId}_original.jpg'));
+    if (!await file.exists()) return null;
+    // Drop any cached decode so the editor always renders (and captures) the
+    // current on-disk original, not a stale one from a previous cover.
+    await FileImage(file).evict();
+    return file;
+  }
+
+  /// Delete a book's stored original (pre-crop) image if it exists.
+  static Future<void> deleteOriginal(int bookId) async {
+    final dir = await _coversDir();
+    final file = File(p.join(dir.path, '${bookId}_original.jpg'));
+    if (await file.exists()) await file.delete();
   }
 
   /// Resolve a stored cover value (filename or legacy absolute path) to the
@@ -33,11 +75,13 @@ class CoverService {
     return p.join(dir.path, p.basename(storedPath));
   }
 
-  /// Delete the cover file for a book if it exists.
+  /// Delete the cover file for a book (and its stored original) if they exist.
   static Future<void> delete(int bookId) async {
     final dir = await _coversDir();
     final file = File(p.join(dir.path, '$bookId.jpg'));
     if (await file.exists()) await file.delete();
+    final original = File(p.join(dir.path, '${bookId}_original.jpg'));
+    if (await original.exists()) await original.delete();
   }
 
   /// Delete a cover by its stored value (filename or legacy absolute path).
