@@ -18,6 +18,7 @@ import '../../../data/repositories/book_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../data/services/cover_service.dart';
 import 'widgets/cover_search_sheet.dart';
+import 'widgets/cover_camera_page.dart';
 import 'widgets/cover_editor_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
@@ -557,6 +558,12 @@ class _BookFormPageState extends State<BookFormPage> {
               subtitle: const Text('Choose an image from your device'),
               onTap: () => Navigator.pop(ctx, _CoverSource.gallery),
             ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take a photo'),
+              subtitle: const Text('Capture a cover with your camera'),
+              onTap: () => Navigator.pop(ctx, _CoverSource.camera),
+            ),
           ],
         ),
       ),
@@ -569,6 +576,8 @@ class _BookFormPageState extends State<BookFormPage> {
         await _searchCoverOnline();
       case _CoverSource.gallery:
         await _pickCoverFromGallery();
+      case _CoverSource.camera:
+        await _pickCoverFromCamera();
     }
   }
 
@@ -577,22 +586,44 @@ class _BookFormPageState extends State<BookFormPage> {
     setState(() => _isPickingCover = true);
     try {
       final file = await CoverService.pickImage();
-      if (file == null || !mounted) return;
-      final edited = await Navigator.of(context).push<File>(
-        MaterialPageRoute(builder: (_) => CoverEditorPage(imageFile: file)),
-      );
-      if (edited == null || !mounted) return;
-      setState(() {
-        _coverFile = edited;
-        _coverOriginalFile = file;
-        _coverUrl = null;
-        _coverChanged = true;
-        _coverRemoved = false;
-        _pendingCoverDownload = null;
-      });
+      await _applyPickedCover(file);
     } finally {
       if (mounted) setState(() => _isPickingCover = false);
     }
+  }
+
+  /// Capture a cover via the in-app camera (back camera by default, with
+  /// swap/flash controls), then run it through the crop editor.
+  Future<void> _pickCoverFromCamera() async {
+    if (_isPickingCover) return;
+    setState(() => _isPickingCover = true);
+    try {
+      final file = await Navigator.of(context).push<File>(
+        MaterialPageRoute(builder: (_) => const CoverCameraPage()),
+      );
+      if (!mounted) return;
+      await _applyPickedCover(file);
+    } finally {
+      if (mounted) setState(() => _isPickingCover = false);
+    }
+  }
+
+  /// Shared handling for a freshly picked/captured cover [file]: run the crop
+  /// editor and, if the user keeps the result, store it as the new cover.
+  Future<void> _applyPickedCover(File? file) async {
+    if (file == null || !mounted) return;
+    final edited = await Navigator.of(context).push<File>(
+      MaterialPageRoute(builder: (_) => CoverEditorPage(imageFile: file)),
+    );
+    if (edited == null || !mounted) return;
+    setState(() {
+      _coverFile = edited;
+      _coverOriginalFile = file;
+      _coverUrl = null;
+      _coverChanged = true;
+      _coverRemoved = false;
+      _pendingCoverDownload = null;
+    });
   }
 
   /// Persist (or clear) the pre-crop original that backs a saved cover.
@@ -1946,4 +1977,4 @@ class IsbnInputFormatter extends TextInputFormatter {
 }
 
 /// Where a book cover is sourced from in the cover-source chooser.
-enum _CoverSource { online, gallery }
+enum _CoverSource { online, gallery, camera }
