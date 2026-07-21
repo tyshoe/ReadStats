@@ -226,6 +226,7 @@ class _ImportContent extends StatefulWidget {
 class _ImportContentState extends State<_ImportContent> {
   final Map<String, _ImportState> _states = {
     'goodreads': _ImportState.idle,
+    'bookmory': _ImportState.idle,
     'books': _ImportState.idle,
   };
   final Map<String, String> _messages = {};
@@ -296,6 +297,26 @@ class _ImportContentState extends State<_ImportContent> {
             onTap: () => _runImport(
               'goodreads',
               widget.importExportService.importGoodreadsCSV,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _ImportTile(
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/icon/bookmory.png',
+                width: 36,
+                height: 36,
+                fit: BoxFit.cover,
+              ),
+            ),
+            title: 'Import from Bookmory',
+            subtitle: "Use Bookmory's 'Database' export (.bookmory)",
+            state: _states['bookmory']!,
+            message: _messages['bookmory'],
+            onTap: () => _runImport(
+              'bookmory',
+              widget.importExportService.importBookmory,
             ),
           ),
           const SizedBox(height: 16),

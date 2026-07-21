@@ -191,6 +191,14 @@ class SettingsPage extends StatelessWidget {
               ),
               _buildActionTile(
                 context,
+                icon: Icons.file_download,
+                title: 'Import from Bookmory',
+                subtitle: "Use Bookmory's 'Database' export (.bookmory)",
+                onTap: () =>
+                    _handleImportExport(context, importExportService.importBookmory),
+              ),
+              _buildActionTile(
+                context,
                 icon: Icons.delete,
                 title: 'Delete All Data',
                 color: colors.error,
@@ -418,6 +426,7 @@ class SettingsPage extends StatelessWidget {
       BuildContext context, {
         required IconData icon,
         required String title,
+        String? subtitle,
         VoidCallback? onTap,
         Color? color,
       }) {
@@ -428,6 +437,9 @@ class SettingsPage extends StatelessWidget {
         Icon(icon, size: 22, color: color ?? colors.onSurfaceVariant),
       ),
       title: Text(title, style: TextStyle(color: color ?? colors.onSurface)),
+      subtitle: subtitle == null
+          ? null
+          : Text(subtitle, style: TextStyle(color: colors.onSurfaceVariant)),
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
