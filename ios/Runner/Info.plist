@@ -32,8 +32,6 @@
     <string>This app needs camera access to scan QR codes</string>
 	<key>NSPhotoLibraryUsageDescription</key>
     <string>This app needs to save files for exporting your library</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-    <string>ReadStats does not use your location.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
