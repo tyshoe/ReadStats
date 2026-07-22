@@ -4,6 +4,7 @@ import 'package:read_stats/data/services/cover_service.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_single.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/pie_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stacked_bar_chart.dart';
+import 'package:read_stats/ui/pages/statistics/widgets/top_authors_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/rating_summary.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stat_card.dart';
 import '../../../data/models/book.dart';
@@ -26,6 +27,7 @@ class StatsData {
   final Map<String, dynamic> stats;
   final List<Map<String, dynamic>> shelfData;
   final List<Map<String, dynamic>> bookTypeData;
+  final List<Map<String, dynamic>> topAuthors;
   final Map<String, int> booksDist;
   final Map<String, int> sessionsDist;
   final Map<String, int> readingTimeDist;
@@ -37,6 +39,7 @@ class StatsData {
     required this.stats,
     required this.shelfData,
     required this.bookTypeData,
+    required this.topAuthors,
     required this.booksDist,
     required this.sessionsDist,
     required this.readingTimeDist,
@@ -215,12 +218,30 @@ class _StatisticsPageState extends State<StatisticsPage> {
     }
 
     final booksDist = <String, int>{};
+    final authorCounts = <String, int>{};
     for (final b in books) {
       if (b.dateFinished != null) {
         final key = periodKey(b.dateFinished!);
         booksDist[key] = (booksDist[key] ?? 0) + 1;
+
+        final author = b.author.trim();
+        if (author.isNotEmpty) {
+          authorCounts[author] = (authorCounts[author] ?? 0) + 1;
+        }
       }
     }
+
+    // Top 5 authors by finished-book count (ties broken alphabetically so the
+    // order is stable across recomputes).
+    final topAuthors = authorCounts.entries.toList()
+      ..sort((a, b) {
+        final byCount = b.value.compareTo(a.value);
+        return byCount != 0 ? byCount : a.key.compareTo(b.key);
+      });
+    final topAuthorsData = topAuthors
+        .take(5)
+        .map((e) => {'name': e.key, 'book_count': e.value})
+        .toList();
 
     Future<String?> resolveCover(dynamic raw) async {
       if (raw == null) return null;
@@ -277,6 +298,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
       stats: stats,
       shelfData: shelfData,
       bookTypeData: bookTypeData,
+      topAuthors: topAuthorsData,
       booksDist: booksDist,
       sessionsDist: sessionsDist,
       readingTimeDist: readingTimeDist,
@@ -474,6 +496,13 @@ class _StatisticsPageState extends State<StatisticsPage> {
         'Finished':          _safeColor(const Color(0xFF4CAF50), primary),
         'Unfinished':        _safeColor(const Color(0xFFFF9800), primary),
       },
+    );
+  }
+
+  Widget _buildTopAuthorsChart() {
+    return TopAuthorsChart(
+      title: 'Top Authors',
+      data: _data!.topAuthors,
     );
   }
 
@@ -675,6 +704,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                   _buildBookTypeChart(),
                   _buildBooksChart(),
                   _buildSessionsChart(),
+                  _buildTopAuthorsChart(),
                   _buildSectionHeader('Ratings'),
                   _buildRatingSummary(),
                   _buildPair(
