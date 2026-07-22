@@ -14,6 +14,13 @@ class BarChartWidget extends StatefulWidget {
   final String Function(int)? tooltipFormatter;
   final String Function(int)? shortFormatter;
 
+  /// When true, render a running-total line instead of per-period bars.
+  final bool cumulative;
+
+  /// Per-day totals (keyed by midnight DateTime) used to draw the cumulative
+  /// line at daily resolution. Required when [cumulative] is true.
+  final Map<DateTime, int>? dailyData;
+
   const BarChartWidget({
     super.key,
     required this.data,
@@ -25,6 +32,8 @@ class BarChartWidget extends StatefulWidget {
     this.averageLabel,
     this.tooltipFormatter,
     this.shortFormatter,
+    this.cumulative = false,
+    this.dailyData,
   });
 
   @override
@@ -128,7 +137,9 @@ class _BarChartWidgetState extends State<BarChartWidget> {
             ),
           SizedBox(
             height: 200,
-            child: keys.isEmpty
+            child: (widget.cumulative
+                    ? (widget.dailyData?.isEmpty ?? true)
+                    : keys.isEmpty)
                 ? Center(
                     child: Text(
                       'No data available',
@@ -137,7 +148,22 @@ class _BarChartWidgetState extends State<BarChartWidget> {
                           ),
                     ),
                   )
-                : LayoutBuilder(
+                : widget.cumulative
+                    ? _buildLine(context)
+                    : _buildBars(context, keys, displayData, maxVal),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBars(
+    BuildContext context,
+    List<String> keys,
+    Map<String, int> displayData,
+    int maxVal,
+  ) {
+    return LayoutBuilder(
                     builder: (context, constraints) {
                       final chartWidth = max(constraints.maxWidth, keys.length * 28.0);
                       final barWidth = (chartWidth / keys.length * 0.80).clamp(12.0, 36.0);
@@ -254,9 +280,165 @@ class _BarChartWidgetState extends State<BarChartWidget> {
                         ),
                       );
                     },
+                  );
+  }
+
+  Widget _buildLine(BuildContext context) {
+    final theme = Theme.of(context);
+
+    // Daily totals sorted chronologically. Plotting by real date offset (not
+    // index) is what makes a burst of activity read as a steep climb.
+    final entries = widget.dailyData!.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+
+    // Domain: a selected year spans Jan 1 → its end so clusters show against the
+    // whole year; "All" spans the first → last day with activity. For the
+    // current year the right edge is today, not a future Dec 31.
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final DateTime start = widget.selectedYear != 0
+        ? DateTime(widget.selectedYear, 1, 1)
+        : entries.first.key;
+    final DateTime end = widget.selectedYear != 0
+        ? (widget.selectedYear == now.year
+            ? today
+            : DateTime(widget.selectedYear, 12, 31))
+        : entries.last.key;
+    double offsetOf(DateTime d) => d.difference(start).inDays.toDouble();
+    final maxOffset = max(offsetOf(end), 1.0);
+
+    // Step curve: hold flat until an active day, then jump. Anchored at both
+    // ends so the line spans the full domain.
+    final spots = <FlSpot>[const FlSpot(0, 0)];
+    double running = 0;
+    for (final e in entries) {
+      final x = offsetOf(e.key).clamp(0.0, maxOffset);
+      spots.add(FlSpot(x, running));
+      running += e.value;
+      spots.add(FlSpot(x, running));
+    }
+    spots.add(FlSpot(maxOffset, running));
+    final maxCum = running;
+
+    String formatValue(int v) {
+      final formatter = widget.tooltipFormatter ?? widget.shortFormatter;
+      return formatter != null ? formatter(v) : NumberFormat('#,###').format(v);
+    }
+
+    // A few rough reference ticks rather than every date: ~6 across a year
+    // (labelled by month), one per year across the "All" range.
+    final bottomInterval = widget.selectedYear != 0
+        ? (maxOffset / 6).clamp(1.0, double.infinity)
+        : (maxOffset >= 366 ? 365.0 : (maxOffset / 4).clamp(1.0, double.infinity));
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 12, 12, 6),
+      child: LineChart(
+        key: ValueKey('line_${widget.selectedYear}_${spots.length}'),
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
+        LineChartData(
+          minX: 0,
+          maxX: maxOffset,
+          minY: 0,
+          maxY: (maxCum * 1.15).clamp(1.0, double.infinity),
+          lineTouchData: LineTouchData(
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (_) => theme.colorScheme.inverseSurface,
+              getTooltipItems: (spots) => spots.map((s) {
+                final date = start.add(Duration(days: s.x.round()));
+                return LineTooltipItem(
+                  '${formatValue(s.y.toInt())}\n',
+                  TextStyle(
+                    color: theme.colorScheme.onInverseSurface,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
                   ),
+                  children: [
+                    TextSpan(
+                      text: DateFormat('MMM d, y').format(date),
+                      style: TextStyle(
+                        color: theme.colorScheme.onInverseSurface.withAlpha(180),
+                        fontWeight: FontWeight.normal,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
           ),
-        ],
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: false,
+              color: widget.barColor,
+              barWidth: 2.5,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    widget.barColor.withAlpha(64),
+                    widget.barColor.withAlpha(0),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          titlesData: FlTitlesData(
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: bottomInterval,
+                getTitlesWidget: (value, meta) {
+                  String labelFor(DateTime d) => widget.selectedYear != 0
+                      ? DateFormat('MMM').format(d)
+                      : DateFormat('y').format(d);
+                  final label =
+                      labelFor(start.add(Duration(days: value.round())));
+
+                  // Drop a tick that repeats the previous tick's label so short
+                  // ranges don't read "Jan Jan Jan".
+                  if (value - bottomInterval >= meta.min - 0.5) {
+                    final prev = start
+                        .add(Duration(days: (value - bottomInterval).round()));
+                    if (labelFor(prev) == label) return const SizedBox.shrink();
+                  }
+
+                  // Keep the first/last labels inside the plot: anchor the edge
+                  // label's inner edge to the tick instead of centering on it.
+                  final range = meta.max - meta.min;
+                  final dx = (value - meta.min) < range * 0.1
+                      ? 0.5
+                      : (meta.max - value) < range * 0.1
+                          ? -0.5
+                          : 0.0;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: FractionalTranslation(
+                      translation: Offset(dx, 0),
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          gridData: FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+        ),
       ),
     );
   }

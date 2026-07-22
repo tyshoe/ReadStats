@@ -141,6 +141,7 @@ class _MyAppState extends State<MyApp> {
     final pinnedBookIds = await SettingsViewModel.getPinnedBookIds();
     final shelfId = await SettingsViewModel.getLibraryShelfFilter();
     final statsYearFilter = await SettingsViewModel.getStatsYearFilter();
+    final statsChartStyle = await SettingsViewModel.getStatsChartStyle();
 
     if (kDebugMode) {
       final preferencesDebugMessage = '''
@@ -191,6 +192,7 @@ class _MyAppState extends State<MyApp> {
         pinnedBookIds: pinnedBookIds,
         shelfId: shelfId,
         statsYearFilter: statsYearFilter,
+        statsChartStyle: statsChartStyle,
       );
       _isReady = true;
     });

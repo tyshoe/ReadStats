@@ -33,6 +33,12 @@ class StatsData {
   final Map<String, int> readingTimeDist;
   final Map<String, int> pagesDist;
   final Map<double, int> ratingDist;
+  // Daily totals (keyed by date at midnight) that back the cumulative line.
+  // Finer-grained than the *Dist maps so an influx within a month is visible.
+  final Map<DateTime, int> booksDaily;
+  final Map<DateTime, int> sessionsDaily;
+  final Map<DateTime, int> readingTimeDaily;
+  final Map<DateTime, int> pagesDaily;
 
   const StatsData({
     required this.year,
@@ -45,6 +51,10 @@ class StatsData {
     required this.readingTimeDist,
     required this.pagesDist,
     required this.ratingDist,
+    required this.booksDaily,
+    required this.sessionsDaily,
+    required this.readingTimeDaily,
+    required this.pagesDaily,
   });
 }
 
@@ -84,6 +94,9 @@ class StatisticsPage extends StatefulWidget {
 
 class _StatisticsPageState extends State<StatisticsPage> {
   int selectedYear = 0;
+  String _chartStyle = 'bars';
+
+  bool get _cumulative => _chartStyle == 'cumulative';
 
   // The Statistics tab is rebuilt on every nav switch and recomputes from the
   // DB. Cache the last-computed payload (and available years) across instances
@@ -135,6 +148,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
   void initState() {
     super.initState();
     selectedYear = widget.settingsViewModel.statsYearFilterNotifier.value;
+    _chartStyle = widget.settingsViewModel.statsChartStyleNotifier.value;
     WidgetsBinding.instance.addPostFrameCallback((_) => loadStats());
   }
 
@@ -201,11 +215,19 @@ class _StatisticsPageState extends State<StatisticsPage> {
       return year == 0 ? d.year.toString() : DateFormat('MMM').format(d);
     }
 
+    DateTime dayOf(String date) {
+      final d = DateTime.parse(date);
+      return DateTime(d.year, d.month, d.day);
+    }
+
     int totalPagesRead = 0;
     int totalMinutes = 0;
     final sessionsDist = <String, int>{};
     final pagesDist = <String, int>{};
     final readingTimeDist = <String, int>{};
+    final sessionsDaily = <DateTime, int>{};
+    final pagesDaily = <DateTime, int>{};
+    final readingTimeDaily = <DateTime, int>{};
     for (final s in sessions) {
       final pages = s.pagesRead ?? 0;
       final minutes = s.durationMinutes ?? 0;
@@ -215,14 +237,21 @@ class _StatisticsPageState extends State<StatisticsPage> {
       sessionsDist[key] = (sessionsDist[key] ?? 0) + 1;
       pagesDist[key] = (pagesDist[key] ?? 0) + pages;
       readingTimeDist[key] = (readingTimeDist[key] ?? 0) + minutes;
+      final day = dayOf(s.date);
+      sessionsDaily[day] = (sessionsDaily[day] ?? 0) + 1;
+      pagesDaily[day] = (pagesDaily[day] ?? 0) + pages;
+      readingTimeDaily[day] = (readingTimeDaily[day] ?? 0) + minutes;
     }
 
     final booksDist = <String, int>{};
+    final booksDaily = <DateTime, int>{};
     final authorCounts = <String, int>{};
     for (final b in books) {
       if (b.dateFinished != null) {
         final key = periodKey(b.dateFinished!);
         booksDist[key] = (booksDist[key] ?? 0) + 1;
+        final day = dayOf(b.dateFinished!);
+        booksDaily[day] = (booksDaily[day] ?? 0) + 1;
 
         final author = b.author.trim();
         if (author.isNotEmpty) {
@@ -304,6 +333,10 @@ class _StatisticsPageState extends State<StatisticsPage> {
       readingTimeDist: readingTimeDist,
       pagesDist: pagesDist,
       ratingDist: ratingDist,
+      booksDaily: booksDaily,
+      sessionsDaily: sessionsDaily,
+      readingTimeDaily: readingTimeDaily,
+      pagesDaily: pagesDaily,
     );
   }
 
@@ -390,6 +423,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
       averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
       shortFormatter: _shortFormatMinutes,
       tooltipFormatter: _formatMinutes,
+      cumulative: _cumulative,
+      dailyData: _data!.readingTimeDaily,
     );
   }
 
@@ -408,6 +443,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
       subtitleValue: NumberFormat('#,###').format(_stats['totalPagesRead']),
       averageValue: avgPages,
       averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
+      cumulative: _cumulative,
+      dailyData: _data!.pagesDaily,
     );
   }
 
@@ -427,6 +464,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
       subtitleValue: _stats['booksCompleted'].toString(),
       averageValue: _formatAverage(data),
       averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
+      cumulative: _cumulative,
+      dailyData: _data!.booksDaily,
     );
   }
 
@@ -440,6 +479,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
       subtitleValue: _stats['totalSessions'].toString(),
       averageValue: _formatAverage(data),
       averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
+      cumulative: _cumulative,
+      dailyData: _data!.sessionsDaily,
     );
   }
 
@@ -496,6 +537,59 @@ class _StatisticsPageState extends State<StatisticsPage> {
         'Finished':          _safeColor(const Color(0xFF4CAF50), primary),
         'Unfinished':        _safeColor(const Color(0xFFFF9800), primary),
       },
+    );
+  }
+
+  /// Compact segmented control (bars / cumulative line) that flips how every
+  /// time-series chart on the page is drawn. Persisted like the year filter.
+  Widget _buildChartStyleToggle() {
+    final theme = Theme.of(context);
+
+    Widget segment(IconData icon, String style, String tooltip) {
+      final selected = _chartStyle == style;
+      return Tooltip(
+        message: tooltip,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (_chartStyle == style) return;
+            setState(() => _chartStyle = style);
+            widget.settingsViewModel.setStatsChartStyle(style);
+          },
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: selected
+                  ? theme.colorScheme.primaryContainer
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              icon,
+              size: 16,
+              color: selected
+                  ? theme.colorScheme.onPrimaryContainer
+                  : theme.colorScheme.onSurface.withAlpha(140),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 32,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          segment(Icons.bar_chart, 'bars', 'Per-period bars'),
+          segment(Icons.show_chart, 'cumulative', 'Cumulative total'),
+        ],
+      ),
     );
   }
 
@@ -648,38 +742,46 @@ class _StatisticsPageState extends State<StatisticsPage> {
               final allYears = [0, ..._years!];
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: SizedBox(
-                height: 32,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  itemCount: allYears.length,
-                  itemBuilder: (context, index) {
-                    final year = allYears[index];
-                    final isSelected = selectedYear == year;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: FilterChip(
-                        label: Text(year == 0 ? 'All' : year.toString()),
-                        selected: isSelected,
-                        onSelected: (_) {
-                          setState(() => selectedYear = year);
-                          widget.settingsViewModel.setStatsYearFilter(year);
-                          loadStats();
-                        },
-                        showCheckmark: false,
-                        labelStyle: theme.textTheme.bodySmall,
-                        labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                        selectedColor: theme.colorScheme.primaryContainer,
-                        elevation: 0,
-                        pressElevation: 0,
-                        side: BorderSide.none,
-                        shape: const StadiumBorder(),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 32,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          itemCount: allYears.length,
+                          itemBuilder: (context, index) {
+                            final year = allYears[index];
+                            final isSelected = selectedYear == year;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: FilterChip(
+                                label: Text(year == 0 ? 'All' : year.toString()),
+                                selected: isSelected,
+                                onSelected: (_) {
+                                  setState(() => selectedYear = year);
+                                  widget.settingsViewModel.setStatsYearFilter(year);
+                                  loadStats();
+                                },
+                                showCheckmark: false,
+                                labelStyle: theme.textTheme.bodySmall,
+                                labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                                selectedColor: theme.colorScheme.primaryContainer,
+                                elevation: 0,
+                                pressElevation: 0,
+                                side: BorderSide.none,
+                                shape: const StadiumBorder(),
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                    _buildChartStyleToggle(),
+                    const SizedBox(width: 8),
+                  ],
                 ),
               );
             }),

@@ -26,6 +26,8 @@ class SettingsViewModel {
   final ValueNotifier<int?> libraryShelfFilterNotifier;
   // Statistics
   final ValueNotifier<int> statsYearFilterNotifier;
+  // Stats chart style: 'bars' (per-period) or 'cumulative' (running-total line)
+  final ValueNotifier<String> statsChartStyleNotifier;
   // Profile (loaded asynchronously after construction; default to empty)
   final ValueNotifier<String> profileNameNotifier = ValueNotifier('');
   final ValueNotifier<String?> profileAvatarNotifier =
@@ -51,6 +53,7 @@ class SettingsViewModel {
     required List<int> pinnedBookIds,
     required int? shelfId,
     required int statsYearFilter,
+    required String statsChartStyle,
   })  : themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
@@ -69,7 +72,8 @@ class SettingsViewModel {
         libraryReviewedFilterNotifier = ValueNotifier(isReviewed),
         pinnedBookIdsNotifier = ValueNotifier(pinnedBookIds),
         libraryShelfFilterNotifier = ValueNotifier(shelfId),
-        statsYearFilterNotifier = ValueNotifier(statsYearFilter) {
+        statsYearFilterNotifier = ValueNotifier(statsYearFilter),
+        statsChartStyleNotifier = ValueNotifier(statsChartStyle) {
     _loadProfile();
   }
 
@@ -291,6 +295,21 @@ class SettingsViewModel {
   static Future<int> getStatsYearFilter() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getInt('statsYearFilter') ?? 0;
+  }
+
+  // Save stats chart style ('bars' or 'cumulative')
+  Future<void> setStatsChartStyle(String style) async {
+    if (style != 'bars' && style != 'cumulative') style = 'bars';
+    statsChartStyleNotifier.value = style;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('statsChartStyle', style);
+  }
+
+  // Load saved stats chart style (defaults to per-period bars)
+  static Future<String> getStatsChartStyle() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final style = prefs.getString('statsChartStyle');
+    return style == 'cumulative' ? 'cumulative' : 'bars';
   }
 
   Future<void> setDefaultTab(int defaultTab) async {
