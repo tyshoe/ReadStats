@@ -12,6 +12,7 @@
   <a href="https://apps.apple.com/app/id6748966946"><img src="https://img.shields.io/badge/App%20Store-iOS-0D8BFF?logo=apple&logoColor=white" alt="App Store" /></a>
   <img src="https://img.shields.io/badge/Made%20with-Flutter-02569B?logo=flutter&logoColor=white" alt="Flutter" />
   <a href="https://discord.gg/cA6CDkUY4x"><img src="https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white" alt="Discord" /></a>
+  <a href="https://alternativeto.net/software/readstatsapp/about/"><img src="https://img.shields.io/badge/AlternativeTo-Vote-2E7BCF?logo=alternativeto&logoColor=white" alt="AlternativeTo" /></a>
   <a href="https://github.com/sponsors/tyshoe"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-EA4AAA?logo=githubsponsors&logoColor=white" alt="Sponsor" /></a>
   <a href="https://buymeacoffee.com/tyshoe"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee" /></a>
 </p>
@@ -89,4 +90,5 @@ flutter run
 - 🐛 Found a bug or want a feature? [Open an issue](https://github.com/tyshoe/ReadStats/issues) or email [readstatsdev@gmail.com](mailto:readstatsdev@gmail.com)
 - 💬 Join the [Discord](https://discord.gg/cA6CDkUY4x) to chat about the app
 - ⭐ Enjoying ReadStats? A rating on the [App Store](https://apps.apple.com/app/id6748966946) helps a lot
+- 👍 Help others find it: [upvote ReadStats on AlternativeTo](https://alternativeto.net/software/readstatsapp/about/) — it's the first place a lot of people look for a private, no-account reading tracker
 - ❤️ Want to support development? [Sponsor on GitHub](https://github.com/sponsors/tyshoe) or [buy me a coffee](https://buymeacoffee.com/tyshoe)
