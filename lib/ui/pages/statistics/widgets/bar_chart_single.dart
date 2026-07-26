@@ -44,6 +44,11 @@ class _BarChartWidgetState extends State<BarChartWidget> {
   int _touchedIndex = -1;
   int _pendingIndex = -1;
 
+  // Cumulative line: which spot's tooltip is pinned (survives finger-up), and
+  // the spot captured on touch-down that gets committed on release.
+  int _touchedLineIndex = -1;
+  int _pendingLineIndex = -1;
+
   @override
   Widget build(BuildContext context) {
     const monthOrder = [
@@ -326,10 +331,51 @@ class _BarChartWidgetState extends State<BarChartWidget> {
     }
 
     // A few rough reference ticks rather than every date: ~6 across a year
-    // (labelled by month), one per year across the "All" range.
-    final bottomInterval = widget.selectedYear != 0
-        ? (maxOffset / 6).clamp(1.0, double.infinity)
-        : (maxOffset >= 366 ? 365.0 : (maxOffset / 4).clamp(1.0, double.infinity));
+    // (labelled by month). Across the "All" range, one tick per year — but with
+    // many years those labels collide, so widen the step to every Nth year
+    // (~6 labels max) so they don't pack together.
+    final double bottomInterval;
+    if (widget.selectedYear != 0) {
+      bottomInterval = (maxOffset / 6).clamp(1.0, double.infinity);
+    } else if (maxOffset >= 366) {
+      // Step by the average calendar-year length so each tick lands at the same
+      // point in its year (a whole 365-day step drifts backward and bunches the
+      // last labels, e.g. a 2026 tick landing on 2025-12-29).
+      const yearDays = 365.25;
+      final years = maxOffset / yearDays;
+      final yearStep = (years / 6).ceil().clamp(1, years.ceil());
+      bottomInterval = yearDays * yearStep;
+    } else {
+      bottomInterval = (maxOffset / 4).clamp(1.0, double.infinity);
+    }
+
+    // Keep the pinned spot in range if the data changed under it (e.g. the year
+    // toggle rebuilt the line with fewer spots).
+    final pinnedIndex =
+        (_touchedLineIndex >= 0 && _touchedLineIndex < spots.length)
+            ? _touchedLineIndex
+            : -1;
+
+    final lineBar = LineChartBarData(
+      spots: spots,
+      isCurved: false,
+      color: widget.barColor,
+      barWidth: 2.5,
+      dotData: const FlDotData(show: false),
+      // Mark the pinned spot so its dot/indicator stays drawn after release.
+      showingIndicators: pinnedIndex >= 0 ? [pinnedIndex] : const [],
+      belowBarData: BarAreaData(
+        show: true,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            widget.barColor.withAlpha(64),
+            widget.barColor.withAlpha(0),
+          ],
+        ),
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 12, 12, 6),
@@ -342,7 +388,41 @@ class _BarChartWidgetState extends State<BarChartWidget> {
           maxX: maxOffset,
           minY: 0,
           maxY: (maxCum * 1.15).clamp(1.0, double.infinity),
+          // Pin the touched spot's tooltip so it stays after the finger lifts,
+          // matching the bar chart's tap-to-keep behavior.
+          showingTooltipIndicators: pinnedIndex >= 0
+              ? [
+                  ShowingTooltipIndicators([
+                    LineBarSpot(lineBar, 0, spots[pinnedIndex]),
+                  ]),
+                ]
+              : const [],
           lineTouchData: LineTouchData(
+            // Manage the tooltip ourselves via showingTooltipIndicators; with
+            // built-in touches on, fl_chart overwrites that list and clears it
+            // on release, so the pinned tooltip would never survive finger-up.
+            handleBuiltInTouches: false,
+            // Large threshold so a tap anywhere — including a long flat gap
+            // between two sparse data points — still resolves to the nearest
+            // spot and shows its running total.
+            touchSpotThreshold: double.infinity,
+            touchCallback: (event, response) {
+              final index = response?.lineBarSpots?.first.spotIndex ?? -1;
+              if (event is FlTapDownEvent || event is FlLongPressStart) {
+                _pendingLineIndex = index;
+              } else if (event is FlTapUpEvent || event is FlLongPressEnd) {
+                setState(() {
+                  if (_pendingLineIndex == -1) {
+                    _touchedLineIndex = -1;
+                  } else {
+                    _touchedLineIndex = (_pendingLineIndex == _touchedLineIndex)
+                        ? -1
+                        : _pendingLineIndex;
+                  }
+                  _pendingLineIndex = -1;
+                });
+              }
+            },
             touchTooltipData: LineTouchTooltipData(
               getTooltipColor: (_) => theme.colorScheme.inverseSurface,
               getTooltipItems: (spots) => spots.map((s) {
@@ -368,31 +448,17 @@ class _BarChartWidgetState extends State<BarChartWidget> {
               }).toList(),
             ),
           ),
-          lineBarsData: [
-            LineChartBarData(
-              spots: spots,
-              isCurved: false,
-              color: widget.barColor,
-              barWidth: 2.5,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    widget.barColor.withAlpha(64),
-                    widget.barColor.withAlpha(0),
-                  ],
-                ),
-              ),
-            ),
-          ],
+          lineBarsData: [lineBar],
           titlesData: FlTitlesData(
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
                 interval: bottomInterval,
+                // fl_chart otherwise forces an extra tick at the domain's min
+                // and max edges, which collides with the last evenly-spaced
+                // interval tick (e.g. 2025 and 2026 drawn on top of each other).
+                minIncluded: false,
+                maxIncluded: false,
                 getTitlesWidget: (value, meta) {
                   String labelFor(DateTime d) => widget.selectedYear != 0
                       ? DateFormat('MMM').format(d)

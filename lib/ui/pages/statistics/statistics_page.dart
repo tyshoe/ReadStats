@@ -779,6 +779,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     _buildChartStyleToggle(),
                     const SizedBox(width: 8),
                   ],
