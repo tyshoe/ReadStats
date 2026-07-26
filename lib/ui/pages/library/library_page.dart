@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../widgets/app_snackbar.dart';
 import 'package:read_stats/ui/pages/library/widgets/book_grid.dart';
+import 'package:read_stats/ui/pages/library/widgets/random_book_picker.dart';
 import '../../../data/repositories/tag_repository.dart';
 import 'widgets/bulk_tag_sheet.dart';
 import 'widgets/book_detail_sheet.dart';
@@ -641,11 +642,38 @@ class _LibraryPageState extends State<LibraryPage> {
     }
   }
 
-  void _showRandomBook() {
+  Future<void> _showRandomBook() async {
     if (_filteredBooks.isEmpty) return;
 
-    final randomBook = (_filteredBooks.toList()..shuffle()).first;
-    _showBookPopup(context, randomBook);
+    final picked = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.92),
+      builder: (_) => RandomBookPicker(
+        books: _filteredBooks,
+        scopeLabel: _randomScopeLabel(),
+      ),
+    );
+    if (picked != null && mounted) {
+      _showBookPopup(context, picked);
+    }
+  }
+
+  /// Names the pool the random pick is drawn from (current shelf, or all
+  /// books) plus its size, so the picker makes its scope explicit.
+  String _randomScopeLabel() {
+    final count = _filteredBooks.length;
+    final noun = count == 1 ? 'book' : 'books';
+
+    String scope = 'All books';
+    if (_selectedShelfId != null) {
+      final shelf = _shelves.firstWhere(
+        (s) => s['id'] == _selectedShelfId,
+        orElse: () => const {},
+      );
+      final name = shelf['name'] as String?;
+      if (name != null && name.isNotEmpty) scope = name;
+    }
+    return '$scope · $count $noun';
   }
 
   Future<void> _shareLibraryAsText() async {
