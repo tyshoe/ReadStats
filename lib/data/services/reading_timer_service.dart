@@ -15,11 +15,15 @@ class ReadingTimerService extends ChangeNotifier {
   static const _kBookId = 'timer_book_id';
   static const _kStartEpochMs = 'timer_start_epoch_ms';
   static const _kAccumulatedMs = 'timer_accumulated_ms';
+  static const _kCountdownMs = 'timer_countdown_ms';
+  static const _kCountdownFromMs = 'timer_countdown_from_ms';
 
   TimerState _state = TimerState.idle;
   int? _bookId;
   int _accumulatedMs = 0;
   int? _startEpochMs;
+  int? _countdownMs;
+  int _countdownFromMs = 0;
   Timer? _ticker;
 
   TimerState get state => _state;
@@ -34,12 +38,36 @@ class ReadingTimerService extends ChangeNotifier {
     return Duration(milliseconds: _accumulatedMs);
   }
 
+  /// Length of the optional countdown running alongside the session. Purely a
+  /// display concern — the session still records the time actually read.
+  Duration? get countdown =>
+      _countdownMs == null ? null : Duration(milliseconds: _countdownMs!);
+
+  /// Time left on the countdown; negative once it has run over.
+  Duration? get remaining => _countdownMs == null
+      ? null
+      : Duration(
+          milliseconds: _countdownFromMs + _countdownMs! - elapsed.inMilliseconds,
+        );
+
+  /// Starts (or replaces) the countdown, running from now rather than from the
+  /// start of the session — picking 30 min always means 30 minutes from here.
+  /// Pass null to clear it.
+  void startCountdown(Duration? length) {
+    _countdownMs = length?.inMilliseconds;
+    _countdownFromMs = length == null ? 0 : elapsed.inMilliseconds;
+    _persist();
+    notifyListeners();
+  }
+
   Future<void> restore() async {
     final prefs = await SharedPreferences.getInstance();
     final stateStr = prefs.getString(_kState) ?? 'idle';
     _bookId = prefs.getInt(_kBookId);
     _accumulatedMs = prefs.getInt(_kAccumulatedMs) ?? 0;
     _startEpochMs = prefs.getInt(_kStartEpochMs);
+    _countdownMs = prefs.getInt(_kCountdownMs);
+    _countdownFromMs = prefs.getInt(_kCountdownFromMs) ?? 0;
 
     switch (stateStr) {
       case 'running':
@@ -56,6 +84,8 @@ class ReadingTimerService extends ChangeNotifier {
   void start(int bookId) {
     _bookId = bookId;
     _accumulatedMs = 0;
+    _countdownMs = null;
+    _countdownFromMs = 0;
     _startEpochMs = DateTime.now().millisecondsSinceEpoch;
     _state = TimerState.running;
     _startTicker();
@@ -92,6 +122,8 @@ class ReadingTimerService extends ChangeNotifier {
     _bookId = null;
     _accumulatedMs = 0;
     _startEpochMs = null;
+    _countdownMs = null;
+    _countdownFromMs = 0;
     _persist();
     notifyListeners();
     return total;
@@ -126,6 +158,13 @@ class ReadingTimerService extends ChangeNotifier {
       await prefs.setInt(_kStartEpochMs, _startEpochMs!);
     } else {
       await prefs.remove(_kStartEpochMs);
+    }
+    if (_countdownMs != null) {
+      await prefs.setInt(_kCountdownMs, _countdownMs!);
+      await prefs.setInt(_kCountdownFromMs, _countdownFromMs);
+    } else {
+      await prefs.remove(_kCountdownMs);
+      await prefs.remove(_kCountdownFromMs);
     }
   }
 

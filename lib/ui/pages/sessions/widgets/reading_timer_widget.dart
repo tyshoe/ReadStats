@@ -6,6 +6,7 @@ import '/data/repositories/book_repository.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import 'rate_book_dialog.dart';
 import '../post_session_page.dart';
+import '../fullscreen_timer_page.dart';
 import '/ui/widgets/book_picker_sheet.dart';
 
 class ReadingTimerWidget extends StatefulWidget {
@@ -106,6 +107,39 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
     if (result != null) setState(() => _selectedBook = result);
   }
 
+  void _handleSessionSaved() {
+    setState(() => _selectedBook = null);
+    widget.onSessionSaved();
+  }
+
+  void _openFullscreen() async {
+    final book = _selectedBook;
+    if (book == null || !mounted) return;
+
+    final result = await Navigator.push<Map<String, dynamic>?>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FullscreenTimerPage(
+          book: book,
+          timerService: widget.timerService,
+          sessionRepository: widget.sessionRepository,
+          bookRepository: widget.bookRepository,
+          settingsViewModel: widget.settingsViewModel,
+          onSessionSaved: _handleSessionSaved,
+        ),
+      ),
+    );
+
+    if (result != null && mounted) {
+      await showRatingDialogForBook(
+        context: context,
+        book: result,
+        bookRepository: widget.bookRepository,
+        settingsViewModel: widget.settingsViewModel,
+      );
+    }
+  }
+
   void _handleStop() async {
     final book = _selectedBook;
     if (book == null || !mounted) return;
@@ -124,10 +158,7 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
           sessionRepository: widget.sessionRepository,
           bookRepository: widget.bookRepository,
           settingsViewModel: widget.settingsViewModel,
-          onSaved: () {
-            setState(() => _selectedBook = null);
-            widget.onSessionSaved();
-          },
+          onSaved: _handleSessionSaved,
         ),
       ),
     );
@@ -323,6 +354,13 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
                       ),
                   ],
                 ),
+              ),
+              IconButton(
+                tooltip: 'Full screen',
+                icon: const Icon(Icons.open_in_full, size: 20),
+                color: theme.colorScheme.onSurface.withAlpha(140),
+                visualDensity: VisualDensity.compact,
+                onPressed: _openFullscreen,
               ),
             ],
           ),
