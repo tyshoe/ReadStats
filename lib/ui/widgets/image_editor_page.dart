@@ -1,26 +1,50 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// Full-screen editor for a book cover. The user pans, pinch-zooms and rotates
-/// the image inside a fixed 2:3 frame (book covers are portrait), and the
-/// framed region is captured on confirm.
+/// Full-screen crop editor. The user pans, pinch-zooms and rotates the image
+/// inside a fixed-[aspectRatio] frame, and the framed region is captured on
+/// confirm. Used for book covers (2:3 portrait) and the profile avatar (1:1
+/// with a circular guide).
 ///
 /// Takes a temporary [imageFile] and returns the edited image as a new
 /// temporary [File] via [Navigator.pop], or null if the user cancels.
-class CoverEditorPage extends StatefulWidget {
+///
+/// [circleMask] only changes the on-screen guide — the capture stays the full
+/// square so the saved file can be a JPEG (no alpha) and the display widget
+/// does the clipping.
+class ImageEditorPage extends StatefulWidget {
   final File imageFile;
 
-  const CoverEditorPage({super.key, required this.imageFile});
+  /// Frame width / height. 2/3 for covers, 1 for avatars.
+  final double aspectRatio;
+
+  /// Draw a circular guide instead of rule-of-thirds lines.
+  final bool circleMask;
+
+  final String title;
+
+  /// Filename stem for the exported temporary file.
+  final String outputPrefix;
+
+  const ImageEditorPage({
+    super.key,
+    required this.imageFile,
+    this.aspectRatio = 2 / 3,
+    this.circleMask = false,
+    this.title = 'Adjust cover',
+    this.outputPrefix = 'edited_cover',
+  });
 
   @override
-  State<CoverEditorPage> createState() => _CoverEditorPageState();
+  State<ImageEditorPage> createState() => _ImageEditorPageState();
 }
 
-class _CoverEditorPageState extends State<CoverEditorPage> {
+class _ImageEditorPageState extends State<ImageEditorPage> {
   final GlobalKey _boundaryKey = GlobalKey();
 
   // Transform applied to the image within the frame, composed in frame space.
@@ -47,6 +71,13 @@ class _CoverEditorPageState extends State<CoverEditorPage> {
   // Frame geometry, recomputed each build and read back by the capture step.
   Size _frameSize = Size.zero;
 
+  // The image's intrinsic pixel size, and the size it is laid out at inside the
+  // frame (scaled to cover, so at least one axis overflows). Panning is clamped
+  // against [_displaySize], not the frame — otherwise the overflowing edges of
+  // the photo could never be brought into view.
+  Size? _imageSize;
+  Size _displaySize = Size.zero;
+
   bool _isSaving = false;
 
   static const double _deg2rad = 3.1415926535897932 / 180;
@@ -59,6 +90,22 @@ class _CoverEditorPageState extends State<CoverEditorPage> {
     _degFocus.addListener(() {
       if (!_degFocus.hasFocus) setState(() {});
     });
+    _loadImageSize();
+  }
+
+  /// Read the intrinsic dimensions so the frame can lay the image out at its
+  /// true aspect ratio. Until this resolves the frame shows a spinner.
+  Future<void> _loadImageSize() async {
+    try {
+      final bytes = await widget.imageFile.readAsBytes();
+      final image = await decodeImageFromList(bytes);
+      if (!mounted) return;
+      setState(() {
+        _imageSize = Size(image.width.toDouble(), image.height.toDouble());
+      });
+    } catch (_) {
+      // Leave [_imageSize] null; the frame keeps showing its placeholder.
+    }
   }
 
   @override
@@ -117,17 +164,40 @@ class _CoverEditorPageState extends State<CoverEditorPage> {
   /// never panned far enough to expose a gap. [_matrix] carries only uniform
   /// scale + translation (rotation is handled separately), so it decomposes
   /// directly. Rotation can still reveal corners; this covers the zoom/pan case.
+  ///
+  /// The image is laid out centred at [_displaySize], which overflows the frame
+  /// on the axis the aspect ratios disagree on. Bounds are derived from that
+  /// rect so the whole photo stays reachable — clamping against the frame alone
+  /// would pin an off-ratio image to its centre crop.
   Matrix4 _clampToCover(Matrix4 m) {
     double s = m.storage[0];
     double tx = m.storage[12];
     double ty = m.storage[13];
     if (s < 1.0) s = 1.0;
-    tx = tx.clamp(-(s - 1) * _frameSize.width, 0.0);
-    ty = ty.clamp(-(s - 1) * _frameSize.height, 0.0);
+    if (_displaySize.isEmpty) {
+      return Matrix4.identity()
+        ..scaleByDouble(s, s, 1, 1)
+        ..setTranslationRaw(tx, ty, 0);
+    }
+    // Where the centred image's top-left lands once scaled, and how far it can
+    // travel before an edge crosses into the frame.
+    final originX = s * (_frameSize.width - _displaySize.width) / 2;
+    final originY = s * (_frameSize.height - _displaySize.height) / 2;
+    tx = _clampAxis(
+        tx, _frameSize.width - s * _displaySize.width - originX, -originX);
+    ty = _clampAxis(
+        ty, _frameSize.height - s * _displaySize.height - originY, -originY);
     return Matrix4.identity()
       ..scaleByDouble(s, s, 1, 1)
       ..setTranslationRaw(tx, ty, 0);
   }
+
+  /// Clamp deliberately avoiding [num.clamp]: on the axis that sets the cover
+  /// scale the bounds collapse to 0.0 and -0.0, and clamp compares with
+  /// [Comparable.compareTo], which orders -0.0 below 0.0 and throws on what is
+  /// really an empty-but-valid range. Degenerate ranges just pin to [upper].
+  double _clampAxis(double v, double lower, double upper) =>
+      math.min(math.max(v, lower), upper);
 
   void _rotate90() => setState(() => _quarterTurns += 1);
 
@@ -151,7 +221,8 @@ class _CoverEditorPageState extends State<CoverEditorPage> {
       final bytes = byteData.buffer.asUint8List();
       final dir = await getTemporaryDirectory();
       final file = File(
-        '${dir.path}/edited_cover_${DateTime.now().millisecondsSinceEpoch}.png',
+        '${dir.path}/${widget.outputPrefix}_'
+        '${DateTime.now().millisecondsSinceEpoch}.png',
       );
       await file.writeAsBytes(bytes);
       if (mounted) Navigator.of(context).pop(file);
@@ -175,7 +246,7 @@ class _CoverEditorPageState extends State<CoverEditorPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
         ),
-        title: const Text('Adjust cover'),
+        title: Text(widget.title),
       ),
       body: Column(
         children: [
@@ -198,14 +269,28 @@ class _CoverEditorPageState extends State<CoverEditorPage> {
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  // Largest 2:3 frame that fits the available area.
+                  // Largest frame of the requested aspect ratio that fits the
+                  // available area.
                   double frameW = constraints.maxWidth;
-                  double frameH = frameW * 3 / 2;
+                  double frameH = frameW / widget.aspectRatio;
                   if (frameH > constraints.maxHeight) {
                     frameH = constraints.maxHeight;
-                    frameW = frameH * 2 / 3;
+                    frameW = frameH * widget.aspectRatio;
                   }
                   _frameSize = Size(frameW, frameH);
+
+                  // Lay the image out at cover scale but let it overflow the
+                  // frame instead of being cropped to it, so panning can reach
+                  // the edges the initial centre crop hides.
+                  final img = _imageSize;
+                  if (img != null && !img.isEmpty) {
+                    final coverScale =
+                        (frameW / img.width) > (frameH / img.height)
+                            ? frameW / img.width
+                            : frameH / img.height;
+                    _displaySize =
+                        Size(img.width * coverScale, img.height * coverScale);
+                  }
 
                   return Center(
                     child: SizedBox(
@@ -225,27 +310,49 @@ class _CoverEditorPageState extends State<CoverEditorPage> {
                                   fit: StackFit.expand,
                                   children: [
                                     Container(color: cs.surfaceContainerHighest),
-                                    Transform(
-                                      transform: _renderTransform,
-                                      child: Image.file(
-                                        widget.imageFile,
-                                        width: frameW,
-                                        height: frameH,
-                                        fit: BoxFit.cover,
+                                    if (!_displaySize.isEmpty)
+                                      Transform(
+                                        transform: _renderTransform,
+                                        // OverflowBox centres the oversized
+                                        // image and lifts the frame's tight
+                                        // constraints; the enclosing ClipRect
+                                        // is what trims it to the crop.
+                                        child: OverflowBox(
+                                          maxWidth: double.infinity,
+                                          maxHeight: double.infinity,
+                                          child: SizedBox(
+                                            width: _displaySize.width,
+                                            height: _displaySize.height,
+                                            child: Image.file(
+                                              widget.imageFile,
+                                              fit: BoxFit.fill,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
                                   ],
                                 ),
                               ),
                             ),
-                            // Rule-of-thirds guides, drawn on top and excluded
-                            // from the capture.
+                            // Framing guides, drawn on top and excluded from
+                            // the capture.
                             IgnorePointer(
                               child: CustomPaint(
-                                painter: _GridPainter(),
+                                painter: widget.circleMask
+                                    ? _CircleMaskPainter()
+                                    : _GridPainter(),
                                 size: Size(frameW, frameH),
                               ),
                             ),
+                            if (_imageSize == null)
+                              const Center(
+                                child: SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -261,7 +368,9 @@ class _CoverEditorPageState extends State<CoverEditorPage> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
               child: FilledButton(
-                onPressed: _isSaving ? null : _confirm,
+                // Blocked until the image resolves, otherwise Done would
+                // capture an empty frame.
+                onPressed: (_isSaving || _imageSize == null) ? null : _confirm,
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                 ),
@@ -557,4 +666,34 @@ class _GridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _GridPainter oldDelegate) => false;
+}
+
+/// Avatar guide: dims everything outside the inscribed circle so the user sees
+/// exactly what a [CircleAvatar] will show. Purely an overlay — the capture
+/// underneath stays the full square.
+class _CircleMaskPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final center = rect.center;
+    final radius = size.shortestSide / 2;
+
+    final scrim = Path.combine(
+      PathOperation.difference,
+      Path()..addRect(rect),
+      Path()..addOval(Rect.fromCircle(center: center, radius: radius)),
+    );
+    canvas.drawPath(scrim, Paint()..color = Colors.black.withValues(alpha: 0.5));
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.9)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CircleMaskPainter oldDelegate) => false;
 }

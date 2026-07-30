@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '/data/models/goal.dart';
 import '/data/repositories/goal_repository.dart';
 import '/data/services/avatar_service.dart';
+import '/ui/widgets/image_editor_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import 'badges.dart';
 import 'reading_stats.dart';
@@ -195,6 +196,12 @@ class _ProfilePageState extends State<ProfilePage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 8),
+            if (hasAvatar)
+              ListTile(
+                leading: const Icon(Icons.crop_rotate),
+                title: const Text('Adjust photo'),
+                onTap: () => Navigator.pop(ctx, 'adjust'),
+              ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
               title: Text(hasAvatar ? 'Change photo' : 'Choose photo'),
@@ -221,15 +228,49 @@ class _ProfilePageState extends State<ProfilePage> {
     if (action == 'choose') {
       final picked = await AvatarService.pickImage();
       if (picked == null) return;
-      final previous = widget.settingsViewModel.profileAvatarNotifier.value;
-      final filename = await AvatarService.save(picked.path);
-      await widget.settingsViewModel.setProfileAvatar(filename);
-      await AvatarService.delete(previous);
+      await _cropAndStore(picked, keepAsOriginal: true);
+    } else if (action == 'adjust') {
+      // Re-crop from the full photo when we still have it, so repeated edits
+      // don't crop into an already-cropped result.
+      var source = await AvatarService.originalFile();
+      if (source == null) {
+        final current = widget.settingsViewModel.profileAvatarNotifier.value;
+        if (current == null) return;
+        source = File(await AvatarService.resolve(current));
+        if (!await source.exists()) return;
+      }
+      await _cropAndStore(source, keepAsOriginal: false);
     } else if (action == 'remove') {
       final previous = widget.settingsViewModel.profileAvatarNotifier.value;
       await widget.settingsViewModel.setProfileAvatar(null);
       await AvatarService.delete(previous);
+      await AvatarService.deleteOriginal();
     }
+  }
+
+  /// Run [source] through the crop editor and, if the user keeps the result,
+  /// make it the new avatar. [keepAsOriginal] stores [source] as the pre-crop
+  /// image for later re-adjustment.
+  Future<void> _cropAndStore(File source,
+      {required bool keepAsOriginal}) async {
+    if (!mounted) return;
+    final edited = await Navigator.of(context).push<File>(
+      MaterialPageRoute(
+        builder: (_) => ImageEditorPage(
+          imageFile: source,
+          aspectRatio: 1,
+          circleMask: true,
+          title: 'Adjust photo',
+          outputPrefix: 'edited_avatar',
+        ),
+      ),
+    );
+    if (edited == null) return;
+    if (keepAsOriginal) await AvatarService.saveOriginal(source.path);
+    final previous = widget.settingsViewModel.profileAvatarNotifier.value;
+    final filename = await AvatarService.save(edited.path);
+    await widget.settingsViewModel.setProfileAvatar(filename);
+    await AvatarService.delete(previous);
   }
 
   void _showGoalDetail(ReadingGoal goal) {

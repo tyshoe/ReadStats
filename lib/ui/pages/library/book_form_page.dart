@@ -19,7 +19,7 @@ import '../../../data/repositories/tag_repository.dart';
 import '../../../data/services/cover_service.dart';
 import 'widgets/cover_search_sheet.dart';
 import 'widgets/cover_camera_page.dart';
-import 'widgets/cover_editor_page.dart';
+import '/ui/widgets/image_editor_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
 
 class BookFormPage extends StatefulWidget {
@@ -660,7 +660,7 @@ class _BookFormPageState extends State<BookFormPage> {
   Future<void> _applyPickedCover(File? file) async {
     if (file == null || !mounted) return;
     final edited = await Navigator.of(context).push<File>(
-      MaterialPageRoute(builder: (_) => CoverEditorPage(imageFile: file)),
+      MaterialPageRoute(builder: (_) => ImageEditorPage(imageFile: file)),
     );
     if (edited == null || !mounted) return;
     setState(() {
@@ -697,7 +697,7 @@ class _BookFormPageState extends State<BookFormPage> {
     source ??= _coverFile;
     if (source == null || !mounted) return;
     final edited = await Navigator.of(context).push<File>(
-      MaterialPageRoute(builder: (_) => CoverEditorPage(imageFile: source!)),
+      MaterialPageRoute(builder: (_) => ImageEditorPage(imageFile: source!)),
     );
     if (edited == null || !mounted) return;
     setState(() {
