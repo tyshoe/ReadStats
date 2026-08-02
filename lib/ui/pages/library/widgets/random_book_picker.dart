@@ -6,7 +6,8 @@ import 'package:flutter/services.dart';
 
 /// Case-opening style picker: a horizontal strip of covers scrolls past a fixed
 /// center ticker, decelerating onto a random book. Pops the chosen book back to
-/// the caller when the user taps "Open" (or null if dismissed).
+/// the caller when the user confirms (or null if dismissed — closing or
+/// shuffling again is how the user skips a pick).
 class RandomBookPicker extends StatefulWidget {
   final List<Map<String, dynamic>> books;
 
@@ -14,10 +15,19 @@ class RandomBookPicker extends StatefulWidget {
   /// subtitle so it's clear the pick respects the current shelf/filters.
   final String scopeLabel;
 
+  /// Label of the confirm button — what happens to the picked book.
+  final String confirmLabel;
+
+  /// Optional hint under the buttons explaining how to change the pool.
+  final String? footerNote;
+
   const RandomBookPicker({
     super.key,
     required this.books,
     required this.scopeLabel,
+    this.confirmLabel = 'Open',
+    this.footerNote =
+        'Change the shelf or filters to change which books are picked from.',
   });
 
   @override
@@ -233,19 +243,21 @@ class _RandomBookPickerState extends State<RandomBookPicker>
               FilledButton(
                 onPressed:
                     _settled ? () => Navigator.of(context).pop(_finalBook) : null,
-                child: const Text('Open'),
+                child: Text(widget.confirmLabel),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Change the shelf or filters to change which books are picked from.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white54,
-              fontStyle: FontStyle.italic,
+          if (widget.footerNote != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              widget.footerNote!,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white54,
+                fontStyle: FontStyle.italic,
+              ),
             ),
-          ),
+          ],
             ],
           ),
           // Explicit dismiss, even though tapping the barrier also closes it.

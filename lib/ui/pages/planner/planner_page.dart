@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '/data/models/planner_book.dart';
 import '/data/repositories/planner_repository.dart';
 import '/data/database/database_helper.dart';
+import '/ui/pages/library/widgets/random_book_picker.dart';
 import 'widgets/planner_book_card.dart';
 import 'widgets/planner_book_sheet.dart';
 
@@ -50,7 +51,29 @@ class _PlannerPageState extends State<PlannerPage> {
         await _repository.addPlannerBook(book);
         await _loadBooks();
       },
+      onRandomPick: _rollRandomBook,
     );
+  }
+
+  /// Rolls the reel over the books the sheet had left, once the sheet itself
+  /// has closed — so the reel plays over the planner and lands the new book
+  /// straight into the visible list. Shuffling past or closing adds nothing.
+  Future<void> _rollRandomBook(List<Map<String, dynamic>> pool) async {
+    final count = pool.length;
+    final picked = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.92),
+      builder: (_) => RandomBookPicker(
+        books: pool,
+        scopeLabel: 'Want to Read · $count ${count == 1 ? 'book' : 'books'}',
+        confirmLabel: 'Add to planner',
+        footerNote: 'Shuffle again to skip this pick, or close to add nothing.',
+      ),
+    );
+    if (picked == null || !mounted) return;
+
+    await _repository.addPlannerBook(plannerEntryFor(picked));
+    await _loadBooks();
   }
 
   void _toggleSelection(int id) {

@@ -9,6 +9,11 @@ import 'package:flutter/material.dart';
 /// Multi-select behaviour: supply [onSelect]. It is called with the tapped
 /// book and should return `true` to remove the book from the visible list and
 /// keep the sheet open, or `false` to close the sheet immediately.
+///
+/// Supply [onRandomPick] to add a "Surprise me" header action. The sheet closes
+/// and hands the still-available books to the callback, which owns the pick
+/// from there — so its UI takes over the screen instead of stacking on the
+/// sheet. The sheet's own Future completes with null in that case.
 Future<Map<String, dynamic>?> showBookPickerSheet({
   required BuildContext context,
   required List<Map<String, dynamic>> books,
@@ -16,6 +21,7 @@ Future<Map<String, dynamic>?> showBookPickerSheet({
   String emptyMessage = 'No books available',
   String searchEmptyMessage = 'No books found',
   Future<bool> Function(Map<String, dynamic>)? onSelect,
+  void Function(List<Map<String, dynamic>>)? onRandomPick,
 }) {
   return showModalBottomSheet<Map<String, dynamic>>(
     context: context,
@@ -30,6 +36,7 @@ Future<Map<String, dynamic>?> showBookPickerSheet({
       emptyMessage: emptyMessage,
       searchEmptyMessage: searchEmptyMessage,
       onSelect: onSelect,
+      onRandomPick: onRandomPick,
     ),
   );
 }
@@ -40,6 +47,7 @@ class _BookPickerSheet extends StatefulWidget {
   final String emptyMessage;
   final String searchEmptyMessage;
   final Future<bool> Function(Map<String, dynamic>)? onSelect;
+  final void Function(List<Map<String, dynamic>>)? onRandomPick;
 
   const _BookPickerSheet({
     required this.books,
@@ -47,6 +55,7 @@ class _BookPickerSheet extends StatefulWidget {
     required this.emptyMessage,
     required this.searchEmptyMessage,
     this.onSelect,
+    this.onRandomPick,
   });
 
   @override
@@ -83,6 +92,15 @@ class _BookPickerSheetState extends State<_BookPickerSheet> {
               return title.contains(q) || author.contains(q);
             }).toList();
     });
+  }
+
+  /// Hands the pool off to the caller and closes the sheet first, so whatever
+  /// the caller shows isn't stacked on top of it. The pool is everything still
+  /// available, not just what the search box has narrowed to.
+  void _onRandomPick() {
+    final pool = List.of(_available);
+    Navigator.pop(context);
+    widget.onRandomPick!(pool);
   }
 
   Future<void> _onTap(Map<String, dynamic> book) async {
@@ -125,9 +143,27 @@ class _BookPickerSheetState extends State<_BookPickerSheet> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-            child: Text(
-              widget.title,
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.title,
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                // Only offered while there is something left to pick from.
+                if (widget.onRandomPick != null && _available.isNotEmpty)
+                  FilledButton.tonalIcon(
+                    onPressed: _onRandomPick,
+                    icon: const Icon(Icons.shuffle, size: 18),
+                    label: const Text('Surprise me'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+              ],
             ),
           ),
           Padding(
@@ -142,7 +178,8 @@ class _BookPickerSheetState extends State<_BookPickerSheet> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          const Divider(height: 1),
           Expanded(
             child: _filtered.isEmpty
                 ? Center(
