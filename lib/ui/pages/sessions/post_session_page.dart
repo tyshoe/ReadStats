@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +7,7 @@ import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/services/reading_timer_service.dart';
 import '/viewmodels/SettingsViewModel.dart';
+import '/ui/widgets/book_cover.dart';
 
 class PostSessionPage extends StatefulWidget {
   final Map<String, dynamic> book;
@@ -288,15 +288,10 @@ class _PostSessionPageState extends State<PostSessionPage> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           if ((widget.book['cover_path'] as String?) != null) ...[
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
-                              child: Image.file(
-                                File(widget.book['cover_path'] as String),
-                                width: 72,
-                                height: 102,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                              ),
+                            BookCover(
+                              path: widget.book['cover_path'] as String,
+                              shape: widget.book['cover_shape'] as int?,
+                              width: 72,
                             ),
                             const SizedBox(width: 14),
                           ],

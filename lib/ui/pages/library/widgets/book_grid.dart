@@ -1,6 +1,6 @@
-import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '/ui/widgets/book_cover.dart';
 
 class BookGridItem extends StatelessWidget {
   final Map<String, dynamic> book;
@@ -45,14 +45,13 @@ class BookGridItem extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Cover image or text placeholder
+                  // Cover image or text placeholder. A square cover is centred
+                  // on a blurred backdrop rather than cropped to the cell.
                   if (hasCover)
-                    Image.file(
-                      File(book['cover_path'] as String),
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                      errorBuilder: (_, __, ___) => _textPlaceholder(theme, book),
+                    BookCoverFill(
+                      path: book['cover_path'] as String,
+                      shape: book['cover_shape'] as int?,
+                      fallback: _textPlaceholder(theme, book),
                     )
                   else
                     _textPlaceholder(theme, book),

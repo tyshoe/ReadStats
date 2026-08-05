@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import '/ui/widgets/book_cover.dart';
 import 'package:intl/intl.dart';
 import '/data/database/database_helper.dart';
 
@@ -112,11 +112,10 @@ class _SessionNotesSheetState extends State<_SessionNotesSheet> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),
                   child: widget.book['cover_path'] != null
-                      ? Image.file(
-                          File(widget.book['cover_path'] as String),
+                      ? BookCover(
+                          path: widget.book['cover_path'] as String,
+                          shape: widget.book['cover_shape'] as int?,
                           width: 52,
-                          height: 78,
-                          fit: BoxFit.cover,
                         )
                       : Container(
                           width: 52,

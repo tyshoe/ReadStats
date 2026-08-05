@@ -1,7 +1,7 @@
-import 'dart:io';
 import 'dart:math';
 import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
+import '/ui/widgets/book_cover.dart';
 import 'package:flutter/services.dart';
 
 /// Case-opening style picker: a horizontal strip of covers scrolls past a fixed
@@ -354,12 +354,10 @@ class _CoverCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: coverPath != null
-          ? Image.file(
-              File(coverPath),
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              errorBuilder: (_, _, _) => _placeholder(theme),
+          ? BookCoverFill(
+              path: coverPath,
+              shape: book['cover_shape'] as int?,
+              fallback: _placeholder(theme),
             )
           : _placeholder(theme),
     );

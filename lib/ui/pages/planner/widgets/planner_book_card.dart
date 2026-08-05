@@ -1,6 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '/data/models/planner_book.dart';
+import '/ui/widgets/book_cover.dart';
 
 class PlannerBookCard extends StatelessWidget {
   final PlannerBook book;
@@ -20,7 +20,6 @@ class PlannerBookCard extends StatelessWidget {
 
   static const int _audiobookTypeId = 4;
   static const double _coverWidth = 40;
-  static const double _coverHeight = 60;
 
   String? _metadata() {
     if (book.bookTypeId == _audiobookTypeId && book.durationMinutes > 0) {
@@ -116,15 +115,11 @@ class PlannerBookCard extends StatelessWidget {
   }
 
   Widget _buildCover(String path) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(4),
-      child: Image.file(
-        File(path),
-        width: _coverWidth,
-        height: _coverHeight,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => const SizedBox.shrink(),
-      ),
+    return BookCover(
+      path: path,
+      shape: book.coverShape,
+      width: _coverWidth,
+      borderRadius: 4,
     );
   }
 }

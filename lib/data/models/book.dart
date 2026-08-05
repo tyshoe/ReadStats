@@ -19,6 +19,8 @@ class Book {
   int? durationMinutes;
   int shelfId;
   String? coverPath;
+  /// How the cover is framed — see DatabaseHelper.coverShapePortrait/Square.
+  int coverShape;
   String? openLibraryKey;
   // Denormalized from JOIN — populated when loaded from DB, not written back
   final String? shelfName;
@@ -41,6 +43,7 @@ class Book {
     this.durationMinutes,
     this.shelfId = DatabaseHelper.shelfWantToRead,
     this.coverPath,
+    this.coverShape = DatabaseHelper.coverShapePortrait,
     this.openLibraryKey,
     this.shelfName,
   });
@@ -65,6 +68,7 @@ class Book {
       'duration_minutes': durationMinutes,
       'shelf_id': shelfId,
       'cover_path': coverPath,
+      'cover_shape': coverShape,
       'open_library_key': openLibraryKey,
       // tags stored separately in book_tags
     };
@@ -88,6 +92,8 @@ class Book {
       durationMinutes: map['duration_minutes'] as int?,
       shelfId: (map['shelf_id'] as int?) ?? DatabaseHelper.shelfWantToRead,
       coverPath: map['cover_path'] as String?,
+      coverShape:
+          (map['cover_shape'] as int?) ?? DatabaseHelper.coverShapePortrait,
       openLibraryKey: map['open_library_key'] as String?,
       shelfName: map['shelf_name'] as String?,
     );

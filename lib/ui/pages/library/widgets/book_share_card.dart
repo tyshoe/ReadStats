@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
+import '/data/database/database_helper.dart';
 
 enum ShareCardStyle { cover, coverMinimal, coverDominant, review }
 
@@ -24,6 +25,7 @@ class BookShareCard extends StatefulWidget {
   final bool isTransparent;
   final bool isDark;
   final String? initialCoverPath;
+  final int? coverShape;
   final ShareCardStyle style;
 
   const BookShareCard({
@@ -46,6 +48,7 @@ class BookShareCard extends StatefulWidget {
     this.isTransparent = false,
     this.isDark = false,
     this.initialCoverPath,
+    this.coverShape,
     this.style = ShareCardStyle.cover,
   });
 
@@ -347,9 +350,15 @@ class _BookShareCardState extends State<BookShareCard> {
   }
 
   Widget _buildCoverImage() {
+    // Height is fixed either way so the header keeps its size (see the slot
+    // reserved in _buildHeaderWithCover); only the width follows the shape.
+    final width = widget.coverShape == DatabaseHelper.coverShapeSquare
+        ? _coverImageHeight
+        : 90.0;
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: Image.file(_coverImage!, width: 90, height: _coverImageHeight, fit: BoxFit.cover),
+      child: Image.file(_coverImage!,
+          width: width, height: _coverImageHeight, fit: BoxFit.cover),
     );
   }
 

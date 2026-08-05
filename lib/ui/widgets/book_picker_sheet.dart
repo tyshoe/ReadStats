@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import '/ui/widgets/book_cover.dart';
 
 /// Shows a bottom sheet for picking a book from a list.
 ///
@@ -211,16 +211,11 @@ class _BookPickerSheetState extends State<_BookPickerSheet> {
                         final coverPath = book['cover_path'] as String?;
                         return ListTile(
                           leading: coverPath != null
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(3),
-                                  child: Image.file(
-                                    File(coverPath),
-                                    width: 36,
-                                    height: 50,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        const SizedBox(width: 36),
-                                  ),
+                              ? BookCover(
+                                  path: coverPath,
+                                  shape: book['cover_shape'] as int?,
+                                  width: 36,
+                                  borderRadius: 3,
                                 )
                               : null,
                           title: Text(

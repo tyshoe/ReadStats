@@ -1,6 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import '/ui/widgets/book_cover.dart';
 
 class BookRow extends StatelessWidget {
   final Map<String, dynamic> book;
@@ -24,7 +24,6 @@ class BookRow extends StatelessWidget {
 
   static const Color _starColor = Color(0xFFFBCB04);
   static const double _coverWidth = 70;
-  static const double _coverHeight = 110;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +49,13 @@ class BookRow extends StatelessWidget {
             children: [
               // Cover only when one exists — no placeholder otherwise.
               if (coverPath != null) ...[
-                _buildCover(coverPath),
+                // Fixed width, height from the shape — a square cover is
+                // shorter than a portrait one rather than cropped to match.
+                BookCover(
+                  path: coverPath,
+                  shape: book['cover_shape'] as int?,
+                  width: _coverWidth,
+                ),
                 const SizedBox(width: 12),
               ],
               Expanded(
@@ -108,19 +113,6 @@ class BookRow extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildCover(String path) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: Image.file(
-        File(path),
-        width: _coverWidth,
-        height: _coverHeight,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => const SizedBox.shrink(),
       ),
     );
   }

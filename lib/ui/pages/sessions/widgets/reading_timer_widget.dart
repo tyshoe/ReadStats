@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '/data/services/reading_timer_service.dart';
 import '/data/repositories/session_repository.dart';
@@ -9,6 +8,7 @@ import 'rate_book_dialog.dart';
 import '../post_session_page.dart';
 import '../fullscreen_timer_page.dart';
 import '/ui/widgets/book_picker_sheet.dart';
+import '/ui/widgets/book_cover.dart';
 
 class ReadingTimerWidget extends StatefulWidget {
   final ReadingTimerService timerService;
@@ -224,15 +224,11 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
               child: Row(
                 children: [
                   if (hasCover) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: Image.file(
-                        File(book!['cover_path'] as String),
-                        width: 42,
-                        height: 58,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                      ),
+                    BookCover(
+                      path: book!['cover_path'] as String,
+                      shape: book['cover_shape'] as int?,
+                      width: 42,
+                      borderRadius: 4,
                     ),
                     const SizedBox(width: 12),
                   ],
@@ -309,15 +305,10 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (coverPath != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: Image.file(
-                    File(coverPath),
-                    width: 72,
-                    height: 102,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                  ),
+                BookCover(
+                  path: coverPath,
+                  shape: book?['cover_shape'] as int?,
+                  width: 72,
                 ),
               if (coverPath != null) const SizedBox(width: 16),
               Expanded(

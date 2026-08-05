@@ -117,6 +117,7 @@ class ImportExportService {
         'is_complete', 'is_favorite', 'book_type_id', 'date_added',
         'date_started', 'date_finished', 'isbn', 'user_review',
         'duration_minutes', 'shelf_id', 'cover_path', 'open_library_key',
+        'cover_shape',
       ],
       ...books.map((b) => [
         b.id.toString(),
@@ -139,6 +140,9 @@ class ImportExportService {
         // meaningless after a reinstall or on another device.
         b.coverPath == null ? '' : p.basename(b.coverPath!),
         b.openLibraryKey ?? '',
+        // Appended last so older exports, which stop at open_library_key, still
+        // line up column-for-column on import.
+        b.coverShape.toString(),
       ]),
     ];
   }
@@ -615,6 +619,12 @@ class ImportExportService {
               ? p.basename(_nullableString(row[16])!)
               : null,
           openLibraryKey: row.length > 17 ? _nullableString(row[17]) : null,
+          // Absent from exports made before cover shapes existed — those covers
+          // were all cropped 2:3, which is what portrait means.
+          coverShape: row.length > 18
+              ? int.tryParse(row[18].toString()) ??
+                  DatabaseHelper.coverShapePortrait
+              : DatabaseHelper.coverShapePortrait,
         ));
       } catch (e) {
         if (kDebugMode) print('Skipping book row: $e');

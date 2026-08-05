@@ -14,7 +14,7 @@ class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
-  static const int _databaseVersion = 6;
+  static const int _databaseVersion = 7;
 
   // System shelf IDs — stable because shelves are seeded in a fixed order
   // and only exist from v2 onwards (v1 had no shelves).
@@ -31,6 +31,16 @@ class DatabaseHelper {
   /// though it keeps the date of the read it already completed. Unfinished
   /// (DNF) still accepts sessions: picking one back up is normal.
   static bool acceptsSessions(int? shelfId) => shelfId != shelfFinished;
+
+  // How a book's cover is framed — a per-book choice, not tied to book type.
+  // Audiobook art is square, but the user can pick either shape for any book.
+  static const int coverShapePortrait = 0;
+  static const int coverShapeSquare   = 1;
+
+  /// Width / height for [shape]. Drives both the crop frame and every place a
+  /// cover is drawn, so what the user framed is what the library shows.
+  static double coverAspectRatio(int? shape) =>
+      shape == coverShapeSquare ? 1 : 2 / 3;
 
   /// Fires after any write that changes what [getBooks] returns, so the
   /// app-level book list can reload itself.
@@ -125,6 +135,7 @@ class DatabaseHelper {
         duration_minutes INTEGER DEFAULT 0,
         shelf_id INTEGER NOT NULL DEFAULT 2,
         cover_path TEXT,
+        cover_shape INTEGER NOT NULL DEFAULT 0,
         open_library_key TEXT,
         FOREIGN KEY(book_type_id) REFERENCES book_types(id),
         FOREIGN KEY(shelf_id) REFERENCES shelves(id)
@@ -374,6 +385,14 @@ class DatabaseHelper {
       if (!hasOpenLibraryKey) {
         await db.execute('ALTER TABLE books ADD COLUMN open_library_key TEXT');
       }
+    }
+
+    if (oldVersion < 7) {
+      // Existing covers were all cropped to 2:3, so portrait is the correct
+      // backfill for every one of them.
+      await db.execute(
+        'ALTER TABLE books ADD COLUMN cover_shape INTEGER NOT NULL DEFAULT 0',
+      );
     }
 
   }
@@ -1147,7 +1166,8 @@ class DatabaseHelper {
     final db = await database;
     return await db.rawQuery('''
       SELECT t.id, t.book_id, t.sort_order, t.date_added,
-             b.title, b.author, b.cover_path, b.page_count, b.book_type_id, b.duration_minutes
+             b.title, b.author, b.cover_path, b.cover_shape, b.page_count,
+             b.book_type_id, b.duration_minutes
       FROM planner_books t
       INNER JOIN books b ON t.book_id = b.id
       ORDER BY t.sort_order ASC

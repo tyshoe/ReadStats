@@ -7,6 +7,7 @@ class PlannerBook {
   final String bookTitle;
   final String bookAuthor;
   final String? coverPath;
+  final int coverShape;
   final int pageCount;
   final int bookTypeId;
   final int durationMinutes;
@@ -19,6 +20,7 @@ class PlannerBook {
     required this.bookTitle,
     required this.bookAuthor,
     this.coverPath,
+    this.coverShape = 0,
     this.pageCount = 0,
     this.bookTypeId = 0,
     this.durationMinutes = 0,
@@ -42,6 +44,7 @@ class PlannerBook {
       bookTitle: map['title'] as String? ?? '',
       bookAuthor: map['author'] as String? ?? '',
       coverPath: map['cover_path'] as String?,
+      coverShape: map['cover_shape'] as int? ?? 0,
       pageCount: map['page_count'] as int? ?? 0,
       bookTypeId: map['book_type_id'] as int? ?? 0,
       durationMinutes: map['duration_minutes'] as int? ?? 0,
@@ -56,6 +59,7 @@ class PlannerBook {
     String? bookTitle,
     String? bookAuthor,
     String? coverPath,
+    int? coverShape,
     int? pageCount,
     int? bookTypeId,
     int? durationMinutes,
@@ -68,6 +72,7 @@ class PlannerBook {
       bookTitle: bookTitle ?? this.bookTitle,
       bookAuthor: bookAuthor ?? this.bookAuthor,
       coverPath: coverPath ?? this.coverPath,
+      coverShape: coverShape ?? this.coverShape,
       pageCount: pageCount ?? this.pageCount,
       bookTypeId: bookTypeId ?? this.bookTypeId,
       durationMinutes: durationMinutes ?? this.durationMinutes,

@@ -17,6 +17,7 @@ import '../../../../viewmodels/SettingsViewModel.dart';
 import '../../sessions/widgets/rate_book_dialog.dart';
 import '../book_form_page.dart';
 import '/data/database/database_helper.dart';
+import '/ui/widgets/book_cover.dart';
 import 'book_share_card.dart';
 import 'book_sessions_content.dart';
 import 'bulk_tag_sheet.dart';
@@ -175,15 +176,11 @@ class BookPopup {
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   if (book['cover_path'] != null) ...[
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.file(
-                                        File(book['cover_path'] as String),
-                                        width: 90,
-                                        height: 135,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                                      ),
+                                    BookCover(
+                                      path: book['cover_path'] as String,
+                                      shape: book['cover_shape'] as int?,
+                                      width: 90,
+                                      borderRadius: 8,
                                     ),
                                     const SizedBox(width: 14),
                                   ],
@@ -1086,6 +1083,7 @@ class BookPopup {
                 isTransparent: isTransparent,
                 isDark: isDark,
                 initialCoverPath: book['cover_path'] as String?,
+                coverShape: book['cover_shape'] as int?,
                 style: style,
               );
 

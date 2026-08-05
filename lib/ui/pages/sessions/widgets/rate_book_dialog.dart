@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '/data/repositories/book_repository.dart';
 import '/viewmodels/SettingsViewModel.dart';
+import '/ui/widgets/book_cover.dart';
 
 void showRateBookDialog({
   required BuildContext context,
@@ -16,6 +16,7 @@ void showRateBookDialog({
   String? initialReview,
   String? author,
   String? coverPath,
+  int? coverShape,
   Color? accentColor,
 }) {
   final theme = Theme.of(context);
@@ -78,15 +79,11 @@ void showRateBookDialog({
                                 ),
                               ],
                             ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.file(
-                                File(coverPath!),
-                                width: 100,
-                                height: 148,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                              ),
+                            child: BookCover(
+                              path: coverPath!,
+                              shape: coverShape,
+                              width: 100,
+                              borderRadius: 10,
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -337,6 +334,7 @@ Future<void> showRatingDialogForBook({
     bookTitle: book['title'],
     author: book['author'] as String?,
     coverPath: book['cover_path'] as String?,
+    coverShape: book['cover_shape'] as int?,
     accentColor: settingsViewModel.accentColorNotifier.value,
     initialRating: (book['rating'] as num?)?.toDouble() ?? 0.0,
     initialReview: book['user_review'] as String?,

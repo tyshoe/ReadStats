@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+import '/data/database/database_helper.dart';
 
 /// Full-screen crop editor. The user pans, pinch-zooms and rotates the image
 /// inside a fixed-[aspectRatio] frame, and the framed region is captured on
@@ -20,8 +21,17 @@ import 'package:path_provider/path_provider.dart';
 class ImageEditorPage extends StatefulWidget {
   final File imageFile;
 
-  /// Frame width / height. 2/3 for covers, 1 for avatars.
+  /// Frame width / height the editor opens at. 2/3 for covers, 1 for avatars.
+  /// When [onCoverShapeChanged] is supplied the user can switch it in-editor.
   final double aspectRatio;
+
+  /// The cover shape the frame starts on — see DatabaseHelper.coverShapeX.
+  final int? coverShape;
+
+  /// Supplying this puts a Standard/Square switch in the editor and reports
+  /// the choice as it changes. Null (avatars, anywhere with a fixed frame)
+  /// leaves the switch out entirely.
+  final ValueChanged<int>? onCoverShapeChanged;
 
   /// Draw a circular guide instead of rule-of-thirds lines.
   final bool circleMask;
@@ -35,6 +45,8 @@ class ImageEditorPage extends StatefulWidget {
     super.key,
     required this.imageFile,
     this.aspectRatio = 2 / 3,
+    this.coverShape,
+    this.onCoverShapeChanged,
     this.circleMask = false,
     this.title = 'Adjust cover',
     this.outputPrefix = 'edited_cover',
@@ -71,6 +83,11 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   // Frame geometry, recomputed each build and read back by the capture step.
   Size _frameSize = Size.zero;
 
+  // The frame's aspect ratio and the shape it came from. Both move when the
+  // user switches shape, so the crop that gets captured is the one on screen.
+  late double _aspect;
+  late int _shape;
+
   // The image's intrinsic pixel size, and the size it is laid out at inside the
   // frame (scaled to cover, so at least one axis overflows). Panning is clamped
   // against [_displaySize], not the frame — otherwise the overflowing edges of
@@ -86,6 +103,8 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   @override
   void initState() {
     super.initState();
+    _aspect = widget.aspectRatio;
+    _shape = widget.coverShape ?? DatabaseHelper.coverShapePortrait;
     // On losing focus, snap the field text back to the (clamped) value.
     _degFocus.addListener(() {
       if (!_degFocus.hasFocus) setState(() {});
@@ -272,10 +291,10 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
                   // Largest frame of the requested aspect ratio that fits the
                   // available area.
                   double frameW = constraints.maxWidth;
-                  double frameH = frameW / widget.aspectRatio;
+                  double frameH = frameW / _aspect;
                   if (frameH > constraints.maxHeight) {
                     frameH = constraints.maxHeight;
-                    frameW = frameH * widget.aspectRatio;
+                    frameW = frameH * _aspect;
                   }
                   _frameSize = Size(frameW, frameH);
 
@@ -362,6 +381,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
               ),
             ),
           ),
+          if (widget.onCoverShapeChanged != null) _buildShapeBar(cs),
           _buildRotateBar(cs),
           SafeArea(
             top: false,
@@ -396,6 +416,86 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   /// draggable fine-tilt ruler with a live degree readout. Dragging the ruler
   /// maps distance to a small angle change, so sub-degree adjustments are easy.
   /// Rotation stays separate from the pinch gesture.
+  /// Reshapes the crop frame. The pan/zoom was clamped against the old frame,
+  /// so it resets to the centred cover fit — carrying it over could leave a gap
+  /// along whichever edge just grew. Rotation belongs to the image, so it stays.
+  void _setShape(int shape) {
+    if (shape == _shape || _isSaving) return;
+    setState(() {
+      _shape = shape;
+      _aspect = DatabaseHelper.coverAspectRatio(shape);
+      _matrix = Matrix4.identity();
+    });
+    widget.onCoverShapeChanged!(shape);
+  }
+
+  Widget _buildShapeBar(ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            for (final option in [
+              (
+                shape: DatabaseHelper.coverShapePortrait,
+                label: 'Standard',
+                icon: Icons.crop_portrait,
+              ),
+              (
+                shape: DatabaseHelper.coverShapeSquare,
+                label: 'Square',
+                icon: Icons.crop_square,
+              ),
+            ])
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _setShape(option.shape),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _shape == option.shape
+                          ? cs.primary
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          option.icon,
+                          size: 18,
+                          color: _shape == option.shape
+                              ? cs.onPrimary
+                              : cs.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          option.label,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _shape == option.shape
+                                ? cs.onPrimary
+                                : cs.onSurfaceVariant,
+                            fontWeight: _shape == option.shape
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildRotateBar(ColorScheme cs) {
     final degrees = _fineRotation * _rad2deg;
     // Mirror ruler/reset/90° changes into the field, but never while the user is

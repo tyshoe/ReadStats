@@ -89,6 +89,8 @@ class _BookFormPageState extends State<BookFormPage> {
   // than the already-cropped result. Null when the cover was never run through
   // the editor (an online/search cover is itself already the full image).
   File? _coverOriginalFile;
+  /// Frames the crop editor and every place the cover is later drawn.
+  int _coverShape = DatabaseHelper.coverShapePortrait;
   String? _coverUrl;
   bool _coverChanged = false;
   // True only when the user explicitly removed the cover. Distinguishes
@@ -163,6 +165,8 @@ class _BookFormPageState extends State<BookFormPage> {
       if (widget.book!['cover_path'] != null) {
         _coverFile = File(widget.book!['cover_path'] as String);
       }
+      _coverShape = (widget.book!['cover_shape'] as int?) ??
+          DatabaseHelper.coverShapePortrait;
     }
   }
 
@@ -295,6 +299,7 @@ class _BookFormPageState extends State<BookFormPage> {
       "cover_path": widget.isEditing && widget.book!['cover_path'] != null
           ? p.basename(widget.book!['cover_path'] as String)
           : null,
+      "cover_shape": _coverShape,
       "open_library_key": widget.isEditing
           ? widget.book!['open_library_key'] as String?
           : widget.searchResult?.workKey,
@@ -659,10 +664,24 @@ class _BookFormPageState extends State<BookFormPage> {
   /// editor and, if the user keeps the result, store it as the new cover.
   Future<void> _applyPickedCover(File? file) async {
     if (file == null || !mounted) return;
+    final shapeBefore = _coverShape;
     final edited = await Navigator.of(context).push<File>(
-      MaterialPageRoute(builder: (_) => ImageEditorPage(imageFile: file)),
+      MaterialPageRoute(
+        builder: (_) => ImageEditorPage(
+          imageFile: file,
+          aspectRatio: DatabaseHelper.coverAspectRatio(_coverShape),
+          coverShape: _coverShape,
+          // The editor owns the shape choice — it can show the frame change.
+          onCoverShapeChanged: (shape) => setState(() => _coverShape = shape),
+        ),
+      ),
     );
-    if (edited == null || !mounted) return;
+    if (!mounted) return;
+    if (edited == null) {
+      // Cancelled — the shape the editor reported never became a crop.
+      setState(() => _coverShape = shapeBefore);
+      return;
+    }
     setState(() {
       _coverFile = edited;
       _coverOriginalFile = file;
@@ -696,10 +715,24 @@ class _BookFormPageState extends State<BookFormPage> {
     }
     source ??= _coverFile;
     if (source == null || !mounted) return;
+    final shapeBefore = _coverShape;
     final edited = await Navigator.of(context).push<File>(
-      MaterialPageRoute(builder: (_) => ImageEditorPage(imageFile: source!)),
+      MaterialPageRoute(
+        builder: (_) => ImageEditorPage(
+          imageFile: source!,
+          aspectRatio: DatabaseHelper.coverAspectRatio(_coverShape),
+          coverShape: _coverShape,
+          // The editor owns the shape choice — it can show the frame change.
+          onCoverShapeChanged: (shape) => setState(() => _coverShape = shape),
+        ),
+      ),
     );
-    if (edited == null || !mounted) return;
+    if (!mounted) return;
+    if (edited == null) {
+      // Cancelled — keep the shape matching the crop that's actually stored.
+      setState(() => _coverShape = shapeBefore);
+      return;
+    }
     setState(() {
       _coverFile = edited;
       _coverOriginalFile = source;
@@ -741,9 +774,12 @@ class _BookFormPageState extends State<BookFormPage> {
   Widget _buildCoverPicker() {
     final theme = Theme.of(context);
     const double coverW = 150;
-    const double coverH = 230;
+    final double coverH =
+        coverW / DatabaseHelper.coverAspectRatio(_coverShape);
     final bool hasCover = _coverFile != null || _coverUrl != null;
-    final double areaH = hasCover ? 300.0 : 90.0;
+    // Enough room for the cover plus the surrounding blurred margin. Follows
+    // the cover's height so a square one doesn't sit in a portrait-sized well.
+    final double areaH = hasCover ? coverH + 70 : 90.0;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
