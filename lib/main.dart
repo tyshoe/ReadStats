@@ -109,6 +109,12 @@ class _MyAppState extends State<MyApp> {
     _initializeSettingsViewModel();
     _loadBooks();
     _loadSessions();
+    // Safety net: reload whenever anything writes to the books/sessions tables,
+    // so a screen that saves without calling refreshBooks/refreshSessions still
+    // can't leave the app showing stale data. The explicit refresh callbacks
+    // stay — they're awaited where a caller needs the fresh list immediately.
+    DatabaseHelper.booksChanged.addListener(_scheduleBooksReload);
+    DatabaseHelper.sessionsChanged.addListener(_scheduleSessionsReload);
     // Warm the Profile goals and Statistics caches at launch so they are ready
     // before those tabs are ever opened, instead of popping in after
     // navigation.
@@ -198,6 +204,36 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  @override
+  void dispose() {
+    DatabaseHelper.booksChanged.removeListener(_scheduleBooksReload);
+    DatabaseHelper.sessionsChanged.removeListener(_scheduleSessionsReload);
+    super.dispose();
+  }
+
+  bool _booksReloadQueued = false;
+  bool _sessionsReloadQueued = false;
+
+  // A single save can touch several rows (book + cover path, session + book
+  // dates), so coalesce the burst into one reload instead of one per write.
+  void _scheduleBooksReload() {
+    if (_booksReloadQueued) return;
+    _booksReloadQueued = true;
+    Future.microtask(() {
+      _booksReloadQueued = false;
+      if (mounted) _loadBooks();
+    });
+  }
+
+  void _scheduleSessionsReload() {
+    if (_sessionsReloadQueued) return;
+    _sessionsReloadQueued = true;
+    Future.microtask(() {
+      _sessionsReloadQueued = false;
+      if (mounted) _loadSessions();
+    });
+  }
+
   Future<void> _loadBooks() async {
     final books = await widget.dbHelper.getBooks();
     // Resolve cover paths to current absolute paths. Stored values may be
@@ -214,6 +250,7 @@ class _MyAppState extends State<MyApp> {
         resolvedBooks.add(book);
       }
     }
+    if (!mounted) return;
     setState(() {
       _books = resolvedBooks;
     });
@@ -227,6 +264,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _loadSessions() async {
     final sessions = await widget.dbHelper.getSessionsWithBooks();
+    if (!mounted) return;
     setState(() {
       _sessions = sessions;
     });

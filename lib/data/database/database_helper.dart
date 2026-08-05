@@ -5,6 +5,11 @@ import '../models/book.dart';
 import '../models/session.dart';
 import '../models/tag.dart';
 
+/// A [ChangeNotifier] whose notify is public, for broadcasting table changes.
+class TableChangeNotifier extends ChangeNotifier {
+  void notify() => notifyListeners();
+}
+
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
@@ -26,6 +31,23 @@ class DatabaseHelper {
   /// though it keeps the date of the read it already completed. Unfinished
   /// (DNF) still accepts sessions: picking one back up is normal.
   static bool acceptsSessions(int? shelfId) => shelfId != shelfFinished;
+
+  /// Fires after any write that changes what [getBooks] returns, so the
+  /// app-level book list can reload itself.
+  ///
+  /// Book writes reach SQLite by several routes — the repository a page was
+  /// handed, the ad-hoc `BookRepository(DatabaseHelper())` instances some
+  /// widgets build, direct helper calls — and every one of those callers had
+  /// to remember to call `refreshBooks` afterwards. The ones that forgot left
+  /// the library showing stale rows (a rating and review saved from the rating
+  /// dialog, for one, until the app was restarted). Broadcasting from the one
+  /// place every write funnels through means forgetting is no longer possible.
+  ///
+  /// Shelves are included: book rows carry a joined `shelf_name`.
+  static final TableChangeNotifier booksChanged = TableChangeNotifier();
+
+  /// Same contract as [booksChanged], for the sessions table.
+  static final TableChangeNotifier sessionsChanged = TableChangeNotifier();
 
   factory DatabaseHelper() {
     return _instance;
@@ -367,6 +389,7 @@ class DatabaseHelper {
   Future<int> insertSession(Map<String, dynamic> session) async {
     final db = await database;
     final id = await db.insert('sessions', session);
+    sessionsChanged.notify();
     return id;
   }
 
@@ -420,6 +443,7 @@ class DatabaseHelper {
     }
 
     await batch.commit(noResult: true);
+    booksChanged.notify();
     if (kDebugMode) {
       print('Batch book insert complete. ${books.length} books added.');
     }
@@ -438,6 +462,7 @@ class DatabaseHelper {
     }
 
     await batch.commit(noResult: true);
+    sessionsChanged.notify();
     if (kDebugMode) {
       print('Batch session insert complete. ${sessions.length} sessions added.');
     }
@@ -488,21 +513,25 @@ class DatabaseHelper {
 
   Future<int> updateSession(Map<String, dynamic> session) async {
     final db = await database;
-    return await db.update(
+    final result = await db.update(
       'sessions',
       session,
       where: 'id = ?',
       whereArgs: [session['id']],
     );
+    sessionsChanged.notify();
+    return result;
   }
 
   Future<int> deleteSession(int id) async {
     final db = await database;
-    return await db.delete(
+    final result = await db.delete(
       'sessions',
       where: 'id = ?',
       whereArgs: [id],
     );
+    sessionsChanged.notify();
+    return result;
   }
 
   Future<Map<String, dynamic>?> getBookById(int bookId) async {
@@ -525,7 +554,9 @@ class DatabaseHelper {
     if (kDebugMode) {
       print('Attempt add book: $book');
     }
-    return await db.insert('books', book);
+    final id = await db.insert('books', book);
+    booksChanged.notify();
+    return id;
   }
 
   Future<List<Map<String, dynamic>>> getBooks({int yearFilter = 0, int? shelfId}) async {
@@ -579,6 +610,7 @@ class DatabaseHelper {
       await db.delete('planner_books',
           where: 'book_id = ?', whereArgs: [book['id']]);
     }
+    booksChanged.notify();
     return result;
   }
 
@@ -594,16 +626,19 @@ class DatabaseHelper {
     if (updates['shelf_id'] == shelfFinished) {
       await db.delete('planner_books', where: 'book_id = ?', whereArgs: [id]);
     }
+    booksChanged.notify();
     return result;
   }
 
   Future<int> deleteBook(int id) async {
     final db = await database;
-    return await db.delete(
+    final result = await db.delete(
       'books',
       where: 'id = ?',
       whereArgs: [id],
     );
+    booksChanged.notify();
+    return result;
   }
 
   Future<void> updateCoverPath(int bookId, String? path) async {
@@ -614,6 +649,7 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [bookId],
     );
+    booksChanged.notify();
   }
 
   Future<void> deleteBooksBatch(List<int> ids) async {
@@ -624,11 +660,14 @@ class DatabaseHelper {
       'DELETE FROM books WHERE id IN ($placeholders)',
       ids,
     );
+    booksChanged.notify();
   }
 
   Future<int> deleteAllBooks() async {
     final db = await database;
-    return await db.delete('books');
+    final result = await db.delete('books');
+    booksChanged.notify();
+    return result;
   }
 
   /// Delete all goals and their target-change history. goal_target_changes
@@ -963,18 +1002,21 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [bookId],
     );
+    booksChanged.notify();
   }
 
+  /// Writes the rating and review the user just entered. [review] is written
+  /// even when null — that's how a review gets cleared, and the dialog sends
+  /// null for an empty box.
   Future<void> updateBookRating(int bookId, double rating, {String? review}) async {
     final db = await database;
-    final values = <String, dynamic>{'rating': rating};
-    if (review != null) values['user_review'] = review;
     await db.update(
       'books',
-      values,
+      {'rating': rating, 'user_review': review},
       where: 'id = ?',
       whereArgs: [bookId],
     );
+    booksChanged.notify();
   }
 
   Future<List<Tag>> getAllTagsWithCount() async {
@@ -1004,6 +1046,7 @@ class DatabaseHelper {
       await db
           .delete('planner_books', where: 'book_id = ?', whereArgs: [bookId]);
     }
+    booksChanged.notify();
   }
 
   Future<List<Map<String, dynamic>>> getBookCountsPerType() async {
@@ -1037,17 +1080,21 @@ class DatabaseHelper {
 
   Future<int> insertShelf(Map<String, dynamic> shelf) async {
     final db = await database;
-    return await db.insert('shelves', shelf);
+    final id = await db.insert('shelves', shelf);
+    booksChanged.notify();
+    return id;
   }
 
   Future<int> updateShelf(Map<String, dynamic> shelf) async {
     final db = await database;
-    return await db.update(
+    final result = await db.update(
       'shelves',
       shelf,
       where: 'id = ?',
       whereArgs: [shelf['id']],
     );
+    booksChanged.notify();
+    return result;
   }
 
   /// Only non-system shelves can be deleted. Books on a deleted shelf
@@ -1063,6 +1110,7 @@ class DatabaseHelper {
     await db.update('books', {'shelf_id': fallbackId},
         where: 'shelf_id = ?', whereArgs: [shelfId]);
     await db.delete('shelves', where: 'id = ?', whereArgs: [shelfId]);
+    booksChanged.notify();
   }
 
   Future<void> updateShelfSortOrders(List<Map<String, dynamic>> shelves) async {
@@ -1077,6 +1125,7 @@ class DatabaseHelper {
       );
     }
     await batch.commit(noResult: true);
+    booksChanged.notify();
   }
 
   Future<int> insertPlannerBook(Map<String, dynamic> plannerBook) async {
