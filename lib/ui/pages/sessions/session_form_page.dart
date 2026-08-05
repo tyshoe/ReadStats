@@ -65,10 +65,16 @@ class _SessionFormPageState extends State<SessionFormPage> {
         _minutesController.text = (editDuration % 60).toString();
       }
 
-      _pagesController.text = widget.session!['pages_read'].toString();
+      // pages_read is nullable — .toString() on a null put the literal "null"
+      // in the field.
+      _pagesController.text =
+          (widget.session!['pages_read'] as int?)?.toString() ?? '';
       _sessionDate = DateTime.parse(widget.session!['date']);
       _notesController.text = widget.session!['notes'] ?? '';
       _selectedBook = widget.book;
+      // Without this the shelf selector renders with nothing highlighted, as
+      // though the book were on no shelf at all.
+      _targetShelfId = widget.book?['shelf_id'] as int?;
     } else {
       _pagesController.text = '';
       _startPageController.text = '';
@@ -171,6 +177,40 @@ class _SessionFormPageState extends State<SessionFormPage> {
     });
   }
 
+  /// Applies the "Move to shelf" choice, for both a new session and an edited
+  /// one — the control is on screen either way, so it has to do the same thing
+  /// either way. Returns true when the book was moved to Finished.
+  ///
+  /// Everything is gated on the shelf actually changing: the selector starts on
+  /// the book's current shelf, so acting on the target alone would rewrite
+  /// date_finished every time an already-finished book's session was saved.
+  Future<bool> _applyShelfSelection() async {
+    final originalShelfId = _selectedBook!['shelf_id'] as int?;
+    final moved = _targetShelfId != null && _targetShelfId != originalShelfId;
+    if (!moved) return false;
+
+    final isFirstSession =
+        _targetShelfId == DatabaseHelper.shelfCurrentlyReading &&
+        originalShelfId == DatabaseHelper.shelfWantToRead;
+    final isFinalSession = _targetShelfId == DatabaseHelper.shelfFinished;
+
+    if (isFirstSession || isFinalSession) {
+      await widget.bookRepository.updateBookDates(
+        _selectedBook!['id'],
+        isFirstSession: isFirstSession,
+        isFinalSession: isFinalSession,
+        sessionDate: _sessionDate,
+      );
+    }
+
+    await widget.bookRepository.updateBookShelf(
+      _selectedBook!['id'],
+      _targetShelfId!,
+    );
+
+    return isFinalSession;
+  }
+
   void _saveSession() async {
     if (_selectedBook == null) return;
 
@@ -209,33 +249,14 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
       if (widget.isEditing) {
         await widget.sessionRepository.updateSession(session);
+        await _applyShelfSelection();
         widget.onSave();
         AppSnackbar.show('Session updated successfully!');
         if (mounted) Navigator.pop(context);
       } else {
         await widget.sessionRepository.addSession(session);
 
-        final originalShelfId = _selectedBook!['shelf_id'] as int?;
-        final isFirstSession =
-            _targetShelfId == DatabaseHelper.shelfCurrentlyReading &&
-            originalShelfId == DatabaseHelper.shelfWantToRead;
-        final isFinalSession = _targetShelfId == DatabaseHelper.shelfFinished;
-
-        if (isFirstSession || isFinalSession) {
-          await widget.bookRepository.updateBookDates(
-            _selectedBook!['id'],
-            isFirstSession: isFirstSession,
-            isFinalSession: isFinalSession,
-            sessionDate: _sessionDate,
-          );
-        }
-
-        if (_targetShelfId != null && _targetShelfId != originalShelfId) {
-          await widget.bookRepository.updateBookShelf(
-            _selectedBook!['id'],
-            _targetShelfId!,
-          );
-        }
+        final isFinalSession = await _applyShelfSelection();
 
         AppSnackbar.show('Session added successfully!');
 
