@@ -3,6 +3,7 @@ import '/data/models/planner_book.dart';
 import '/data/repositories/planner_repository.dart';
 import '/data/database/database_helper.dart';
 import '/ui/pages/library/widgets/random_book_picker.dart';
+import '/ui/widgets/app_snackbar.dart';
 import 'widgets/planner_book_card.dart';
 import 'widgets/planner_book_sheet.dart';
 
@@ -106,6 +107,46 @@ class _PlannerPageState extends State<PlannerPage> {
     await _repository.deletePlannerBook(book.id!);
   }
 
+  /// Randomises the reading order, with an undo — a shuffle throws away a
+  /// hand-arranged list, so it can't be a one-way door.
+  Future<void> _shuffleBooks() async {
+    if (_books.length < 2) return;
+
+    final previous = List<PlannerBook>.from(_books);
+    final shuffled = List<PlannerBook>.from(_books);
+    // A two-book list comes back unchanged half the time, which reads as a
+    // dead button — keep rolling until the order actually moves.
+    do {
+      shuffled.shuffle();
+    } while (_isSameOrder(shuffled, previous));
+
+    setState(() => _books = shuffled);
+    await _repository.reorderBooks(_books);
+
+    AppSnackbar.show(
+      'Planner shuffled',
+      actionLabel: 'Undo',
+      onAction: () => _restoreOrder(previous),
+    );
+  }
+
+  bool _isSameOrder(List<PlannerBook> a, List<PlannerBook> b) {
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id) return false;
+    }
+    return true;
+  }
+
+  Future<void> _restoreOrder(List<PlannerBook> order) async {
+    if (!mounted) return;
+    // Drop anything deleted since the shuffle, so undo can't resurrect a row.
+    final liveIds = _books.map((b) => b.id).toSet();
+    final restored = order.where((b) => liveIds.contains(b.id)).toList();
+
+    setState(() => _books = restored);
+    await _repository.reorderBooks(restored);
+  }
+
   Future<void> _onReorder(int oldIndex, int newIndex) async {
     setState(() {
       if (newIndex > oldIndex) newIndex--;
@@ -138,6 +179,15 @@ class _PlannerPageState extends State<PlannerPage> {
           title: Text(_selectionMode
               ? '${_selectedIds.length} selected'
               : 'Reading Planner'),
+          actions: [
+            // Nothing to shuffle below two books.
+            if (!_selectionMode && _books.length > 1)
+              IconButton(
+                icon: const Icon(Icons.shuffle_rounded),
+                tooltip: 'Shuffle order',
+                onPressed: _shuffleBooks,
+              ),
+          ],
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
