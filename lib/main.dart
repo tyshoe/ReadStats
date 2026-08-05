@@ -12,6 +12,9 @@ import 'data/services/cover_service.dart';
 import 'data/services/import_export_service.dart';
 import 'data/services/reading_timer_service.dart';
 import 'data/services/rating_service.dart';
+import 'data/services/milestone_service.dart';
+import 'ui/pages/profile/milestone_celebration_page.dart';
+import 'ui/pages/profile/reading_stats.dart';
 import 'ui/pages/library/library_page.dart';
 import 'ui/pages/onboarding/onboarding_page.dart';
 import 'ui/pages/profile/profile_page.dart';
@@ -95,7 +98,53 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
+/// Tracks how deep the navigation stack is so a queued milestone celebration
+/// can wait for the reader to close whatever sits above the tab shell.
+///
+/// Counts pushes and pops itself rather than asking [NavigatorState.canPop],
+/// which is ambiguous while a pop is still animating — the route being
+/// dismissed can still be counted, and the celebration would stall until the
+/// next unrelated navigation.
+class _StackUnwindObserver extends NavigatorObserver {
+  _StackUnwindObserver(this.onSettled);
+
+  final VoidCallback onSettled;
+
+  /// Routes on the stack, including the tab shell itself — so one, not zero,
+  /// is what "nothing on top" looks like. Dialogs and modal sheets go through
+  /// the same navigator and count here too.
+  int _depth = 0;
+
+  bool get isSettled => _depth <= 1;
+
+  void _onStackShrank() {
+    // After the frame, so the celebration is never pushed from inside another
+    // route's own pop handling.
+    if (isSettled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => onSettled());
+    }
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => _depth++;
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _depth--;
+    _onStackShrank();
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _depth--;
+    _onStackShrank();
+  }
+}
+
 class _MyAppState extends State<MyApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  late final _StackUnwindObserver _stackObserver =
+      _StackUnwindObserver(_flushMilestones);
   late SettingsViewModel _settingsViewModel;
   bool _isReady = false;
   late bool _hasSeenOnboarding;
@@ -214,6 +263,64 @@ class _MyAppState extends State<MyApp> {
   bool _booksReloadQueued = false;
   bool _sessionsReloadQueued = false;
 
+  // Milestones are checked against both lists at once, so neither can be
+  // consulted until both have loaded. Checking early would seed the snapshot
+  // from half the data on a first run and then celebrate the rest of it.
+  bool _booksLoaded = false;
+  bool _sessionsLoaded = false;
+  bool _checkingMilestones = false;
+  bool _milestoneRecheckQueued = false;
+  List<MilestoneUnlock> _pendingUnlocks = const [];
+
+  /// Diff the new stats against the stored snapshot. Runs after every reload,
+  /// so anything that earns a badge — a session, a finished book, an edit that
+  /// changes the numbers — is caught without each screen having to remember.
+  Future<void> _checkMilestones() async {
+    if (!_booksLoaded || !_sessionsLoaded) return;
+    // Books and sessions land separately, so a check often starts while the
+    // other list is still arriving. Queue rather than drop, or the stats the
+    // in-flight check snapshotted would be the last word until something else
+    // happened to touch the database.
+    if (_checkingMilestones) {
+      _milestoneRecheckQueued = true;
+      return;
+    }
+
+    _checkingMilestones = true;
+    try {
+      do {
+        _milestoneRecheckQueued = false;
+        final unlocks = await MilestoneService.check(
+          ReadingStats.from(books: _books, sessions: _sessions),
+        );
+        if (unlocks.isNotEmpty) {
+          _pendingUnlocks = [..._pendingUnlocks, ...unlocks];
+        }
+      } while (_milestoneRecheckQueued);
+      _flushMilestones();
+    } finally {
+      _checkingMilestones = false;
+    }
+  }
+
+  /// Show queued celebrations, but only once the reader is back at the tab
+  /// shell. A finishing session leaves the rating dialog open above it, and a
+  /// full-screen celebration dropped on top would bury a form mid-save.
+  void _flushMilestones() {
+    if (_pendingUnlocks.isEmpty) return;
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null || !_stackObserver.isSettled) return;
+
+    final unlocks = _pendingUnlocks;
+    _pendingUnlocks = const [];
+    navigator.push(
+      MilestoneCelebrationPage.route(
+        unlocks: unlocks,
+        stats: ReadingStats.from(books: _books, sessions: _sessions),
+      ),
+    );
+  }
+
   // A single save can touch several rows (book + cover path, session + book
   // dates), so coalesce the burst into one reload instead of one per write.
   void _scheduleBooksReload() {
@@ -254,6 +361,8 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _books = resolvedBooks;
     });
+    _booksLoaded = true;
+    _checkMilestones();
     if (kDebugMode) print('Books: $_books');
   }
 
@@ -268,6 +377,8 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _sessions = sessions;
     });
+    _sessionsLoaded = true;
+    _checkMilestones();
   }
 
   Future<void> _refreshBooks() async => await _loadBooks();
@@ -296,6 +407,8 @@ class _MyAppState extends State<MyApp> {
                   title: 'ReadStats',
                   debugShowCheckedModeBanner: false,
                   scaffoldMessengerKey: scaffoldMessengerKey,
+                  navigatorKey: _navigatorKey,
+                  navigatorObservers: [_stackObserver],
                   theme: AppTheme.lightTheme(_settingsViewModel),
                   darkTheme: AppTheme.darkTheme(_settingsViewModel),
                   themeMode: themeMode,

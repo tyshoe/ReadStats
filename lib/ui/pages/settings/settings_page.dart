@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app_config.dart';
 import '../../../data/services/import_export_service.dart';
+import '../../../data/services/milestone_service.dart';
 import '../../../data/services/rating_service.dart';
 import '../../../data/services/reading_timer_service.dart';
 import '../onboarding/onboarding_page.dart';
@@ -293,7 +294,17 @@ class SettingsPage extends StatelessWidget {
       BuildContext context,
       Future<ImportExportResult> Function() action,
       ) async {
-    final result = await action();
+    // Backup restores, CSV imports and the full wipe all move the numbers by
+    // an amount the reader didn't just read — adopt the result rather than
+    // celebrating it. Bracketed because a restore wipes before it inserts, and
+    // a check landing in that gap would see an empty library.
+    MilestoneService.beginBulkChange();
+    final ImportExportResult result;
+    try {
+      result = await action();
+    } finally {
+      MilestoneService.endBulkChange();
+    }
     if (context.mounted) {
       AppSnackbar.show(result.message, isError: !result.success);
       if (result.success) {
