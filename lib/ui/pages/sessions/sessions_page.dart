@@ -8,6 +8,7 @@ import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/repositories/goal_repository.dart';
 import '/data/services/reading_timer_service.dart';
+import '/data/database/database_helper.dart';
 import 'widgets/session_calendar.dart';
 import 'widgets/goals_tab.dart';
 import 'widgets/reading_timer_widget.dart';
@@ -94,7 +95,10 @@ class _SessionsPageState extends State<SessionsPage>
   };
 
   List<Map<String, dynamic>> _sortedAvailableBooks() {
-    final sorted = List<Map<String, dynamic>>.from(widget.books);
+    // Finished books are closed to new sessions, so they're not offered here.
+    final sorted = widget.books
+        .where((b) => DatabaseHelper.acceptsSessions(b['shelf_id'] as int?))
+        .toList();
     sorted.sort((a, b) {
       final shelfA = _shelfOrder[a['shelf_id'] as int? ?? 0] ?? 99;
       final shelfB = _shelfOrder[b['shelf_id'] as int? ?? 0] ?? 99;

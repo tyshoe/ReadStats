@@ -876,13 +876,19 @@ class BookPopup {
                           _PopupAction(
                             icon: FluentIcons.calendar_add_16_filled,
                             label: 'Session',
-                            color: book['date_finished'] != null
-                                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)
-                                : Theme.of(context).colorScheme.onSurface,
-                            onTap: book['date_finished'] != null ? null : () {
-                              Navigator.pop(context);
-                              navigateToAddSessionPage(book);
-                            },
+                            // Reads mutableBook so re-shelving from this sheet
+                            // enables the action straight away.
+                            color: DatabaseHelper.acceptsSessions(
+                                    mutableBook['shelf_id'] as int?)
+                                ? Theme.of(context).colorScheme.onSurface
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
+                            onTap: DatabaseHelper.acceptsSessions(
+                                    mutableBook['shelf_id'] as int?)
+                                ? () {
+                                    Navigator.pop(context);
+                                    navigateToAddSessionPage(mutableBook);
+                                  }
+                                : null,
                           ),
                           _PopupAction(
                             icon: FluentIcons.share_16_filled,

@@ -18,6 +18,15 @@ class DatabaseHelper {
   static const int shelfFinished         = 3;
   static const int shelfUnfinished       = 4;
 
+  /// Whether a book on [shelfId] can take new reading sessions.
+  ///
+  /// The shelf is the only thing that decides this — deliberately not
+  /// `date_finished`, which stays a plain timestamp for stats and goals. A
+  /// book moved off the Finished shelf is readable again immediately, even
+  /// though it keeps the date of the read it already completed. Unfinished
+  /// (DNF) still accepts sessions: picking one back up is normal.
+  static bool acceptsSessions(int? shelfId) => shelfId != shelfFinished;
+
   factory DatabaseHelper() {
     return _instance;
   }

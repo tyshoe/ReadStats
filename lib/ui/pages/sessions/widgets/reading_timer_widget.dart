@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '/data/services/reading_timer_service.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
+import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import 'rate_book_dialog.dart';
 import '../post_session_page.dart';
@@ -89,7 +90,10 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
   }
 
   void _showBookPicker() async {
-    final sorted = List<Map<String, dynamic>>.from(widget.books);
+    // Finished books are closed to new sessions, so they're not offered here.
+    final sorted = widget.books
+        .where((b) => DatabaseHelper.acceptsSessions(b['shelf_id'] as int?))
+        .toList();
     sorted.sort((a, b) {
       const order = {1: 0, 2: 1, 4: 2, 3: 3};
       final sa = order[a['shelf_id'] as int? ?? 0] ?? 99;
