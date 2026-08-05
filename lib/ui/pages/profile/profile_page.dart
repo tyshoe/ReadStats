@@ -1016,19 +1016,52 @@ class _GoalDetailSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
+                // The bar spans the tier already earned to the next one, so the
+                // ends label those bounds. The live count sits between them,
+                // where it reads as a position on that span rather than as the
+                // bar's origin.
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      goal.formatShortValue(current),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                    Expanded(
+                      child: Text(
+                        goal.formatShortValue(highest?.threshold ?? 0),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
-                    Text(
-                      goal.formatShortValue(next.threshold),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: goal.formatShortValue(current),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: accent,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          TextSpan(
+                            // "so far" is what separates this from the two
+                            // bounds either side of it — without it, three bare
+                            // numbers read as three tick marks. Percentage is
+                            // of this tier's span, matching the bar above, not
+                            // of the whole ladder.
+                            text: ' so far · '
+                                '${(goal.progress(stats) * 100).round()}%',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        goal.formatShortValue(next.threshold),
+                        textAlign: TextAlign.end,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ],
