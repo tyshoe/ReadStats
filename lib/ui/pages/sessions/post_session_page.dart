@@ -36,13 +36,17 @@ class _PostSessionPageState extends State<PostSessionPage> {
   final _startPageController = TextEditingController();
   final _endPageController = TextEditingController();
   final _notesController = TextEditingController();
+  final _hoursController = TextEditingController();
+  final _minutesController = TextEditingController();
   late int? _targetShelfId;
   bool _isSaving = false;
+  bool _isEditingDuration = false;
 
   @override
   void initState() {
     super.initState();
     _targetShelfId = widget.book['shelf_id'] as int?;
+    _fillDurationFields(_timerMinutes);
   }
 
   @override
@@ -51,7 +55,52 @@ class _PostSessionPageState extends State<PostSessionPage> {
     _startPageController.dispose();
     _endPageController.dispose();
     _notesController.dispose();
+    _hoursController.dispose();
+    _minutesController.dispose();
     super.dispose();
+  }
+
+  /// What the timer recorded, in the whole minutes a session is stored in.
+  int get _timerMinutes {
+    final elapsed = widget.timerService.elapsed;
+    return elapsed.inSeconds > 0 ? (elapsed.inSeconds / 60).round() : 0;
+  }
+
+  /// What the fields currently say — this is what gets saved, whether or not
+  /// the user touched it.
+  int get _enteredMinutes {
+    final h = int.tryParse(_hoursController.text) ?? 0;
+    final m = int.tryParse(_minutesController.text) ?? 0;
+    return h * 60 + m;
+  }
+
+  void _fillDurationFields(int minutes) {
+    _hoursController.text = minutes >= 60 ? '${minutes ~/ 60}' : '';
+    _minutesController.text = '${minutes % 60}';
+  }
+
+  void _resetDuration() {
+    setState(() => _fillDurationFields(_timerMinutes));
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  void _toggleDurationEditor() {
+    if (_isEditingDuration) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      // An empty field reads as zero everywhere else; put the number back so
+      // the collapsed row can't imply a value the fields don't hold.
+      _fillDurationFields(_enteredMinutes);
+      setState(() => _isEditingDuration = false);
+      return;
+    }
+
+    // Minutes is the field that gets corrected; open on it with the value
+    // selected so typing replaces it.
+    _minutesController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _minutesController.text.length,
+    );
+    setState(() => _isEditingDuration = true);
   }
 
   // Mirrors the duration that will actually be saved (rounded to the
@@ -68,6 +117,49 @@ class _PostSessionPageState extends State<PostSessionPage> {
       return '${hours}h';
     }
     return '${hours}h ${remainingMinutes}m';
+  }
+
+  Widget _durationField({
+    required TextEditingController controller,
+    required String label,
+    required ThemeData theme,
+    int? clampTo,
+    bool autofocus = false,
+  }) {
+    return TextField(
+      controller: controller,
+      autofocus: autofocus,
+      keyboardType: TextInputType.number,
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(3),
+      ],
+      onChanged: (value) {
+        if (clampTo != null && (int.tryParse(value) ?? 0) > clampTo) {
+          controller.text = '$clampTo';
+        }
+        setState(() {});
+      },
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: theme.colorScheme.surfaceContainerHighest,
+        border: UnderlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: UnderlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: UnderlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+      ),
+    );
   }
 
   void _calculatePages() {
@@ -111,10 +203,10 @@ class _PostSessionPageState extends State<PostSessionPage> {
   Future<void> _save() async {
     setState(() => _isSaving = true);
     try {
-      final elapsed = widget.timerService.stop();
-      final durationMinutes = elapsed.inSeconds > 0
-          ? (elapsed.inSeconds / 60).round()
-          : null;
+      // Read the fields before stopping — they hold the timer's own figure
+      // unless the user corrected it.
+      final durationMinutes = _enteredMinutes > 0 ? _enteredMinutes : null;
+      widget.timerService.stop();
 
       final session = Session(
         bookId: widget.book['id'],
@@ -228,18 +320,109 @@ class _PostSessionPageState extends State<PostSessionPage> {
                                     ),
                                   ),
                                 const SizedBox(height: 6),
-                                Text(
-                                  _formatElapsed(elapsed),
-                                  style: theme.textTheme.headlineSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Tracks the duration fields, so the
+                                    // headline always reads as what gets saved.
+                                    Text(
+                                      _formatElapsed(
+                                          Duration(minutes: _enteredMinutes)),
+                                      style:
+                                          theme.textTheme.headlineSmall?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    InkWell(
+                                      onTap: _isSaving
+                                          ? null
+                                          : _toggleDurationEditor,
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(6),
+                                        child: Icon(
+                                          _isEditingDuration
+                                              ? Icons.check
+                                              : Icons.edit_outlined,
+                                          size: 16,
+                                          color: _isEditingDuration
+                                              ? accent
+                                              : theme
+                                                  .colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                                // With the fields hidden, this is the only
+                                // sign the saved length isn't the timer's.
+                                if (!_isEditingDuration &&
+                                    _enteredMinutes != _timerMinutes)
+                                  Text(
+                                    'Edited · timer ran ${_formatElapsed(elapsed)}',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
                         ],
                       ),
                       const Divider(height: 32),
+
+                      if (_isEditingDuration) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text('Duration',
+                                  style: theme.textTheme.bodyMedium),
+                            ),
+                            // Only offered once the fields differ from what the
+                            // timer recorded — nothing to reset to before that.
+                            if (_enteredMinutes != _timerMinutes)
+                              TextButton(
+                                onPressed: _resetDuration,
+                                style: TextButton.styleFrom(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 8),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  'Reset to ${_formatElapsed(elapsed)}',
+                                  style: theme.textTheme.labelMedium,
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _durationField(
+                                controller: _hoursController,
+                                label: 'Hours',
+                                theme: theme,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _durationField(
+                                controller: _minutesController,
+                                label: 'Minutes',
+                                theme: theme,
+                                // Overflow belongs in the hours field.
+                                clampTo: 59,
+                                autofocus: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                      ],
 
                       if (!isAudiobook) ...[
                         TextField(
