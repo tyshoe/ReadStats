@@ -13,6 +13,8 @@ import 'data/services/import_export_service.dart';
 import 'data/services/reading_timer_service.dart';
 import 'data/services/rating_service.dart';
 import 'data/services/milestone_service.dart';
+import 'data/services/notification_prefs_store.dart';
+import 'data/services/notification_service.dart';
 import 'ui/pages/profile/milestone_celebration_page.dart';
 import 'ui/pages/profile/reading_stats.dart';
 import 'ui/pages/library/library_page.dart';
@@ -56,6 +58,13 @@ void main() async {
 
   final timerService = ReadingTimerService();
   await timerService.restore();
+
+  // Reminders are re-registered on every launch. Alarms don't survive an app
+  // update, a force stop, or a timezone change, and none of those tell the app
+  // to fix things up — rescheduling at launch covers all of them.
+  await NotificationPrefsStore.instance.load();
+  await NotificationService.instance.init();
+  await NotificationService.instance.rescheduleAll();
 
   runApp(MyApp(
     dbHelper: dbHelper,

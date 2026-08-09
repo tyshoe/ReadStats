@@ -11,6 +11,7 @@ import '../../../data/services/reading_timer_service.dart';
 import '../onboarding/onboarding_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import 'font_page.dart';
+import 'notifications_page.dart';
 import 'widgets/accent_color_picker.dart';
 import 'widgets/nav_preview.dart';
 import 'widgets/rating_style_picker.dart';
@@ -160,6 +161,27 @@ class SettingsPage extends StatelessWidget {
                       context, _getFormattedDate(DateTime.now(), format)),
                 ),
                 onTap: () => showDateFormatPicker(context, settingsViewModel),
+              ),
+            ],
+          ),
+
+          // Notifications Section — local reminders, each configured on its own
+          // schedule. A drill-in rather than inline rows: every type carries a
+          // time and a set of days, which is more than a settings row can hold.
+          _buildSettingsSection(
+            context,
+            header: 'Notifications',
+            children: [
+              _buildValueTile(
+                context,
+                icon: Icons.notifications,
+                title: 'Reminders',
+                value: Icon(Icons.chevron_right,
+                    size: 20, color: colors.onSurfaceVariant),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const NotificationsPage()),
+                ),
               ),
             ],
           ),
