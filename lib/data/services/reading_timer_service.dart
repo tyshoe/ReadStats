@@ -14,6 +14,7 @@ class ReadingTimerService extends ChangeNotifier {
   static const _kState = 'timer_state';
   static const _kBookId = 'timer_book_id';
   static const _kStartEpochMs = 'timer_start_epoch_ms';
+  static const _kSessionStartEpochMs = 'timer_session_start_epoch_ms';
   static const _kAccumulatedMs = 'timer_accumulated_ms';
   static const _kCountdownMs = 'timer_countdown_ms';
   static const _kCountdownFromMs = 'timer_countdown_from_ms';
@@ -22,6 +23,11 @@ class ReadingTimerService extends ChangeNotifier {
   int? _bookId;
   int _accumulatedMs = 0;
   int? _startEpochMs;
+
+  /// When the reader hit start, as opposed to [_startEpochMs], which restarts
+  /// on every resume and so only marks the current running span. Set once by
+  /// [start] and left alone until [stop], because it dates the saved session.
+  int? _sessionStartEpochMs;
   int? _countdownMs;
   int _countdownFromMs = 0;
   Timer? _ticker;
@@ -29,6 +35,23 @@ class ReadingTimerService extends ChangeNotifier {
   TimerState get state => _state;
   int? get bookId => _bookId;
   bool get isActive => _state != TimerState.idle;
+
+  /// When the current session began, for dating it once it's saved.
+  ///
+  /// A session is filed under the day it started, not the day it was saved —
+  /// reading from 11:40pm to 12:20am is last night's reading, and dating it to
+  /// the finish would drop it into the following week, breaking a streak the
+  /// reader had just sat down to protect.
+  ///
+  /// Falls back to [_startEpochMs] for a session already in progress when this
+  /// was added, which is exact unless it had been paused. Null once stopped, so
+  /// callers must read this before [stop].
+  DateTime? get startedAt {
+    final epochMs = _sessionStartEpochMs ?? _startEpochMs;
+    return epochMs == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(epochMs);
+  }
 
   Duration get elapsed {
     if (_state == TimerState.running && _startEpochMs != null) {
@@ -66,6 +89,7 @@ class ReadingTimerService extends ChangeNotifier {
     _bookId = prefs.getInt(_kBookId);
     _accumulatedMs = prefs.getInt(_kAccumulatedMs) ?? 0;
     _startEpochMs = prefs.getInt(_kStartEpochMs);
+    _sessionStartEpochMs = prefs.getInt(_kSessionStartEpochMs);
     _countdownMs = prefs.getInt(_kCountdownMs);
     _countdownFromMs = prefs.getInt(_kCountdownFromMs) ?? 0;
 
@@ -87,6 +111,7 @@ class ReadingTimerService extends ChangeNotifier {
     _countdownMs = null;
     _countdownFromMs = 0;
     _startEpochMs = DateTime.now().millisecondsSinceEpoch;
+    _sessionStartEpochMs = _startEpochMs;
     _state = TimerState.running;
     _startTicker();
     _persist();
@@ -122,6 +147,7 @@ class ReadingTimerService extends ChangeNotifier {
     _bookId = null;
     _accumulatedMs = 0;
     _startEpochMs = null;
+    _sessionStartEpochMs = null;
     _countdownMs = null;
     _countdownFromMs = 0;
     _persist();
@@ -158,6 +184,11 @@ class ReadingTimerService extends ChangeNotifier {
       await prefs.setInt(_kStartEpochMs, _startEpochMs!);
     } else {
       await prefs.remove(_kStartEpochMs);
+    }
+    if (_sessionStartEpochMs != null) {
+      await prefs.setInt(_kSessionStartEpochMs, _sessionStartEpochMs!);
+    } else {
+      await prefs.remove(_kSessionStartEpochMs);
     }
     if (_countdownMs != null) {
       await prefs.setInt(_kCountdownMs, _countdownMs!);

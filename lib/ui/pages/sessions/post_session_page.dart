@@ -206,13 +206,18 @@ class _PostSessionPageState extends State<PostSessionPage> {
       // Read the fields before stopping — they hold the timer's own figure
       // unless the user corrected it.
       final durationMinutes = _enteredMinutes > 0 ? _enteredMinutes : null;
+      // The session belongs to the day it started on, not the day the reader
+      // got round to saving it — the two differ whenever reading runs past
+      // midnight. Also read before stopping, which clears it. The fallback
+      // covers a session saved with no timer behind it.
+      final sessionDate = widget.timerService.startedAt ?? DateTime.now();
       widget.timerService.stop();
 
       final session = Session(
         bookId: widget.book['id'],
         pagesRead: int.tryParse(_pagesController.text),
         durationMinutes: durationMinutes,
-        date: DateTime.now().toIso8601String(),
+        date: sessionDate.toIso8601String(),
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
@@ -230,7 +235,9 @@ class _PostSessionPageState extends State<PostSessionPage> {
           widget.book['id'],
           isFirstSession: isFirstSession,
           isFinalSession: isFinalSession,
-          sessionDate: DateTime.now(),
+          // The same date the session itself carries, or the book's start and
+          // finish dates would disagree with the session that set them.
+          sessionDate: sessionDate,
         );
       }
 
