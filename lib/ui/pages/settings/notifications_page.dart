@@ -167,6 +167,11 @@ class _ReminderTileState extends State<_ReminderTile> {
     );
   }
 
+  void _setThreshold(int days) {
+    if (days == widget.pref.thresholdDays) return;
+    widget.onChanged(widget.pref.copyWith(thresholdDays: days));
+  }
+
   void _toggleDay(int weekday) {
     final days = widget.pref.weekdays.toList();
     if (days.contains(weekday)) {
@@ -245,6 +250,7 @@ class _ReminderTileState extends State<_ReminderTile> {
                         pref: widget.pref,
                         onPickTime: _pickTime,
                         onToggleDay: _toggleDay,
+                        onSetThreshold: _setThreshold,
                       )
                     : const SizedBox(width: double.infinity),
               ),
@@ -264,7 +270,11 @@ class _ReminderTileState extends State<_ReminderTile> {
   ) {
     final time =
         TimeOfDay(hour: pref.hour, minute: pref.minute).format(context);
-    if (!type.usesWeekdaySchedule) return time;
+    // The day count is what actually decides whether — and for the streak,
+    // when — this one fires, so it leads; the time only says what hour.
+    if (!type.usesWeekdaySchedule) {
+      return '${type.thresholdDisplay(pref.thresholdDays)} · $time';
+    }
 
     final days = pref.weekdays;
     if (days.isEmpty) return 'No days';
@@ -297,18 +307,21 @@ class _ScheduleEditor extends StatelessWidget {
   final NotificationPref pref;
   final VoidCallback onPickTime;
   final ValueChanged<int> onToggleDay;
+  final ValueChanged<int> onSetThreshold;
 
   const _ScheduleEditor({
     required this.type,
     required this.pref,
     required this.onPickTime,
     required this.onToggleDay,
+    required this.onSetThreshold,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final hint = type.thresholdHint(pref.thresholdDays);
 
     return Container(
       width: double.infinity,
@@ -319,6 +332,40 @@ class _ScheduleEditor extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // The day count comes first for the types that have one: it decides
+          // whether — and for the streak, when — the reminder fires at all,
+          // where the time below only says what hour it arrives.
+          if (!type.usesWeekdaySchedule)
+            ListTile(
+              dense: true,
+              leading: Icon(Icons.hourglass_bottom, size: 20,
+                  color: colors.onSurfaceVariant),
+              title: Text(type.thresholdLabel),
+              subtitle: hint == null
+                  ? null
+                  : Text(hint, style: TextStyle(color: colors.onSurfaceVariant)),
+              trailing: PopupMenuButton<int>(
+                initialValue: pref.thresholdDays,
+                onSelected: onSetThreshold,
+                tooltip: '',
+                itemBuilder: (context) => [
+                  for (final days in type.thresholdOptions)
+                    PopupMenuItem(
+                      value: days,
+                      child: Text(type.thresholdDisplay(days)),
+                    ),
+                ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(type.thresholdDisplay(pref.thresholdDays),
+                        style: theme.textTheme.bodyMedium),
+                    Icon(Icons.arrow_drop_down,
+                        size: 20, color: colors.onSurfaceVariant),
+                  ],
+                ),
+              ),
+            ),
           ListTile(
             dense: true,
             leading: Icon(Icons.schedule, size: 20,

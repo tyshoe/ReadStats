@@ -4,6 +4,7 @@ import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app_config.dart';
 import '../../../data/services/import_export_service.dart';
+import '../../../data/services/notification_service.dart';
 import '../../../viewmodels/SettingsViewModel.dart';
 
 enum _ImportState { idle, loading, success, error }
@@ -60,6 +61,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   Future<void> _finish() async {
     await SettingsViewModel.setHasSeenOnboarding();
+    // The streak reminder ships switched on, so permission is asked for here —
+    // at the end of the tour that just explained what the app tracks, which is
+    // the most context this request will ever have. Awaited so the reader
+    // answers the dialog before the app appears behind it.
+    await NotificationService.instance.ensurePermissionRequested();
     widget.onDone();
   }
 

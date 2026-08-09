@@ -63,7 +63,10 @@ void main() async {
   // update, a force stop, or a timezone change, and none of those tell the app
   // to fix things up — rescheduling at launch covers all of them.
   await NotificationPrefsStore.instance.load();
+  NotificationService.instance.configure(goalRepository: goalRepository);
   await NotificationService.instance.init();
+  // Arms the reminders that need no data. The ones that quote live numbers
+  // follow once the first books/sessions load reaches updateData below.
   await NotificationService.instance.rescheduleAll();
 
   runApp(MyApp(
@@ -260,6 +263,16 @@ class _MyAppState extends State<MyApp> {
       );
       _isReady = true;
     });
+
+    // Anyone already past onboarding never passes through the request there,
+    // so the first launch after updating is where they get asked. Deferred to
+    // after the frame that _isReady unblocks, so the system dialog lands over
+    // the app rather than over the blank scaffold shown while settings load.
+    if (_hasSeenOnboarding) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => NotificationService.instance.ensurePermissionRequested(),
+      );
+    }
   }
 
   @override
@@ -310,6 +323,17 @@ class _MyAppState extends State<MyApp> {
     } finally {
       _checkingMilestones = false;
     }
+  }
+
+  /// Keep the reminders that quote live numbers in step with the library.
+  ///
+  /// Same gate as the milestone check: both lists have to be in before the
+  /// reminders are worth recomputing, or a half-loaded snapshot would schedule
+  /// a streak warning against no sessions at all.
+  void _syncNotificationData() {
+    if (!_booksLoaded || !_sessionsLoaded) return;
+    NotificationService.instance
+        .updateData(books: _books, sessions: _sessions);
   }
 
   /// Show queued celebrations, but only once the reader is back at the tab
@@ -372,6 +396,7 @@ class _MyAppState extends State<MyApp> {
     });
     _booksLoaded = true;
     _checkMilestones();
+    _syncNotificationData();
     if (kDebugMode) print('Books: $_books');
   }
 
@@ -388,6 +413,7 @@ class _MyAppState extends State<MyApp> {
     });
     _sessionsLoaded = true;
     _checkMilestones();
+    _syncNotificationData();
   }
 
   Future<void> _refreshBooks() async => await _loadBooks();

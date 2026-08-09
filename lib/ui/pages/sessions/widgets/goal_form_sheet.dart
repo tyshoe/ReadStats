@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '/data/models/goal.dart';
 import '/data/repositories/goal_repository.dart';
+import '/data/services/notification_service.dart';
 
 Future<void> showGoalFormSheet({
   required BuildContext context,
@@ -158,6 +159,9 @@ class _GoalFormSheetState extends State<_GoalFormSheet> {
       } else {
         await widget.goalRepository.createGoal(_metric!, _period!, target);
       }
+      // The goal check-in reminder quotes these targets, and nothing else here
+      // touches books or sessions — so it has to be told directly.
+      await NotificationService.instance.rescheduleAll();
       widget.onSaved();
       if (mounted) Navigator.pop(context);
     } finally {

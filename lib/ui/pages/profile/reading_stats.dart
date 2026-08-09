@@ -152,7 +152,7 @@ class ReadingStats {
 
       final date = _asDate(session['date']);
       if (date != null) {
-        weeks.add(_weekOrdinal(date));
+        weeks.add(weekOrdinal(date));
         if (date.year == now.year) {
           pagesThisYear += pages;
           minutesThisYear += minutes;
@@ -192,7 +192,7 @@ class ReadingStats {
   /// Consecutive weeks read up to now. This week or last week keeps it alive.
   static int _currentWeekStreak(Set<int> weeks, DateTime now) {
     if (weeks.isEmpty) return 0;
-    var w = _weekOrdinal(now);
+    var w = weekOrdinal(now);
     if (!weeks.contains(w)) w -= 1;
     var streak = 0;
     while (weeks.contains(w)) {
@@ -242,5 +242,9 @@ class ReadingStats {
       DateTime.utc(d.year, d.month, d.day).millisecondsSinceEpoch ~/ 86400000;
 
   /// Monday-aligned week number (1970-01-05 was a Monday).
-  static int _weekOrdinal(DateTime d) => (_epochDay(d) - 4) ~/ 7;
+  ///
+  /// Public because the streak reminder has to agree with the streak shown on
+  /// Profile — two definitions of "week" would let a notification warn about a
+  /// streak the app says is fine.
+  static int weekOrdinal(DateTime d) => (_epochDay(d) - 4) ~/ 7;
 }

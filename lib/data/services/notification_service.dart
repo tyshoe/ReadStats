@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
@@ -6,7 +7,11 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+import '/ui/pages/profile/reading_stats.dart';
+import '../database/database_helper.dart';
+import '../models/goal.dart';
 import '../models/notification_pref.dart';
+import '../repositories/goal_repository.dart';
 import 'notification_prefs_store.dart';
 
 /// Schedules and cancels the app's local reminders.
@@ -24,13 +29,15 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
-  /// The types whose scheduling is actually implemented. The enum also declares
-  /// the types still to come, so extending this set is all that's needed to
-  /// surface them — the settings UI reads from here rather than from
-  /// [NotificationType.values], so an unimplemented type can never be switched
-  /// on and then silently do nothing.
+  /// The types whose scheduling is actually implemented. The settings UI reads
+  /// from here rather than from [NotificationType.values], so a type declared
+  /// but not yet scheduled can never be switched on and then silently do
+  /// nothing.
   static const Set<NotificationType> supportedTypes = {
     NotificationType.dailyReminder,
+    NotificationType.goalCheckIn,
+    NotificationType.streakAtRisk,
+    NotificationType.staleBook,
   };
 
   /// Android refuses to raise the importance of a channel that already exists —
@@ -46,10 +53,54 @@ class NotificationService {
 
   /// Notification ids are grouped per type so a type can be re-scheduled
   /// without touching the others. The daily reminder claims one id per weekday
-  /// ([_dailyReminderBase] + 1..7); later types take the ranges above it.
+  /// ([_dailyReminderBase] + 1..7); the data-driven types only ever have a
+  /// single occurrence pending, so one id each is enough.
   static const _dailyReminderBase = 100;
+  static const _goalCheckInId = 200;
+  static const _streakAtRiskId = 300;
+  static const _staleBookId = 400;
+
+  /// Goals beyond this many are summarised as a count. Android's expanded
+  /// notification has room for a handful of lines, not a full list.
+  static const _maxGoalLines = 4;
 
   bool _initialized = false;
+
+  /// Needed by the goal check-in, which reads targets and period progress
+  /// straight from the database. Null until [configure] runs.
+  GoalRepository? _goalRepository;
+
+  /// The book and session rows the app already keeps in memory, pushed here by
+  /// [updateData]. Null until the first load completes — the data-driven
+  /// reminders are left untouched until then rather than being cancelled and
+  /// re-added a moment later.
+  List<Map<String, dynamic>>? _books;
+  List<Map<String, dynamic>>? _sessions;
+
+  Timer? _refreshDebounce;
+  bool _rescheduling = false;
+  bool _rescheduleQueued = false;
+
+  /// Wire up the repositories the data-driven reminders read from. Called once
+  /// at startup, before [init].
+  void configure({required GoalRepository goalRepository}) {
+    _goalRepository = goalRepository;
+  }
+
+  /// Hand over the current library, then re-schedule.
+  ///
+  /// Called on every books/sessions reload, so a session logged an hour before
+  /// a check-in is reflected in what it says. Debounced because books and
+  /// sessions land separately and a single save can touch both.
+  void updateData({
+    required List<Map<String, dynamic>> books,
+    required List<Map<String, dynamic>> sessions,
+  }) {
+    _books = books;
+    _sessions = sessions;
+    _refreshDebounce?.cancel();
+    _refreshDebounce = Timer(const Duration(seconds: 1), rescheduleAll);
+  }
 
   /// Set up timezones and the platform plugin. Safe to call more than once.
   ///
@@ -71,8 +122,9 @@ class NotificationService {
           // which is what Android expects for a status bar icon — the full
           // colour launcher icon would render as a grey block.
           android: AndroidInitializationSettings('@drawable/ic_launcher_foreground'),
-          // Permission is requested when the reader enables their first
-          // reminder, not on the launch that installs the update.
+          // Never asked here — initialising the plugin should not put a system
+          // dialog on screen. See [ensurePermissionRequested], which asks once
+          // the app has something on screen to justify it.
           iOS: DarwinInitializationSettings(
             requestAlertPermission: false,
             requestBadgePermission: false,
@@ -121,15 +173,49 @@ class NotificationService {
     return options?.isAlertEnabled ?? false;
   }
 
-  /// Prompt for permission. Called when the reader switches on their first
-  /// reminder — the point at which the request has obvious context — rather
-  /// than at launch.
+  /// Ask for permission once, from outside the settings page.
+  ///
+  /// [NotificationType.streakAtRisk] ships switched on, and a reminder nobody
+  /// opted into never reaches the settings page that would otherwise do the
+  /// asking — so without this, the one default-on reminder would silently never
+  /// arrive on Android 13+ and iOS, where notifications start denied.
+  ///
+  /// Called at the end of onboarding for new installs and on the first launch
+  /// after updating for everyone else. Both routes are safe to call repeatedly:
+  /// the prompt is spent at most once.
+  Future<void> ensurePermissionRequested() async {
+    if (!_initialized) return;
+    final store = NotificationPrefsStore.instance;
+    if (store.permissionAsked) return;
+    // Nothing switched on means there is nothing to ask for yet — a reader who
+    // turned the defaults off should not be prompted for reminders they have
+    // already declined.
+    if (!store.anyEnabled) return;
+
+    if (await hasPermission()) {
+      // Already granted, which is the norm on Android 12 and below where the
+      // grant comes with the install. Recorded so that revoking it later can't
+      // produce a prompt out of nowhere on some unrelated launch.
+      await store.markPermissionAsked();
+      return;
+    }
+
+    await requestPermission();
+    // Granted or not, what is scheduled has to be brought in line: nothing can
+    // have been armed while permission was missing.
+    await rescheduleAll();
+  }
+
+  /// Prompt for permission, and record that the prompt has been spent.
   ///
   /// Returns false if the reader declines, or if the OS has already been asked
   /// and refused (in which case the prompt no longer appears and the caller
   /// should send them to system settings).
   Future<bool> requestPermission() async {
     if (!_initialized) return false;
+    // Marked up front: the OS counts the prompt whatever the reader answers,
+    // and an early return below must not leave it looking unspent.
+    await NotificationPrefsStore.instance.markPermissionAsked();
     if (Platform.isAndroid) {
       final granted = await _plugin
           .resolvePlatformSpecificImplementation<
@@ -163,6 +249,26 @@ class NotificationService {
   /// alarm to survive a settings change.
   Future<void> rescheduleAll() async {
     if (!_initialized) return;
+    // Launch and the first data load both trigger a reschedule, and the two
+    // overlap. Running them concurrently would interleave one pass's cancels
+    // with another's schedules, leaving a reminder cancelled until something
+    // else happened to trigger a third pass.
+    if (_rescheduling) {
+      _rescheduleQueued = true;
+      return;
+    }
+    _rescheduling = true;
+    try {
+      do {
+        _rescheduleQueued = false;
+        await _reschedule();
+      } while (_rescheduleQueued);
+    } finally {
+      _rescheduling = false;
+    }
+  }
+
+  Future<void> _reschedule() async {
     final store = NotificationPrefsStore.instance;
     // Permission can be revoked from system settings at any time. Scheduling
     // against a revoked permission silently does nothing, so skip the work.
@@ -171,6 +277,14 @@ class NotificationService {
       return;
     }
     await _scheduleDailyReminder(store.of(NotificationType.dailyReminder));
+
+    // The rest quote live numbers and can't be worked out without the library.
+    // At launch this pass runs before the first load, so they are left as they
+    // were until [updateData] triggers the pass that can do them justice.
+    if (_books == null || _sessions == null) return;
+    await _scheduleGoalCheckIn(store.of(NotificationType.goalCheckIn));
+    await _scheduleStreakAtRisk(store.of(NotificationType.streakAtRisk));
+    await _scheduleStaleBook(store.of(NotificationType.staleBook));
   }
 
   Future<void> cancelAll() async {
@@ -265,6 +379,206 @@ class NotificationService {
     }
   }
 
+  // ── Data-driven reminders ──────────────────────────────────────────────────
+  //
+  // Unlike the daily reminder, these three quote the reader's actual numbers,
+  // so they can't be armed as a repeat — the plugin would re-fire whatever text
+  // it was first given, forever. Each schedules its *next* occurrence only, and
+  // every fact in it is worked out as of that future moment rather than as of
+  // now: progress for the period the check-in lands in, staleness measured to
+  // the evening it would arrive.
+  //
+  // That makes a single pending occurrence correct even if it was armed days
+  // earlier, because the only things that move these numbers — a session, a
+  // finished book, a new goal — all happen with the app open, and every one of
+  // them triggers a reschedule. The occurrence after next is left unscheduled
+  // until the app is next opened; a reader who never opens it has no streak to
+  // protect and no progress to report anyway.
+
+  /// A summary of where each goal stands, or nothing at all when there are no
+  /// goals — a check-in with no numbers in it is just noise.
+  Future<void> _scheduleGoalCheckIn(NotificationPref pref) async {
+    await _plugin.cancel(id: _goalCheckInId);
+    if (!pref.isActiveFor(NotificationType.goalCheckIn)) return;
+    final repo = _goalRepository;
+    if (repo == null) return;
+
+    final scheduledDate = _nextSelectedOccurrence(pref);
+    if (scheduledDate == null) return;
+
+    final goals = await repo.getGoals();
+    if (goals.isEmpty) return;
+
+    final lines = <String>[];
+    var allMet = true;
+    for (final goal in goals) {
+      final progress = await repo.getProgressAt(goal, scheduledDate);
+      if (!progress.met) allMet = false;
+      if (lines.length < _maxGoalLines) lines.add(_goalLine(goal, progress));
+    }
+    if (goals.length > _maxGoalLines) {
+      lines.add('and ${goals.length - _maxGoalLines} more');
+    }
+
+    final body = lines.join('\n');
+    await _plugin.zonedSchedule(
+      id: _goalCheckInId,
+      // Leading with the outcome, so a reader who only sees the title still
+      // learns something.
+      title: allMet ? 'Goals met' : 'Goal check-in',
+      body: body,
+      scheduledDate: scheduledDate,
+      notificationDetails: _details(body),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+    );
+  }
+
+  /// "Weekly pages read: 120 of 200", with a tick once it's in the bag.
+  static String _goalLine(Goal goal, PeriodProgress progress) {
+    final line = '${goal.period.label} ${goal.metric.label.toLowerCase()}: '
+        '${goal.metric.cardDisplay(progress.actual)} of '
+        '${goal.metric.cardDisplay(progress.target)}';
+    return progress.met ? '$line ✓' : line;
+  }
+
+  /// Only scheduled when the week it would land in has no session yet *and*
+  /// there is a run of earlier weeks to lose. Both are judged against the
+  /// scheduled week, which for a future week means "no session logged so far" —
+  /// and logging one reschedules this away.
+  ///
+  /// The day is derived rather than picked: the reader says how much notice
+  /// they want and [streakNoticeWeekday] works out which day that is, so the
+  /// setting can't drift out of step with where the week actually ends.
+  Future<void> _scheduleStreakAtRisk(NotificationPref pref) async {
+    await _plugin.cancel(id: _streakAtRiskId);
+    if (!pref.isActiveFor(NotificationType.streakAtRisk)) return;
+
+    final scheduledDate = _nextInstanceOf(
+      streakNoticeWeekday(pref.thresholdDays),
+      pref.hour,
+      pref.minute,
+    );
+
+    final weeks = <int>{};
+    for (final session in _sessions!) {
+      final date = _asDate(session['date']);
+      if (date != null) weeks.add(ReadingStats.weekOrdinal(date));
+    }
+
+    // Already read this week — there is nothing at risk.
+    final fireWeek = ReadingStats.weekOrdinal(scheduledDate);
+    if (weeks.contains(fireWeek)) return;
+
+    // Weeks running up to, but not including, the one the reminder lands in.
+    var streak = 0;
+    for (var week = fireWeek - 1; weeks.contains(week); week--) {
+      streak++;
+    }
+    if (streak == 0) return;
+
+    // The notice setting counts the day the reminder arrives on, so one day
+    // left means it lands on the last day of the week.
+    final deadline = switch (pref.thresholdDays) {
+      1 => 'today',
+      2 => 'by tomorrow',
+      final days => 'in the next $days days',
+    };
+    final body = '$streak ${streak == 1 ? 'week' : 'weeks'} in a row. '
+        'Log a session $deadline to keep it going.';
+
+    await _plugin.zonedSchedule(
+      id: _streakAtRiskId,
+      title: 'Streak at risk',
+      body: body,
+      scheduledDate: scheduledDate,
+      notificationDetails: _details(body),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+    );
+  }
+
+  /// A book on the Currently Reading shelf that hasn't been touched in a while.
+  ///
+  /// This one has no weekday picker — it's driven by the book, not the
+  /// calendar, so it checks daily at the chosen time. To stop that becoming a
+  /// nightly nag about a book the reader has quietly given up on, a nudge is
+  /// followed by another threshold's worth of silence: set to seven days, an
+  /// ignored reminder comes back in seven, not tomorrow.
+  Future<void> _scheduleStaleBook(NotificationPref pref) async {
+    await _plugin.cancel(id: _staleBookId);
+
+    // The cancel above dropped whatever was pending, so a recorded time still
+    // in the future no longer refers to anything and must not start a cooldown.
+    // It is written again below only if this pass actually arms something —
+    // otherwise a reminder that was cancelled because the book got picked back
+    // up would go on suppressing the next one for a full threshold.
+    final store = NotificationPrefsStore.instance;
+    final lastSent = store.lastSentAt(NotificationType.staleBook);
+    if (lastSent != null && lastSent.isAfter(DateTime.now())) {
+      await store.setSentAt(NotificationType.staleBook, null);
+    }
+
+    if (!pref.isActiveFor(NotificationType.staleBook)) return;
+
+    final scheduledDate = _nextDailyInstance(pref.hour, pref.minute);
+    if (lastSent != null &&
+        lastSent.isBefore(DateTime.now()) &&
+        scheduledDate.difference(lastSent).inDays < pref.thresholdDays) {
+      return;
+    }
+
+    // Most recent session per book. A book that has never had one falls back to
+    // when the reader started it, then to when it was added — otherwise a book
+    // shelved as Currently Reading and never opened could never go stale.
+    final lastRead = <int, DateTime>{};
+    for (final session in _sessions!) {
+      final date = _asDate(session['date']);
+      if (date == null) continue;
+      final bookId = _asInt(session['book_id']);
+      final previous = lastRead[bookId];
+      if (previous == null || date.isAfter(previous)) lastRead[bookId] = date;
+    }
+
+    String? staleTitle;
+    var staleDays = 0;
+    var staleCount = 0;
+    for (final book in _books!) {
+      if (_asInt(book['shelf_id']) != DatabaseHelper.shelfCurrentlyReading) {
+        continue;
+      }
+      final last = lastRead[_asInt(book['id'])] ??
+          _asDate(book['date_started']) ??
+          _asDate(book['date_added']);
+      if (last == null) continue;
+      final days = _daysBetween(last, scheduledDate);
+      if (days < pref.thresholdDays) continue;
+      staleCount++;
+      // The most neglected book leads — it's the one the reader is least likely
+      // to have front of mind.
+      if (staleTitle == null || days > staleDays) {
+        staleDays = days;
+        staleTitle = book['title']?.toString();
+      }
+    }
+    if (staleTitle == null || staleTitle.isEmpty) return;
+
+    final others = staleCount - 1;
+    final body = StringBuffer('“$staleTitle” has gone $staleDays days '
+        'without a session.');
+    if (others > 0) {
+      body.write(' Plus $others other ${others == 1 ? 'book' : 'books'}.');
+    }
+
+    await _plugin.zonedSchedule(
+      id: _staleBookId,
+      title: 'Still reading?',
+      body: body.toString(),
+      scheduledDate: scheduledDate,
+      notificationDetails: _details(body.toString()),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+    );
+    await store.setSentAt(NotificationType.staleBook, scheduledDate);
+  }
+
   /// [body] is repeated as big-text style so Android shows the whole line when
   /// the shade is expanded. Without it a fact longer than the collapsed width
   /// is simply truncated, and these are written to end on the point.
@@ -288,19 +602,54 @@ class NotificationService {
   /// [Duration], because a DST boundary makes a calendar day 23 or 25 hours
   /// long — adding a fixed day would drift an 8pm reminder to 7pm or 9pm.
   static tz.TZDateTime _nextInstanceOf(int weekday, int hour, int minute) {
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduled =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    // Today's slot having already passed means the first candidate is tomorrow.
-    if (!scheduled.isAfter(now)) scheduled = _nextDay(scheduled, hour, minute);
+    var scheduled = _nextDailyInstance(hour, minute);
     while (scheduled.weekday != weekday) {
       scheduled = _nextDay(scheduled, hour, minute);
     }
     return scheduled;
   }
 
+  /// Today at [hour]:[minute], or tomorrow if that has already gone by.
+  static tz.TZDateTime _nextDailyInstance(int hour, int minute) {
+    final now = tz.TZDateTime.now(tz.local);
+    final scheduled =
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    return scheduled.isAfter(now) ? scheduled : _nextDay(scheduled, hour, minute);
+  }
+
+  /// The soonest of the days [pref] has selected, for the types that schedule
+  /// one occurrence at a time. Null only when no day is selected, which
+  /// [NotificationPref.isActiveFor] already treats as switched off.
+  static tz.TZDateTime? _nextSelectedOccurrence(NotificationPref pref) {
+    tz.TZDateTime? soonest;
+    for (final weekday in pref.weekdays) {
+      final candidate = _nextInstanceOf(weekday, pref.hour, pref.minute);
+      if (soonest == null || candidate.isBefore(soonest)) soonest = candidate;
+    }
+    return soonest;
+  }
+
   // Day overflow is normalised by the TZDateTime constructor, so month and
   // year ends need no special handling.
   static tz.TZDateTime _nextDay(tz.TZDateTime from, int hour, int minute) =>
       tz.TZDateTime(tz.local, from.year, from.month, from.day + 1, hour, minute);
+
+  /// Whole calendar days from [from] to [to], counted in UTC so a daylight
+  /// saving change can't turn a five-day gap into four days and 23 hours.
+  static int _daysBetween(DateTime from, DateTime to) =>
+      DateTime.utc(to.year, to.month, to.day)
+          .difference(DateTime.utc(from.year, from.month, from.day))
+          .inDays;
+
+  // Session and book rows come from SQLite as ints or strings depending on the
+  // column and the writer, so both are parsed defensively — the same approach
+  // ReadingStats takes with the very same maps.
+  static int _asInt(dynamic value) =>
+      value is int ? value : int.tryParse(value?.toString() ?? '') ?? 0;
+
+  static DateTime? _asDate(dynamic value) {
+    final text = value?.toString();
+    if (text == null || text.isEmpty) return null;
+    return DateTime.tryParse(text);
+  }
 }

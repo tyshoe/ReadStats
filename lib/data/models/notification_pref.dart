@@ -22,6 +22,8 @@ enum NotificationType {
   ),
 
   /// Sent only when the week is closing and no session has been logged yet.
+  /// Configured by how much notice to give rather than by weekday — picking a
+  /// day for this means working out which day the week happens to end on.
   streakAtRisk(
     id: 'streak_at_risk',
     label: 'Streak at risk',
@@ -50,10 +52,40 @@ enum NotificationType {
   /// that explains itself doesn't need a second line repeating it.
   final String? description;
 
-  /// True when the schedule is a time plus a set of weekdays. [staleBook] is
-  /// the exception — it fires relative to a book's last session, so it is
-  /// configured with a day threshold instead.
-  bool get usesWeekdaySchedule => this != NotificationType.staleBook;
+  /// True when the schedule is a time plus a set of weekdays. The other two
+  /// don't hang off the calendar — [streakAtRisk] fires relative to the end of
+  /// the reader's week and [staleBook] relative to a book's last session — so
+  /// both are configured with a day count instead.
+  bool get usesWeekdaySchedule =>
+      this == NotificationType.dailyReminder ||
+      this == NotificationType.goalCheckIn;
+
+  /// Label for the day-count control, on the types that have one.
+  String get thresholdLabel => switch (this) {
+        NotificationType.streakAtRisk => 'Notice',
+        NotificationType.staleBook => 'Untouched for',
+        _ => '',
+      };
+
+  List<int> get thresholdOptions => switch (this) {
+        NotificationType.streakAtRisk => kStreakNoticeOptions,
+        NotificationType.staleBook => kStaleBookThresholdOptions,
+        _ => const <int>[],
+      };
+
+  String thresholdDisplay(int days) => switch (this) {
+        NotificationType.streakAtRisk =>
+          '$days ${days == 1 ? 'day' : 'days'} left',
+        _ => '$days days',
+      };
+
+  /// A second line under the control, for when the number alone doesn't say
+  /// what it works out to on the calendar.
+  String? thresholdHint(int days) => switch (this) {
+        NotificationType.streakAtRisk =>
+          'Arrives on ${kWeekdayNames[streakNoticeWeekday(days) - 1]}',
+        _ => null,
+      };
 
   static NotificationType? fromId(String id) {
     for (final type in NotificationType.values) {
@@ -79,15 +111,46 @@ const List<int> kAllWeekdays = <int>[
   DateTime.saturday,
 ];
 
+/// Day thresholds offered for [NotificationType.staleBook]. A free-form number
+/// field would invite values — 1 day, 200 days — that make the reminder either
+/// constant or useless, so the choice is a fixed ladder instead.
+const List<int> kStaleBookThresholdOptions = <int>[3, 5, 7, 10, 14, 21, 30];
+
+/// How much notice [NotificationType.streakAtRisk] can give, in days left in
+/// the week — 1 being the last day. Stops at six: seven would put the warning
+/// on the first day of the week, before there is anything to warn about.
+const List<int> kStreakNoticeOptions = <int>[1, 2, 3, 4, 5, 6];
+
+/// Indexed by `DateTime.monday`..`DateTime.sunday` minus one.
+const List<String> kWeekdayNames = <String>[
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+
+/// The weekday a streak warning with [daysLeft] to spare lands on.
+///
+/// Streak weeks are Monday-aligned — see `ReadingStats.weekOrdinal`, which this
+/// has to agree with — so the week runs out at the end of Sunday. One day left
+/// is therefore Sunday itself, and each extra day of notice steps back from
+/// there: five days left is Wednesday.
+int streakNoticeWeekday(int daysLeft) =>
+    DateTime.sunday + 1 - daysLeft.clamp(1, 7);
+
 /// Where [weekday] falls in the displayed week. Used to sort stored days so
 /// they read Sunday-first everywhere, rather than in numeric order — which
 /// would put Sunday, as 7, last.
 int _weekOrder(int weekday) => kAllWeekdays.indexOf(weekday);
 
 /// One reminder's settings. Every type stores the same shape even where a field
-/// doesn't apply to it — [staleBook] keeps a time of day (when to send) but
-/// ignores [weekdays], and the weekday-scheduled types ignore [thresholdDays].
-/// Carrying the unused field costs nothing and keeps storage uniform.
+/// doesn't apply to it — the day-count types keep a time of day (when to send)
+/// but ignore [weekdays], and the weekday-scheduled types ignore
+/// [thresholdDays]. Carrying the unused field costs nothing and keeps storage
+/// uniform.
 class NotificationPref {
   final bool enabled;
   final int hour;
@@ -98,7 +161,9 @@ class NotificationPref {
   /// depends on the order the reader happened to tap them in.
   final List<int> weekdays;
 
-  /// Days of silence before [staleBook] fires. Unused by other types.
+  /// The day count for the types configured by one: days of silence before
+  /// [NotificationType.staleBook] fires, or days left in the week when
+  /// [NotificationType.streakAtRisk] should warn. Unused by the rest.
   final int thresholdDays;
 
   NotificationPref({
@@ -111,8 +176,11 @@ class NotificationPref {
           ..sort((a, b) => _weekOrder(a).compareTo(_weekOrder(b))));
 
   /// Sensible starting point per type, used until the reader changes anything.
-  /// All start disabled — notifications are opted into, never sprung on the
-  /// reader by an app update.
+  ///
+  /// [NotificationType.streakAtRisk] is the one that starts on. It is the only
+  /// reminder that is purely protective — it fires solely when something the
+  /// reader has already built is about to be lost, and never otherwise, so it
+  /// can't become background noise. The rest are opted into.
   factory NotificationPref.defaultsFor(NotificationType type) =>
       switch (type) {
         // Evening, when reading actually happens.
@@ -129,20 +197,25 @@ class NotificationPref {
             minute: 0,
             weekdays: const [DateTime.sunday],
           ),
-        // Sunday evening too, but early enough that there is still time to read
-        // something and save the streak.
+        // The last day of the week, but in the morning: this one asks for a
+        // reading session before midnight, so it has to leave a whole day to
+        // find the time. An evening warning about a deadline a few hours out is
+        // one the reader can only fail.
         NotificationType.streakAtRisk => NotificationPref(
-            enabled: false,
-            hour: 17,
+            enabled: true,
+            hour: 9,
             minute: 0,
-            weekdays: const [DateTime.sunday],
+            weekdays: kAllWeekdays,
+            thresholdDays: 1,
           ),
+        // A week of silence: long enough that an ordinary busy stretch doesn't
+        // trip it, short enough to catch a book before it is truly abandoned.
         NotificationType.staleBook => NotificationPref(
             enabled: false,
             hour: 19,
             minute: 0,
             weekdays: kAllWeekdays,
-            thresholdDays: 5,
+            thresholdDays: 7,
           ),
       };
 

@@ -57,10 +57,17 @@ class GoalRepository {
     await _db.deleteAllGoals();
   }
 
-  Future<PeriodProgress> getCurrentProgress(Goal goal) async {
-    final now = DateTime.now();
-    final start = _periodStart(goal.period, now);
-    final end = _periodEnd(goal.period, now);
+  Future<PeriodProgress> getCurrentProgress(Goal goal) =>
+      getProgressAt(goal, DateTime.now());
+
+  /// Progress for the period containing [when].
+  ///
+  /// [when] is usually now, but the goal check-in reminder passes the moment it
+  /// is scheduled for — a check-in that lands next Monday has to quote next
+  /// week's numbers, not the ones that were current when it was scheduled.
+  Future<PeriodProgress> getProgressAt(Goal goal, DateTime when) async {
+    final start = _periodStart(goal.period, when);
+    final end = _periodEnd(goal.period, when);
     final target = await _db.getTargetForPeriod(goal.id!, start) ?? goal.target;
     final actual = await _db.getProgressForPeriod(
       metric: goal.metric.dbValue,
