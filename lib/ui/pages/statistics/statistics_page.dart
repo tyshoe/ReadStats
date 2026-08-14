@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:read_stats/data/services/cover_service.dart';
+import 'package:read_stats/ui/pages/statistics/widgets/activity_heatmap.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_single.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/pie_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stacked_bar_chart.dart';
@@ -469,6 +470,14 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
   }
 
+  Widget _buildActivityHeatmap() {
+    return ActivityHeatmap(
+      dailyCounts: _data!.sessionsDaily,
+      selectedYear: selectedYear,
+      color: Theme.of(context).primaryColor,
+    );
+  }
+
   Widget _buildSessionsChart() {
     final data = _data!.sessionsDist;
     return BarChartWidget(
@@ -807,6 +816,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                   _buildBookTypeChart(),
                   _buildBooksChart(),
                   _buildSessionsChart(),
+                  _buildActivityHeatmap(),
                   _buildTopAuthorsChart(),
                   _buildSectionHeader('Ratings'),
                   _buildRatingSummary(),
