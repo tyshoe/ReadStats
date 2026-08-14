@@ -202,6 +202,8 @@ class _SessionsPageState extends State<SessionsPage>
       MaterialPageRoute(
         builder: (context) => SessionFormPage(
           availableBooks: _sortedAvailableBooks(),
+          // A guess, not a commitment — the banner is still tappable.
+          book: _lastUsedBook(),
           onSave: () {
             widget.refreshSessions();
             widget.refreshBooks();
@@ -235,11 +237,26 @@ class _SessionsPageState extends State<SessionsPage>
     return '';
   }
 
+  /// The book the reader is most likely still in the middle of.
+  ///
+  /// It's whichever book their newest session belongs to, skipping any that
+  /// have since been shelved as Finished or Unfinished — those reads are over,
+  /// and a Finished book can't take a session at all. Good enough to pre-fill
+  /// the timer and the session form, and always overridable from the picker.
   Map<String, dynamic>? _lastUsedBook() {
-    if (widget.sessions.isEmpty) return null;
     final sorted = List<Map<String, dynamic>>.from(widget.sessions)
       ..sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
-    return _bookMap[sorted.first['book_id']];
+    for (final session in sorted) {
+      final book = _bookMap[session['book_id']];
+      if (book == null) continue;
+      final shelfId = book['shelf_id'] as int?;
+      if (shelfId == DatabaseHelper.shelfFinished ||
+          shelfId == DatabaseHelper.shelfUnfinished) {
+        continue;
+      }
+      return book;
+    }
+    return null;
   }
 
   DateTime? get _firstSessionMonth {

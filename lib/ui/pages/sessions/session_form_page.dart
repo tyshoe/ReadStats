@@ -1,7 +1,12 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import '../../widgets/app_snackbar.dart';
+import '../../widgets/book_cover.dart';
+import '../../widgets/book_picker_sheet.dart';
 import 'package:intl/intl.dart';
 import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
@@ -41,7 +46,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
   final TextEditingController _endPageController = TextEditingController();
   final TextEditingController _hoursController = TextEditingController();
   final TextEditingController _minutesController = TextEditingController();
-  final TextEditingController _bookController = TextEditingController();
   final TextEditingController _startHoursController = TextEditingController();
   final TextEditingController _startMinutesController = TextEditingController();
   final TextEditingController _endHoursController = TextEditingController();
@@ -86,7 +90,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
           (book) => book['id'] == widget.book!['id'],
           orElse: () => widget.book!,
         );
-        _bookController.text = _selectedBook!['title'];
         _targetShelfId = _selectedBook!['shelf_id'] as int?;
       }
     }
@@ -99,7 +102,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     _endPageController.dispose();
     _hoursController.dispose();
     _minutesController.dispose();
-    _bookController.dispose();
     _startHoursController.dispose();
     _startMinutesController.dispose();
     _endHoursController.dispose();
@@ -386,15 +388,271 @@ class _SessionFormPageState extends State<SessionFormPage> {
       },
     );
 
+    // Only the day moves — the time of day the session was read at is carried
+    // over, or picking a date would silently reset it to midnight.
     if (date != null) {
-      setState(() => _sessionDate = date);
+      setState(() {
+        _sessionDate = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          _sessionDate.hour,
+          _sessionDate.minute,
+        );
+      });
     }
+  }
+
+  Future<void> _showTimePicker(BuildContext context) async {
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_sessionDate),
+    );
+
+    if (time != null) {
+      setState(() {
+        _sessionDate = DateTime(
+          _sessionDate.year,
+          _sessionDate.month,
+          _sessionDate.day,
+          time.hour,
+          time.minute,
+        );
+      });
+    }
+  }
+
+  Future<void> _pickBook() async {
+    final picked = await showBookPickerSheet(
+      context: context,
+      books: widget.availableBooks,
+      title: 'Select a book',
+      emptyMessage: 'Add a book to your library first',
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedBook = picked;
+        _targetShelfId = picked['shelf_id'] as int?;
+      });
+    }
+  }
+
+  /// The book this session belongs to, as a banner rather than a text field.
+  ///
+  /// An editing session's book is fixed, so the banner is inert there; adding a
+  /// session, it opens the same library picker sheet used by the timer.
+  Widget _buildBookBanner(ThemeData theme) {
+    final book = widget.isEditing ? widget.book : _selectedBook;
+    final onTap = widget.isEditing ? null : _pickBook;
+
+    if (book == null) return _buildEmptyBookBanner(theme, onTap);
+
+    final coverPath = book['cover_path'] as String?;
+    final author = book['author'] as String?;
+    final hasCover = coverPath != null && coverPath.isNotEmpty;
+
+    final content = Row(
+      children: [
+        if (hasCover)
+          BookCover(
+            path: coverPath,
+            shape: book['cover_shape'] as int?,
+            width: 60,
+            borderRadius: 6,
+          )
+        else
+          _coverPlaceholder(theme),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                book['title'] as String? ?? '',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: hasCover ? Colors.white : null,
+                ),
+              ),
+              if (author?.isNotEmpty == true) ...[
+                const SizedBox(height: 3),
+                Text(
+                  author!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: hasCover
+                        ? Colors.white.withValues(alpha: 0.85)
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Icon(
+          widget.isEditing ? Icons.lock_outline : Icons.unfold_more,
+          size: 20,
+          color: hasCover
+              ? Colors.white.withValues(alpha: 0.8)
+              : theme.colorScheme.onSurfaceVariant,
+        ),
+      ],
+    );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        children: [
+          // The cover's own colours, blown up and blurred, stand in for a
+          // background image — the art is portrait, the banner is not.
+          if (hasCover)
+            Positioned.fill(
+              child: ImageFiltered(
+                imageFilter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+                child: Image.file(
+                  File(coverPath),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          if (hasCover)
+            // Covers are any colour at all, so the text sits on a scrim rather
+            // than on the art itself.
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.7),
+                      Colors.black.withValues(alpha: 0.45),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          Material(
+            color: hasCover
+                ? Colors.transparent
+                : theme.colorScheme.surfaceContainerHighest,
+            child: InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: content,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyBookBanner(ThemeData theme, VoidCallback? onTap) {
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              _coverPlaceholder(theme),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  'Choose a book',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              Icon(Icons.search, color: theme.colorScheme.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _coverPlaceholder(ThemeData theme) {
+    return Container(
+      width: 60,
+      height: 60 / DatabaseHelper.coverAspectRatio(null),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Icon(
+        Icons.menu_book_rounded,
+        size: 24,
+        color: theme.colorScheme.outline,
+      ),
+    );
+  }
+
+  /// A read-only field that opens a picker — date and time both behave this
+  /// way, and a TextFormField would need a throwaway controller each build.
+  Widget _buildTapField(
+    ThemeData theme, {
+    required String label,
+    required String value,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colors = theme.colorScheme;
     final textTheme = theme.textTheme;
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
 
@@ -421,236 +679,37 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Book Selection
-                    if (!widget.isEditing) ...[
-                      Autocomplete<Map<String, dynamic>>(
-                        optionsBuilder: (TextEditingValue textEditingValue) {
-                          if (textEditingValue.text.isEmpty) {
-                            return widget.availableBooks;
-                          }
-                          return widget.availableBooks.where(
-                            (book) => book['title'].toLowerCase().contains(
-                              textEditingValue.text.toLowerCase(),
-                            ),
-                          );
-                        },
-                        displayStringForOption: (option) => option['title'],
-                        fieldViewBuilder:
-                            (
-                              context,
-                              textEditingController,
-                              focusNode,
-                              onFieldSubmitted,
-                            ) {
-                              if (_selectedBook != null &&
-                                  textEditingController.text !=
-                                      _selectedBook!['title']) {
-                                textEditingController.text =
-                                    _selectedBook!['title'];
-                              }
-
-                              focusNode.addListener(() {
-                                if (!focusNode.hasFocus &&
-                                    _selectedBook != null) {
-                                  textEditingController.text =
-                                      _selectedBook!['title'];
-                                }
-                              });
-
-                              return TextFieldTapRegion(
-                                child: TextFormField(
-                                  controller: textEditingController,
-                                  focusNode: focusNode,
-                                  decoration: InputDecoration(
-                                    labelText: 'Book',
-                                    hintText: 'Select a book',
-                                    border: UnderlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    filled: true,
-                                    fillColor: theme
-                                        .colorScheme
-                                        .surfaceContainerHighest,
-                                    contentPadding: const EdgeInsets.fromLTRB(
-                                      12,
-                                      10,
-                                      12,
-                                      6,
-                                    ),
-                                    suffixIcon: _selectedBook != null
-                                        ? IconButton(
-                                            icon: const Icon(Icons.clear),
-                                            onPressed: () {
-                                              textEditingController.clear();
-                                              setState(() {
-                                                _selectedBook = null;
-                                                _targetShelfId = null;
-                                              });
-                                              focusNode.requestFocus();
-                                            },
-                                          )
-                                        : const Icon(Icons.search),
-                                  ),
-                                  style: theme.textTheme.bodyLarge,
-                                  onChanged: (value) {
-                                    if (value.isEmpty) {
-                                      setState(() => _selectedBook = null);
-                                    }
-                                  },
-                                  onTap: () {
-                                    textEditingController
-                                        .selection = TextSelection.fromPosition(
-                                      TextPosition(
-                                        offset:
-                                            textEditingController.text.length,
-                                      ),
-                                    );
-                                  },
-                                  onTapOutside: (event) {
-                                    if (_selectedBook != null) {
-                                      textEditingController.text =
-                                          _selectedBook!['title'];
-                                    }
-                                  },
-                                ),
-                              );
-                            },
-                        onSelected: (option) {
-                          setState(() {
-                            _selectedBook = option;
-                            _targetShelfId = option['shelf_id'] as int?;
-                          });
-                          FocusManager.instance.primaryFocus?.unfocus();
-                        },
-                        optionsViewBuilder: (context, onSelected, options) {
-                          final double itemHeight = 52;
-                          final double maxHeight = 200;
-                          final double height = (options.length * itemHeight)
-                              .clamp(0, maxHeight);
-                          return TextFieldTapRegion(
-                            child: Align(
-                              alignment: Alignment.topLeft,
-                              child: Material(
-                                elevation: 4.0,
-                                child: ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    maxHeight: height,
-                                  ),
-                                  child: Scrollbar(
-                                    child: ListView.builder(
-                                      padding: EdgeInsets.zero,
-                                      itemCount: options.length,
-                                      itemBuilder:
-                                          (BuildContext context, int index) {
-                                            final option = options.elementAt(
-                                              index,
-                                            );
-                                            return InkWell(
-                                              onTap: () => onSelected(option),
-                                              child: Padding(
-                                                padding: const EdgeInsets.all(
-                                                  16.0,
-                                                ),
-                                                child: Text(
-                                                  option['title'],
-                                                  style:
-                                                      theme.textTheme.bodyLarge,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      if (_selectedBook != null &&
-                          (_selectedBook!['author'] as String?)?.isNotEmpty ==
-                              true) ...[
-                        const SizedBox(height: 4),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 12),
-                          child: Text(
-                            'by ${_selectedBook!['author']}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colors.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ] else ...[
-                      TextFormField(
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          labelText: 'Book',
-                          labelStyle: TextStyle(color: colors.onSurfaceVariant),
-                          border: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          filled: true,
-                          fillColor: theme.colorScheme.surfaceContainerHighest,
-                          contentPadding: const EdgeInsets.fromLTRB(
-                            12,
-                            10,
-                            12,
-                            6,
-                          ),
-                          suffixIcon: const Icon(Icons.lock, size: 20),
-                        ),
-                        controller: TextEditingController(
-                          text: widget.book!['title'],
-                        ),
-                      ),
-                      if ((widget.book!['author'] as String?)?.isNotEmpty ==
-                          true) ...[
-                        const SizedBox(height: 4),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 12),
-                          child: Text(
-                            'by ${widget.book!['author']}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colors.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                    _buildBookBanner(theme),
                     const SizedBox(height: 16),
 
-                    // Date Field
-                    TextFormField(
-                      readOnly: true,
-                      onTap: () => _showDatePicker(context),
-                      controller: TextEditingController(
-                        text: DateFormat('MMMM d, y').format(_sessionDate),
-                      ),
-                      decoration: InputDecoration(
-                        labelText: 'Date',
-                        hintText: 'Select date *',
-                        border: UnderlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                    // A session is stored as the moment it was read at, so the
+                    // time of day is editable alongside the date.
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: _buildTapField(
+                            theme,
+                            label: 'Date',
+                            value: DateFormat('MMM d, y').format(_sessionDate),
+                            icon: Icons.calendar_today,
+                            onTap: () => _showDatePicker(context),
+                          ),
                         ),
-                        filled: true,
-                        fillColor: theme.colorScheme.surfaceContainerHighest,
-                        contentPadding: const EdgeInsets.fromLTRB(
-                          12,
-                          10,
-                          12,
-                          6,
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 2,
+                          child: _buildTapField(
+                            theme,
+                            label: 'Time',
+                            value: TimeOfDay.fromDateTime(
+                              _sessionDate,
+                            ).format(context),
+                            icon: Icons.schedule,
+                            onTap: () => _showTimePicker(context),
+                          ),
                         ),
-                        suffixIcon: const Icon(Icons.calendar_today),
-                      ),
-                      onTapOutside: (event) {
-                        FocusManager.instance.primaryFocus?.unfocus();
-                      },
+                      ],
                     ),
                     const Divider(height: 48),
 
@@ -1123,17 +1182,15 @@ class _SessionFormPageState extends State<SessionFormPage> {
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: Opacity(
-                opacity: _selectedBook == null ? 0.4 : 1.0,
-                child: FilledButton(
-                  onPressed: _saveSession,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: accentColor,
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                  child: Text(
-                    widget.isEditing ? 'Update Session' : 'Save Session',
-                  ),
+              child: FilledButton(
+                onPressed: _selectedBook == null ? null : _saveSession,
+                style: FilledButton.styleFrom(
+                  backgroundColor: accentColor,
+                  disabledBackgroundColor: accentColor.withValues(alpha: 0.4),
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: Text(
+                  widget.isEditing ? 'Update Session' : 'Save Session',
                 ),
               ),
             ),
