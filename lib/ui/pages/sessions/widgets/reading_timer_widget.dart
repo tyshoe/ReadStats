@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import '/data/services/reading_timer_service.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
-import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import 'rate_book_dialog.dart';
 import '../post_session_page.dart';
 import '../fullscreen_timer_page.dart';
 import '/ui/widgets/book_picker_sheet.dart';
+import '../session_book_options.dart';
 import '/ui/widgets/book_cover.dart';
+import '/ui/widgets/book_selector_tile.dart';
 
 class ReadingTimerWidget extends StatefulWidget {
   final ReadingTimerService timerService;
@@ -90,22 +91,11 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
   }
 
   void _showBookPicker() async {
-    // Finished books are closed to new sessions, so they're not offered here.
-    final sorted = widget.books
-        .where((b) => DatabaseHelper.acceptsSessions(b['shelf_id'] as int?))
-        .toList();
-    sorted.sort((a, b) {
-      const order = {1: 0, 2: 1, 4: 2, 3: 3};
-      final sa = order[a['shelf_id'] as int? ?? 0] ?? 99;
-      final sb = order[b['shelf_id'] as int? ?? 0] ?? 99;
-      if (sa != sb) return sa.compareTo(sb);
-      return (a['title'] as String? ?? '').compareTo(b['title'] as String? ?? '');
-    });
-
     final result = await showBookPickerSheet(
       context: context,
-      books: sorted,
+      books: sessionBookOptions(widget.books),
       title: 'Select a book',
+      emptyMessage: 'Add a book to your library first',
     );
 
     if (result != null) setState(() => _selectedBook = result);
@@ -203,74 +193,17 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
   }
 
   Widget _buildIdleContent(ThemeData theme, Color accent) {
-    final book = _selectedBook;
-    final hasBook = book != null;
-    final hasCover = book?['cover_path'] != null;
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          InkWell(
+          BookSelectorTile(
+            book: _selectedBook,
+            placeholder: widget.books.isEmpty
+                ? 'Add a book first'
+                : 'Tap to choose...',
             onTap: widget.books.isEmpty ? null : _showBookPicker,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  if (hasCover) ...[
-                    BookCover(
-                      path: book!['cover_path'] as String,
-                      shape: book['cover_shape'] as int?,
-                      width: 42,
-                      borderRadius: 4,
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          book?['title'] ??
-                              (widget.books.isEmpty ? 'Add a book first' : 'Tap to choose...'),
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            fontWeight: hasBook ? FontWeight.w600 : FontWeight.normal,
-                            color: hasBook
-                                ? theme.colorScheme.onSurface
-                                : theme.colorScheme.onSurface.withAlpha(140),
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (hasBook && (book['author'] as String?)?.isNotEmpty == true) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            book['author'] as String,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withAlpha(140),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.unfold_more,
-                    size: 20,
-                    color: theme.colorScheme.onSurface.withAlpha(100),
-                  ),
-                ],
-              ),
-            ),
           ),
           const SizedBox(height: 10),
           FilledButton.icon(

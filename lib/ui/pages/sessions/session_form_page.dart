@@ -1,12 +1,10 @@
-import 'dart:io';
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import '../../widgets/app_snackbar.dart';
-import '../../widgets/book_cover.dart';
 import '../../widgets/book_picker_sheet.dart';
+import '../../widgets/book_selector_tile.dart';
+import 'session_book_options.dart';
 import 'package:intl/intl.dart';
 import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
@@ -163,21 +161,10 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
   }
 
-  void _resetInputs() {
-    setState(() {
-      _pagesController.clear();
-      _startPageController.clear();
-      _endPageController.clear();
-      _hoursController.clear();
-      _minutesController.clear();
-      _startHoursController.clear();
-      _startMinutesController.clear();
-      _endHoursController.clear();
-      _endMinutesController.clear();
-      _sessionDate = DateTime.now();
-      _targetShelfId = _selectedBook?['shelf_id'] as int?;
-    });
-  }
+  /// Audiobooks have no pages, so the form doesn't offer the field for them.
+  /// The save has to ask the same question: the controller keeps whatever was
+  /// typed for a previously selected paper book.
+  bool get _tracksPages => _selectedBook?['book_type_id'] != 4;
 
   /// Applies the "Move to shelf" choice, for both a new session and an edited
   /// one — the control is on screen either way, so it has to do the same thing
@@ -216,14 +203,20 @@ class _SessionFormPageState extends State<SessionFormPage> {
   void _saveSession() async {
     if (_selectedBook == null) return;
 
-    final int? pagesRead = int.tryParse(_pagesController.text);
+    final int? pagesRead = _tracksPages
+        ? int.tryParse(_pagesController.text)
+        : null;
     int? durationMinutes;
 
+    // Only a range the user can still see counts. Collapsing the calculator
+    // leaves its fields filled in, and reading them anyway would overwrite the
+    // hours and minutes typed afterwards with a number nothing on screen shows.
     final hasTimeRange =
-        _startHoursController.text.isNotEmpty ||
-        _startMinutesController.text.isNotEmpty ||
-        _endHoursController.text.isNotEmpty ||
-        _endMinutesController.text.isNotEmpty;
+        _showTimeRange &&
+        (_startHoursController.text.isNotEmpty ||
+            _startMinutesController.text.isNotEmpty ||
+            _endHoursController.text.isNotEmpty ||
+            _endMinutesController.text.isNotEmpty);
     if (hasTimeRange) {
       durationMinutes = _calculateDurationFromTimeRange();
       if (durationMinutes <= 0) return;
@@ -425,7 +418,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
   Future<void> _pickBook() async {
     final picked = await showBookPickerSheet(
       context: context,
-      books: widget.availableBooks,
+      // Not every caller hands over a filtered, sorted list — the timer's
+      // picker and this one should still open on the same books.
+      books: sessionBookOptions(widget.availableBooks),
       title: 'Select a book',
       emptyMessage: 'Add a book to your library first',
     );
@@ -438,166 +433,19 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
   }
 
-  /// The book this session belongs to, as a banner rather than a text field.
+  /// The book this session belongs to — the same control the reading timer
+  /// uses, so the two look and behave alike.
   ///
-  /// An editing session's book is fixed, so the banner is inert there; adding a
-  /// session, it opens the same library picker sheet used by the timer.
-  Widget _buildBookBanner(ThemeData theme) {
-    final book = widget.isEditing ? widget.book : _selectedBook;
-    final onTap = widget.isEditing ? null : _pickBook;
-
-    if (book == null) return _buildEmptyBookBanner(theme, onTap);
-
-    final coverPath = book['cover_path'] as String?;
-    final author = book['author'] as String?;
-    final hasCover = coverPath != null && coverPath.isNotEmpty;
-
-    final content = Row(
-      children: [
-        if (hasCover)
-          BookCover(
-            path: coverPath,
-            shape: book['cover_shape'] as int?,
-            width: 60,
-            borderRadius: 6,
-          )
-        else
-          _coverPlaceholder(theme),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                book['title'] as String? ?? '',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: hasCover ? Colors.white : null,
-                ),
-              ),
-              if (author?.isNotEmpty == true) ...[
-                const SizedBox(height: 3),
-                Text(
-                  author!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: hasCover
-                        ? Colors.white.withValues(alpha: 0.85)
-                        : theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        Icon(
-          widget.isEditing ? Icons.lock_outline : Icons.unfold_more,
-          size: 20,
-          color: hasCover
-              ? Colors.white.withValues(alpha: 0.8)
-              : theme.colorScheme.onSurfaceVariant,
-        ),
-      ],
-    );
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: Stack(
-        children: [
-          // The cover's own colours, blown up and blurred, stand in for a
-          // background image — the art is portrait, the banner is not.
-          if (hasCover)
-            Positioned.fill(
-              child: ImageFiltered(
-                imageFilter: ui.ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-                child: Image.file(
-                  File(coverPath),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                ),
-              ),
-            ),
-          if (hasCover)
-            // Covers are any colour at all, so the text sits on a scrim rather
-            // than on the art itself.
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.7),
-                      Colors.black.withValues(alpha: 0.45),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          Material(
-            color: hasCover
-                ? Colors.transparent
-                : theme.colorScheme.surfaceContainerHighest,
-            child: InkWell(
-              onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: content,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyBookBanner(ThemeData theme, VoidCallback? onTap) {
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              _coverPlaceholder(theme),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  'Choose a book',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              Icon(Icons.search, color: theme.colorScheme.onSurfaceVariant),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _coverPlaceholder(ThemeData theme) {
-    return Container(
-      width: 60,
-      height: 60 / DatabaseHelper.coverAspectRatio(null),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Icon(
-        Icons.menu_book_rounded,
-        size: 24,
-        color: theme.colorScheme.outline,
-      ),
+  /// An editing session's book is fixed, so the tile is inert there; adding a
+  /// session, it opens the same picker sheet the timer opens.
+  Widget _buildBookBanner() {
+    return BookSelectorTile(
+      book: _selectedBook,
+      placeholder: widget.availableBooks.isEmpty
+          ? 'Add a book first'
+          : 'Tap to choose...',
+      onTap: widget.isEditing ? null : _pickBook,
+      trailingIcon: widget.isEditing ? Icons.lock_outline : Icons.unfold_more,
     );
   }
 
@@ -679,7 +527,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildBookBanner(theme),
+                    _buildBookBanner(),
                     const SizedBox(height: 16),
 
                     // A session is stored as the moment it was read at, so the
@@ -713,9 +561,171 @@ class _SessionFormPageState extends State<SessionFormPage> {
                     ),
                     const Divider(height: 48),
 
-                    if (_selectedBook?['book_type_id'] != 4)
+                    // Duration Field
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _hoursController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            onChanged: (_) => setState(() {}),
+                            onTapOutside: (_) =>
+                                FocusManager.instance.primaryFocus?.unfocus(),
+                            decoration: InputDecoration(
+                              labelText: 'Hours',
+                              filled: true,
+                              fillColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              border: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                6,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _minutesController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            onChanged: (v) {
+                              final val = int.tryParse(v);
+                              if (val != null && val > 59)
+                                _minutesController.text = '59';
+                              setState(() {});
+                            },
+                            onTapOutside: (_) =>
+                                FocusManager.instance.primaryFocus?.unfocus(),
+                            decoration: InputDecoration(
+                              labelText: 'Minutes',
+                              filled: true,
+                              fillColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              border: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                6,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: theme.colorScheme.outlineVariant.withAlpha(
+                            120,
+                          ),
+                        ),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InkWell(
+                            onTap: () => setState(
+                              () => _showTimeRange = !_showTimeRange,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'calculate duration — not saved',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                AnimatedRotation(
+                                  turns: _showTimeRange ? 0.5 : 0,
+                                  duration: const Duration(milliseconds: 200),
+                                  child: Icon(
+                                    Icons.expand_more,
+                                    size: 16,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeInOut,
+                            child: _showTimeRange
+                                ? Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 8),
+                                      _buildTimeRow(
+                                        'Start Time',
+                                        _startHoursController,
+                                        _startMinutesController,
+                                        theme,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _buildTimeRow(
+                                        'End Time',
+                                        _endHoursController,
+                                        _endMinutesController,
+                                        theme,
+                                      ),
+                                      if (_timeRangeError != null) ...[
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          _timeRangeError!,
+                                          style: theme.textTheme.labelSmall?.copyWith(
+                                            color: theme.colorScheme.error,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    if (_tracksPages)
                       Column(
                         children: [
+                          const SizedBox(height: 24),
                           TextField(
                             controller: _pagesController,
                             decoration: InputDecoration(
@@ -885,170 +895,8 @@ class _SessionFormPageState extends State<SessionFormPage> {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 24),
                         ],
                       ),
-
-                    // Duration Field
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _hoursController,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            onChanged: (_) => setState(() {}),
-                            onTapOutside: (_) =>
-                                FocusManager.instance.primaryFocus?.unfocus(),
-                            decoration: InputDecoration(
-                              labelText: 'Hours',
-                              filled: true,
-                              fillColor:
-                                  theme.colorScheme.surfaceContainerHighest,
-                              border: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.fromLTRB(
-                                12,
-                                10,
-                                12,
-                                6,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _minutesController,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            onChanged: (v) {
-                              final val = int.tryParse(v);
-                              if (val != null && val > 59)
-                                _minutesController.text = '59';
-                              setState(() {});
-                            },
-                            onTapOutside: (_) =>
-                                FocusManager.instance.primaryFocus?.unfocus(),
-                            decoration: InputDecoration(
-                              labelText: 'Minutes',
-                              filled: true,
-                              fillColor:
-                                  theme.colorScheme.surfaceContainerHighest,
-                              border: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.fromLTRB(
-                                12,
-                                10,
-                                12,
-                                6,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: theme.colorScheme.outlineVariant.withAlpha(
-                            120,
-                          ),
-                        ),
-                      ),
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          InkWell(
-                            onTap: () => setState(
-                              () => _showTimeRange = !_showTimeRange,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Row(
-                              children: [
-                                Text(
-                                  'calculate duration — not saved',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                AnimatedRotation(
-                                  turns: _showTimeRange ? 0.5 : 0,
-                                  duration: const Duration(milliseconds: 200),
-                                  child: Icon(
-                                    Icons.expand_more,
-                                    size: 16,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          AnimatedSize(
-                            duration: const Duration(milliseconds: 200),
-                            curve: Curves.easeInOut,
-                            child: _showTimeRange
-                                ? Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 8),
-                                      _buildTimeRow(
-                                        'Start Time',
-                                        _startHoursController,
-                                        _startMinutesController,
-                                        theme,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      _buildTimeRow(
-                                        'End Time',
-                                        _endHoursController,
-                                        _endMinutesController,
-                                        theme,
-                                      ),
-                                      if (_timeRangeError != null) ...[
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          _timeRangeError!,
-                                          style: theme.textTheme.labelSmall?.copyWith(
-                                            color: theme.colorScheme.error,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                        ],
-                      ),
-                    ),
 
                     const SizedBox(height: 24),
                     Text('Move to shelf', style: textTheme.bodyMedium),

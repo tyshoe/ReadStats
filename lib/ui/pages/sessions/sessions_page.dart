@@ -12,6 +12,7 @@ import '/data/database/database_helper.dart';
 import 'widgets/session_calendar.dart';
 import 'widgets/goals_tab.dart';
 import 'widgets/reading_timer_widget.dart';
+import 'session_book_options.dart';
 
 class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -85,29 +86,6 @@ class _SessionsPageState extends State<SessionsPage>
     _tabController.dispose();
     widget.settingsViewModel.defaultDateFormatNotifier.removeListener(_formatListener);
     super.dispose();
-  }
-
-  static const _shelfOrder = {
-    1: 0, // Currently Reading
-    2: 1, // Want to Read
-    4: 2, // Unfinished
-    3: 3, // Finished
-  };
-
-  List<Map<String, dynamic>> _sortedAvailableBooks() {
-    // Finished books are closed to new sessions, so they're not offered here.
-    final sorted = widget.books
-        .where((b) => DatabaseHelper.acceptsSessions(b['shelf_id'] as int?))
-        .toList();
-    sorted.sort((a, b) {
-      final shelfA = _shelfOrder[a['shelf_id'] as int? ?? 0] ?? 99;
-      final shelfB = _shelfOrder[b['shelf_id'] as int? ?? 0] ?? 99;
-      if (shelfA != shelfB) return shelfA.compareTo(shelfB);
-      final titleA = (a['title'] as String? ?? '').toLowerCase();
-      final titleB = (b['title'] as String? ?? '').toLowerCase();
-      return titleA.compareTo(titleB);
-    });
-    return sorted;
   }
 
   void _initializeBookMap() {
@@ -201,7 +179,7 @@ class _SessionsPageState extends State<SessionsPage>
       context,
       MaterialPageRoute(
         builder: (context) => SessionFormPage(
-          availableBooks: _sortedAvailableBooks(),
+          availableBooks: sessionBookOptions(widget.books),
           // A guess, not a commitment — the banner is still tappable.
           book: _lastUsedBook(),
           onSave: () {

@@ -18,6 +18,7 @@ import '../../sessions/widgets/rate_book_dialog.dart';
 import '../book_form_page.dart';
 import '/data/database/database_helper.dart';
 import '/ui/widgets/book_cover.dart';
+import '/ui/widgets/book_type.dart';
 import 'book_share_card.dart';
 import 'book_sessions_content.dart';
 import 'bulk_tag_sheet.dart';
@@ -1417,15 +1418,7 @@ class BookPopup {
     return "$percentage% ($timeString)";
   }
 
-  static (IconData, String) _bookTypeDetails(int? id) {
-    return switch (id) {
-      1 => (Icons.book_outlined, 'Paperback'),
-      2 => (Icons.book, 'Hardback'),
-      3 => (Icons.computer, 'eBook'),
-      4 => (Icons.headset, 'Audiobook'),
-      _ => (Icons.book, 'Paperback'),
-    };
-  }
+  static (IconData, String) _bookTypeDetails(int? id) => bookTypeDetails(id);
 
   static String _formatTime(int totalMinutes) {
     final days = totalMinutes ~/ (24 * 60);

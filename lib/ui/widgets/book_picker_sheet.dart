@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '/ui/widgets/book_cover.dart';
+import '/ui/widgets/book_type.dart';
 
 /// Shows a bottom sheet for picking a book from a list.
 ///
@@ -209,6 +210,11 @@ class _BookPickerSheetState extends State<_BookPickerSheet> {
                       itemBuilder: (_, i) {
                         final book = _filtered[i];
                         final coverPath = book['cover_path'] as String?;
+                        final author = book['author'] as String?;
+                        // Two copies of one title — paperback and audiobook —
+                        // are identical rows without this.
+                        final (typeIcon, typeLabel) =
+                            bookTypeDetails(book['book_type_id'] as int?);
                         return ListTile(
                           leading: coverPath != null
                               ? BookCover(
@@ -223,13 +229,31 @@ class _BookPickerSheetState extends State<_BookPickerSheet> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          subtitle: (book['author'] as String?)?.isNotEmpty == true
+                          subtitle: author?.isNotEmpty == true
                               ? Text(
-                                  'by ${book['author']}',
+                                  'by $author',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 )
                               : null,
+                          trailing: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                typeIcon,
+                                size: 16,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                typeLabel,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
                           onTap: () => _onTap(book),
                         );
                       },
