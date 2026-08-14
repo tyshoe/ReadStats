@@ -260,8 +260,6 @@ class _BookFormPageState extends State<BookFormPage> {
       }
     }
 
-    const finishedShelfId = DatabaseHelper.shelfFinished;
-
     final bookData = {
       if (widget.isEditing && widget.book!['id'] != null)
         "id": widget.book!['id'],
@@ -274,9 +272,11 @@ class _BookFormPageState extends State<BookFormPage> {
       "shelf_id": _shelfId,
       "book_type_id": _selectedBookType + 1,
       "date_started": _dateStarted?.toIso8601String(),
-      "date_finished": _shelfId == finishedShelfId
-          ? (_dateFinished ?? DateTime.now()).toIso8601String()
-          : _dateFinished?.toIso8601String(),
+      // Only ever what the reader entered. Shelving a book as Finished used to
+      // stamp today's date when the field was empty, which guessed at a date
+      // the reader may not know and made clearing the field impossible — it
+      // came back as today on the next save.
+      "date_finished": _dateFinished?.toIso8601String(),
       "date_added": widget.isEditing
           ? widget.book!['date_added']
           : DateTime.now().toIso8601String(),
