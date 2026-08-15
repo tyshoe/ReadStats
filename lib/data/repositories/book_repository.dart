@@ -98,6 +98,19 @@ class BookRepository {
     }
   }
 
+  /// Writes just the reading dates named in [dates] (`date_started` and/or
+  /// `date_finished`, ISO strings or null to clear).
+  ///
+  /// Keys left out are untouched, so a caller holding a stale copy of the book
+  /// can't overwrite a date it never showed the reader.
+  Future<void> updateReadingDates(
+    int bookId,
+    Map<String, String?> dates,
+  ) async {
+    if (dates.isEmpty) return;
+    await _databaseHelper.updateBookPartial(bookId, dates);
+  }
+
   Future<bool> doesBookExist(String title, String author, {int? excludeId}) async {
     final books = await _databaseHelper.getBooksByTitleAndAuthor(title, author);
     if (excludeId != null) {

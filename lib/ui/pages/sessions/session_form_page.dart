@@ -56,6 +56,16 @@ class _SessionFormPageState extends State<SessionFormPage> {
   String? _timeRangeError;
   Map<String, dynamic>? _selectedBook;
 
+  // The book's own reading dates, shown here because this is where they get
+  // set. They used to be written invisibly, inferred from a shelf move.
+  DateTime? _dateStarted;
+  DateTime? _dateFinished;
+
+  /// Which of the two the user actually changed. Only those are written back,
+  /// so a stale book map can't overwrite a date this form never displayed.
+  bool _startEdited = false;
+  bool _finishEdited = false;
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +87,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
       // Without this the shelf selector renders with nothing highlighted, as
       // though the book were on no shelf at all.
       _targetShelfId = widget.book?['shelf_id'] as int?;
+      _loadReadingDates();
     } else {
       _pagesController.text = '';
       _startPageController.text = '';
@@ -89,8 +100,20 @@ class _SessionFormPageState extends State<SessionFormPage> {
           orElse: () => widget.book!,
         );
         _targetShelfId = _selectedBook!['shelf_id'] as int?;
+        _loadReadingDates();
       }
     }
+  }
+
+  /// Reads the selected book's dates into the fields, dropping any edits that
+  /// were meant for a different book.
+  void _loadReadingDates() {
+    DateTime? parse(Object? value) =>
+        value is String ? DateTime.tryParse(value) : null;
+    _dateStarted = parse(_selectedBook?['date_started']);
+    _dateFinished = parse(_selectedBook?['date_finished']);
+    _startEdited = false;
+    _finishEdited = false;
   }
 
   @override
@@ -170,34 +193,35 @@ class _SessionFormPageState extends State<SessionFormPage> {
   /// one — the control is on screen either way, so it has to do the same thing
   /// either way. Returns true when the book was moved to Finished.
   ///
-  /// Everything is gated on the shelf actually changing: the selector starts on
-  /// the book's current shelf, so acting on the target alone would rewrite
-  /// date_finished every time an already-finished book's session was saved.
+  /// The shelf no longer decides the book's dates. It used to infer them from
+  /// the transition it saw, which meant writing a date nothing on screen showed
+  /// — and re-writing it on every later save. The dates are their own fields
+  /// now; the shelf only offers to fill an empty one.
   Future<bool> _applyShelfSelection() async {
     final originalShelfId = _selectedBook!['shelf_id'] as int?;
     final moved = _targetShelfId != null && _targetShelfId != originalShelfId;
     if (!moved) return false;
-
-    final isFirstSession =
-        _targetShelfId == DatabaseHelper.shelfCurrentlyReading &&
-        originalShelfId == DatabaseHelper.shelfWantToRead;
-    final isFinalSession = _targetShelfId == DatabaseHelper.shelfFinished;
-
-    if (isFirstSession || isFinalSession) {
-      await widget.bookRepository.updateBookDates(
-        _selectedBook!['id'],
-        isFirstSession: isFirstSession,
-        isFinalSession: isFinalSession,
-        sessionDate: _sessionDate,
-      );
-    }
 
     await widget.bookRepository.updateBookShelf(
       _selectedBook!['id'],
       _targetShelfId!,
     );
 
-    return isFinalSession;
+    return _targetShelfId == DatabaseHelper.shelfFinished;
+  }
+
+  /// Writes back only the dates the user touched — an untouched field is left
+  /// alone rather than rewritten from this page's copy of the book.
+  Future<void> _applyReadingDates() async {
+    final dates = <String, String?>{
+      if (_startEdited) 'date_started': _dateStarted?.toIso8601String(),
+      if (_finishEdited) 'date_finished': _dateFinished?.toIso8601String(),
+    };
+    if (dates.isEmpty) return;
+    await widget.bookRepository.updateReadingDates(
+      _selectedBook!['id'],
+      dates,
+    );
   }
 
   void _saveSession() async {
@@ -245,6 +269,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
       if (widget.isEditing) {
         await widget.sessionRepository.updateSession(session);
         await _applyShelfSelection();
+        await _applyReadingDates();
         widget.onSave();
         AppSnackbar.show('Session updated successfully!');
         if (mounted) Navigator.pop(context);
@@ -252,6 +277,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
         await widget.sessionRepository.addSession(session);
 
         final isFinalSession = await _applyShelfSelection();
+        await _applyReadingDates();
 
         AppSnackbar.show('Session added successfully!');
 
@@ -415,6 +441,89 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
   }
 
+  /// One of the book's own dates. Bounded by each other and by today: a book
+  /// can't be finished before it was started, or on a day that hasn't come.
+  Future<void> _showReadingDatePicker(BuildContext context, bool isStart) async {
+    final today = DateTime.now();
+    final current = isStart ? _dateStarted : _dateFinished;
+    final date = await showDatePicker(
+      context: context,
+      initialDate: current ?? _sessionDate,
+      firstDate: isStart ? DateTime(1900) : _dateStarted ?? DateTime(1900),
+      lastDate: DateTime(today.year, today.month, today.day),
+    );
+    if (date == null) return;
+
+    setState(() {
+      if (isStart) {
+        _dateStarted = date;
+        _startEdited = true;
+        // A finish date that now precedes the start is no longer true of this
+        // book, so it goes rather than being left to contradict.
+        if (_dateFinished != null && _dateFinished!.isBefore(date)) {
+          _dateFinished = null;
+          _finishEdited = true;
+        }
+      } else {
+        _dateFinished = date;
+        _finishEdited = true;
+      }
+    });
+  }
+
+  void _clearReadingDate(bool isStart) {
+    setState(() {
+      if (isStart) {
+        _dateStarted = null;
+        _startEdited = true;
+      } else {
+        _dateFinished = null;
+        _finishEdited = true;
+      }
+    });
+  }
+
+  /// The shelf still knows something about the dates — it just fills the
+  /// fields now instead of writing behind them.
+  ///
+  /// Finished fills an empty date with this session's; an existing one is the
+  /// reader's and stays. Every other shelf says the book isn't finished, so the
+  /// finish date goes — including when Finished was tapped by mistake a moment
+  /// earlier, which would otherwise leave the date it filled in behind.
+  void _selectShelf(int shelfId) {
+    setState(() {
+      _targetShelfId = shelfId;
+      final day = DateTime(
+        _sessionDate.year,
+        _sessionDate.month,
+        _sessionDate.day,
+      );
+
+      if (shelfId == DatabaseHelper.shelfFinished) {
+        if (_dateStarted == null) {
+          _dateStarted = day;
+          _startEdited = true;
+        }
+        if (_dateFinished == null) {
+          _dateFinished = day;
+          _finishEdited = true;
+        }
+        return;
+      }
+
+      if (_dateFinished != null) {
+        _dateFinished = null;
+        _finishEdited = true;
+      }
+
+      if (shelfId == DatabaseHelper.shelfCurrentlyReading &&
+          _dateStarted == null) {
+        _dateStarted = day;
+        _startEdited = true;
+      }
+    });
+  }
+
   Future<void> _pickBook() async {
     final picked = await showBookPickerSheet(
       context: context,
@@ -429,6 +538,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
       setState(() {
         _selectedBook = picked;
         _targetShelfId = picked['shelf_id'] as int?;
+        _loadReadingDates();
       });
     }
   }
@@ -457,6 +567,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
     required String value,
     required IconData icon,
     required VoidCallback onTap,
+    VoidCallback? onClear,
   }) {
     return Material(
       color: theme.colorScheme.surfaceContainerHighest,
@@ -490,7 +601,24 @@ class _SessionFormPageState extends State<SessionFormPage> {
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
+              if (onClear != null)
+                // Sized to the icon it replaces, so a date appearing or being
+                // cleared doesn't change the field's height.
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    iconSize: 18,
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.clear),
+                    color: theme.colorScheme.onSurfaceVariant,
+                    onPressed: onClear,
+                  ),
+                )
+              else
+                Icon(icon, size: 20, color: theme.colorScheme.onSurfaceVariant),
             ],
           ),
         ),
@@ -932,8 +1060,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                           ])
                             Expanded(
                               child: GestureDetector(
-                                onTap: () =>
-                                    setState(() => _targetShelfId = shelf.id),
+                                onTap: () => _selectShelf(shelf.id),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 10,
@@ -978,6 +1105,47 @@ class _SessionFormPageState extends State<SessionFormPage> {
                             ),
                         ],
                       ),
+                    ),
+
+                    // The book's dates, not the session's — the shelf above
+                    // fills them in when they're empty, and they stay editable
+                    // either way.
+                    const SizedBox(height: 16),
+                    Text("This book's reading dates",
+                        style: textTheme.bodyMedium),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildTapField(
+                            theme,
+                            label: 'Started',
+                            value: _dateStarted == null
+                                ? 'Not set'
+                                : DateFormat('MMM d, y').format(_dateStarted!),
+                            icon: Icons.calendar_today,
+                            onTap: () => _showReadingDatePicker(context, true),
+                            onClear: _dateStarted == null
+                                ? null
+                                : () => _clearReadingDate(true),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildTapField(
+                            theme,
+                            label: 'Finished',
+                            value: _dateFinished == null
+                                ? 'Not set'
+                                : DateFormat('MMM d, y').format(_dateFinished!),
+                            icon: Icons.event_available,
+                            onTap: () => _showReadingDatePicker(context, false),
+                            onClear: _dateFinished == null
+                                ? null
+                                : () => _clearReadingDate(false),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 24),
                     TextField(
