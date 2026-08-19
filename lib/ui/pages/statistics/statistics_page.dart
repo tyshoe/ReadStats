@@ -8,7 +8,10 @@ import 'package:read_stats/ui/pages/statistics/widgets/stacked_bar_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/top_authors_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/rating_summary.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stat_card.dart';
+import 'package:read_stats/ui/pages/statistics/monthly_recap_page.dart';
 import '../../../data/models/book.dart';
+import '/data/models/monthly_recap.dart';
+import '/data/services/recap_store.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/repositories/tag_repository.dart';
@@ -64,11 +67,20 @@ class StatisticsPage extends StatefulWidget {
   final SessionRepository sessionRepository;
   final SettingsViewModel settingsViewModel;
 
+  /// The app-level lists, passed through to the monthly recap. It works from
+  /// these rather than the repositories so a month can be recomputed instantly
+  /// as the reader flicks back through the history — and because their cover
+  /// paths have already been resolved.
+  final List<Map<String, dynamic>> books;
+  final List<Map<String, dynamic>> sessions;
+
   const StatisticsPage({
     super.key,
     required this.bookRepository,
     required this.sessionRepository,
     required this.settingsViewModel,
+    required this.books,
+    required this.sessions,
   });
 
   @override
@@ -714,6 +726,148 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
   }
 
+  /// The way into the recap, at the head of the stats.
+  ///
+  /// It was a text button in the app bar, which is why it needed a dot and a
+  /// notification to be found at all — a 40pt toolbar is where actions on the
+  /// current screen live, not where a different screen gets announced. As a row
+  /// with the month's own numbers in it, it says what it is worth opening for.
+  ///
+  /// Always present, so the reader can reach the history from a quiet month;
+  /// what changes is whether it leads with last month or with the invitation.
+  Widget _buildRecapCard(ThemeData theme) {
+    return ValueListenableBuilder<int>(
+      valueListenable: RecapStore.instance.lastSeenMonth,
+      builder: (context, lastSeen, _) {
+        final recap = _recapForLastMonth();
+        final hasMonth = !recap.isEmpty;
+        final unseen = hasMonth && recap.key > lastSeen;
+        final accent = theme.colorScheme.primary;
+
+        return Card(
+          margin: EdgeInsets.zero,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: InkWell(
+            onTap: _openRecap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.auto_awesome, size: 19, color: accent),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                hasMonth
+                                    ? '${recap.monthLabel} recap'
+                                    : 'Monthly recap',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            if (unseen) ...[
+                              const SizedBox(width: 8),
+                              _NewPill(color: accent),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          hasMonth
+                              ? _recapTeaser(recap)
+                              : 'Look back at any month of reading',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 22,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Enough of the month to be worth a tap, in the order the recap ranks them.
+  static String _recapTeaser(MonthlyRecap recap) {
+    final parts = <String>[
+      if (recap.minutes > 0) MonthlyRecap.formatMinutes(recap.minutes),
+      if (recap.booksFinishedCount > 0)
+        '${recap.booksFinishedCount} '
+            '${recap.booksFinishedCount == 1 ? 'book' : 'books'}',
+      if (recap.pages > 0) '${recap.pages} pages',
+      if (recap.sessions > 0) '${recap.sessions} sessions',
+    ];
+    return parts.take(3).join('  ·  ');
+  }
+
+  // Last month's recap, cached against the lists it was worked out from. The
+  // page calls setState while scrolling, and building it means a pass over
+  // every session — not something to do on each scroll tick.
+  List<Map<String, dynamic>>? _recapBooks;
+  List<Map<String, dynamic>>? _recapSessions;
+  MonthlyRecap? _lastMonthRecap;
+
+  MonthlyRecap _recapForLastMonth() {
+    final cached = _lastMonthRecap;
+    if (cached != null &&
+        identical(_recapBooks, widget.books) &&
+        identical(_recapSessions, widget.sessions)) {
+      return cached;
+    }
+    _recapBooks = widget.books;
+    _recapSessions = widget.sessions;
+    final month = MonthlyRecap.previousMonthOf(DateTime.now());
+    return _lastMonthRecap = MonthlyRecap.forMonth(
+      books: widget.books,
+      sessions: widget.sessions,
+      year: month.year,
+      month: month.month,
+    );
+  }
+
+  void _openRecap() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MonthlyRecapPage(
+          books: widget.books,
+          sessions: widget.sessions,
+        ),
+      ),
+    );
+  }
+
   double _statsDividerOpacity = 0;
 
   // Fade a hairline in under the pinned year-filter row once the stats content
@@ -811,6 +965,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: _spaced([
+                  _buildRecapCard(theme),
                   _buildSectionHeader('Overview'),
                   _buildShelfChart(),
                   _buildBookTypeChart(),
@@ -882,6 +1037,34 @@ class _StatisticsPageState extends State<StatisticsPage> {
           ),
         ],
       ),
+      ),
+    );
+  }
+}
+
+/// Marks last month's recap as unopened. The notification announcing it is easy
+/// to miss and can be switched off, so the page has to be able to say so too.
+class _NewPill extends StatelessWidget {
+  final Color color;
+
+  const _NewPill({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        'New',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onPrimary,
+              fontWeight: FontWeight.w700,
+              fontSize: 10,
+              height: 1.2,
+            ),
       ),
     );
   }

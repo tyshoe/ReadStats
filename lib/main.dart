@@ -15,7 +15,10 @@ import 'data/services/rating_service.dart';
 import 'data/services/milestone_service.dart';
 import 'data/services/notification_prefs_store.dart';
 import 'data/services/notification_service.dart';
+import 'data/services/recap_store.dart';
+import 'data/models/monthly_recap.dart';
 import 'ui/pages/profile/milestone_celebration_page.dart';
+import 'ui/pages/statistics/monthly_recap_page.dart';
 import 'ui/pages/profile/reading_stats.dart';
 import 'ui/pages/library/library_page.dart';
 import 'ui/pages/onboarding/onboarding_page.dart';
@@ -63,6 +66,8 @@ void main() async {
   // update, a force stop, or a timezone change, and none of those tell the app
   // to fix things up — rescheduling at launch covers all of them.
   await NotificationPrefsStore.instance.load();
+  // Which monthly recap has already been read, for the mark on the Stats tab.
+  await RecapStore.instance.load();
   NotificationService.instance.configure(goalRepository: goalRepository);
   await NotificationService.instance.init();
   // Arms the reminders that need no data. The ones that quote live numbers
@@ -176,6 +181,11 @@ class _MyAppState extends State<MyApp> {
     // stay — they're awaited where a caller needs the fresh list immediately.
     DatabaseHelper.booksChanged.addListener(_scheduleBooksReload);
     DatabaseHelper.sessionsChanged.addListener(_scheduleSessionsReload);
+    // A tapped recap notification should land on the recap itself. The tap may
+    // already have happened — a cold start records it before this widget
+    // exists — so the pending value is checked as well as listened to.
+    NotificationService.instance.tappedPayload
+        .addListener(_handleNotificationTap);
     // Warm the Profile goals and Statistics caches at launch so they are ready
     // before those tabs are ever opened, instead of popping in after
     // navigation.
@@ -279,7 +289,37 @@ class _MyAppState extends State<MyApp> {
   void dispose() {
     DatabaseHelper.booksChanged.removeListener(_scheduleBooksReload);
     DatabaseHelper.sessionsChanged.removeListener(_scheduleSessionsReload);
+    NotificationService.instance.tappedPayload
+        .removeListener(_handleNotificationTap);
     super.dispose();
+  }
+
+  /// Open the month a tapped recap notification was announcing.
+  ///
+  /// Does nothing until both lists are in: the recap is computed from them, and
+  /// opening early would show an empty month and then leave it empty. The tap
+  /// is left pending instead, and every load calls back here.
+  void _handleNotificationTap() {
+    if (NotificationService.instance.tappedPayload.value !=
+        NotificationService.monthlyRecapPayload) {
+      return;
+    }
+    if (!_booksLoaded || !_sessionsLoaded || !_hasSeenOnboarding) return;
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
+
+    // Cleared first, so a rebuild or a second load can't push a second copy.
+    NotificationService.instance.tappedPayload.value = null;
+    final month = MonthlyRecap.previousMonthOf(DateTime.now());
+    navigator.push(
+      MaterialPageRoute(
+        builder: (_) => MonthlyRecapPage(
+          books: _books,
+          sessions: _sessions,
+          initialMonth: month,
+        ),
+      ),
+    );
   }
 
   bool _booksReloadQueued = false;
@@ -397,6 +437,7 @@ class _MyAppState extends State<MyApp> {
     _booksLoaded = true;
     _checkMilestones();
     _syncNotificationData();
+    _handleNotificationTap();
     if (kDebugMode) print('Books: $_books');
   }
 
@@ -414,6 +455,7 @@ class _MyAppState extends State<MyApp> {
     _sessionsLoaded = true;
     _checkMilestones();
     _syncNotificationData();
+    _handleNotificationTap();
   }
 
   Future<void> _refreshBooks() async => await _loadBooks();
@@ -632,6 +674,8 @@ class _NavigationMenuState extends State<NavigationMenu> {
           bookRepository: widget.bookRepository,
           sessionRepository: widget.sessionRepository,
           settingsViewModel: widget.settingsViewModel,
+          books: widget.books,
+          sessions: widget.sessions,
         );
       case 3:
       default:

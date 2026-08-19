@@ -270,6 +270,8 @@ class _ReminderTileState extends State<_ReminderTile> {
   ) {
     final time =
         TimeOfDay(hour: pref.hour, minute: pref.minute).format(context);
+    // Fixed to the 1st, so the date leads and the time follows it.
+    if (type.usesMonthlySchedule) return '1st of the month · $time';
     // The day count is what actually decides whether — and for the streak,
     // when — this one fires, so it leads; the time only says what hour.
     if (!type.usesWeekdaySchedule) {
@@ -335,7 +337,7 @@ class _ScheduleEditor extends StatelessWidget {
           // The day count comes first for the types that have one: it decides
           // whether — and for the streak, when — the reminder fires at all,
           // where the time below only says what hour it arrives.
-          if (!type.usesWeekdaySchedule)
+          if (type.thresholdOptions.isNotEmpty)
             ListTile(
               dense: true,
               leading: Icon(Icons.hourglass_bottom, size: 20,
@@ -371,6 +373,14 @@ class _ScheduleEditor extends StatelessWidget {
             leading: Icon(Icons.schedule, size: 20,
                 color: colors.onSurfaceVariant),
             title: const Text('Time'),
+            // The date isn't the reader's to choose here, so it is stated
+            // rather than left to be inferred from an editor with one control.
+            subtitle: type.usesMonthlySchedule
+                ? Text(
+                    'Arrives on the 1st, covering the month just gone',
+                    style: TextStyle(color: colors.onSurfaceVariant),
+                  )
+                : null,
             trailing: Text(
               TimeOfDay(hour: pref.hour, minute: pref.minute).format(context),
               style: theme.textTheme.bodyMedium,

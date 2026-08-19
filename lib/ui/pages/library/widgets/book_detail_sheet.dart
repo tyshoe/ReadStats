@@ -19,6 +19,7 @@ import '../book_form_page.dart';
 import '/data/database/database_helper.dart';
 import '/ui/widgets/book_cover.dart';
 import '/ui/widgets/book_type.dart';
+import '/ui/widgets/share_action.dart';
 import 'book_share_card.dart';
 import 'book_sessions_content.dart';
 import 'bulk_tag_sheet.dart';
@@ -1300,7 +1301,7 @@ class BookPopup {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _ShareAction(
+                      ShareAction(
                         icon: FluentIcons.arrow_download_16_filled,
                         label: 'Save',
                         theme: theme,
@@ -1323,7 +1324,7 @@ class BookPopup {
                           }
                         },
                       ),
-                      _ShareAction(
+                      ShareAction(
                         icon: FluentIcons.share_16_filled,
                         label: 'Share',
                         theme: theme,
@@ -1531,75 +1532,6 @@ enum _ShareCardTheme { light, dark, transparent }
 
 const double _kCheckerSquareSize = 22;
 const double _kCardHeight = 370;
-
-class _ShareAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final ThemeData theme;
-  final VoidCallback? onTap;
-  final bool isLoading;
-  final bool isSuccess;
-
-  const _ShareAction({
-    required this.icon,
-    required this.label,
-    required this.theme,
-    required this.onTap,
-    this.isLoading = false,
-    this.isSuccess = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: isSuccess
-                ? const Color(0xFF34C759)
-                : theme.colorScheme.surfaceContainerHighest,
-            shape: BoxShape.circle,
-          ),
-          child: isLoading
-              ? Center(
-                  child: SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                )
-              : isSuccess
-                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 28)
-                  : IconButton(
-                      icon: Icon(icon, size: 26),
-                      color: onTap != null
-                          ? theme.colorScheme.onSurface
-                          : theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                      onPressed: onTap,
-                    ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          isSuccess ? 'Saved!' : label,
-          style: TextStyle(
-            fontSize: 12,
-            color: isSuccess
-                ? const Color(0xFF34C759)
-                : onTap != null
-                    ? theme.colorScheme.onSurfaceVariant
-                    : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _ThemeCircle extends StatelessWidget {
   final bool selected;

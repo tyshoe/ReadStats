@@ -9,6 +9,7 @@ import '/data/repositories/book_repository.dart';
 import '/data/repositories/goal_repository.dart';
 import '/data/services/reading_timer_service.dart';
 import '/data/database/database_helper.dart';
+import '/ui/widgets/month_picker_popup.dart';
 import 'widgets/session_calendar.dart';
 import 'widgets/goals_tab.dart';
 import 'widgets/reading_timer_widget.dart';
@@ -252,176 +253,22 @@ class _SessionsPageState extends State<SessionsPage>
     });
   }
 
+
   Future<void> _pickMonth() async {
     final now = DateTime.now();
     final currentMonth = DateTime(now.year, now.month);
-    final firstMonth = _firstSessionMonth ?? currentMonth;
-
-    final box =
-        _monthLabelKey.currentContext?.findRenderObject() as RenderBox?;
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox?;
-    if (box == null || overlay == null) return;
-
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    const popupWidth = 300.0;
-
-    final labelTopLeft = box.localToGlobal(Offset.zero, ancestor: overlay);
-    final left = (labelTopLeft.dx + box.size.width / 2 - popupWidth / 2)
-        .clamp(8.0, overlay.size.width - popupWidth - 8.0);
-    final top = labelTopLeft.dy + box.size.height + 6;
-
-    int displayYear = _selectedMonth.year;
-
-    await showGeneralDialog<void>(
+    final picked = await showMonthPickerPopup(
       context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Dismiss',
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 160),
-      pageBuilder: (dialogCtx, anim, _) {
-        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
-        return Stack(
-          children: [
-            Positioned(
-              left: left,
-              top: top,
-              width: popupWidth,
-              child: FadeTransition(
-                opacity: anim,
-                child: ScaleTransition(
-                  scale: Tween<double>(begin: 0.9, end: 1.0).animate(curved),
-                  alignment: Alignment.center,
-                  child: Material(
-                    color: cs.surfaceContainerHigh,
-                    elevation: 12,
-                    shadowColor: Colors.black.withValues(alpha: 0.35),
-                    surfaceTintColor: Colors.transparent,
-                    clipBehavior: Clip.antiAlias,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(color: cs.outlineVariant),
-                    ),
-                    child: StatefulBuilder(
-                      builder: (ctx, setMenuState) {
-                        bool inRange(int month) {
-                          final m = DateTime(displayYear, month);
-                          return !m.isBefore(firstMonth) &&
-                              !m.isAfter(currentMonth);
-                        }
-
-                        Widget monthCell(int month) {
-                          final enabled = inRange(month);
-                          final selected = displayYear == _selectedMonth.year &&
-                              month == _selectedMonth.month;
-                          return Material(
-                            color: selected
-                                ? cs.primaryContainer
-                                : cs.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(10),
-                            clipBehavior: Clip.antiAlias,
-                            child: InkWell(
-                              onTap: (!enabled || selected)
-                                  ? null
-                                  : () {
-                                      Navigator.pop(dialogCtx);
-                                      setState(() {
-                                        final picked =
-                                            DateTime(displayYear, month);
-                                        _monthStepDirection =
-                                            picked.isAfter(_selectedMonth)
-                                                ? 1
-                                                : -1;
-                                        _selectedMonth = picked;
-                                      });
-                                    },
-                              child: Center(
-                                child: Text(
-                                  DateFormat('MMM')
-                                      .format(DateTime(displayYear, month)),
-                                  style: TextStyle(
-                                    fontWeight: selected
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                    color: !enabled
-                                        ? cs.onSurface.withValues(alpha: 0.3)
-                                        : selected
-                                            ? cs.onPrimaryContainer
-                                            : cs.onSurface,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }
-
-                        return Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.chevron_left),
-                                    onPressed: displayYear > firstMonth.year
-                                        ? () =>
-                                            setMenuState(() => displayYear--)
-                                        : null,
-                                    color: cs.onSurface,
-                                    disabledColor: cs.onSurface.withAlpha(40),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      '$displayYear',
-                                      textAlign: TextAlign.center,
-                                      style: theme.textTheme.titleMedium
-                                          ?.copyWith(
-                                              fontWeight: FontWeight.w700),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.chevron_right),
-                                    onPressed: displayYear < currentMonth.year
-                                        ? () =>
-                                            setMenuState(() => displayYear++)
-                                        : null,
-                                    color: cs.onSurface,
-                                    disabledColor: cs.onSurface.withAlpha(40),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              GridView.count(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                // Without this, GridView falls back to
-                                // MediaQuery.padding for its vertical insets and
-                                // pads itself with the status bar and home
-                                // indicator heights inside the dialog.
-                                padding: EdgeInsets.zero,
-                                crossAxisCount: 3,
-                                mainAxisSpacing: 8,
-                                crossAxisSpacing: 8,
-                                childAspectRatio: 2.0,
-                                children: [
-                                  for (int mo = 1; mo <= 12; mo++) monthCell(mo),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+      anchorKey: _monthLabelKey,
+      selected: _selectedMonth,
+      firstMonth: _firstSessionMonth ?? currentMonth,
+      lastMonth: currentMonth,
     );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _monthStepDirection = picked.isAfter(_selectedMonth) ? 1 : -1;
+      _selectedMonth = picked;
+    });
   }
 
   Widget _buildMonthNavigator() {

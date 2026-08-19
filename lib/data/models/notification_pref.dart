@@ -36,6 +36,14 @@ enum NotificationType {
     id: 'stale_book',
     label: 'Forgotten book',
     description: "When a book you're reading goes untouched",
+  ),
+
+  /// The month just gone, summarised. Fires on the 1st, so the only thing left
+  /// to configure is what time of day it arrives.
+  monthlyRecap(
+    id: 'monthly_recap',
+    label: 'Monthly recap',
+    description: 'When last month\'s recap is ready',
   );
 
   const NotificationType({
@@ -52,13 +60,18 @@ enum NotificationType {
   /// that explains itself doesn't need a second line repeating it.
   final String? description;
 
-  /// True when the schedule is a time plus a set of weekdays. The other two
-  /// don't hang off the calendar — [streakAtRisk] fires relative to the end of
-  /// the reader's week and [staleBook] relative to a book's last session — so
-  /// both are configured with a day count instead.
+  /// True when the schedule is a time plus a set of weekdays. The others don't
+  /// hang off the week — [streakAtRisk] fires relative to the end of the
+  /// reader's week and [staleBook] relative to a book's last session, so both
+  /// are configured with a day count, and [monthlyRecap] lands on a fixed day
+  /// of the month with nothing to choose but the time.
   bool get usesWeekdaySchedule =>
       this == NotificationType.dailyReminder ||
       this == NotificationType.goalCheckIn;
+
+  /// Fires once a month, on the 1st. The date is fixed — a recap that arrived
+  /// mid-month would be summarising a month the reader is still living in.
+  bool get usesMonthlySchedule => this == NotificationType.monthlyRecap;
 
   /// Label for the day-count control, on the types that have one.
   String get thresholdLabel => switch (this) {
@@ -216,6 +229,18 @@ class NotificationPref {
             minute: 0,
             weekdays: kAllWeekdays,
             thresholdDays: 7,
+          ),
+        // On by default, and the only opted-out-of one that is. A recap is the
+        // point of the feature rather than a nudge on top of it: it arrives at
+        // most once a month, says nothing at all when the month was empty, and
+        // a reader who never hears the first one would never know the recap
+        // exists. Morning on the 1st, while the month just gone still feels
+        // recent.
+        NotificationType.monthlyRecap => NotificationPref(
+            enabled: true,
+            hour: 9,
+            minute: 0,
+            weekdays: kAllWeekdays,
           ),
       };
 

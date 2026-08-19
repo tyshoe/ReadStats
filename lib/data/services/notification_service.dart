@@ -10,6 +10,7 @@ import 'package:timezone/timezone.dart' as tz;
 import '/ui/pages/profile/reading_stats.dart';
 import '../database/database_helper.dart';
 import '../models/goal.dart';
+import '../models/monthly_recap.dart';
 import '../models/notification_pref.dart';
 import '../repositories/goal_repository.dart';
 import 'notification_prefs_store.dart';
@@ -38,6 +39,7 @@ class NotificationService {
     NotificationType.goalCheckIn,
     NotificationType.streakAtRisk,
     NotificationType.staleBook,
+    NotificationType.monthlyRecap,
   };
 
   /// Android refuses to raise the importance of a channel that already exists —
@@ -59,10 +61,23 @@ class NotificationService {
   static const _goalCheckInId = 200;
   static const _streakAtRiskId = 300;
   static const _staleBookId = 400;
+  static const _monthlyRecapId = 500;
 
   /// Goals beyond this many are summarised as a count. Android's expanded
   /// notification has room for a handful of lines, not a full list.
   static const _maxGoalLines = 4;
+
+  /// Payload carried by the monthly recap, so a tap can open the month it is
+  /// announcing rather than dropping the reader on whichever tab they left.
+  static const monthlyRecapPayload = 'monthly_recap';
+
+  /// The payload of a notification the reader tapped, waiting to be acted on.
+  ///
+  /// A [ValueNotifier] rather than a callback because the tap can land before
+  /// there is a navigator to use — tapping from a cold start is handled by the
+  /// launch details read in [init], long before the first frame. The app shell
+  /// listens, navigates, and sets this back to null.
+  final ValueNotifier<String?> tappedPayload = ValueNotifier(null);
 
   bool _initialized = false;
 
@@ -131,7 +146,16 @@ class NotificationService {
             requestSoundPermission: false,
           ),
         ),
+        onDidReceiveNotificationResponse: (response) =>
+            tappedPayload.value = response.payload,
       );
+
+      // A tap that started the app never reaches the callback above — the app
+      // wasn't running to receive it — so the launch is inspected directly.
+      final launch = await _plugin.getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp ?? false) {
+        tappedPayload.value = launch?.notificationResponse?.payload;
+      }
 
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
@@ -285,6 +309,7 @@ class NotificationService {
     await _scheduleGoalCheckIn(store.of(NotificationType.goalCheckIn));
     await _scheduleStreakAtRisk(store.of(NotificationType.streakAtRisk));
     await _scheduleStaleBook(store.of(NotificationType.staleBook));
+    await _scheduleMonthlyRecap(store.of(NotificationType.monthlyRecap));
   }
 
   Future<void> cancelAll() async {
@@ -577,6 +602,75 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
     await store.setSentAt(NotificationType.staleBook, scheduledDate);
+  }
+
+  /// "Your July recap is ready", on the 1st of the month.
+  ///
+  /// Silent when the month just gone had no reading in it — a recap of nothing
+  /// is worse than no recap, and the reader who read nothing is the last person
+  /// who needs telling.
+  ///
+  /// Shares the caveat of the other data-driven reminders: the numbers are
+  /// worked out when the occurrence is armed, not when it fires. Every session
+  /// logged and every book finished triggers a reschedule, so the text keeps up
+  /// with the month as it fills; only reading that never touches the app —
+  /// which is to say none of it — could leave the figures behind.
+  Future<void> _scheduleMonthlyRecap(NotificationPref pref) async {
+    await _plugin.cancel(id: _monthlyRecapId);
+    if (!pref.isActiveFor(NotificationType.monthlyRecap)) return;
+
+    final scheduledDate = _nextMonthStart(pref.hour, pref.minute);
+    // The recap covers the month that ends the day before it is announced.
+    final covered = MonthlyRecap.previousMonthOf(scheduledDate);
+    final recap = MonthlyRecap.forMonth(
+      books: _books!,
+      sessions: _sessions!,
+      year: covered.year,
+      month: covered.month,
+    );
+    if (recap.isEmpty) return;
+
+    final parts = <String>[];
+    if (recap.minutes > 0) {
+      parts.add(MonthlyRecap.formatMinutes(recap.minutes));
+    }
+    if (recap.sessions > 0) {
+      parts.add('${recap.sessions} '
+          '${recap.sessions == 1 ? 'session' : 'sessions'}');
+    }
+    if (recap.booksFinishedCount > 0) {
+      parts.add('${recap.booksFinishedCount} '
+          '${recap.booksFinishedCount == 1 ? 'book' : 'books'} finished');
+    }
+    final body = '${parts.join('  ·  ')}. Tap to see your month.';
+
+    await _plugin.zonedSchedule(
+      id: _monthlyRecapId,
+      title: 'Your ${recap.monthNameOnly} recap is ready',
+      body: body,
+      scheduledDate: scheduledDate,
+      notificationDetails: _details(body),
+      payload: monthlyRecapPayload,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+    );
+  }
+
+  /// The next 1st of a month at [hour]:[minute], in the device's zone.
+  ///
+  /// Today counts when it is the 1st and the time has yet to come round, so
+  /// opening the app early on the 1st doesn't push that morning's recap a month
+  /// out. Once the time has passed the answer moves to next month, which is
+  /// also what stops a reschedule from re-arming an occurrence that has already
+  /// been delivered.
+  static tz.TZDateTime _nextMonthStart(int hour, int minute) {
+    final now = tz.TZDateTime.now(tz.local);
+    if (now.day == 1) {
+      final today = tz.TZDateTime(tz.local, now.year, now.month, 1, hour, minute);
+      if (today.isAfter(now)) return today;
+    }
+    // Month overflow is normalised by the constructor, so December needs no
+    // special handling.
+    return tz.TZDateTime(tz.local, now.year, now.month + 1, 1, hour, minute);
   }
 
   /// [body] is repeated as big-text style so Android shows the whole line when
