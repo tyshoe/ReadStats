@@ -88,7 +88,7 @@ class BookSelectorTile extends StatelessWidget {
                     ],
                     if (book != null) ...[
                       const SizedBox(height: 6),
-                      _typeBadge(theme, book['book_type_id'] as int?),
+                      BookTypeBadge(bookTypeId: book['book_type_id'] as int?),
                     ],
                   ],
                 ),
@@ -106,29 +106,5 @@ class BookSelectorTile extends StatelessWidget {
     );
   }
 
-  Widget _typeBadge(ThemeData theme, int? bookTypeId) {
-    final (icon, label) = bookTypeDetails(bookTypeId);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(7, 2, 8, 2),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '/ui/widgets/book_cover.dart';
+import '/ui/widgets/book_type.dart';
 
 class BookRow extends StatelessWidget {
   final Map<String, dynamic> book;
@@ -91,12 +92,30 @@ class BookRow extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      book['author'],
-                      style:
-                          theme.textTheme.bodyMedium?.copyWith(color: mutedColor),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    // The format rides the author's line rather than taking one
+                    // of its own, so telling a paperback from an audiobook
+                    // costs the list no height. Two copies of the same title
+                    // are otherwise identical rows.
+                    //
+                    // [Expanded], as the title above uses, so the badge holds
+                    // the right edge under the pin and the heart instead of
+                    // trailing the author's name to wherever it happens to end.
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            book['author'],
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(color: mutedColor),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        BookTypeBadge(
+                          bookTypeId: book['book_type_id'] as int?,
+                        ),
+                      ],
                     ),
                     if (hasRating) ...[
                       const SizedBox(height: 8),
