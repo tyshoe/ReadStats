@@ -115,16 +115,6 @@ class _NotificationsPageState extends State<NotificationsPage>
                   onToggle: (value) => _setEnabled(type, value),
                   onChanged: (pref) => _save(type, pref),
                 ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                child: Text(
-                  'Reminders are scheduled on this device and never synced or '
-                  'sent anywhere. Android batches them to save battery, so one '
-                  'can arrive up to an hour after the set time.',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: colors.onSurfaceVariant),
-                ),
-              ),
             ],
           );
         },
