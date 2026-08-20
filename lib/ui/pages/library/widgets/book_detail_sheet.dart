@@ -5,7 +5,6 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:path_provider/path_provider.dart';
@@ -17,6 +16,7 @@ import '../../../../viewmodels/SettingsViewModel.dart';
 import '../../sessions/widgets/rate_book_dialog.dart';
 import '../book_form_page.dart';
 import '/data/database/database_helper.dart';
+import '/data/services/gallery_save_service.dart';
 import '/ui/widgets/book_cover.dart';
 import '/ui/widgets/book_type.dart';
 import '/ui/widgets/share_action.dart';
@@ -989,18 +989,13 @@ class BookPopup {
     }
 
     Future<bool> saveImage(GlobalKey key) async {
-      try {
-        final imageBytes = await captureKey(key);
-        if (imageBytes == null) return false;
-        final result = await ImageGallerySaverPlus.saveImage(
-          imageBytes,
-          quality: 100,
-          name: 'book_share_${book['id']}_${DateTime.now().millisecondsSinceEpoch}',
-        );
-        return result['isSuccess'] == true;
-      } catch (e) {
-        return false;
-      }
+      final imageBytes = await captureKey(key);
+      if (imageBytes == null) return false;
+      return saveImageToGallery(
+        imageBytes,
+        name: 'book_share_${book['id']}_'
+            '${DateTime.now().millisecondsSinceEpoch}',
+      );
     }
 
     Future<bool> shareImage(GlobalKey key) async {

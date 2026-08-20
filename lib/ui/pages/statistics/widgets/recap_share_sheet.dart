@@ -6,12 +6,12 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import '/data/models/monthly_recap.dart';
+import '/data/services/gallery_save_service.dart';
 import '/ui/pages/library/widgets/book_share_card.dart' show CheckerboardBackground;
 import '/ui/widgets/share_action.dart';
 import 'recap_share_card.dart';
@@ -57,12 +57,10 @@ Future<void> showRecapShareSheet({
     try {
       final bytes = await captureKey(key);
       if (bytes == null) return false;
-      final result = await ImageGallerySaverPlus.saveImage(
+      return saveImageToGallery(
         bytes,
-        quality: 100,
         name: 'recap_${recap.key}_${DateTime.now().millisecondsSinceEpoch}',
       );
-      return result['isSuccess'] == true;
     } catch (e) {
       return false;
     }
