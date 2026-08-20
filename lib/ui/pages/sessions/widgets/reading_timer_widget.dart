@@ -75,7 +75,9 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
     if (bookId != null && _selectedBook?['id'] != bookId) {
       final match = widget.books.where((b) => b['id'] == bookId).firstOrNull;
       if (match != null) setState(() => _selectedBook = match);
-    } else if (bookId == null && _selectedBook == null && widget.defaultBook != null) {
+    } else if (bookId == null &&
+        _selectedBook == null &&
+        widget.defaultBook != null) {
       setState(() => _selectedBook = widget.defaultBook);
     }
   }
@@ -104,6 +106,18 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
   void _handleSessionSaved() {
     setState(() => _selectedBook = null);
     widget.onSessionSaved();
+  }
+
+  // Starting is a mode switch from browsing the app to reading, so it hands
+  // straight over to the immersive timer — which is also where the sleep timer
+  // is set. Only ever on an explicit tap: a session restored on launch leaves
+  // the reader wherever they meant to go.
+  void _handleStart() {
+    final book = _selectedBook;
+    if (book == null) return;
+
+    widget.timerService.start(book['id']);
+    _openFullscreen();
   }
 
   void _openFullscreen() async {
@@ -209,18 +223,77 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
           FilledButton.icon(
             onPressed: (_selectedBook == null || widget.books.isEmpty)
                 ? null
-                : () => widget.timerService.start(_selectedBook!['id']),
+                : _handleStart,
             icon: const Icon(Icons.play_arrow, size: 20),
             label: const Text('Start Reading'),
             style: FilledButton.styleFrom(
               backgroundColor: accent,
               disabledBackgroundColor: accent.withAlpha(80),
               minimumSize: const Size.fromHeight(48),
-              textStyle: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              textStyle: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // A countdown is set full screen, but it has to be *visible* here too:
+  // someone who minimized mid-session shouldn't be surprised by a pause they
+  // were never warned about. Read-only on purpose — the picker stays in one
+  // place rather than being mirrored into two.
+  //
+  // It stays up while the session is paused rather than vanishing: the
+  // countdown is measured against elapsed time, so it holds where it is
+  // instead of draining in the background, and saying so is the point.
+  Widget? _buildCountdownStatus(ThemeData theme, Color accent, bool isRunning) {
+    final service = widget.timerService;
+    final remaining = service.remaining;
+
+    final IconData icon;
+    final String label;
+    var timeUp = false;
+
+    if (!isRunning && service.pausedBySleep) {
+      // The countdown clears itself as it fires, so the mode is no longer on
+      // the service to read — this branch is what remembers it was a sleep.
+      icon = Icons.bedtime;
+      label = 'Paused by the sleep timer';
+    } else if (remaining == null) {
+      return null;
+    } else if (service.countdownEnd == CountdownEnd.pause) {
+      icon = Icons.bedtime;
+      final left = _formatElapsed(remaining);
+      label = isRunning ? 'Sleeps in $left' : 'Sleeps in $left · paused';
+    } else if (remaining.inMilliseconds <= 0) {
+      icon = Icons.hourglass_bottom;
+      label = "Time's up · +${_formatElapsed(-remaining)}";
+      timeUp = true;
+    } else {
+      icon = Icons.hourglass_top;
+      final left = _formatElapsed(remaining);
+      label = isRunning ? '$left left' : '$left left · paused';
+    }
+
+    // Everything here is quiet status except a chime that has come due, which
+    // is the one line asking the reader to do something.
+    final color = timeUp ? accent : theme.colorScheme.onSurface.withAlpha(140);
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: color,
+              fontWeight: timeUp ? FontWeight.w600 : null,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -229,57 +302,72 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
     final book = _selectedBook;
     final isRunning = state == TimerState.running;
     final coverPath = book?['cover_path'] as String?;
+    final countdownStatus = _buildCountdownStatus(theme, accent, isRunning);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       child: Column(
         children: [
+          // The expand button pins to the top right of the card while the
+          // cover and clock stay centred against each other, so it reads as
+          // card chrome rather than as part of the row it sits in.
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (coverPath != null)
-                BookCover(
-                  path: coverPath,
-                  shape: book?['cover_shape'] as int?,
-                  width: 72,
-                ),
-              if (coverPath != null) const SizedBox(width: 16),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        _formatElapsed(elapsed),
-                        style: theme.textTheme.displayMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          fontFeatures: [const FontFeature.tabularFigures()],
-                          color: theme.colorScheme.onSurface,
-                          letterSpacing: 1,
-                        ),
+                    if (coverPath != null)
+                      BookCover(
+                        path: coverPath,
+                        shape: book?['cover_shape'] as int?,
+                        width: 72,
+                      ),
+                    if (coverPath != null) const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              _formatElapsed(elapsed),
+                              style: theme.textTheme.displayMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                fontFeatures: [
+                                  const FontFeature.tabularFigures(),
+                                ],
+                                color: theme.colorScheme.onSurface,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            book?['title'] ?? '',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: theme.colorScheme.onSurface.withAlpha(160),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if ((book?['author'] as String?)?.isNotEmpty == true)
+                            Text(
+                              book!['author'] as String,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurface.withAlpha(
+                                  100,
+                                ),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      book?['title'] ?? '',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: theme.colorScheme.onSurface.withAlpha(160),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if ((book?['author'] as String?)?.isNotEmpty == true)
-                      Text(
-                        book!['author'] as String,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withAlpha(100),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
                   ],
                 ),
               ),
@@ -292,6 +380,10 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
               ),
             ],
           ),
+          if (countdownStatus != null) ...[
+            const SizedBox(height: 12),
+            countdownStatus,
+          ],
           const SizedBox(height: 14),
           if (isRunning)
             SizedBox(
@@ -303,7 +395,9 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
                 style: FilledButton.styleFrom(
                   backgroundColor: accent,
                   minimumSize: const Size.fromHeight(52),
-                  textStyle: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                  textStyle: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             )
@@ -319,7 +413,9 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
                     style: FilledButton.styleFrom(
                       backgroundColor: accent,
                       minimumSize: const Size.fromHeight(52),
-                      textStyle: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                      textStyle: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -332,8 +428,12 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
                     label: const Text('Finish'),
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(52),
-                      side: BorderSide(color: theme.colorScheme.outline.withAlpha(80)),
-                      textStyle: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                      side: BorderSide(
+                        color: theme.colorScheme.outline.withAlpha(80),
+                      ),
+                      textStyle: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -344,4 +444,3 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
     );
   }
 }
-

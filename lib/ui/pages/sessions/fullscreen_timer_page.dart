@@ -79,7 +79,9 @@ class _FullscreenTimerPageState extends State<FullscreenTimerPage>
     final isRunning = widget.timerService.state == TimerState.running;
     _syncPulse(isRunning);
     _syncSleep(isRunning);
-    if (_isOvertime && !_alertedTimeUp) _handleTimeUp();
+    if ((_isOvertime || widget.timerService.pausedBySleep) && !_alertedTimeUp) {
+      _handleTimeUp();
+    }
   }
 
   // The page opens bright and only sleeps once the user has settled into
@@ -104,9 +106,10 @@ class _FullscreenTimerPageState extends State<FullscreenTimerPage>
   }
 
   void _wake() {
-    if (widget.timerService.state != TimerState.running) return;
     if (_asleep) setState(() => _asleep = false);
-    _scheduleSleep();
+    // Only a running session settles back down on its own; a paused one stays
+    // lit, since the reader is being asked what to do next.
+    if (widget.timerService.state == TimerState.running) _scheduleSleep();
   }
 
   bool get _isOvertime {
@@ -115,8 +118,9 @@ class _FullscreenTimerPageState extends State<FullscreenTimerPage>
   }
 
   // Countdown finished: wake the screen, buzz and chime, and let the countdown
-  // chip carry the message. The session keeps running — nothing is lost if the
-  // user is deep in a chapter and ignores it.
+  // chip carry the message. Under `chime` the session keeps running, so nothing
+  // is lost if the user is deep in a chapter and ignores it; under `pause` the
+  // service has already stopped the clock and this is just the announcement.
   void _handleTimeUp() {
     if (_alertedTimeUp) return;
     _alertedTimeUp = true;
@@ -167,12 +171,16 @@ class _FullscreenTimerPageState extends State<FullscreenTimerPage>
     final picked = await showCountdownSheet(
       context: context,
       current: widget.timerService.countdown,
+      currentEnd: widget.timerService.countdownEnd,
       accent: widget.settingsViewModel.accentColorNotifier.value,
     );
     if (picked == null || !mounted) return;
 
     _alertedTimeUp = false;
-    widget.timerService.startCountdown(picked == Duration.zero ? null : picked);
+    widget.timerService.startCountdown(
+      picked.duration == Duration.zero ? null : picked.duration,
+      end: picked.end,
+    );
     if (widget.timerService.state == TimerState.running) _scheduleSleep();
   }
 
@@ -504,6 +512,7 @@ class _FullscreenTimerPageState extends State<FullscreenTimerPage>
             offset: const Offset(0, -90),
             child: _CountdownChip(
               remaining: remaining,
+              end: service.countdownEnd,
               timeUp: timeUp,
               accent: accent,
               onTap: _openCountdownSheet,
@@ -514,7 +523,11 @@ class _FullscreenTimerPageState extends State<FullscreenTimerPage>
         Center(
           child: Transform.translate(
             offset: const Offset(0, 88),
-            child: _StatusPill(isRunning: isRunning, accent: accent),
+            child: _StatusPill(
+              isRunning: isRunning,
+              pausedBySleep: service.pausedBySleep,
+              accent: accent,
+            ),
           ),
         ),
       ],
@@ -593,6 +606,7 @@ String _formatClock(Duration d) {
 /// It doubles as its own control — tap to set or change it, ✕ to stop it.
 class _CountdownChip extends StatelessWidget {
   final Duration? remaining;
+  final CountdownEnd end;
   final bool timeUp;
   final Color accent;
   final VoidCallback onTap;
@@ -600,6 +614,7 @@ class _CountdownChip extends StatelessWidget {
 
   const _CountdownChip({
     required this.remaining,
+    required this.end,
     required this.timeUp,
     required this.accent,
     required this.onTap,
@@ -612,11 +627,17 @@ class _CountdownChip extends StatelessWidget {
     final cs = theme.colorScheme;
     final left = remaining;
 
+    final isSleep = end == CountdownEnd.pause;
+
     final String label;
     if (left == null) {
-      label = 'Set a countdown';
+      // Named for the mode it now opens on, and the one worth advertising —
+      // a chime countdown is one tap further in.
+      label = 'Sleep timer';
     } else if (timeUp) {
       label = "Time's up · +${_formatClock(-left)}";
+    } else if (isSleep) {
+      label = 'Sleeps in ${_formatClock(left)}';
     } else {
       label = '${_formatClock(left)} left';
     }
@@ -639,7 +660,7 @@ class _CountdownChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                left == null ? Icons.hourglass_empty : Icons.hourglass_top,
+                left == null || isSleep ? Icons.bedtime : Icons.hourglass_top,
                 size: 18,
                 color: foreground,
               ),
@@ -677,9 +698,14 @@ class _CountdownChip extends StatelessWidget {
 /// the accent color and a neutral surface tone.
 class _StatusPill extends StatelessWidget {
   final bool isRunning;
+  final bool pausedBySleep;
   final Color accent;
 
-  const _StatusPill({required this.isRunning, required this.accent});
+  const _StatusPill({
+    required this.isRunning,
+    required this.pausedBySleep,
+    required this.accent,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -715,7 +741,13 @@ class _StatusPill extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: isRunning ? accent : muted,
             ),
-            child: Text(isRunning ? 'Reading' : 'Paused'),
+            child: Text(
+              isRunning
+                  ? 'Reading'
+                  : pausedBySleep
+                      ? 'Sleep timer ended'
+                      : 'Paused',
+            ),
           ),
         ],
       ),
