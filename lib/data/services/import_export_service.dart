@@ -117,7 +117,7 @@ class ImportExportService {
         'is_complete', 'is_favorite', 'book_type_id', 'date_added',
         'date_started', 'date_finished', 'isbn', 'user_review',
         'duration_minutes', 'shelf_id', 'cover_path', 'open_library_key',
-        'cover_shape',
+        'cover_shape', 'narrator',
       ],
       ...books.map((b) => [
         b.id.toString(),
@@ -143,6 +143,7 @@ class ImportExportService {
         // Appended last so older exports, which stop at open_library_key, still
         // line up column-for-column on import.
         b.coverShape.toString(),
+        b.narrator ?? '',
       ]),
     ];
   }
@@ -625,6 +626,7 @@ class ImportExportService {
               ? int.tryParse(row[18].toString()) ??
                   DatabaseHelper.coverShapePortrait
               : DatabaseHelper.coverShapePortrait,
+          narrator: row.length > 19 ? _nullableString(row[19]) : null,
         ));
       } catch (e) {
         if (kDebugMode) print('Skipping book row: $e');

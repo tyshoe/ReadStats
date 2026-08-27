@@ -71,6 +71,7 @@ class _BookFormPageState extends State<BookFormPage> {
       TextEditingController();
   final TextEditingController _durationMinutesController =
       TextEditingController();
+  final TextEditingController _narratorController = TextEditingController();
   final DateTime _dateToday = DateTime.now();
   double? _rating;
   bool _isFavorite = false;
@@ -131,6 +132,7 @@ class _BookFormPageState extends State<BookFormPage> {
       _shelfId = (d['shelf_id'] as int?) ?? DatabaseHelper.shelfWantToRead;
       _isFavorite = d['is_favorite'] == 1;
       _selectedBookType = ((d['book_type_id'] as int?) ?? 1) - 1;
+      _narratorController.text = d['narrator'] ?? _narratorController.text;
       _selectedTagIds = {...?widget.initialTagIds};
     }
 
@@ -153,6 +155,7 @@ class _BookFormPageState extends State<BookFormPage> {
         _durationHoursController.text = (editDuration ~/ 60).toString();
         _durationMinutesController.text = (editDuration % 60).toString();
       }
+      _narratorController.text = widget.book!['narrator'] ?? '';
       _isbnController.text = widget.book!['isbn'] ?? '';
       _userReviewController.text = widget.book!['user_review'] ?? '';
       _dateStarted = widget.book!['date_started'] != null
@@ -194,6 +197,7 @@ class _BookFormPageState extends State<BookFormPage> {
     _userReviewController.dispose();
     _durationHoursController.dispose();
     _durationMinutesController.dispose();
+    _narratorController.dispose();
     super.dispose();
   }
 
@@ -290,6 +294,12 @@ class _BookFormPageState extends State<BookFormPage> {
         final total = h * 60 + m;
         return total > 0 ? total : null;
       }(),
+      // Written whatever the format. The field is only shown for audiobooks,
+      // but a narrator already entered survives a switch to another format —
+      // switching back shouldn't mean typing the name again.
+      "narrator": _narratorController.text.trim().isEmpty
+          ? null
+          : _narratorController.text.trim(),
       "user_review": _userReviewController.text.trim().isEmpty
           ? null
           : _userReviewController.text.trim(),
@@ -426,6 +436,7 @@ class _BookFormPageState extends State<BookFormPage> {
     _pageCountController.clear();
     _isbnController.clear();
     _userReviewController.clear();
+    _narratorController.clear();
     setState(() {
       _rating = 0;
       _isFavorite = false;
@@ -1315,8 +1326,42 @@ class _BookFormPageState extends State<BookFormPage> {
                       const SizedBox(height: 16),
                     ],
 
-                    // Duration — shown only for audiobooks
+                    // Narrator and duration — shown only for audiobooks
                     if (isAudiobook) ...[
+                      TextField(
+                        controller: _narratorController,
+                        textCapitalization: TextCapitalization.words,
+                        onChanged: (_) => setState(() {}),
+                        onTapOutside: (_) =>
+                            FocusManager.instance.primaryFocus?.unfocus(),
+                        decoration: InputDecoration(
+                          labelText: 'Narrator',
+                          // Plural because full-cast recordings are common —
+                          // the field takes a comma-separated list.
+                          hintText: 'Enter narrator(s)',
+                          filled: true,
+                          fillColor: theme.colorScheme.surfaceContainerHighest,
+                          border: UnderlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: UnderlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.fromLTRB(
+                            12,
+                            10,
+                            12,
+                            6,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       Row(
                         children: [
                           Expanded(

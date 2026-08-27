@@ -90,6 +90,12 @@ class BookPopup {
       durationString = hours > 0 ? '${hours}h ${mins}m' : '${mins}m';
     }
 
+    // Only for audiobooks: a narrator kept from a previous format isn't part
+    // of how a paperback reads.
+    final String narratorString = isAudiobook
+        ? (book['narrator'] as String? ?? '').trim()
+        : '';
+
     final (bookTypeIcon, bookTypeString) = _bookTypeDetails(book['book_type_id'] as int?);
 
     final statsKey = GlobalKey();
@@ -264,6 +270,20 @@ class BookPopup {
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                         ),
+                                        if (narratorString != '') ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            "Narrated by $narratorString",
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: book['cover_path'] != null
+                                                  ? Colors.white.withValues(alpha: 0.7)
+                                                  : subtitleColor,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
                                         const SizedBox(height: 8),
                                         Row(
                                           children: [
@@ -1450,6 +1470,7 @@ class BookPopup {
             'word_count': book['word_count'],
             'page_count': book['page_count'],
             'book_type_id': book['book_type_id'],
+            'narrator': book['narrator'],
             'rating': null,
             'is_favorite': 0,
             'date_started': null,

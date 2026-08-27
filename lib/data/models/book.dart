@@ -22,6 +22,9 @@ class Book {
   /// How the cover is framed — see DatabaseHelper.coverShapePortrait/Square.
   int coverShape;
   String? openLibraryKey;
+  /// Who reads the audiobook. Null for every other format, and kept rather
+  /// than cleared if the format changes, so a mistapped format loses nothing.
+  String? narrator;
   // Denormalized from JOIN — populated when loaded from DB, not written back
   final String? shelfName;
 
@@ -45,6 +48,7 @@ class Book {
     this.coverPath,
     this.coverShape = DatabaseHelper.coverShapePortrait,
     this.openLibraryKey,
+    this.narrator,
     this.shelfName,
   });
 
@@ -70,6 +74,7 @@ class Book {
       'cover_path': coverPath,
       'cover_shape': coverShape,
       'open_library_key': openLibraryKey,
+      'narrator': narrator,
       // tags stored separately in book_tags
     };
   }
@@ -95,6 +100,7 @@ class Book {
       coverShape:
           (map['cover_shape'] as int?) ?? DatabaseHelper.coverShapePortrait,
       openLibraryKey: map['open_library_key'] as String?,
+      narrator: map['narrator'] as String?,
       shelfName: map['shelf_name'] as String?,
     );
   }

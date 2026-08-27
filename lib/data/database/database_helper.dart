@@ -14,7 +14,7 @@ class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
-  static const int _databaseVersion = 7;
+  static const int _databaseVersion = 8;
 
   // System shelf IDs — stable because shelves are seeded in a fixed order
   // and only exist from v2 onwards (v1 had no shelves).
@@ -137,6 +137,7 @@ class DatabaseHelper {
         cover_path TEXT,
         cover_shape INTEGER NOT NULL DEFAULT 0,
         open_library_key TEXT,
+        narrator TEXT,
         FOREIGN KEY(book_type_id) REFERENCES book_types(id),
         FOREIGN KEY(shelf_id) REFERENCES shelves(id)
       )
@@ -393,6 +394,11 @@ class DatabaseHelper {
       await db.execute(
         'ALTER TABLE books ADD COLUMN cover_shape INTEGER NOT NULL DEFAULT 0',
       );
+    }
+
+    if (oldVersion < 8) {
+      // Audiobooks only — nothing to backfill, every existing row starts null.
+      await db.execute('ALTER TABLE books ADD COLUMN narrator TEXT');
     }
 
   }
