@@ -161,6 +161,11 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
             // arrived rather than reaching for the chevrons.
             child: GestureDetector(
               onHorizontalDragEnd: _onSwipe,
+              // Opaque, not the default deferToChild: an empty month's child is
+              // all layout widgets — Center, Padding, Column — none of which
+              // hit-test themselves, so the swipe would only answer on the icon
+              // and the text glyphs. This makes the whole month the target.
+              behavior: HitTestBehavior.opaque,
               // Clipped because the two months are stacked side by side while
               // they cross, and the one on its way out would otherwise paint
               // across whatever sits beside the body.
