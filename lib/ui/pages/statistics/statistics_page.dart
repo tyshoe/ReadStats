@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:read_stats/data/services/cover_service.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/activity_heatmap.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_single.dart';
+import 'package:read_stats/ui/pages/statistics/widgets/habit_bar_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/pie_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stacked_bar_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/top_authors_chart.dart';
@@ -16,6 +17,9 @@ import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/repositories/tag_repository.dart';
 import '/data/models/session.dart';
+// For kAllWeekdays — the app's one definition of the week's display order.
+import '/data/models/notification_pref.dart';
+import '/data/utils/reading_clock.dart';
 import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/ui/pages/library/widgets/book_detail_sheet.dart';
@@ -43,6 +47,14 @@ class StatsData {
   final Map<DateTime, int> sessionsDaily;
   final Map<DateTime, int> readingTimeDaily;
   final Map<DateTime, int> pagesDaily;
+  // When reading happens, bucketed from each session's start time. Weekday
+  // keys are DateTime.monday..sunday; daypart keys index [kDaypartLabels].
+  // Counts are kept alongside minutes for readers who log pages but no time —
+  // see [_StatisticsPageState._habitsUseMinutes].
+  final Map<int, int> weekdayMinutes;
+  final Map<int, int> weekdaySessions;
+  final Map<int, int> daypartMinutes;
+  final Map<int, int> daypartSessions;
 
   const StatsData({
     required this.year,
@@ -59,8 +71,13 @@ class StatsData {
     required this.sessionsDaily,
     required this.readingTimeDaily,
     required this.pagesDaily,
+    required this.weekdayMinutes,
+    required this.weekdaySessions,
+    required this.daypartMinutes,
+    required this.daypartSessions,
   });
 }
+
 
 class StatisticsPage extends StatefulWidget {
   final BookRepository bookRepository;
@@ -241,6 +258,10 @@ class _StatisticsPageState extends State<StatisticsPage> {
     final sessionsDaily = <DateTime, int>{};
     final pagesDaily = <DateTime, int>{};
     final readingTimeDaily = <DateTime, int>{};
+    final weekdayMinutes = <int, int>{};
+    final weekdaySessions = <int, int>{};
+    final daypartMinutes = <int, int>{};
+    final daypartSessions = <int, int>{};
     for (final s in sessions) {
       final pages = s.pagesRead ?? 0;
       final minutes = s.durationMinutes ?? 0;
@@ -254,6 +275,20 @@ class _StatisticsPageState extends State<StatisticsPage> {
       sessionsDaily[day] = (sessionsDaily[day] ?? 0) + 1;
       pagesDaily[day] = (pagesDaily[day] ?? 0) + pages;
       readingTimeDaily[day] = (readingTimeDaily[day] ?? 0) + minutes;
+
+      // A session's timestamp is when reading *started* — a 90-minute sitting
+      // begun at 11pm counts entirely as an 11pm one.
+      final at = DateTime.parse(s.date);
+      weekdayMinutes[at.weekday] = (weekdayMinutes[at.weekday] ?? 0) + minutes;
+      weekdaySessions[at.weekday] = (weekdaySessions[at.weekday] ?? 0) + 1;
+      // A session timed at exactly midnight arrived without a time, and would
+      // pile a spike onto Night that nobody actually read. The day is still
+      // real, so only the clock chart skips them.
+      if (hasRealClockTime(at)) {
+        final part = daypartOf(at.hour);
+        daypartMinutes[part] = (daypartMinutes[part] ?? 0) + minutes;
+        daypartSessions[part] = (daypartSessions[part] ?? 0) + 1;
+      }
     }
 
     final booksDist = <String, int>{};
@@ -350,6 +385,10 @@ class _StatisticsPageState extends State<StatisticsPage> {
       sessionsDaily: sessionsDaily,
       readingTimeDaily: readingTimeDaily,
       pagesDaily: pagesDaily,
+      weekdayMinutes: weekdayMinutes,
+      weekdaySessions: weekdaySessions,
+      daypartMinutes: daypartMinutes,
+      daypartSessions: daypartSessions,
     );
   }
 
@@ -479,6 +518,68 @@ class _StatisticsPageState extends State<StatisticsPage> {
       averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
       cumulative: _cumulative,
       dailyData: _data!.booksDaily,
+    );
+  }
+
+  // ── Reading habits ─────────────────────────────────────────────────────────
+
+  /// Whether the habit charts are weighted by minutes read rather than by
+  /// session count. Duration is optional on a session, so a reader who only
+  /// ever logs pages has no minutes to chart — count their sessions instead of
+  /// showing them two empty cards.
+  ///
+  /// Minutes are the better measure where they exist: counting sessions rewards
+  /// five five-minute check-ins over one long evening sitting.
+  bool get _habitsUseMinutes =>
+      _data!.weekdayMinutes.values.any((v) => v > 0);
+
+  String _habitValue(int value) =>
+      _habitsUseMinutes ? _shortFormatMinutes(value) : value.toString();
+
+  String get _peakDayLabel {
+    final source =
+        _habitsUseMinutes ? _data!.weekdayMinutes : _data!.weekdaySessions;
+    final peak = peakBucket(source, kAllWeekdays);
+    return peak == null ? '-' : kWeekdayFull[peak]!;
+  }
+
+  String get _peakTimeLabel {
+    final source =
+        _habitsUseMinutes ? _data!.daypartMinutes : _data!.daypartSessions;
+    final peak = peakBucket(source, kDaypartOrder);
+    return peak == null ? '-' : kDaypartLabels[peak];
+  }
+
+  Widget _buildWeekdayChart() {
+    final source =
+        _habitsUseMinutes ? _data!.weekdayMinutes : _data!.weekdaySessions;
+    return HabitBarChart(
+      // Sunday-first, matching the heatmap and the reminder settings.
+      bars: [
+        for (final day in kAllWeekdays)
+          HabitBar(kWeekdayShort[day]!, source[day] ?? 0),
+      ],
+      title: _habitsUseMinutes ? 'Reading Time by Day' : 'Sessions by Day',
+      color: Theme.of(context).primaryColor,
+      valueFormatter: _habitValue,
+      emptyMessage: 'No sessions logged yet',
+    );
+  }
+
+  Widget _buildDaypartChart() {
+    final source =
+        _habitsUseMinutes ? _data!.daypartMinutes : _data!.daypartSessions;
+    return HabitBarChart(
+      bars: [
+        for (var i = 0; i < kDaypartLabels.length; i++)
+          HabitBar(kDaypartLabels[i], source[i] ?? 0),
+      ],
+      title: _habitsUseMinutes
+          ? 'Reading Time by Time of Day'
+          : 'Sessions by Time of Day',
+      color: Theme.of(context).primaryColor,
+      valueFormatter: _habitValue,
+      emptyMessage: 'No session start times yet',
     );
   }
 
@@ -973,6 +1074,13 @@ class _StatisticsPageState extends State<StatisticsPage> {
                   _buildSessionsChart(),
                   _buildActivityHeatmap(),
                   _buildTopAuthorsChart(),
+                  _buildSectionHeader('Reading Habits'),
+                  _buildPair(
+                    StatCard(title: 'Peak Day', value: _peakDayLabel),
+                    StatCard(title: 'Peak Time', value: _peakTimeLabel),
+                  ),
+                  _buildWeekdayChart(),
+                  _buildDaypartChart(),
                   _buildSectionHeader('Ratings'),
                   _buildRatingSummary(),
                   _buildPair(
