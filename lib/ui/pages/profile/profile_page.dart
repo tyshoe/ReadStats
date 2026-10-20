@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import '/data/models/goal.dart';
+import '/data/models/preset_avatar.dart';
 import '/data/repositories/goal_repository.dart';
 import '/data/services/avatar_service.dart';
 import '/ui/widgets/image_editor_page.dart';
@@ -128,14 +130,13 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
+  // Only photo avatars need resolving; presets are drawn straight from assets.
+  // Always rebuilds, so switching between two presets repaints too.
   Future<void> _resolveAvatar() async {
-    final filename = widget.settingsViewModel.profileAvatarNotifier.value;
-    if (filename == null) {
-      _cachedAvatarPath = null;
-      if (mounted) setState(() => _avatarPath = null);
-      return;
-    }
-    final path = await AvatarService.resolve(filename);
+    final value = widget.settingsViewModel.profileAvatarNotifier.value;
+    final path = (value == null || AvatarService.isPreset(value))
+        ? null
+        : await AvatarService.resolve(value);
     _cachedAvatarPath = path;
     if (mounted) setState(() => _avatarPath = path);
   }
@@ -183,46 +184,95 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _editAvatar() async {
-    final hasAvatar =
-        widget.settingsViewModel.profileAvatarNotifier.value != null;
+    final accent = widget.settingsViewModel.accentColorNotifier.value;
+    final notifier = widget.settingsViewModel.profileAvatarNotifier;
 
+    // Preset picks apply in place and leave the sheet open (the check mark moves
+    // to the new one); the rows below the divider pop with an action instead.
     final action = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            if (hasAvatar)
-              ListTile(
-                leading: const Icon(Icons.crop_rotate),
-                title: const Text('Adjust photo'),
-                onTap: () => Navigator.pop(ctx, 'adjust'),
-              ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: Text(hasAvatar ? 'Change photo' : 'Choose photo'),
-              onTap: () => Navigator.pop(ctx, 'choose'),
-            ),
-            if (hasAvatar)
-              ListTile(
-                leading: Icon(
-                  Icons.delete_outline,
-                  color: Theme.of(ctx).colorScheme.error,
-                ),
-                title: Text(
-                  'Remove photo',
-                  style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-                ),
-                onTap: () => Navigator.pop(ctx, 'remove'),
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        final sheetColor = theme.bottomSheetTheme.backgroundColor ??
+            theme.colorScheme.surfaceContainerLow;
+        return SafeArea(
+          child: ValueListenableBuilder<String?>(
+            valueListenable: notifier,
+            builder: (ctx, current, _) {
+              final hasAvatar = current != null;
+              final hasPhoto = hasAvatar && !AvatarService.isPreset(current);
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Choose an avatar',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Row(
+                      children: [
+                        for (final preset in presetAvatars)
+                          Expanded(
+                            child: _PresetAvatarOption(
+                              preset: preset,
+                              selected:
+                                  current == AvatarService.presetValue(preset.id),
+                              accent: accent,
+                              sheetColor: sheetColor,
+                              onTap: () => _applyPreset(preset),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Divider(
+                    height: 17,
+                    thickness: 1,
+                    indent: 16,
+                    endIndent: 16,
+                    color: theme.colorScheme.outlineVariant,
+                  ),
+                  if (hasPhoto)
+                    ListTile(
+                      leading: const Icon(Icons.crop_rotate),
+                      title: const Text('Adjust photo'),
+                      onTap: () => Navigator.pop(ctx, 'adjust'),
+                    ),
+                  ListTile(
+                    leading: const Icon(Icons.photo_library),
+                    title: Text(hasPhoto ? 'Change photo' : 'Choose photo'),
+                    onTap: () => Navigator.pop(ctx, 'choose'),
+                  ),
+                  if (hasAvatar)
+                    ListTile(
+                      leading: Icon(
+                        Icons.delete,
+                        color: theme.colorScheme.error,
+                      ),
+                      title: Text(
+                        'Remove avatar',
+                        style: TextStyle(color: theme.colorScheme.error),
+                      ),
+                      onTap: () => Navigator.pop(ctx, 'remove'),
+                    ),
+                  const SizedBox(height: 8),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
 
     if (action == 'choose') {
@@ -246,6 +296,17 @@ class _ProfilePageState extends State<ProfilePage> {
       await AvatarService.delete(previous);
       await AvatarService.deleteOriginal();
     }
+  }
+
+  /// Switch to a bundled avatar, discarding any photo it replaces so the
+  /// stored copies don't linger.
+  Future<void> _applyPreset(PresetAvatar preset) async {
+    final previous = widget.settingsViewModel.profileAvatarNotifier.value;
+    final value = AvatarService.presetValue(preset.id);
+    if (previous == value) return;
+    await widget.settingsViewModel.setProfileAvatar(value);
+    await AvatarService.delete(previous);
+    await AvatarService.deleteOriginal();
   }
 
   /// Run [source] through the crop editor and, if the user keeps the result,
@@ -414,29 +475,41 @@ class _ProfilePageState extends State<ProfilePage> {
     final name = widget.settingsViewModel.profileNameNotifier.value;
     final initials = _initials(name);
     final hasImage = _avatarPath != null;
+    final preset = AvatarService.preset(
+      widget.settingsViewModel.profileAvatarNotifier.value,
+    );
 
     return GestureDetector(
       onTap: _editAvatar,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          CircleAvatar(
-            radius: 42,
-            backgroundColor: accent.withAlpha(38),
-            foregroundImage: hasImage ? FileImage(File(_avatarPath!)) : null,
-            onForegroundImageError: hasImage ? (_, _) {} : null,
-            child: hasImage
-                ? null
-                : (initials != null
-                    ? Text(
-                        initials,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          color: accent,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : Icon(Icons.person, size: 40, color: accent)),
-          ),
+          // Presets skip CircleAvatar: they already carry their own background
+          // and outline ring, so a tinted circle behind them would halo.
+          if (preset != null)
+            SizedBox(
+              width: 84,
+              height: 84,
+              child: SvgPicture.asset(preset.asset),
+            )
+          else
+            CircleAvatar(
+              radius: 42,
+              backgroundColor: accent.withAlpha(38),
+              foregroundImage: hasImage ? FileImage(File(_avatarPath!)) : null,
+              onForegroundImageError: hasImage ? (_, _) {} : null,
+              child: hasImage
+                  ? null
+                  : (initials != null
+                      ? Text(
+                          initials,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            color: accent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : Icon(Icons.person, size: 40, color: accent)),
+            ),
           Positioned(
             right: -4,
             bottom: -4,
@@ -745,6 +818,97 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   String _compact(int n) => NumberFormat.compact().format(n);
+}
+
+// ── Preset avatar option (one cell of the picker row) ─────────────────────────
+
+class _PresetAvatarOption extends StatelessWidget {
+  final PresetAvatar preset;
+  final bool selected;
+  final Color accent;
+
+  /// The sheet's own background, painted as the gap between the avatar and the
+  /// accent ring so the ring reads as a separate stroke.
+  final Color sheetColor;
+  final VoidCallback onTap;
+
+  const _PresetAvatarOption({
+    required this.preset,
+    required this.selected,
+    required this.accent,
+    required this.sheetColor,
+    required this.onTap,
+  });
+
+  // 54 + 3 gap + 2 ring = 64 wide, which fits five across a narrow phone.
+  static const double _size = 54;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: sheetColor,
+                    border: Border.all(
+                      color: selected ? accent : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                  child: SizedBox(
+                    width: _size,
+                    height: _size,
+                    child: SvgPicture.asset(preset.asset),
+                  ),
+                ),
+                if (selected)
+                  Positioned(
+                    right: -3,
+                    bottom: -3,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: accent,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: sheetColor, width: 2),
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        size: 10,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              preset.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: selected
+                    ? theme.colorScheme.onSurface
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ── Hero stat (big number + label) ────────────────────────────────────────────

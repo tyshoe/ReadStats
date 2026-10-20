@@ -4,13 +4,39 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '/data/models/preset_avatar.dart';
+
 /// Stores the user's profile avatar. Mirrors [CoverService]'s approach: only a
 /// filename is persisted (never an absolute path), because the iOS sandbox UUID
 /// changes across app updates and would invalidate stored absolute paths.
+///
+/// The stored value is either a filename (a photo the user picked) or
+/// `preset:<id>` (one of the bundled [presetAvatars]), which keeps both kinds of
+/// avatar in the single `profileAvatar` setting.
 class AvatarService {
   static final ImagePicker _picker = ImagePicker();
 
   static const String _originalName = 'avatar_original.jpg';
+
+  static const String _presetPrefix = 'preset:';
+
+  /// The value to persist for the bundled avatar [id].
+  static String presetValue(String id) => '$_presetPrefix$id';
+
+  /// Whether [value] names a bundled avatar rather than a stored photo.
+  static bool isPreset(String? value) =>
+      value != null && value.startsWith(_presetPrefix);
+
+  /// The bundled avatar [value] refers to, or null if it is a photo filename
+  /// (or names a preset this version no longer ships).
+  static PresetAvatar? preset(String? value) {
+    if (!isPreset(value)) return null;
+    final id = value!.substring(_presetPrefix.length);
+    for (final avatar in presetAvatars) {
+      if (avatar.id == id) return avatar;
+    }
+    return null;
+  }
 
   /// Pick an image from the gallery. Returns the temporary [File], or null if
   /// the user cancels. Downscaled only enough to keep the file manageable —
@@ -74,9 +100,10 @@ class AvatarService {
     return p.join(dir.path, p.basename(filename));
   }
 
-  /// Delete the avatar file for [filename] if it exists.
+  /// Delete the avatar file for [filename] if it exists. No-op for preset
+  /// values, which have no file behind them.
   static Future<void> delete(String? filename) async {
-    if (filename == null) return;
+    if (filename == null || isPreset(filename)) return;
     final dir = await _dir();
     final file = File(p.join(dir.path, p.basename(filename)));
     if (await file.exists()) await file.delete();
