@@ -1,11 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '/data/database/database_helper.dart';
 
 class StatCard extends StatelessWidget {
   final String title;
   final String value;
   final String? bookTitle;
   final String? coverPath;
+
+  /// See DatabaseHelper.coverShapePortrait / coverShapeSquare. Square covers
+  /// (audiobooks, usually) are drawn square rather than cropped to portrait.
+  final int? coverShape;
   final VoidCallback? onTap;
 
   const StatCard({
@@ -14,8 +19,14 @@ class StatCard extends StatelessWidget {
     required this.value,
     this.bookTitle,
     this.coverPath,
+    this.coverShape,
     this.onTap,
   });
+
+  static const double _coverWidth = 50;
+
+  double get _coverHeight =>
+      coverShape == DatabaseHelper.coverShapeSquare ? _coverWidth : 72;
 
   @override
   Widget build(BuildContext context) {
@@ -70,8 +81,8 @@ class StatCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                   child: Image.file(
                     File(coverPath!),
-                    width: 50,
-                    height: 72,
+                    width: _coverWidth,
+                    height: _coverHeight,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => _coverPlaceholder(theme),
                   ),
@@ -86,8 +97,8 @@ class StatCard extends StatelessWidget {
 
   Widget _coverPlaceholder(ThemeData theme) {
     return Container(
-      width: 50,
-      height: 72,
+      width: _coverWidth,
+      height: _coverHeight,
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(4),

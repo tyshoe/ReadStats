@@ -9,6 +9,7 @@ import '/data/repositories/book_repository.dart';
 import '/data/repositories/goal_repository.dart';
 import '/data/services/reading_timer_service.dart';
 import '/data/database/database_helper.dart';
+import '/ui/widgets/book_cover.dart';
 import '/ui/widgets/month_picker_popup.dart';
 import 'widgets/session_calendar.dart';
 import 'widgets/goals_tab.dart';
@@ -441,15 +442,27 @@ class _SessionsPageState extends State<SessionsPage>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (coverPath != null) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: Image.file(
-                    File(coverPath),
-                    width: 42,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                // Square covers (audiobooks) keep their shape, centred in the
+                // row; portrait covers fill the row's height as before.
+                if (book?['cover_shape'] == DatabaseHelper.coverShapeSquare)
+                  Center(
+                    child: BookCover(
+                      path: coverPath,
+                      shape: DatabaseHelper.coverShapeSquare,
+                      width: 42,
+                      borderRadius: 4,
+                    ),
+                  )
+                else
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Image.file(
+                      File(coverPath),
+                      width: 42,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
                   ),
-                ),
                 const SizedBox(width: 12),
               ],
               Expanded(
