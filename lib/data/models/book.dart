@@ -25,8 +25,15 @@ class Book {
   /// Who reads the audiobook. Null for every other format, and kept rather
   /// than cleared if the format changes, so a mistapped format loses nothing.
   String? narrator;
+  /// The series this book belongs to, and where it falls — a double so a
+  /// novella can sit at 1.5. Both null for standalones.
+  int? seriesId;
+  double? seriesPosition;
   // Denormalized from JOIN — populated when loaded from DB, not written back
   final String? shelfName;
+  /// Joined series name on reads. Also carries a name to resolve into
+  /// [seriesId] before insert (imports, demo data); never written itself.
+  final String? seriesName;
 
   Book({
     this.id,
@@ -49,7 +56,10 @@ class Book {
     this.coverShape = DatabaseHelper.coverShapePortrait,
     this.openLibraryKey,
     this.narrator,
+    this.seriesId,
+    this.seriesPosition,
     this.shelfName,
+    this.seriesName,
   });
 
   /// Convert to Map for database writes.
@@ -75,6 +85,8 @@ class Book {
       'cover_shape': coverShape,
       'open_library_key': openLibraryKey,
       'narrator': narrator,
+      'series_id': seriesId,
+      'series_position': seriesPosition,
       // tags stored separately in book_tags
     };
   }
@@ -101,7 +113,10 @@ class Book {
           (map['cover_shape'] as int?) ?? DatabaseHelper.coverShapePortrait,
       openLibraryKey: map['open_library_key'] as String?,
       narrator: map['narrator'] as String?,
+      seriesId: map['series_id'] as int?,
+      seriesPosition: (map['series_position'] as num?)?.toDouble(),
       shelfName: map['shelf_name'] as String?,
+      seriesName: map['series_name'] as String?,
     );
   }
 

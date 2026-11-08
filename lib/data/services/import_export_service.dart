@@ -20,7 +20,9 @@ import '../repositories/book_repository.dart';
 import '../repositories/session_repository.dart';
 import '../repositories/tag_repository.dart';
 import '../repositories/goal_repository.dart';
+import '../repositories/series_repository.dart';
 import '../utils/date_utils.dart';
+import '../utils/series_title.dart';
 import 'cover_service.dart';
 
 class ImportExportResult {
@@ -98,6 +100,7 @@ class ImportExportService {
         }));
       }
 
+      await SeriesRepository(DatabaseHelper()).resolveNames(demo.books);
       await bookRepository.addBooksBatch(demo.books);
       await sessionRepository.addSessionsBatch(demo.sessions);
       await tagRepository.addBookTagsBatch(demo.bookTags);
@@ -184,7 +187,7 @@ class ImportExportService {
         'is_complete', 'is_favorite', 'book_type_id', 'date_added',
         'date_started', 'date_finished', 'isbn', 'user_review',
         'duration_minutes', 'shelf_id', 'cover_path', 'open_library_key',
-        'cover_shape', 'narrator',
+        'cover_shape', 'narrator', 'series_name', 'series_position',
       ],
       ...books.map((b) => [
         b.id.toString(),
@@ -211,6 +214,9 @@ class ImportExportService {
         // line up column-for-column on import.
         b.coverShape.toString(),
         b.narrator ?? '',
+        // By name, not id: series ids are local and get recreated on restore.
+        b.seriesName ?? '',
+        b.seriesPosition?.toString() ?? '',
       ]),
     ];
   }
@@ -765,11 +771,15 @@ class ImportExportService {
                   DatabaseHelper.coverShapePortrait
               : DatabaseHelper.coverShapePortrait,
           narrator: row.length > 19 ? _nullableString(row[19]) : null,
+          seriesName: row.length > 20 ? _nullableString(row[20]) : null,
+          seriesPosition:
+              row.length > 21 ? double.tryParse(row[21].toString()) : null,
         ));
       } catch (e) {
         if (kDebugMode) print('Skipping book row: $e');
       }
     }
+    await SeriesRepository(DatabaseHelper()).resolveNames(books);
     if (books.isNotEmpty) await bookRepository.addBooksBatch(books);
     return books.length;
   }
@@ -878,9 +888,15 @@ class ImportExportService {
             ?.toIso8601String()
             .split('T')[0];
 
+        // Goodreads puts the series in the title: "Legendary (Caraval #2)".
+        final rawTitle = getString(r, 'Title') ?? 'Unknown';
+        final series = SeriesTitle.parse(rawTitle);
+
         books.add(Book(
           id: null,
-          title: getString(r, 'Title') ?? 'Unknown',
+          title: series?.title ?? rawTitle,
+          seriesName: series?.series,
+          seriesPosition: series?.position,
           author: getString(r, 'Author') ?? 'Unknown',
           wordCount: 0,
           pageCount: int.tryParse(getString(r, 'Number of Pages') ?? '') ?? 0,
@@ -901,6 +917,7 @@ class ImportExportService {
       }
     }
 
+    await SeriesRepository(DatabaseHelper()).resolveNames(books);
     if (books.isNotEmpty) await bookRepository.addBooksBatch(books);
     return books.length;
   }

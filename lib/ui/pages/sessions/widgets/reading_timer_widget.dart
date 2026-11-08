@@ -3,7 +3,7 @@ import '/data/services/reading_timer_service.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/viewmodels/SettingsViewModel.dart';
-import 'rate_book_dialog.dart';
+import '/ui/pages/library/widgets/next_in_series_sheet.dart';
 import '../post_session_page.dart';
 import '../fullscreen_timer_page.dart';
 import '/ui/widgets/book_picker_sheet.dart';
@@ -139,7 +139,7 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
     );
 
     if (result != null && mounted) {
-      await showRatingDialogForBook(
+      await afterFinishingBook(
         context: context,
         book: result,
         bookRepository: widget.bookRepository,
@@ -174,7 +174,7 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
     // If the user resumed instead of saving, the timer is running again — nothing to do.
     // If they saved and the book was marked finished, result is the book map.
     if (result != null && mounted) {
-      await showRatingDialogForBook(
+      await afterFinishingBook(
         context: context,
         book: result,
         bookRepository: widget.bookRepository,

@@ -9,10 +9,21 @@ class BookSearchSheet extends StatefulWidget {
   final SettingsViewModel settingsViewModel;
   final Function(Map<String, dynamic>) onSave;
 
+  /// Searched for straight away — e.g. a series name, when filling a gap.
+  final String? initialQuery;
+
+  /// Carried into the book form, so a book found for a series gap lands in
+  /// that series at that number.
+  final String? initialSeriesName;
+  final double? initialSeriesPosition;
+
   const BookSearchSheet({
     super.key,
     required this.settingsViewModel,
     required this.onSave,
+    this.initialQuery,
+    this.initialSeriesName,
+    this.initialSeriesPosition,
   });
 
   @override
@@ -53,6 +64,14 @@ class _BookSearchSheetState extends State<BookSearchSheet> {
       }
     });
     _scrollController.addListener(_onScroll);
+    final initialQuery = widget.initialQuery?.trim() ?? '';
+    if (initialQuery.isNotEmpty) {
+      _searchController.text = initialQuery;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _search(initialQuery);
+      });
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _searchFocusNode.requestFocus();
     });
@@ -164,6 +183,8 @@ class _BookSearchSheetState extends State<BookSearchSheet> {
           searchResult: result,
           onSave: widget.onSave,
           settingsViewModel: widget.settingsViewModel,
+          initialSeriesName: widget.initialSeriesName,
+          initialSeriesPosition: widget.initialSeriesPosition,
         ),
       ),
     );
@@ -176,6 +197,8 @@ class _BookSearchSheetState extends State<BookSearchSheet> {
         builder: (_) => BookFormPage(
           onSave: widget.onSave,
           settingsViewModel: widget.settingsViewModel,
+          initialSeriesName: widget.initialSeriesName,
+          initialSeriesPosition: widget.initialSeriesPosition,
         ),
       ),
     );

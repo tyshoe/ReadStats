@@ -14,7 +14,7 @@ class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
-  static const int _databaseVersion = 8;
+  static const int _databaseVersion = 9;
 
   // System shelf IDs — stable because shelves are seeded in a fixed order
   // and only exist from v2 onwards (v1 had no shelves).
@@ -117,6 +117,8 @@ class DatabaseHelper {
     await db.insert('shelves', {'name': 'Finished',          'is_system': 1, 'sort_order': 2});
     await db.insert('shelves', {'name': 'Unfinished',        'is_system': 1, 'sort_order': 3});
 
+    await db.execute(_createSeriesTable);
+
     await db.execute('''
       CREATE TABLE books(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -138,6 +140,8 @@ class DatabaseHelper {
         cover_shape INTEGER NOT NULL DEFAULT 0,
         open_library_key TEXT,
         narrator TEXT,
+        series_id INTEGER REFERENCES series(id) ON DELETE SET NULL,
+        series_position REAL,
         FOREIGN KEY(book_type_id) REFERENCES book_types(id),
         FOREIGN KEY(shelf_id) REFERENCES shelves(id)
       )
@@ -401,6 +405,113 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE books ADD COLUMN narrator TEXT');
     }
 
+    if (oldVersion < 9) {
+      // Series. Nothing to backfill here — titles like "Legendary (Caraval #2)"
+      // are offered for linking from the library, never rewritten silently.
+      // Guarded like v6, so a database that somehow has them already is fine.
+      await db.execute(_createSeriesTable.replaceFirst(
+          'CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'));
+      final cols = await db.rawQuery('PRAGMA table_info(books)');
+      if (!cols.any((c) => c['name'] == 'series_id')) {
+        await db.execute('ALTER TABLE books ADD COLUMN series_id INTEGER '
+            'REFERENCES series(id) ON DELETE SET NULL');
+      }
+      if (!cols.any((c) => c['name'] == 'series_position')) {
+        await db.execute('ALTER TABLE books ADD COLUMN series_position REAL');
+      }
+    }
+
+  }
+
+  /// Names are unique ignoring case, so "caraval" and "Caraval" are one series.
+  static const _createSeriesTable = '''
+    CREATE TABLE series(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE COLLATE NOCASE
+    )
+  ''';
+
+  // ── Series ─────────────────────────────────────────────────────────────────
+
+  /// The id of the series called [name], creating it if needed. Matching
+  /// ignores case and surrounding space; the first spelling used is kept.
+  Future<int> seriesIdFor(String name) async {
+    final db = await database;
+    final clean = name.trim();
+    final existing = await db.query('series',
+        columns: ['id'], where: 'name = ?', whereArgs: [clean], limit: 1);
+    if (existing.isNotEmpty) return existing.first['id'] as int;
+    return db.insert('series', {'name': clean});
+  }
+
+  /// Names of series that still have at least one book, A–Z — for suggestions.
+  Future<List<String>> getSeriesNames() async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT DISTINCT se.name FROM series se
+      INNER JOIN books b ON b.series_id = se.id
+      ORDER BY se.name COLLATE NOCASE
+    ''');
+    return [for (final r in rows) r['name'] as String];
+  }
+
+  /// Every book in [seriesId], in reading order; unnumbered books last.
+  Future<List<Map<String, dynamic>>> getBooksInSeries(int seriesId) async {
+    final db = await database;
+    return db.rawQuery('''
+      SELECT b.*, s.name AS shelf_name, se.name AS series_name
+      FROM books b
+      LEFT JOIN shelves s ON b.shelf_id = s.id
+      LEFT JOIN series se ON b.series_id = se.id
+      WHERE b.series_id = ?
+      ORDER BY b.series_position IS NULL, b.series_position, b.title
+    ''', [seriesId]);
+  }
+
+  /// The highest number used in the series called [name] (any case), not
+  /// counting [excludeBookIds], or null when there's none — where a bulk add
+  /// continues from. The books being added are excluded so renumbering them
+  /// doesn't count past themselves.
+  Future<double?> getSeriesMaxPosition(String name,
+      {List<int> excludeBookIds = const []}) async {
+    final db = await database;
+    final exclude = excludeBookIds.isEmpty
+        ? ''
+        : 'AND b.id NOT IN (${List.filled(excludeBookIds.length, '?').join(',')})';
+    final rows = await db.rawQuery('''
+      SELECT MAX(b.series_position) AS max_position FROM books b
+      INNER JOIN series se ON b.series_id = se.id
+      WHERE se.name = ? $exclude
+    ''', [name.trim(), ...excludeBookIds]);
+    return (rows.first['max_position'] as num?)?.toDouble();
+  }
+
+  Future<bool> isInPlanner(int bookId) async {
+    final db = await database;
+    final rows = await db.query('planner_books',
+        columns: ['id'], where: 'book_id = ?', whereArgs: [bookId], limit: 1);
+    return rows.isNotEmpty;
+  }
+
+  /// Links books to series in one go: each entry's `title` (if given),
+  /// `series_id` and `series_position`, by book `id`.
+  Future<void> linkBooksToSeries(List<Map<String, dynamic>> updates) async {
+    final db = await database;
+    final batch = db.batch();
+    for (final u in updates) {
+      batch.update(
+        'books',
+        {
+          if (u['title'] != null) 'title': u['title'],
+          'series_id': u['series_id'],
+          'series_position': u['series_position'],
+        },
+        where: 'id = ?',
+        whereArgs: [u['id']],
+      );
+    }
+    await batch.commit(noResult: true);
+    booksChanged.notify();
   }
 
   Future<void> printDatabaseVersion() async {
@@ -562,9 +673,10 @@ class DatabaseHelper {
   Future<Map<String, dynamic>?> getBookById(int bookId) async {
     final db = await database;
     final result = await db.rawQuery('''
-      SELECT b.*, s.name as shelf_name
+      SELECT b.*, s.name as shelf_name, se.name as series_name
       FROM books b
       LEFT JOIN shelves s ON b.shelf_id = s.id
+      LEFT JOIN series se ON b.series_id = se.id
       WHERE b.id = ?
     ''', [bookId]);
 
@@ -602,9 +714,10 @@ class DatabaseHelper {
       }
 
       String query = '''
-        SELECT b.*, s.name as shelf_name
+        SELECT b.*, s.name as shelf_name, se.name as series_name
         FROM books b
         LEFT JOIN shelves s ON b.shelf_id = s.id
+        LEFT JOIN series se ON b.series_id = se.id
       ''';
 
       if (conditions.isNotEmpty) {
@@ -691,6 +804,8 @@ class DatabaseHelper {
   Future<int> deleteAllBooks() async {
     final db = await database;
     final result = await db.delete('books');
+    // Series exist only through their books.
+    await db.delete('series');
     booksChanged.notify();
     return result;
   }

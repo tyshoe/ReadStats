@@ -27,6 +27,10 @@ import '../repositories/goal_repository.dart';
 ///   weekends, audio on weekday mornings — with notes on some, and two breaks
 ///   so the longest streak isn't simply "all of it".
 /// * Ratings (halves included), reviews, favourites, tags with colours.
+/// * Series: Sherlock Holmes #1 and #3 (a gap at #2 on purpose), plus #2
+///   sitting unlinked with the series in its title, for "Find series in
+///   titles"; and The d'Artagnan Romances with #1 in progress and #2 waiting,
+///   so finishing #1 shows "Next in series".
 /// * Real covers (downloaded from Open Library on load, drawn ones as the
 ///   offline fallback) and Open Library work keys; a few books left bare for
 ///   the no-cover paths. A new title needs an entry in `_openLibrary`.
@@ -87,9 +91,11 @@ class _Title {
   final List<String> tags;
   final int minutes;
   final String? narrator;
+  final String? series;
+  final double? position;
 
   const _Title(this.title, this.author, this.pages, this.format, this.tags,
-      {this.minutes = 0, this.narrator});
+      {this.minutes = 0, this.narrator, this.series, this.position});
 
   bool get isAudio => format == _audiobook;
 }
@@ -110,7 +116,8 @@ const _printFinished = [
   _Title('Pride and Prejudice', 'Jane Austen', 432, _paperback, ['Classic', 'Romance']),
   _Title('The Time Machine', 'H. G. Wells', 118, _ebook, ['Science Fiction', 'Classic']),
   _Title('Dracula', 'Bram Stoker', 418, _paperback, ['Horror', 'Classic']),
-  _Title('The Hound of the Baskervilles', 'Arthur Conan Doyle', 256, _paperback, ['Mystery']),
+  _Title('The Hound of the Baskervilles', 'Arthur Conan Doyle', 256, _paperback, ['Mystery'],
+      series: 'Sherlock Holmes', position: 3),
   _Title('Frankenstein', 'Mary Shelley', 280, _hardback, ['Horror', 'Science Fiction']),
   _Title('Great Expectations', 'Charles Dickens', 544, _paperback, ['Classic']),
   _Title('Meditations', 'Marcus Aurelius', 254, _ebook, ['Philosophy', 'Nonfiction']),
@@ -124,7 +131,8 @@ const _printFinished = [
   _Title('Twenty Thousand Leagues Under the Seas', 'Jules Verne', 432, _paperback, ['Adventure', 'Science Fiction']),
   _Title('Crime and Punishment', 'Fyodor Dostoevsky', 671, _hardback, ['Classic']),
   _Title('The Turn of the Screw', 'Henry James', 120, _ebook, ['Horror']),
-  _Title('A Study in Scarlet', 'Arthur Conan Doyle', 188, _paperback, ['Mystery']),
+  _Title('A Study in Scarlet', 'Arthur Conan Doyle', 188, _paperback, ['Mystery'],
+      series: 'Sherlock Holmes', position: 1),
   _Title('Little Women', 'Louisa May Alcott', 449, _paperback, ['Classic']),
   _Title('The Great Gatsby', 'F. Scott Fitzgerald', 180, _paperback, ['Classic']),
   _Title('The Woman in White', 'Wilkie Collins', 720, _hardback, ['Mystery']),
@@ -151,6 +159,7 @@ const _printCurrent = [
 ];
 
 const _audioCurrent = _Title('The Three Musketeers', 'Alexandre Dumas', 0, _audiobook, ['Adventure'],
+    series: "The d'Artagnan Romances", position: 1,
     minutes: 1680, narrator: 'Marcus Webb');
 
 const _setAside = [
@@ -165,12 +174,21 @@ const _wantToRead = [
   _Title('The Souls of Black Folk', 'W. E. B. Du Bois', 288, _ebook, ['Nonfiction']),
   _Title('The Mysterious Affair at Styles', 'Agatha Christie', 296, _paperback, ['Mystery']),
   _Title('The Art of War', 'Sun Tzu', 112, _ebook, ['Philosophy', 'Nonfiction']),
+  // Series named in the title and left unlinked, the way Goodreads-era data
+  // arrives — "Find series in titles" should link it and fill the #2 gap.
+  _Title('The Sign of the Four (Sherlock Holmes #2)', 'Arthur Conan Doyle', 166, _paperback, ['Mystery']),
+  // Waiting after the audiobook in progress, so finishing that one has a
+  // "Next in series" to offer.
+  _Title('Twenty Years After', 'Alexandre Dumas', 880, _paperback, ['Adventure'],
+      series: "The d'Artagnan Romances", position: 2),
 ];
 
 /// Open Library cover id and work key for each title, looked up once so every
 /// load shows the same edition. Covers are downloaded when the demo loads —
 /// the same source the app's own cover search uses — never bundled.
 const _openLibrary = <String, (int, String)>{
+  'Twenty Years After': (14634038, '/works/OL36462W'),
+  'The Sign of the Four (Sherlock Holmes #2)': (9247987, '/works/OL262438W'),
   'Pride and Prejudice': (14665299, '/works/OL66554W'),
   'The Time Machine': (9008368, '/works/OL52267W'),
   'Dracula': (12216503, '/works/OL85892W'),
@@ -593,6 +611,9 @@ class _Generator {
           ? DatabaseHelper.coverShapeSquare
           : DatabaseHelper.coverShapePortrait,
       narrator: t.narrator,
+      // Resolved to a series id by the loader.
+      seriesName: t.series,
+      seriesPosition: t.position,
     ));
     for (final tag in t.tags) {
       bookTags.add(BookTag(bookId: id, tagId: tagIds[tag]!));

@@ -6,13 +6,15 @@ import 'package:read_stats/ui/pages/library/widgets/book_grid.dart';
 import 'package:read_stats/ui/pages/library/widgets/random_book_picker.dart';
 import '../../../data/repositories/tag_repository.dart';
 import 'widgets/bulk_tag_sheet.dart';
+import 'widgets/bulk_series_sheet.dart';
+import 'widgets/series_detect_sheet.dart';
+import 'widgets/next_in_series_sheet.dart';
 import 'widgets/book_detail_sheet.dart';
 import 'widgets/book_row.dart';
 import 'widgets/filter_sort_sheet.dart';
 import 'book_form_page.dart';
 import 'widgets/book_search_sheet.dart';
 import '../sessions/session_form_page.dart';
-import '../sessions/widgets/rate_book_dialog.dart';
 import '/data/database/database_helper.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/data/repositories/session_repository.dart';
@@ -234,6 +236,19 @@ class _LibraryPageState extends State<LibraryPage> {
     _clearSelection();
   }
 
+  /// Puts the selection into one series, in the order the books were tapped.
+  Future<void> _addSelectedToSeries() async {
+    final byId = {for (final b in widget.books) b['id'] as int: b};
+    final books = [
+      for (final id in _selectedBookIds)
+        if (byId[id] != null) byId[id]!,
+    ];
+    final added = await showBulkSeriesSheet(context: context, books: books);
+    if (added == null || added == 0 || !mounted) return;
+    AppSnackbar.show('Added $added ${added == 1 ? 'book' : 'books'} to series');
+    _clearSelection();
+  }
+
   Future<void> _refreshTags() async {
     await _loadAvailableTags();
     await _loadAllBookTags();
@@ -350,7 +365,7 @@ class _LibraryPageState extends State<LibraryPage> {
     );
 
     if (finishedBook != null && mounted) {
-      await showRatingDialogForBook(
+      await afterFinishingBook(
         context: context,
         book: finishedBook,
         bookRepository: widget.bookRepository,
@@ -409,6 +424,7 @@ class _LibraryPageState extends State<LibraryPage> {
       },
       isPinned: _pinnedBookIds.contains(book['id']),
       onTogglePin: _togglePin,
+      isPinnedFor: (id) => _pinnedBookIds.contains(id),
     );
   }
 
@@ -676,6 +692,21 @@ class _LibraryPageState extends State<LibraryPage> {
     return '$scope · $count $noun';
   }
 
+  /// Offers to link books whose titles name a series, after review. The
+  /// library reloads itself when the links are written.
+  Future<void> _findSeriesInTitles() async {
+    if (booksWithSeriesInTitle(widget.books).isEmpty) {
+      AppSnackbar.show('No series found in your book titles');
+      return;
+    }
+    final linked = await showSeriesDetectSheet(
+      context: context,
+      books: widget.books,
+    );
+    if (linked == null || linked == 0 || !mounted) return;
+    AppSnackbar.show('Linked $linked ${linked == 1 ? 'book' : 'books'} to series');
+  }
+
   Future<void> _shareLibraryAsText() async {
     if (_filteredBooks.isEmpty) {
       AppSnackbar.show('No books to share');
@@ -804,6 +835,8 @@ class _LibraryPageState extends State<LibraryPage> {
                 _showRandomBook();
               } else if (value == 'share_text') {
                 _shareLibraryAsText();
+              } else if (value == 'find_series') {
+                _findSeriesInTitles();
               } else if (value == 'view_rows' ||
                   value == 'view_grid') {
                 _toggleView(value.replaceFirst('view_', ''));
@@ -817,6 +850,10 @@ class _LibraryPageState extends State<LibraryPage> {
               const PopupMenuItem<String>(
                 value: 'share_text',
                 child: Text('Share as text'),
+              ),
+              const PopupMenuItem<String>(
+                value: 'find_series',
+                child: Text('Find series in titles'),
               ),
               const PopupMenuDivider(),
               PopupMenuItem<String>(
@@ -1108,6 +1145,17 @@ class _LibraryPageState extends State<LibraryPage> {
             onPressed: _pinSelectedBooks,
             child: Icon(
               Icons.push_pin,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            heroTag: 'series',
+            backgroundColor: accentColor,
+            onPressed: _addSelectedToSeries,
+            tooltip: 'Add to series',
+            child: Icon(
+              Icons.collections_bookmark,
               color: Theme.of(context).colorScheme.onPrimary,
             ),
           ),

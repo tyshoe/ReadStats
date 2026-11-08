@@ -28,7 +28,7 @@ import '/viewmodels/SettingsViewModel.dart';
 import '/ui/pages/library/widgets/book_detail_sheet.dart';
 import '/ui/pages/library/book_form_page.dart';
 import '/ui/pages/sessions/session_form_page.dart';
-import '/ui/pages/sessions/widgets/rate_book_dialog.dart';
+import '/ui/pages/library/widgets/next_in_series_sheet.dart';
 
 /// Immutable snapshot of everything the Statistics page renders for one year
 /// filter. Computed in a single pass ([_StatisticsPageState._compute]) so the
@@ -792,7 +792,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
 
     if (finishedBook != null && mounted) {
-      await showRatingDialogForBook(
+      await afterFinishingBook(
         context: context,
         book: finishedBook,
         bookRepository: widget.bookRepository,

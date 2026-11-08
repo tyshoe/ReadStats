@@ -17,12 +17,15 @@ import '../../sessions/widgets/rate_book_dialog.dart';
 import '../book_form_page.dart';
 import '/data/database/database_helper.dart';
 import '/data/services/gallery_save_service.dart';
+import '/data/utils/series_title.dart';
 import '/ui/widgets/book_cover.dart';
 import '/ui/widgets/book_type.dart';
 import '/ui/widgets/share_action.dart';
 import 'book_share_card.dart';
 import 'book_sessions_content.dart';
 import 'bulk_tag_sheet.dart';
+import 'next_in_series_sheet.dart';
+import 'series_sheet.dart';
 
 class BookPopup {
   static void showBookPopup(
@@ -38,9 +41,20 @@ class BookPopup {
       SettingsViewModel settingsViewModel,
       {required Function() refreshCallback,
       bool isPinned = false,
-      required Function(int) onTogglePin}) async {
+      required Function(int) onTogglePin,
+      // Pin state for other books, so stepping through a series shows each
+      // one's own pin. Without it they open unpinned.
+      bool Function(int bookId)? isPinnedFor}) async {
+    // The sheet's builder shadows `context`; series navigation reopens this
+    // popup on the page that opened it.
+    final hostContext = context;
     final DatabaseHelper dbHelper = DatabaseHelper();
     final stats = await dbHelper.getBookStats(book['id']);
+    final int? seriesId = book['series_id'] as int?;
+    final int seriesCount = seriesId == null
+        ? 0
+        : (await dbHelper.getBooksInSeries(seriesId)).length;
+    if (!hostContext.mounted) return;
     final ThemeData theme = Theme.of(context);
     final Color textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
     final Color subtitleColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
@@ -284,6 +298,76 @@ class BookPopup {
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ],
+                                        if (seriesId != null &&
+                                            book['series_name'] != null) ...[
+                                          const SizedBox(height: 4),
+                                          Builder(builder: (context) {
+                                            final color = book['cover_path'] != null
+                                                ? Colors.white.withValues(alpha: 0.85)
+                                                : theme.colorScheme.primary;
+                                            final position =
+                                                (book['series_position'] as num?)?.toDouble();
+                                            final label = [
+                                              position == null
+                                                  ? book['series_name'] as String
+                                                  : '${book['series_name']} #${SeriesTitle.formatPosition(position)}',
+                                              if (seriesCount > 1) '$seriesCount books',
+                                            ].join(' · ');
+                                            return InkWell(
+                                              borderRadius: BorderRadius.circular(6),
+                                              onTap: () async {
+                                                final picked = await showSeriesSheet(
+                                                  context: context,
+                                                  seriesId: seriesId,
+                                                  currentBookId: book['id'] as int,
+                                                  settingsViewModel: settingsViewModel,
+                                                );
+                                                if (picked == null || !context.mounted) return;
+                                                Navigator.pop(context);
+                                                if (!hostContext.mounted) return;
+                                                showBookPopup(
+                                                  hostContext,
+                                                  picked,
+                                                  ratingStyle,
+                                                  dateFormatString,
+                                                  navigateToEditBookPage,
+                                                  navigateToAddSessionPage,
+                                                  confirmDelete,
+                                                  tagRepository,
+                                                  bookRepository,
+                                                  settingsViewModel,
+                                                  refreshCallback: refreshCallback,
+                                                  isPinned: isPinnedFor?.call(picked['id'] as int) ?? false,
+                                                  onTogglePin: onTogglePin,
+                                                  isPinnedFor: isPinnedFor,
+                                                );
+                                              },
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(Icons.collections_bookmark, size: 16, color: color),
+                                                    const SizedBox(width: 5),
+                                                    Flexible(
+                                                      child: Text(
+                                                        label,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                        style: TextStyle(
+                                                          fontSize: 14,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: color,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    Icon(Icons.chevron_right, size: 18, color: color),
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          }),
+                                        ],
                                         const SizedBox(height: 8),
                                         Row(
                                           children: [
@@ -497,6 +581,15 @@ class BookPopup {
                                                   await bookRepository.updateBookShelf(mutableBook['id'], shelf['id']);
                                                   setState(() => mutableBook['shelf_id'] = shelf['id']);
                                                   refreshCallback();
+                                                  if (shelf['id'] == DatabaseHelper.shelfFinished &&
+                                                      context.mounted) {
+                                                    await showNextInSeries(
+                                                      context: context,
+                                                      finishedBookId: mutableBook['id'] as int,
+                                                      bookRepository: bookRepository,
+                                                      settingsViewModel: settingsViewModel,
+                                                    );
+                                                  }
                                                 },
                                               );
                                             }),

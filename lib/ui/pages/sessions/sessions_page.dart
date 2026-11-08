@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'session_form_page.dart';
-import 'widgets/rate_book_dialog.dart';
+import '/ui/pages/library/widgets/next_in_series_sheet.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
@@ -199,8 +199,9 @@ class _SessionsPageState extends State<SessionsPage>
     }
   }
 
+  /// Rating, then what's next if the book is part of a series.
   Future<void> _showRatingDialog(Map<String, dynamic> book) =>
-      showRatingDialogForBook(
+      afterFinishingBook(
         context: context,
         book: book,
         bookRepository: widget.bookRepository,

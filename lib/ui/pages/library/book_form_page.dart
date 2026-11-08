@@ -15,7 +15,9 @@ import '../../../data/database/database_helper.dart';
 import '../../../data/models/book.dart';
 import '../../../data/models/tag.dart';
 import '../../../data/repositories/book_repository.dart';
+import '../../../data/repositories/series_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
+import '../../../data/utils/series_title.dart';
 import '../../../data/services/cover_service.dart';
 import 'widgets/cover_search_sheet.dart';
 import 'widgets/cover_camera_page.dart';
@@ -42,6 +44,10 @@ class BookFormPage extends StatefulWidget {
   )?
   onSubmitData;
 
+  /// Prefills the series fields of a new book — adding one for a series gap.
+  final String? initialSeriesName;
+  final double? initialSeriesPosition;
+
   const BookFormPage({
     super.key,
     this.book,
@@ -51,6 +57,8 @@ class BookFormPage extends StatefulWidget {
     this.initialData,
     this.initialTagIds,
     this.onSubmitData,
+    this.initialSeriesName,
+    this.initialSeriesPosition,
   }) : isEditing = book != null;
 
   bool get isReturnMode => onSubmitData != null;
@@ -72,6 +80,11 @@ class _BookFormPageState extends State<BookFormPage> {
   final TextEditingController _durationMinutesController =
       TextEditingController();
   final TextEditingController _narratorController = TextEditingController();
+  final TextEditingController _seriesController = TextEditingController();
+  final TextEditingController _seriesPositionController =
+      TextEditingController();
+  final FocusNode _seriesFocus = FocusNode();
+  List<String> _seriesNames = const [];
   final DateTime _dateToday = DateTime.now();
   double? _rating;
   bool _isFavorite = false;
@@ -112,9 +125,18 @@ class _BookFormPageState extends State<BookFormPage> {
     _selectedBookType =
         widget.settingsViewModel.defaultBookTypeNotifier.value - 1;
     _loadShelves();
+    SeriesRepository(DatabaseHelper()).names().then((names) {
+      if (mounted) setState(() => _seriesNames = names);
+    });
 
     if (widget.searchResult != null) {
       _prefillFromSearchResult(widget.searchResult!);
+    }
+
+    if (widget.initialSeriesName != null) {
+      _seriesController.text = widget.initialSeriesName!;
+      _seriesPositionController.text =
+          _formatSeriesPosition(widget.initialSeriesPosition);
     }
 
     if (widget.isReturnMode && widget.initialData != null) {
@@ -133,6 +155,8 @@ class _BookFormPageState extends State<BookFormPage> {
       _isFavorite = d['is_favorite'] == 1;
       _selectedBookType = ((d['book_type_id'] as int?) ?? 1) - 1;
       _narratorController.text = d['narrator'] ?? _narratorController.text;
+      _seriesController.text = d['series_name'] ?? '';
+      _seriesPositionController.text = _formatSeriesPosition(d['series_position']);
       _selectedTagIds = {...?widget.initialTagIds};
     }
 
@@ -156,6 +180,9 @@ class _BookFormPageState extends State<BookFormPage> {
         _durationMinutesController.text = (editDuration % 60).toString();
       }
       _narratorController.text = widget.book!['narrator'] ?? '';
+      _seriesController.text = widget.book!['series_name'] ?? '';
+      _seriesPositionController.text =
+          _formatSeriesPosition(widget.book!['series_position']);
       _isbnController.text = widget.book!['isbn'] ?? '';
       _userReviewController.text = widget.book!['user_review'] ?? '';
       _dateStarted = widget.book!['date_started'] != null
@@ -198,7 +225,15 @@ class _BookFormPageState extends State<BookFormPage> {
     _durationHoursController.dispose();
     _durationMinutesController.dispose();
     _narratorController.dispose();
+    _seriesController.dispose();
+    _seriesPositionController.dispose();
+    _seriesFocus.dispose();
     super.dispose();
+  }
+
+  static String _formatSeriesPosition(dynamic value) {
+    final position = (value as num?)?.toDouble();
+    return position == null ? '' : SeriesTitle.formatPosition(position);
   }
 
   void _saveBook() async {
@@ -264,9 +299,24 @@ class _BookFormPageState extends State<BookFormPage> {
       }
     }
 
+    // A number without a series means nothing, so it goes with the name.
+    final seriesName = _seriesController.text.trim();
+    final int? seriesId = seriesName.isEmpty
+        ? null
+        : await SeriesRepository(DatabaseHelper()).idFor(seriesName);
+    final double? seriesPosition = seriesName.isEmpty
+        ? null
+        : double.tryParse(_seriesPositionController.text.trim());
+
     final bookData = {
       if (widget.isEditing && widget.book!['id'] != null)
         "id": widget.book!['id'],
+      "series_id": seriesId,
+      "series_position": seriesPosition,
+      // Carried for return mode (batch scan), which re-opens the form from
+      // this map; the database ignores it.
+      if (widget.isReturnMode && seriesName.isNotEmpty)
+        "series_name": seriesName,
       "title": title,
       "author": author,
       "word_count": wordCount,
@@ -437,6 +487,8 @@ class _BookFormPageState extends State<BookFormPage> {
     _isbnController.clear();
     _userReviewController.clear();
     _narratorController.clear();
+    _seriesController.clear();
+    _seriesPositionController.clear();
     setState(() {
       _rating = 0;
       _isFavorite = false;
@@ -1175,6 +1227,102 @@ class _BookFormPageState extends State<BookFormPage> {
     );
   }
 
+  /// Series name (suggesting the reader's existing series) and its number.
+  Widget _buildSeriesField() {
+    final theme = Theme.of(context);
+
+    InputDecoration decoration(String label, String hint) => InputDecoration(
+          labelText: label,
+          hintText: hint,
+          filled: true,
+          fillColor: theme.colorScheme.surfaceContainerHighest,
+          border: UnderlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: UnderlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: UnderlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+        );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) => RawAutocomplete<String>(
+              textEditingController: _seriesController,
+              focusNode: _seriesFocus,
+              optionsBuilder: (value) {
+                final q = value.text.trim().toLowerCase();
+                if (q.isEmpty) return const Iterable<String>.empty();
+                return _seriesNames.where((n) =>
+                    n.toLowerCase().contains(q) && n.toLowerCase() != q);
+              },
+              fieldViewBuilder: (context, controller, focusNode, _) =>
+                  TextField(
+                controller: controller,
+                focusNode: focusNode,
+                textCapitalization: TextCapitalization.words,
+                decoration: decoration('Series', 'Part of a series?'),
+                onChanged: (_) => setState(() {}),
+                onTapOutside: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
+              ),
+              optionsViewBuilder: (context, onSelected, options) => Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.antiAlias,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: 220,
+                      maxWidth: constraints.maxWidth,
+                    ),
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      children: [
+                        for (final option in options)
+                          ListTile(
+                            dense: true,
+                            title: Text(option),
+                            onTap: () => onSelected(option),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 88,
+          child: TextField(
+            controller: _seriesPositionController,
+            enabled: _seriesController.text.trim().isNotEmpty,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            // Whole numbers, or a decimal for an in-between novella (1.5).
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+            ],
+            decoration: decoration('#', '1'),
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1207,6 +1355,8 @@ class _BookFormPageState extends State<BookFormPage> {
                     _buildTitleField(),
                     const SizedBox(height: 16),
                     _buildAuthorField(),
+                    const SizedBox(height: 16),
+                    _buildSeriesField(),
 
                     const Divider(height: 32),
 
