@@ -4,6 +4,7 @@ import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app_config.dart';
 import '../../../data/services/import_export_service.dart';
+import '../../../data/services/milestone_service.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../viewmodels/SettingsViewModel.dart';
 
@@ -234,6 +235,7 @@ class _ImportContentState extends State<_ImportContent> {
     'goodreads': _ImportState.idle,
     'bookmory': _ImportState.idle,
     'books': _ImportState.idle,
+    'demo': _ImportState.idle,
   };
   final Map<String, String> _messages = {};
 
@@ -346,6 +348,37 @@ class _ImportContentState extends State<_ImportContent> {
               'books',
               widget.importExportService.importBackup,
             ),
+          ),
+          const SizedBox(height: 16),
+          _ImportTile(
+            leading: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.science,
+                size: 20,
+                color: colorScheme.onPrimaryContainer,
+              ),
+            ),
+            title: 'Explore with demo data',
+            subtitle: 'A sample library you can replace any time',
+            state: _states['demo']!,
+            message: _messages['demo'],
+            onTap: () => _runImport('demo', () async {
+              // A whole library at once isn't something to celebrate medal by
+              // medal — adopt it, as Settings does for its bulk changes.
+              MilestoneService.beginBulkChange();
+              try {
+                return await widget.importExportService
+                    .loadDemoData(onlyIfEmpty: true);
+              } finally {
+                MilestoneService.endBulkChange();
+              }
+            }),
           ),
           const SizedBox(height: 16),
           Row(

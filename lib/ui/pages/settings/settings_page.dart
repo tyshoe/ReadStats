@@ -222,6 +222,13 @@ class SettingsPage extends StatelessWidget {
               ),
               _buildActionTile(
                 context,
+                icon: Icons.science,
+                title: 'Load Demo Data',
+                subtitle: 'Replace your library with a sample one to explore',
+                onTap: () => _confirmLoadDemo(context),
+              ),
+              _buildActionTile(
+                context,
                 icon: Icons.delete,
                 title: 'Delete All Data',
                 color: colors.error,
@@ -334,6 +341,42 @@ class SettingsPage extends StatelessWidget {
         refreshSessions();
       }
     }
+  }
+
+  /// Same shape as [_confirmDeleteData] — loading the demo wipes first.
+  void _confirmLoadDemo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Load Demo Data?'),
+        content: const Text(
+          'This replaces every book, session, tag, goal, and planner entry '
+          'with a sample library. Export a backup first to keep your own.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _handleImportExport(context, importExportService.exportBackup);
+            },
+            child: const Text('Export Backup'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              timerService.stop();
+              await _handleImportExport(
+                  context, importExportService.loadDemoData);
+            },
+            child: const Text('Load'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _confirmDeleteData(BuildContext context) {

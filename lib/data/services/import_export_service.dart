@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' show FileImage;
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -13,6 +14,8 @@ import '../models/session.dart';
 import '../models/tag.dart';
 import '../models/book_tag.dart';
 import '../database/database_helper.dart';
+import '../demo/demo_covers.dart';
+import '../demo/demo_data.dart';
 import '../repositories/book_repository.dart';
 import '../repositories/session_repository.dart';
 import '../repositories/tag_repository.dart';
@@ -50,6 +53,67 @@ class ImportExportService {
     } catch (e) {
       if (kDebugMode) print('Delete error: $e');
       return ImportExportResult(success: false, message: 'Delete failed: $e');
+    }
+  }
+
+  // ─── DEMO ─────────────────────────────────────────────────────────────────
+
+  /// Replace everything with the generated demo library (see [DemoData]).
+  ///
+  /// With [onlyIfEmpty], refuses when the library already has books — the
+  /// onboarding entry, which has no confirmation step of its own.
+  Future<ImportExportResult> loadDemoData({bool onlyIfEmpty = false}) async {
+    try {
+      if (onlyIfEmpty && (await bookRepository.getBooks()).isNotEmpty) {
+        return const ImportExportResult(
+          success: false,
+          message: 'Your library already has books. '
+              'Load demo data from Settings to replace them.',
+        );
+      }
+
+      final wipe = await deleteAllData();
+      if (!wipe.success) return wipe;
+
+      final demo = DemoData.generate(DateTime.now());
+
+      // Goals first, as in a restore: screens reload goals when books change.
+      await goalRepository.restoreBackupRows(demo.goals, demo.goalTargets);
+      await tagRepository.addTagsBatch(demo.tags);
+
+      // Downloaded a few at a time — quick enough, and gentle on Open Library.
+      final coversDir = await CoverService.coversDirectory();
+      final withCovers = demo.books.where((b) => b.coverPath != null).toList();
+      for (var i = 0; i < withCovers.length; i += 6) {
+        await Future.wait(withCovers.skip(i).take(6).map((book) async {
+          final file = File(p.join(coversDir.path, book.coverPath!));
+          await file.writeAsBytes(await DemoCovers.obtain(
+            url: demo.coverUrls[book.id],
+            title: book.title,
+            author: book.author,
+            square: book.coverShape == DatabaseHelper.coverShapeSquare,
+          ));
+          // Reloading the demo rewrites the same paths.
+          await FileImage(file).evict();
+        }));
+      }
+
+      await bookRepository.addBooksBatch(demo.books);
+      await sessionRepository.addSessionsBatch(demo.sessions);
+      await tagRepository.addBookTagsBatch(demo.bookTags);
+      for (final entry in demo.planner) {
+        await DatabaseHelper().insertPlannerBook(entry);
+      }
+
+      return ImportExportResult(
+        success: true,
+        message: 'Demo library loaded: ${demo.books.length} books, '
+            '${demo.sessions.length} sessions.',
+      );
+    } catch (e) {
+      if (kDebugMode) print('Demo data error: $e');
+      return ImportExportResult(
+          success: false, message: 'Loading demo data failed: $e');
     }
   }
 
