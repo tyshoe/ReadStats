@@ -11,6 +11,7 @@ import '/ui/pages/profile/reading_stats.dart';
 import '../database/database_helper.dart';
 import '../models/goal.dart';
 import '../models/monthly_recap.dart';
+import '../models/year_wrapped.dart';
 import '../models/notification_pref.dart';
 import '../repositories/goal_repository.dart';
 import 'notification_prefs_store.dart';
@@ -40,6 +41,7 @@ class NotificationService {
     NotificationType.streakAtRisk,
     NotificationType.staleBook,
     NotificationType.monthlyRecap,
+    NotificationType.yearlyWrapped,
   };
 
   /// Android refuses to raise the importance of a channel that already exists —
@@ -62,6 +64,7 @@ class NotificationService {
   static const _streakAtRiskId = 300;
   static const _staleBookId = 400;
   static const _monthlyRecapId = 500;
+  static const _yearlyWrappedId = 600;
 
   /// Goals beyond this many are summarised as a count. Android's expanded
   /// notification has room for a handful of lines, not a full list.
@@ -70,6 +73,9 @@ class NotificationService {
   /// Payload carried by the monthly recap, so a tap can open the month it is
   /// announcing rather than dropping the reader on whichever tab they left.
   static const monthlyRecapPayload = 'monthly_recap';
+
+  /// Payload carried by the Wrapped announcement, which opens that year's story.
+  static const yearlyWrappedPayload = 'yearly_wrapped';
 
   /// The payload of a notification the reader tapped, waiting to be acted on.
   ///
@@ -310,6 +316,7 @@ class NotificationService {
     await _scheduleStreakAtRisk(store.of(NotificationType.streakAtRisk));
     await _scheduleStaleBook(store.of(NotificationType.staleBook));
     await _scheduleMonthlyRecap(store.of(NotificationType.monthlyRecap));
+    await _scheduleYearlyWrapped(store.of(NotificationType.yearlyWrapped));
   }
 
   Future<void> cancelAll() async {
@@ -653,6 +660,55 @@ class NotificationService {
       payload: monthlyRecapPayload,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
+  }
+
+  /// "Your 2026 Wrapped is ready", on December 1st.
+  ///
+  /// Covers the year the date falls in, which is the year that unlocks that
+  /// morning. Silent when that year has nothing in it yet; since every session
+  /// triggers a reschedule, the first one logged arms it — and keeps its
+  /// numbers current right up to the day.
+  Future<void> _scheduleYearlyWrapped(NotificationPref pref) async {
+    await _plugin.cancel(id: _yearlyWrappedId);
+    if (!pref.isActiveFor(NotificationType.yearlyWrapped)) return;
+
+    final scheduledDate = _nextDecemberFirst(pref.hour, pref.minute);
+    final wrapped = YearWrapped.forYear(
+      books: _books!,
+      sessions: _sessions!,
+      year: scheduledDate.year,
+    );
+    if (wrapped.isEmpty) return;
+
+    final parts = <String>[
+      if (wrapped.booksFinished > 0)
+        YearWrapped.plural(wrapped.booksFinished, 'book'),
+      if (wrapped.minutes > 0) YearWrapped.formatMinutes(wrapped.minutes),
+      if (wrapped.minutes == 0 && wrapped.displayPages > 0)
+        YearWrapped.plural(wrapped.displayPages, 'page'),
+    ];
+    final body = parts.isEmpty
+        ? 'Your year in reading, told in slides. Tap to open it.'
+        : '${parts.join('  ·  ')} so far. Tap to see your year in reading.';
+
+    await _plugin.zonedSchedule(
+      id: _yearlyWrappedId,
+      title: 'Your ${scheduledDate.year} Wrapped is ready',
+      body: body,
+      scheduledDate: scheduledDate,
+      notificationDetails: _details(body),
+      payload: yearlyWrappedPayload,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+    );
+  }
+
+  /// The next December 1st at [hour]:[minute], in the device's zone. This
+  /// year's while it is still ahead, otherwise next year's.
+  static tz.TZDateTime _nextDecemberFirst(int hour, int minute) {
+    final now = tz.TZDateTime.now(tz.local);
+    final thisYear = tz.TZDateTime(tz.local, now.year, 12, 1, hour, minute);
+    if (thisYear.isAfter(now)) return thisYear;
+    return tz.TZDateTime(tz.local, now.year + 1, 12, 1, hour, minute);
   }
 
   /// The next 1st of a month at [hour]:[minute], in the device's zone.

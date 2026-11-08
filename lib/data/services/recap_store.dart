@@ -22,9 +22,24 @@ class RecapStore {
   /// announced.
   final ValueNotifier<int> lastSeenMonth = ValueNotifier(0);
 
+  static const _wrappedKey = 'lastSeenWrappedYear';
+
+  /// The newest year whose Wrapped has been opened. 0 until one has.
+  final ValueNotifier<int> lastSeenWrappedYear = ValueNotifier(0);
+
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     lastSeenMonth.value = prefs.getInt(_key) ?? 0;
+    lastSeenWrappedYear.value = prefs.getInt(_wrappedKey) ?? 0;
+  }
+
+  /// Records that [year]'s Wrapped has been opened. Forward-only, for the same
+  /// reason as [markSeen].
+  Future<void> markWrappedSeen(int year) async {
+    if (year <= lastSeenWrappedYear.value) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_wrappedKey, year);
+    lastSeenWrappedYear.value = year;
   }
 
   /// Records that [year]/[month]'s recap has been opened. Only ever moves

@@ -17,8 +17,10 @@ import 'data/services/notification_prefs_store.dart';
 import 'data/services/notification_service.dart';
 import 'data/services/recap_store.dart';
 import 'data/models/monthly_recap.dart';
+import 'data/models/year_wrapped.dart';
 import 'ui/pages/profile/milestone_celebration_page.dart';
 import 'ui/pages/statistics/monthly_recap_page.dart';
+import 'ui/pages/wrapped/wrapped_page.dart';
 import 'ui/pages/profile/reading_stats.dart';
 import 'ui/pages/library/library_page.dart';
 import 'ui/pages/onboarding/onboarding_page.dart';
@@ -300,8 +302,9 @@ class _MyAppState extends State<MyApp> {
   /// opening early would show an empty month and then leave it empty. The tap
   /// is left pending instead, and every load calls back here.
   void _handleNotificationTap() {
-    if (NotificationService.instance.tappedPayload.value !=
-        NotificationService.monthlyRecapPayload) {
+    final payload = NotificationService.instance.tappedPayload.value;
+    if (payload != NotificationService.monthlyRecapPayload &&
+        payload != NotificationService.yearlyWrappedPayload) {
       return;
     }
     if (!_booksLoaded || !_sessionsLoaded || !_hasSeenOnboarding) return;
@@ -310,6 +313,14 @@ class _MyAppState extends State<MyApp> {
 
     // Cleared first, so a rebuild or a second load can't push a second copy.
     NotificationService.instance.tappedPayload.value = null;
+    if (payload == NotificationService.yearlyWrappedPayload) {
+      navigator.push(WrappedPage.route(
+        books: _books,
+        sessions: _sessions,
+        year: YearWrapped.featuredYear(),
+      ));
+      return;
+    }
     final month = MonthlyRecap.previousMonthOf(DateTime.now());
     navigator.push(
       MaterialPageRoute(

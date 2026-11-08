@@ -12,6 +12,9 @@ import 'package:read_stats/ui/pages/statistics/widgets/stat_card.dart';
 import 'package:read_stats/ui/pages/statistics/monthly_recap_page.dart';
 import '../../../data/models/book.dart';
 import '/data/models/monthly_recap.dart';
+import '/data/models/year_wrapped.dart';
+import '/ui/pages/wrapped/wrapped_page.dart';
+import '/ui/pages/wrapped/wrapped_style.dart';
 import '/data/services/recap_store.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
@@ -836,92 +839,145 @@ class _StatisticsPageState extends State<StatisticsPage> {
   ///
   /// Always present, so the reader can reach the history from a quiet month;
   /// what changes is whether it leads with last month or with the invitation.
-  Widget _buildRecapCard(ThemeData theme) {
+  ///
+  /// [compact] is the half-width tile used beside the Wrapped entry.
+  Widget _buildRecapCard(ThemeData theme, {bool compact = false}) {
     return ValueListenableBuilder<int>(
       valueListenable: RecapStore.instance.lastSeenMonth,
       builder: (context, lastSeen, _) {
         final recap = _recapForLastMonth();
         final hasMonth = !recap.isEmpty;
-        final unseen = hasMonth && recap.key > lastSeen;
         final accent = theme.colorScheme.primary;
 
-        return Card(
-          margin: EdgeInsets.zero,
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: InkWell(
-            onTap: _openRecap,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.14),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.auto_awesome, size: 19, color: accent),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                hasMonth
-                                    ? '${recap.monthLabel} recap'
-                                    : 'Monthly recap',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            if (unseen) ...[
-                              const SizedBox(width: 8),
-                              _NewPill(color: accent),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          hasMonth
-                              ? _recapTeaser(recap)
-                              : 'Look back at any month of reading',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    size: 22,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ],
-              ),
-            ),
-          ),
+        return _buildEntryCard(
+          theme: theme,
+          compact: compact,
+          onTap: _openRecap,
+          title: !hasMonth
+              ? 'Monthly recap'
+              : compact
+                  ? '${recap.monthNameOnly} recap'
+                  : '${recap.monthLabel} recap',
+          subtitle: !hasMonth
+              ? (compact
+                  ? 'Look back at any month'
+                  : 'Look back at any month of reading')
+              : _recapTeaser(recap, max: compact ? 2 : 3),
+          unseen: hasMonth && recap.key > lastSeen,
+          accent: accent,
+          iconBackground: accent.withValues(alpha: 0.14),
+          titleColor: theme.colorScheme.onSurface,
+          mutedColor: theme.colorScheme.onSurfaceVariant,
         );
       },
     );
   }
 
+  /// The shared body of the recap and Wrapped entries: a row with a chevron at
+  /// full width, or a stacked tile when two of them share a row.
+  Widget _buildEntryCard({
+    required ThemeData theme,
+    required bool compact,
+    required VoidCallback onTap,
+    required String title,
+    required String subtitle,
+    required bool unseen,
+    required Color accent,
+    required Color iconBackground,
+    required Color titleColor,
+    required Color mutedColor,
+    Color? pillTextColor,
+    Gradient? gradient,
+  }) {
+    final icon = Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(color: iconBackground, shape: BoxShape.circle),
+      child: Icon(Icons.auto_awesome, size: 19, color: accent),
+    );
+    final pill = _NewPill(color: accent, textColor: pillTextColor);
+    final titleText = Text(
+      title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.titleSmall?.copyWith(
+        fontWeight: FontWeight.w700,
+        color: titleColor,
+      ),
+    );
+    final subtitleText = Text(
+      subtitle,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodySmall?.copyWith(color: mutedColor),
+    );
+
+    final Widget content = compact
+        ? Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    icon,
+                    const Spacer(),
+                    if (unseen) pill,
+                  ],
+                ),
+                const SizedBox(height: 10),
+                titleText,
+                const SizedBox(height: 2),
+                subtitleText,
+              ],
+            ),
+          )
+        : Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+            child: Row(
+              children: [
+                icon,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(child: titleText),
+                          if (unseen) ...[
+                            const SizedBox(width: 8),
+                            pill,
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      subtitleText,
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 22, color: mutedColor),
+              ],
+            ),
+          );
+
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Ink(
+        decoration:
+            gradient == null ? null : BoxDecoration(gradient: gradient),
+        child: InkWell(onTap: onTap, child: content),
+      ),
+    );
+  }
+
   /// Enough of the month to be worth a tap, in the order the recap ranks them.
-  static String _recapTeaser(MonthlyRecap recap) {
+  static String _recapTeaser(MonthlyRecap recap, {int max = 3}) {
     final parts = <String>[
       if (recap.minutes > 0) MonthlyRecap.formatMinutes(recap.minutes),
       if (recap.booksFinishedCount > 0)
@@ -930,7 +986,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
       if (recap.pages > 0) '${recap.pages} pages',
       if (recap.sessions > 0) '${recap.sessions} sessions',
     ];
-    return parts.take(3).join('  ·  ');
+    return parts.take(max).join('  ·  ');
   }
 
   // Last month's recap, cached against the lists it was worked out from. The
@@ -955,6 +1011,91 @@ class _StatisticsPageState extends State<StatisticsPage> {
       sessions: widget.sessions,
       year: month.year,
       month: month.month,
+    );
+  }
+
+  // ── Wrapped ────────────────────────────────────────────────────────────────
+
+  // Years with a Wrapped to open, cached against the lists like the recap.
+  List<Map<String, dynamic>>? _wrappedBooks;
+  List<Map<String, dynamic>>? _wrappedSessions;
+  List<int> _wrappedYears = const [];
+
+  List<int> _availableWrappedYears() {
+    if (identical(_wrappedBooks, widget.books) &&
+        identical(_wrappedSessions, widget.sessions)) {
+      return _wrappedYears;
+    }
+    _wrappedBooks = widget.books;
+    _wrappedSessions = widget.sessions;
+    return _wrappedYears = YearWrapped.availableYears(
+      books: widget.books,
+      sessions: widget.sessions,
+    );
+  }
+
+  void _openWrapped(int year) {
+    Navigator.of(context).push(WrappedPage.route(
+      books: widget.books,
+      sessions: widget.sessions,
+      year: year,
+    ));
+  }
+
+  /// The Wrapped year the year chips point at: the newest one under "All", the
+  /// chosen year if it has one, otherwise none. The chips are how older years
+  /// are reached, so the entry needs no picker of its own.
+  int? _wrappedYearForFilter() {
+    final years = _availableWrappedYears();
+    if (years.isEmpty) return null;
+    if (selectedYear == 0) return years.first;
+    return years.contains(selectedYear) ? selectedYear : null;
+  }
+
+  /// The way into Wrapped, beside the monthly recap. Drawn in Wrapped's own
+  /// colours rather than the app's, so it reads as the event it opens.
+  ///
+  /// Only there once a year is unlocked and has reading in it — the current
+  /// year from December 1st, every earlier year always.
+  Widget _buildWrappedCard(ThemeData theme, int year, {bool compact = false}) {
+    final inProgress = year == DateTime.now().year;
+    const palette = WrappedPalette.intro;
+
+    return ValueListenableBuilder<int>(
+      valueListenable: RecapStore.instance.lastSeenWrappedYear,
+      builder: (context, lastSeen, _) => _buildEntryCard(
+        theme: theme,
+        compact: compact,
+        onTap: () => _openWrapped(year),
+        title: compact ? '$year Wrapped' : 'Your $year Wrapped',
+        subtitle: compact
+            ? (inProgress ? 'Your year so far' : 'Your year in reading')
+            : (inProgress
+                ? 'Your year in reading, so far'
+                : 'Your year in reading, told in slides'),
+        unseen: year > lastSeen,
+        accent: palette.accent,
+        iconBackground: Colors.white.withValues(alpha: 0.16),
+        titleColor: Colors.white,
+        mutedColor: Colors.white.withValues(alpha: 0.8),
+        pillTextColor: Colors.black,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: palette.gradient,
+        ),
+      ),
+    );
+  }
+
+  /// Wrapped and the monthly recap share one row when both are there, so the
+  /// stats don't start two cards down; the recap alone keeps the full row.
+  Widget _buildRecapEntries(ThemeData theme) {
+    final wrappedYear = _wrappedYearForFilter();
+    if (wrappedYear == null) return _buildRecapCard(theme);
+    return _buildPair(
+      _buildWrappedCard(theme, wrappedYear, compact: true),
+      _buildRecapCard(theme, compact: true),
     );
   }
 
@@ -1066,7 +1207,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: _spaced([
-                  _buildRecapCard(theme),
+                  _buildRecapEntries(theme),
                   _buildSectionHeader('Overview'),
                   _buildShelfChart(),
                   _buildBookTypeChart(),
@@ -1155,7 +1296,10 @@ class _StatisticsPageState extends State<StatisticsPage> {
 class _NewPill extends StatelessWidget {
   final Color color;
 
-  const _NewPill({required this.color});
+  /// Defaults to the theme's on-primary, which suits the accent-coloured pill.
+  final Color? textColor;
+
+  const _NewPill({required this.color, this.textColor});
 
   @override
   Widget build(BuildContext context) {
@@ -1168,7 +1312,7 @@ class _NewPill extends StatelessWidget {
       child: Text(
         'New',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onPrimary,
+              color: textColor ?? Theme.of(context).colorScheme.onPrimary,
               fontWeight: FontWeight.w700,
               fontSize: 10,
               height: 1.2,

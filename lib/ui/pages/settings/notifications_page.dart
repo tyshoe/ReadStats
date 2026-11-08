@@ -262,6 +262,7 @@ class _ReminderTileState extends State<_ReminderTile> {
         TimeOfDay(hour: pref.hour, minute: pref.minute).format(context);
     // Fixed to the 1st, so the date leads and the time follows it.
     if (type.usesMonthlySchedule) return '1st of the month · $time';
+    if (type.usesYearlySchedule) return 'December 1st · $time';
     // The day count is what actually decides whether — and for the streak,
     // when — this one fires, so it leads; the time only says what hour.
     if (!type.usesWeekdaySchedule) {
@@ -370,7 +371,12 @@ class _ScheduleEditor extends StatelessWidget {
                     'Arrives on the 1st, covering the month just gone',
                     style: TextStyle(color: colors.onSurfaceVariant),
                   )
-                : null,
+                : type.usesYearlySchedule
+                    ? Text(
+                        'Arrives on December 1st, when your Wrapped opens',
+                        style: TextStyle(color: colors.onSurfaceVariant),
+                      )
+                    : null,
             trailing: Text(
               TimeOfDay(hour: pref.hour, minute: pref.minute).format(context),
               style: theme.textTheme.bodyMedium,

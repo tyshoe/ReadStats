@@ -44,6 +44,13 @@ enum NotificationType {
     id: 'monthly_recap',
     label: 'Monthly recap',
     description: 'When last month\'s recap is ready',
+  ),
+
+  /// The year's Wrapped, announced once on December 1st — the day it unlocks.
+  yearlyWrapped(
+    id: 'yearly_wrapped',
+    label: 'Wrapped',
+    description: 'When your year in reading is ready',
   );
 
   const NotificationType({
@@ -72,6 +79,9 @@ enum NotificationType {
   /// Fires once a month, on the 1st. The date is fixed — a recap that arrived
   /// mid-month would be summarising a month the reader is still living in.
   bool get usesMonthlySchedule => this == NotificationType.monthlyRecap;
+
+  /// Fires once a year, on December 1st, when that year's Wrapped opens.
+  bool get usesYearlySchedule => this == NotificationType.yearlyWrapped;
 
   /// Label for the day-count control, on the types that have one.
   String get thresholdLabel => switch (this) {
@@ -237,6 +247,15 @@ class NotificationPref {
         // exists. Morning on the 1st, while the month just gone still feels
         // recent.
         NotificationType.monthlyRecap => NotificationPref(
+            enabled: true,
+            hour: 9,
+            minute: 0,
+            weekdays: kAllWeekdays,
+          ),
+        // On by default for the same reason as the recap: once a year, silent
+        // for a year with nothing in it, and the only way most readers would
+        // learn Wrapped exists.
+        NotificationType.yearlyWrapped => NotificationPref(
             enabled: true,
             hour: 9,
             minute: 0,
