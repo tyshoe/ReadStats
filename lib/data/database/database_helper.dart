@@ -1231,6 +1231,66 @@ class DatabaseHelper {
     return await db.insert('goal_target_changes', change);
   }
 
+  /// Every target change across all goals, for the backup.
+  Future<List<Map<String, dynamic>>> getAllGoalTargetChanges() async {
+    final db = await database;
+    return await db.query('goal_target_changes',
+        orderBy: 'goal_id ASC, effective_from ASC, id ASC');
+  }
+
+  /// Restores goals and their target history from a backup, returning how many
+  /// goals were added.
+  ///
+  /// Goals get fresh ids and their changes are re-pointed at them. A goal the
+  /// device already has for the same metric and period is left as it is,
+  /// history and all — there can only be one per pair.
+  Future<int> restoreGoals(
+    List<Map<String, dynamic>> goals,
+    List<Map<String, dynamic>> changes,
+  ) async {
+    final db = await database;
+    return db.transaction((txn) async {
+      final idMap = <int, int>{};
+      for (final g in goals) {
+        final existing = await txn.query(
+          'goals',
+          columns: ['id'],
+          where: 'metric = ? AND period = ?',
+          whereArgs: [g['metric'], g['period']],
+          limit: 1,
+        );
+        if (existing.isNotEmpty) continue;
+        idMap[g['id'] as int] = await txn.insert('goals', {
+          'metric': g['metric'],
+          'period': g['period'],
+          'target': g['target'],
+          'created_at': g['created_at'],
+        });
+      }
+      for (final c in changes) {
+        final goalId = idMap[c['goal_id']];
+        if (goalId == null) continue;
+        await txn.insert('goal_target_changes', {
+          'goal_id': goalId,
+          'target': c['target'],
+          'effective_from': c['effective_from'],
+        });
+      }
+      return idMap.length;
+    });
+  }
+
+  /// Every target [goalId] has had, oldest first.
+  Future<List<Map<String, dynamic>>> getGoalTargetChanges(int goalId) async {
+    final db = await database;
+    return await db.query(
+      'goal_target_changes',
+      where: 'goal_id = ?',
+      whereArgs: [goalId],
+      orderBy: 'effective_from ASC, id ASC',
+    );
+  }
+
   Future<int?> getTargetForPeriod(int goalId, String periodStart) async {
     final db = await database;
     final result = await db.rawQuery('''

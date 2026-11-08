@@ -137,16 +137,48 @@ class GoalRepository {
     }
   }
 
+  /// Every target [goal] has had, oldest first.
+  Future<List<GoalTargetChange>> getTargetChanges(Goal goal) async {
+    final rows = await _db.getGoalTargetChanges(goal.id!);
+    return [
+      for (final r in rows)
+        GoalTargetChange(
+          effectiveFrom: DateTime.parse(r['effective_from'] as String),
+          target: r['target'] as int,
+        ),
+    ];
+  }
+
+  /// Goals and target changes as stored, for the backup. Raw rows rather than
+  /// models so dates round-trip in the exact format the period lookups compare.
+  Future<(List<Map<String, dynamic>>, List<Map<String, dynamic>>)>
+      getBackupRows() async =>
+          (await _db.getGoals(), await _db.getAllGoalTargetChanges());
+
+  /// Restores rows written by [getBackupRows]; returns how many goals landed.
+  Future<int> restoreBackupRows(
+    List<Map<String, dynamic>> goals,
+    List<Map<String, dynamic>> changes,
+  ) =>
+      _db.restoreGoals(goals, changes);
+
   // --- period helpers ---
 
-  String _periodStart(GoalPeriod period, DateTime date) {
+  /// Start (midnight) of the [period] containing [date]. Weeks start on Sunday.
+  ///
+  /// Public so the activity feed splits history into the same periods the
+  /// goal cards measure.
+  static DateTime periodStartOf(GoalPeriod period, DateTime date) {
     final d = switch (period) {
       GoalPeriod.weekly => date.subtract(Duration(days: date.weekday % 7)),
       GoalPeriod.monthly => DateTime(date.year, date.month, 1),
       GoalPeriod.yearly => DateTime(date.year, 1, 1),
     };
-    return _dateToIso(DateTime(d.year, d.month, d.day));
+    return DateTime(d.year, d.month, d.day);
   }
+
+  String _periodStart(GoalPeriod period, DateTime date) =>
+      _dateToIso(periodStartOf(period, date));
 
   String _periodEnd(GoalPeriod period, DateTime date) {
     final d = switch (period) {

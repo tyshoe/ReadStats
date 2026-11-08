@@ -55,7 +55,7 @@ class ImportExportService {
 
   // ─── EXPORT ───────────────────────────────────────────────────────────────
 
-  /// Export everything — the four data CSVs plus every cover image — as a
+  /// Export everything — the data CSVs plus every cover image — as a
   /// single zip. Bundling the images is what lets covers survive an uninstall:
   /// the CSVs only reference cover filenames, they don't contain the pixels.
   Future<ImportExportResult> exportBackup() async {
@@ -64,6 +64,7 @@ class ImportExportService {
       final sessions = await sessionRepository.getSessions();
       final tags = await tagRepository.getAllTags();
       final bookTags = await tagRepository.getAllBookTagsForExport();
+      final (goals, goalTargets) = await goalRepository.getBackupRows();
 
       final archive = Archive();
       void addCsv(String name, List<List<String>> rows) {
@@ -76,6 +77,8 @@ class ImportExportService {
       addCsv('sessions_data', _sessionsCsvRows(sessions));
       addCsv('tags_data', _tagsCsvRows(tags));
       addCsv('book_tags_data', _bookTagsCsvRows(bookTags));
+      addCsv('goals_data', _goalsCsvRows(goals));
+      addCsv('goal_target_changes_data', _goalTargetsCsvRows(goalTargets));
 
       var coverCount = 0;
       final coversDir = await CoverService.coversDirectory();
@@ -183,10 +186,74 @@ class ImportExportService {
     ];
   }
 
+  // Dates are written exactly as stored: effective_from is compared as a
+  // yyyy-MM-dd string, so reformatting it would misplace every target.
+  List<List<String>> _goalsCsvRows(List<Map<String, dynamic>> goals) {
+    return [
+      ['id', 'metric', 'period', 'target', 'created_at'],
+      ...goals.map((g) => [
+        g['id'].toString(),
+        g['metric'].toString(),
+        g['period'].toString(),
+        g['target'].toString(),
+        g['created_at'].toString(),
+      ]),
+    ];
+  }
+
+  List<List<String>> _goalTargetsCsvRows(List<Map<String, dynamic>> changes) {
+    return [
+      ['goal_id', 'target', 'effective_from'],
+      ...changes.map((c) => [
+        c['goal_id'].toString(),
+        c['target'].toString(),
+        c['effective_from'].toString(),
+      ]),
+    ];
+  }
+
+  /// Goals from a backup. Absent from backups made before goals were included,
+  /// which then simply restore none.
+  Future<int> _parseAndInsertGoals(
+    List<List<dynamic>> goalRows,
+    List<List<dynamic>> targetRows,
+  ) async {
+    final goals = <Map<String, dynamic>>[];
+    for (final row in goalRows) {
+      if (row.length < 5) continue;
+      final id = int.tryParse(row[0].toString());
+      final target = int.tryParse(row[3].toString());
+      if (id == null || target == null) continue;
+      goals.add({
+        'id': id,
+        'metric': row[1].toString(),
+        'period': row[2].toString(),
+        'target': target,
+        'created_at': row[4].toString(),
+      });
+    }
+
+    final changes = <Map<String, dynamic>>[];
+    for (final row in targetRows) {
+      if (row.length < 3) continue;
+      final goalId = int.tryParse(row[0].toString());
+      final target = int.tryParse(row[1].toString());
+      if (goalId == null || target == null) continue;
+      changes.add({
+        'goal_id': goalId,
+        'target': target,
+        'effective_from': row[2].toString(),
+      });
+    }
+
+    if (goals.isEmpty) return 0;
+    return goalRepository.restoreBackupRows(goals, changes);
+  }
+
   // ─── IMPORT ───────────────────────────────────────────────────────────────
 
   /// Restore a backup zip produced by [exportBackup]: cover images are copied
-  /// back into the covers directory and all four CSVs are imported. Also
+  /// back into the covers directory and every CSV is imported. Also
   /// accepts a legacy books CSV from the old CSV-only export.
   Future<ImportExportResult> importBackup() async {
     try {
@@ -233,6 +300,13 @@ class ImportExportService {
         return const [];
       }
 
+      // Goals before books: screens reload their goals when the book list
+      // changes, so they have to be in place by the time books land.
+      final goalsCount = await _parseAndInsertGoals(
+        csvRows('goals_data'),
+        csvRows('goal_target_changes_data'),
+      );
+
       // Books and tags first — sessions and book_tags reference them by id.
       final booksCount = await _parseAndInsertBooks(csvRows('books_data'));
       final tagsCount = await _parseAndInsertTags(csvRows('tags_data'));
@@ -243,7 +317,7 @@ class ImportExportService {
       return ImportExportResult(
         success: true,
         message: 'Restored $booksCount books, $sessionsCount sessions, '
-            '$tagsCount tags, $coverCount covers.',
+            '$tagsCount tags, $goalsCount goals, $coverCount covers.',
       );
     } catch (e) {
       if (kDebugMode) print('Import error (backup): $e');

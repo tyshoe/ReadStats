@@ -106,6 +106,15 @@ class Goal {
       );
 }
 
+/// A goal's target from [effectiveFrom] (a period start) onward, until the next
+/// change. Kept so past periods are judged against the target they had then.
+class GoalTargetChange {
+  final DateTime effectiveFrom;
+  final int target;
+
+  const GoalTargetChange({required this.effectiveFrom, required this.target});
+}
+
 class PeriodProgress {
   final DateTime periodStart;
   final DateTime periodEnd;

@@ -8,7 +8,9 @@ import '/data/repositories/goal_repository.dart';
 import '/data/services/avatar_service.dart';
 import '/ui/widgets/image_editor_page.dart';
 import '/viewmodels/SettingsViewModel.dart';
+import 'activity_page.dart';
 import 'badges.dart';
+import 'reading_activity.dart';
 import 'reading_stats.dart';
 
 /// The reader's identity surface: avatar + name, lifetime headline stats, and
@@ -45,7 +47,11 @@ class ProfilePage extends StatefulWidget {
 class _GoalProgress {
   final Goal goal;
   final PeriodProgress progress;
-  const _GoalProgress(this.goal, this.progress);
+
+  /// Every target the goal has had — the activity feed judges past periods
+  /// against the target they had at the time.
+  final List<GoalTargetChange> targets;
+  const _GoalProgress(this.goal, this.progress, this.targets);
 }
 
 class _ProfilePageState extends State<ProfilePage> {
@@ -57,6 +63,7 @@ class _ProfilePageState extends State<ProfilePage> {
   static List<_GoalProgress>? _cachedGoals;
 
   late ReadingStats _stats;
+  late List<ActivityEntry> _activity;
   String? _avatarPath = _cachedAvatarPath;
   List<_GoalProgress> _goals = _cachedGoals ?? [];
   bool _goalsLoaded = _cachedGoals != null;
@@ -67,6 +74,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _stats = ReadingStats.from(books: widget.books, sessions: widget.sessions);
+    _rebuildActivity();
     widget.settingsViewModel.profileAvatarNotifier.addListener(_resolveAvatar);
     _scrollController.addListener(_onScroll);
     _resolveAvatar();
@@ -93,7 +101,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final result = <_GoalProgress>[];
     for (final goal in goals) {
       final progress = await repo.getCurrentProgress(goal);
-      result.add(_GoalProgress(goal, progress));
+      final targets = await repo.getTargetChanges(goal);
+      result.add(_GoalProgress(goal, progress, targets));
     }
     return result;
   }
@@ -105,8 +114,17 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() {
         _goals = result;
         _goalsLoaded = true;
+        _rebuildActivity();
       });
     }
+  }
+
+  void _rebuildActivity() {
+    _activity = ReadingActivity.build(
+      books: widget.books,
+      sessions: widget.sessions,
+      goals: [for (final g in _goals) (g.goal, g.targets)],
+    );
   }
 
   @override
@@ -116,6 +134,7 @@ class _ProfilePageState extends State<ProfilePage> {
         oldWidget.sessions != widget.sessions) {
       _stats =
           ReadingStats.from(books: widget.books, sessions: widget.sessions);
+      _rebuildActivity();
       // Goal progress is derived from the same books/sessions, so it has to be
       // refetched when they change or the cards show stale numbers.
       _loadGoals();
@@ -386,6 +405,7 @@ class _ProfilePageState extends State<ProfilePage> {
           _buildHeroStats(theme),
           _buildThisYear(theme, accent),
           _buildGoals(theme, accent),
+          _buildActivity(theme, accent),
           _buildAchievements(theme, accent),
         ],
       ),
@@ -749,6 +769,62 @@ class _ProfilePageState extends State<ProfilePage> {
       case GoalMetric.sessions:
         return Icons.event_repeat_rounded;
     }
+  }
+
+  static const _recentActivityCount = 5;
+
+  /// The latest few things the reader did; the full feed is a tap away.
+  Widget _buildActivity(ThemeData theme, Color accent) {
+    if (_activity.isEmpty) return const SizedBox.shrink();
+    final recent = _activity.take(_recentActivityCount).toList();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Recent activity',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              if (_activity.length > recent.length)
+                GestureDetector(
+                  onTap: () => _openActivity(accent),
+                  behavior: HitTestBehavior.opaque,
+                  child: Text(
+                    'See all',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ActivityCard(
+            entries: recent,
+            accent: accent,
+            onBadgeTap: _showGoalDetail,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openActivity(Color accent) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ActivityPage(
+        entries: _activity,
+        accent: accent,
+        onBadgeTap: _showGoalDetail,
+      ),
+    ));
   }
 
   Widget _buildAchievements(ThemeData theme, Color accent) {
