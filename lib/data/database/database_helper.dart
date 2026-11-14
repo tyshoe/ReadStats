@@ -14,7 +14,7 @@ class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
-  static const int _databaseVersion = 10;
+  static const int _databaseVersion = 11;
 
   // System shelf IDs — stable because shelves are seeded in a fixed order
   // and only exist from v2 onwards (v1 had no shelves).
@@ -213,6 +213,8 @@ class DatabaseHelper {
         FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
       )
     ''');
+
+    await _createIndexes(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -428,6 +430,34 @@ class DatabaseHelper {
           'CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'));
     }
 
+    if (oldVersion < 11) {
+      await _createIndexes(db);
+    }
+  }
+
+  /// Lookup indexes for the columns queries join, filter and sort on. Without
+  /// one SQLite reads the whole table to find matching rows — including on
+  /// every book delete, which has to find that book's sessions, tags and
+  /// planner entry to cascade to.
+  ///
+  /// Columns with only a handful of values (shelf, book type) are left out:
+  /// an index that still matches a quarter of the table saves nothing.
+  static const _indexes = [
+    'CREATE INDEX IF NOT EXISTS idx_sessions_book_id ON sessions(book_id)',
+    'CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date)',
+    'CREATE INDEX IF NOT EXISTS idx_books_series_id ON books(series_id)',
+    'CREATE INDEX IF NOT EXISTS idx_books_date_finished ON books(date_finished)',
+    // The primary key (book_id, tag_id) already serves lookups by book.
+    'CREATE INDEX IF NOT EXISTS idx_book_tags_tag_id ON book_tags(tag_id)',
+    'CREATE INDEX IF NOT EXISTS idx_planner_books_book_id ON planner_books(book_id)',
+    'CREATE INDEX IF NOT EXISTS idx_goal_target_changes_goal '
+        'ON goal_target_changes(goal_id, effective_from)',
+  ];
+
+  Future<void> _createIndexes(Database db) async {
+    for (final sql in _indexes) {
+      await db.execute(sql);
+    }
   }
 
   /// Names are unique ignoring case, so "caraval" and "Caraval" are one series.
