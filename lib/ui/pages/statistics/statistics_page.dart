@@ -4,6 +4,7 @@ import 'package:read_stats/data/services/cover_service.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/activity_heatmap.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_single.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/habit_bar_chart.dart';
+import 'package:read_stats/ui/pages/statistics/widgets/when_you_read_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/pie_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stacked_bar_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/top_authors_chart.dart';
@@ -50,14 +51,15 @@ class StatsData {
   final Map<DateTime, int> sessionsDaily;
   final Map<DateTime, int> readingTimeDaily;
   final Map<DateTime, int> pagesDaily;
-  // When reading happens, bucketed from each session's start time. Weekday
-  // keys are DateTime.monday..sunday; daypart keys index [kDaypartLabels].
-  // Counts are kept alongside minutes for readers who log pages but no time —
-  // see [_StatisticsPageState._habitsUseMinutes].
+  // When reading happens. Weekday keys are DateTime.monday..sunday, by
+  // reading day — see [readingWeekday]. The clock grids break each weekday
+  // into hour slots — see [emptyClockGrid]. Counts are kept alongside minutes
+  // for readers who log pages but no time — see
+  // [_StatisticsPageState._habitsUseMinutes].
   final Map<int, int> weekdayMinutes;
   final Map<int, int> weekdaySessions;
-  final Map<int, int> daypartMinutes;
-  final Map<int, int> daypartSessions;
+  final List<List<int>> clockMinutes;
+  final List<List<int>> clockSessions;
 
   const StatsData({
     required this.year,
@@ -76,8 +78,8 @@ class StatsData {
     required this.pagesDaily,
     required this.weekdayMinutes,
     required this.weekdaySessions,
-    required this.daypartMinutes,
-    required this.daypartSessions,
+    required this.clockMinutes,
+    required this.clockSessions,
   });
 }
 
@@ -263,8 +265,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
     final readingTimeDaily = <DateTime, int>{};
     final weekdayMinutes = <int, int>{};
     final weekdaySessions = <int, int>{};
-    final daypartMinutes = <int, int>{};
-    final daypartSessions = <int, int>{};
+    final clockMinutes = emptyClockGrid();
+    final clockSessions = emptyClockGrid();
     for (final s in sessions) {
       final pages = s.pagesRead ?? 0;
       final minutes = s.durationMinutes ?? 0;
@@ -279,18 +281,19 @@ class _StatisticsPageState extends State<StatisticsPage> {
       pagesDaily[day] = (pagesDaily[day] ?? 0) + pages;
       readingTimeDaily[day] = (readingTimeDaily[day] ?? 0) + minutes;
 
-      // A session's timestamp is when reading *started* — a 90-minute sitting
-      // begun at 11pm counts entirely as an 11pm one.
+      // A session's timestamp is when reading *started*. The small hours
+      // count toward the night before, so a sitting begun at 11pm on Saturday
+      // is all Saturday's.
       final at = DateTime.parse(s.date);
-      weekdayMinutes[at.weekday] = (weekdayMinutes[at.weekday] ?? 0) + minutes;
-      weekdaySessions[at.weekday] = (weekdaySessions[at.weekday] ?? 0) + 1;
+      final weekday = readingWeekday(at);
+      weekdayMinutes[weekday] = (weekdayMinutes[weekday] ?? 0) + minutes;
+      weekdaySessions[weekday] = (weekdaySessions[weekday] ?? 0) + 1;
       // A session timed at exactly midnight arrived without a time, and would
       // pile a spike onto Night that nobody actually read. The day is still
-      // real, so only the clock chart skips them.
+      // real, so only the clock grid skips them.
       if (hasRealClockTime(at)) {
-        final part = daypartOf(at.hour);
-        daypartMinutes[part] = (daypartMinutes[part] ?? 0) + minutes;
-        daypartSessions[part] = (daypartSessions[part] ?? 0) + 1;
+        addToClockGrids(at, minutes,
+            minuteGrid: clockMinutes, sessionGrid: clockSessions);
       }
     }
 
@@ -396,8 +399,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
       pagesDaily: pagesDaily,
       weekdayMinutes: weekdayMinutes,
       weekdaySessions: weekdaySessions,
-      daypartMinutes: daypartMinutes,
-      daypartSessions: daypartSessions,
+      clockMinutes: clockMinutes,
+      clockSessions: clockSessions,
     );
   }
 
@@ -552,11 +555,25 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return peak == null ? '-' : kWeekdayFull[peak]!;
   }
 
+  List<List<int>> get _clockGrid =>
+      _habitsUseMinutes ? _data!.clockMinutes : _data!.clockSessions;
+
   String get _peakTimeLabel {
-    final source =
-        _habitsUseMinutes ? _data!.daypartMinutes : _data!.daypartSessions;
-    final peak = peakBucket(source, kDaypartOrder);
+    // Summed from the clock grid, so the card and the charts below it can't
+    // name different times.
+    final peak = peakBucket(daypartTotalsOf(_clockGrid), kDaypartOrder);
     return peak == null ? '-' : kDaypartLabels[peak];
+  }
+
+  Widget _buildWhenYouReadChart() {
+    return WhenYouReadChart(
+      grid: _clockGrid,
+      weekdayTotals:
+          _habitsUseMinutes ? _data!.weekdayMinutes : _data!.weekdaySessions,
+      color: Theme.of(context).primaryColor,
+      valueFormatter: _habitValue,
+      measureLabel: _habitsUseMinutes ? 'reading time' : 'sessions',
+    );
   }
 
   Widget _buildWeekdayChart() {
@@ -576,8 +593,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
   }
 
   Widget _buildDaypartChart() {
-    final source =
-        _habitsUseMinutes ? _data!.daypartMinutes : _data!.daypartSessions;
+    final source = daypartTotalsOf(_clockGrid);
     return HabitBarChart(
       bars: [
         for (var i = 0; i < kDaypartLabels.length; i++)
@@ -1227,6 +1243,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     StatCard(title: 'Peak Day', value: _peakDayLabel),
                     StatCard(title: 'Peak Time', value: _peakTimeLabel),
                   ),
+                  _buildWhenYouReadChart(),
                   _buildWeekdayChart(),
                   _buildDaypartChart(),
                   _buildSectionHeader('Ratings'),
