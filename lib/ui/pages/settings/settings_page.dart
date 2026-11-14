@@ -9,7 +9,7 @@ import '../../../data/services/milestone_service.dart';
 import '../../../data/services/rating_service.dart';
 import '../../../data/services/reading_timer_service.dart';
 import '../onboarding/onboarding_page.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 import 'font_page.dart';
 import 'notifications_page.dart';
 import 'widgets/accent_color_picker.dart';

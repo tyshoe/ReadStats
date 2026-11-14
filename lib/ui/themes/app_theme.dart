@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../viewmodels/SettingsViewModel.dart';
+import '../../viewmodels/settings_view_model.dart';
 
 class AppTheme {
   static TextTheme _buildTextTheme(String fontName) {

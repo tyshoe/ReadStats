@@ -7,7 +7,7 @@ import '/data/models/preset_avatar.dart';
 import '/data/repositories/goal_repository.dart';
 import '/data/services/avatar_service.dart';
 import '/ui/widgets/image_editor_page.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 import 'activity_page.dart';
 import 'badges.dart';
 import 'reading_activity.dart';

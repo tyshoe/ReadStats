@@ -10,7 +10,7 @@ import '/data/utils/series_title.dart';
 import '/ui/widgets/app_snackbar.dart';
 import '/ui/widgets/book_cover.dart';
 import '/ui/widgets/book_picker_sheet.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 import 'widgets/next_in_series_sheet.dart';
 import 'widgets/series_strip.dart';
 

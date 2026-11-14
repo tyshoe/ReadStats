@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '/data/services/reading_timer_service.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 import '/ui/pages/library/widgets/next_in_series_sheet.dart';
 import '../post_session_page.dart';
 import '../fullscreen_timer_page.dart';

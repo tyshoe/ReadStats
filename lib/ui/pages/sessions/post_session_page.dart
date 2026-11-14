@@ -6,7 +6,7 @@ import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/services/reading_timer_service.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 import '/ui/widgets/book_cover.dart';
 import 'widgets/reading_dates_row.dart';
 
@@ -708,7 +708,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
                         onPressed: _isSaving ? null : () async {
                           if (await _confirmDiscard()) {
                             widget.timerService.stop();
-                            if (mounted) Navigator.pop(context);
+                            if (context.mounted) Navigator.pop(context);
                           }
                         },
                         style: OutlinedButton.styleFrom(

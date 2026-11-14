@@ -191,7 +191,7 @@ class _CoverTile extends StatelessWidget {
                 ),
               );
             },
-            errorBuilder: (_, __, ___) => Center(
+            errorBuilder: (_, _, _) => Center(
               child: Icon(
                 Icons.broken_image_outlined,
                 color: theme.colorScheme.outlineVariant,

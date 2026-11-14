@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '/data/models/goal.dart';
 import '/data/repositories/goal_repository.dart';
 import '/data/services/notification_service.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 import 'goal_form_sheet.dart';
 import 'goal_history_sheet.dart';
 
@@ -232,7 +232,7 @@ class _GoalCardState extends State<_GoalCard> {
       int actual, int target, double ratio, bool met, Color completionColor, ThemeData theme) {
     if (_useSegments) {
       final filled = actual.clamp(0, target);
-      final segmentColor = met ? completionColor : widget.accentColor.withOpacity(0.3);
+      final segmentColor = met ? completionColor : widget.accentColor.withValues(alpha: 0.3);
       return Row(
         children: List.generate(target, (i) {
           return Expanded(
@@ -257,7 +257,7 @@ class _GoalCardState extends State<_GoalCard> {
         minHeight: 6,
         backgroundColor: theme.colorScheme.surfaceContainerHighest,
         valueColor: AlwaysStoppedAnimation<Color>(
-          met ? completionColor : widget.accentColor.withOpacity(0.3),
+          met ? completionColor : widget.accentColor.withValues(alpha: 0.3),
         ),
       ),
     );
@@ -309,7 +309,7 @@ class _GoalCardState extends State<_GoalCard> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: completionColor.withOpacity(0.15),
+                                    color: completionColor.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Row(

@@ -139,7 +139,7 @@ class SettingsViewModel {
   Future<void> setAccentColor(Color color) async {
     accentColorNotifier.value = color;
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setInt('accentColor', color.value);
+    prefs.setInt('accentColor', color.toARGB32());
   }
 
   // Get accent color

@@ -30,7 +30,7 @@ import 'ui/pages/settings/settings_page.dart';
 import 'ui/pages/sessions/sessions_page.dart';
 import 'ui/pages/statistics/statistics_page.dart';
 import 'ui/themes/app_theme.dart';
-import 'viewmodels/SettingsViewModel.dart';
+import 'viewmodels/settings_view_model.dart';
 import 'ui/widgets/app_snackbar.dart';
 import 'app_config.dart';
 
@@ -230,7 +230,7 @@ class _MyAppState extends State<MyApp> {
       ═══════════════════════════════════════════
        LOADING USER PREFERENCES
       ───────────────────────────────────────────
-      • Accent Color: ${accentColor.value.toRadixString(16)}
+      • Accent Color: ${accentColor.toARGB32().toRadixString(16)}
       • Default Book Type: $defaultBookType
       • Default Rating Style: $defaultRatingStyle
       • Default Tab: $defaultTab

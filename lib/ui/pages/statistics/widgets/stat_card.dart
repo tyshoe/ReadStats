@@ -84,7 +84,7 @@ class StatCard extends StatelessWidget {
                     width: _coverWidth,
                     height: _coverHeight,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _coverPlaceholder(theme),
+                    errorBuilder: (_, _, _) => _coverPlaceholder(theme),
                   ),
                 ),
               ],

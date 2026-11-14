@@ -22,7 +22,7 @@ import '../../../data/services/cover_service.dart';
 import 'widgets/cover_search_sheet.dart';
 import 'widgets/cover_camera_page.dart';
 import '/ui/widgets/image_editor_page.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 
 class BookFormPage extends StatefulWidget {
   final Map<String, dynamic>? book;
@@ -165,10 +165,12 @@ class _BookFormPageState extends State<BookFormPage> {
       _authorController.text = widget.book!['author'];
       final editWordCount = widget.book!['word_count'] as int?;
       final editPageCount = widget.book!['page_count'] as int?;
-      if (editWordCount != null && editWordCount > 0)
+      if (editWordCount != null && editWordCount > 0) {
         _wordCountController.text = editWordCount.toString();
-      if (editPageCount != null && editPageCount > 0)
+      }
+      if (editPageCount != null && editPageCount > 0) {
         _pageCountController.text = editPageCount.toString();
+      }
       _rating = widget.book!['rating']?.toDouble();
       _ratingController.text = _rating?.toStringAsFixed(2) ?? '';
       _shelfId = (widget.book!['shelf_id'] as int?) ?? 1;
@@ -268,6 +270,7 @@ class _BookFormPageState extends State<BookFormPage> {
             excludeId: widget.isEditing ? widget.book!['id'] : null,
           );
 
+    if (!mounted) return;
     if (bookExists && !widget.isEditing) {
       final shouldProceed = await showDialog<bool>(
         context: context,
@@ -505,8 +508,9 @@ class _BookFormPageState extends State<BookFormPage> {
   void _prefillFromSearchResult(BookSearchResult result) {
     _titleController.text = result.title;
     _authorController.text = result.author;
-    if (result.pageCount != null)
+    if (result.pageCount != null) {
       _pageCountController.text = result.pageCount.toString();
+    }
     if (result.isbn != null) _isbnController.text = result.isbn!;
     if (result.thumbnailUrl != null) {
       _coverUrl = result.thumbnailUrl;
@@ -914,7 +918,7 @@ class _BookFormPageState extends State<BookFormPage> {
                                   : null,
                             );
                           },
-                          errorBuilder: (_, __, ___) =>
+                          errorBuilder: (_, _, _) =>
                               _coverPlaceholder(theme, coverW, coverH),
                         )
                       : _coverFile != null
@@ -923,7 +927,7 @@ class _BookFormPageState extends State<BookFormPage> {
                           width: coverW,
                           height: coverH,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
+                          errorBuilder: (_, _, _) =>
                               _coverPlaceholder(theme, coverW, coverH),
                         )
                       : _emptyPlaceholder(theme),
@@ -1341,8 +1345,9 @@ class _BookFormPageState extends State<BookFormPage> {
           Expanded(
             child: NotificationListener<UserScrollNotification>(
               onNotification: (n) {
-                if (n.direction != ScrollDirection.idle)
+                if (n.direction != ScrollDirection.idle) {
                   FocusScope.of(context).unfocus();
+                }
                 return false;
               },
               child: SingleChildScrollView(
@@ -1362,7 +1367,7 @@ class _BookFormPageState extends State<BookFormPage> {
 
                     // Book Type
                     DropdownButtonFormField<int>(
-                      value: _selectedBookType,
+                      initialValue: _selectedBookType,
                       style: theme.textTheme.bodyLarge,
                       decoration: InputDecoration(
                         labelText: 'Format',
@@ -1560,8 +1565,9 @@ class _BookFormPageState extends State<BookFormPage> {
                               ],
                               onChanged: (v) {
                                 final val = int.tryParse(v);
-                                if (val != null && val > 59)
+                                if (val != null && val > 59) {
                                   _durationMinutesController.text = '59';
+                                }
                                 setState(() {});
                               },
                               onTapOutside: (_) =>
@@ -1682,7 +1688,7 @@ class _BookFormPageState extends State<BookFormPage> {
                     // Shelf selector
                     if (_shelves.isNotEmpty) ...[
                       DropdownButtonFormField<int>(
-                        value: _shelfId,
+                        initialValue: _shelfId,
                         style: theme.textTheme.bodyLarge,
                         decoration: InputDecoration(
                           labelText: 'Shelf',
@@ -2204,7 +2210,7 @@ class _CoverLoadingPlaceholderState extends State<_CoverLoadingPlaceholder>
     final highlight = widget.theme.colorScheme.surfaceContainerHigh;
     return AnimatedBuilder(
       animation: _anim,
-      builder: (_, __) => Container(
+      builder: (_, _) => Container(
         width: widget.width,
         height: widget.height,
         decoration: BoxDecoration(

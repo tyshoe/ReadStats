@@ -12,7 +12,7 @@ import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/database/database_helper.dart';
 import '/data/services/rating_service.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 
 class SessionFormPage extends StatefulWidget {
   final Map<String, dynamic>? session;
@@ -559,8 +559,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
           Expanded(
             child: NotificationListener<UserScrollNotification>(
               onNotification: (n) {
-                if (n.direction != ScrollDirection.idle && n.depth == 0)
+                if (n.direction != ScrollDirection.idle && n.depth == 0) {
                   FocusScope.of(context).unfocus();
+                }
                 return false;
               },
               child: SingleChildScrollView(
@@ -652,8 +653,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
                             ],
                             onChanged: (v) {
                               final val = int.tryParse(v);
-                              if (val != null && val > 59)
+                              if (val != null && val > 59) {
                                 _minutesController.text = '59';
+                              }
                               setState(() {});
                             },
                             onTapOutside: (_) =>

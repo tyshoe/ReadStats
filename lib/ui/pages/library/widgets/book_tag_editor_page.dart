@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../data/repositories/tag_repository.dart';
 import '../../../../data/models/tag.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 
 /// Shows the tag selector as a modal bottom sheet, matching the bulk tag
 /// sheet's design language. Returns the selected tag ids, or null if dismissed.

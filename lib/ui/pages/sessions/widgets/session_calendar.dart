@@ -120,7 +120,7 @@ class SessionsCalendar extends StatelessWidget {
 
         Color textColor;
         if (isOutsideCurrentMonth) {
-          textColor = colorScheme.onSurface.withOpacity(0.3);
+          textColor = colorScheme.onSurface.withValues(alpha: 0.3);
         } else if (isToday && isRead) {
           textColor = colorScheme.onPrimary;
         } else if (isRead) {
@@ -128,7 +128,7 @@ class SessionsCalendar extends StatelessWidget {
         } else if (isToday && !isRead) {
           textColor = colorScheme.primary;
         } else if (!isFuture) {
-          textColor = colorScheme.onSurface.withOpacity(0.6);
+          textColor = colorScheme.onSurface.withValues(alpha: 0.6);
         } else {
           textColor = colorScheme.onSurface;
         }
@@ -138,9 +138,9 @@ class SessionsCalendar extends StatelessWidget {
         if (isToday && isRead && !isOutsideCurrentMonth) {
           bgColor = colorScheme.primary;
         } else if (isRead && !isOutsideCurrentMonth) {
-          bgColor = colorScheme.primary.withOpacity(0.3);
+          bgColor = colorScheme.primary.withValues(alpha: 0.3);
         } else if (isRead && isOutsideCurrentMonth) {
-          bgColor = colorScheme.onSurface.withOpacity(0.06);
+          bgColor = colorScheme.onSurface.withValues(alpha: 0.06);
         } else if (isToday && !isRead && !isOutsideCurrentMonth) {
           border = Border.all(color: colorScheme.primary, width: 1.5);
         }
@@ -184,10 +184,10 @@ class SessionsCalendar extends StatelessWidget {
       if (myRunEnd != null) {
         final dotColor = isInActiveStreak
             ? colorScheme.primary
-            : colorScheme.onSurface.withOpacity(0.35);
+            : colorScheme.onSurface.withValues(alpha: 0.35);
         final pillColor = isInActiveStreak
-            ? colorScheme.primary.withOpacity(0.15)
-            : colorScheme.onSurface.withOpacity(0.1);
+            ? colorScheme.primary.withValues(alpha: 0.15)
+            : colorScheme.onSurface.withValues(alpha: 0.1);
 
         Widget inner;
         if (streakCount != null) {
@@ -237,7 +237,7 @@ class SessionsCalendar extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: colorScheme.onSurface.withOpacity(0.25),
+                  color: colorScheme.onSurface.withValues(alpha: 0.25),
                   width: 1.5,
                 ),
               ),

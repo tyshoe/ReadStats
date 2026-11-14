@@ -80,7 +80,7 @@ class _GoalHistoryChartState extends State<GoalHistoryChart> {
           height: GoalHistoryChart.chartHeight,
           decoration: BoxDecoration(
             border: Border.all(
-              color: theme.colorScheme.onSurface.withOpacity(0.08),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
             ),
             borderRadius: BorderRadius.circular(8),
           ),
@@ -124,10 +124,10 @@ class _GoalHistoryChartState extends State<GoalHistoryChart> {
                         ? FontWeight.w600
                         : FontWeight.normal,
                     color: i == _selectedIndex
-                        ? accent.withOpacity(0.85)
+                        ? accent.withValues(alpha: 0.85)
                         : i == periods.length - 1
-                            ? theme.colorScheme.onSurface.withOpacity(0.8)
-                            : theme.colorScheme.onSurface.withOpacity(0.45),
+                            ? theme.colorScheme.onSurface.withValues(alpha: 0.8)
+                            : theme.colorScheme.onSurface.withValues(alpha: 0.45),
                   ),
                 ),
               ),
@@ -136,20 +136,20 @@ class _GoalHistoryChartState extends State<GoalHistoryChart> {
         const SizedBox(height: 6),
         Row(
           children: [
-            _LegendDot(filled: true, color: accent.withOpacity(0.75)),
+            _LegendDot(filled: true, color: accent.withValues(alpha: 0.75)),
             const SizedBox(width: 4),
             Text('Actual',
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 )),
             const SizedBox(width: 10),
             _LegendDot(
                 filled: true,
-                color: theme.colorScheme.onSurface.withOpacity(0.3)),
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
             const SizedBox(width: 4),
             Text('Target',
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 )),
           ],
         ),
@@ -159,7 +159,6 @@ class _GoalHistoryChartState extends State<GoalHistoryChart> {
 
   Widget _buildDetail(ThemeData theme) {
     final p = widget.periods[_selectedIndex];
-    final accent = widget.accentColor;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -188,7 +187,7 @@ class _GoalHistoryChartState extends State<GoalHistoryChart> {
                 Text(
                   '/ ${widget.goalMetric.cardDisplay(p.target)}',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.45),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
                   ),
                 ),
               ],
@@ -197,7 +196,7 @@ class _GoalHistoryChartState extends State<GoalHistoryChart> {
           Text(
             _fullLabel(p),
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
         ],
@@ -255,9 +254,9 @@ class _Column extends StatelessWidget {
 
     final dotSize = isSelected ? _r * 2 + 2 : _r * 2;
     final actualColor =
-        met ? accentColor.withOpacity(0.75) : accentColor.withOpacity(0.4);
-    final targetColor = theme.colorScheme.onSurface.withOpacity(0.3);
-    final lineColor = theme.colorScheme.onSurface.withOpacity(0.15);
+        met ? accentColor.withValues(alpha: 0.75) : accentColor.withValues(alpha: 0.4);
+    final targetColor = theme.colorScheme.onSurface.withValues(alpha: 0.3);
+    final lineColor = theme.colorScheme.onSurface.withValues(alpha: 0.15);
 
     final topY = math.min(targetY, actualY);
     final lineHeight = math.max((targetY - actualY).abs() - _r * 2, 0.0);
@@ -270,7 +269,7 @@ class _Column extends StatelessWidget {
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 2),
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.08),
+                color: accentColor.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),

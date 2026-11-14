@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import '../../../../data/services/book_search_service.dart';
-import '../../../../viewmodels/SettingsViewModel.dart';
+import '../../../../viewmodels/settings_view_model.dart';
 import '../book_form_page.dart';
 import 'book_scanner_page.dart';
 
@@ -528,7 +528,7 @@ class _BookResultTile extends StatelessWidget {
                       child: Image.network(
                         result.thumbnailUrl!,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _placeholder(theme),
+                        errorBuilder: (_, _, _) => _placeholder(theme),
                       ),
                     )
                   : _placeholder(theme),

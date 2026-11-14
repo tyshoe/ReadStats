@@ -12,7 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../../../data/repositories/book_repository.dart';
 import '../../../../data/repositories/tag_repository.dart';
-import '../../../../viewmodels/SettingsViewModel.dart';
+import '../../../../viewmodels/settings_view_model.dart';
 import '../../sessions/widgets/rate_book_dialog.dart';
 import '../book_form_page.dart';
 import '/data/database/database_helper.dart';
@@ -129,6 +129,7 @@ class BookPopup {
     final statsKey = GlobalKey();
     double? statsHeight;
 
+    if (!context.mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

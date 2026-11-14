@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'session_form_page.dart';
 import '/ui/pages/library/widgets/next_in_series_sheet.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/data/repositories/goal_repository.dart';
@@ -460,7 +460,7 @@ class _SessionsPageState extends State<SessionsPage>
                       File(coverPath),
                       width: 42,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
                     ),
                   ),
                 const SizedBox(width: 12),
@@ -613,7 +613,7 @@ class _SessionsPageState extends State<SessionsPage>
                       layoutBuilder: (currentChild, previousChildren) => Stack(
                         children: [
                           ...previousChildren,
-                          if (currentChild != null) currentChild,
+                          ?currentChild,
                         ],
                       ),
                       child: KeyedSubtree(

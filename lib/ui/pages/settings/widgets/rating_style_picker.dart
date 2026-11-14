@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 
 void showRatingStylePicker(BuildContext context, SettingsViewModel settingsViewModel) {
   final theme = Theme.of(context);

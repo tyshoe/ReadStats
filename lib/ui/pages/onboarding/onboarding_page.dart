@@ -6,7 +6,7 @@ import '../../../app_config.dart';
 import '../../../data/services/import_export_service.dart';
 import '../../../data/services/milestone_service.dart';
 import '../../../data/services/notification_service.dart';
-import '../../../viewmodels/SettingsViewModel.dart';
+import '../../../viewmodels/settings_view_model.dart';
 
 enum _ImportState { idle, loading, success, error }
 

@@ -11,12 +11,11 @@ enum _TagIntent { unchanged, addToAll, removeAll }
 class _TagState {
   final Tag tag;
   final _TagCoverage initialCoverage;
-  _TagIntent intent;
+  _TagIntent intent = _TagIntent.unchanged;
 
   _TagState({
     required this.tag,
     required this.initialCoverage,
-    this.intent = _TagIntent.unchanged,
   });
 
   /// The visual checkbox value: true = add-to-all, false = remove-all,

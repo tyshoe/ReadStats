@@ -24,7 +24,7 @@ import '/data/models/session.dart';
 import '/data/models/notification_pref.dart';
 import '/data/utils/reading_clock.dart';
 import '/data/database/database_helper.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 import '/ui/pages/library/widgets/book_detail_sheet.dart';
 import '/ui/pages/library/book_form_page.dart';
 import '/ui/pages/sessions/session_form_page.dart';
@@ -750,6 +750,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
       mutableBook['cover_path'] = await CoverService.resolveFullPath(rawCover);
     }
 
+    if (!mounted) return;
     BookPopup.showBookPopup(
       context,
       mutableBook,
@@ -826,7 +827,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
             onPressed: () async {
               // Repository delete also removes the stored cover image file.
               await widget.bookRepository.deleteBook(bookId);
-              if (mounted) Navigator.pop(context);
+              if (context.mounted) Navigator.pop(context);
               loadStats();
             },
             child: const Text('Delete'),

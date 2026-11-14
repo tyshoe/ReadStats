@@ -73,9 +73,13 @@ class _SessionNotesSheetState extends State<_SessionNotesSheet> {
     if (mins != null && mins > 0) {
       final h = mins ~/ 60;
       final m = mins % 60;
-      if (h > 0 && m > 0) parts.add('${h}h ${m}m');
-      else if (h > 0) parts.add('${h}h');
-      else parts.add('${m}m');
+      if (h > 0 && m > 0) {
+        parts.add('${h}h ${m}m');
+      } else if (h > 0) {
+        parts.add('${h}h');
+      } else {
+        parts.add('${m}m');
+      }
     }
     return parts.join(' · ');
   }
@@ -332,9 +336,13 @@ class _SessionNotesContentState extends State<SessionNotesContent> {
     if (mins != null && mins > 0) {
       final h = mins ~/ 60;
       final m = mins % 60;
-      if (h > 0 && m > 0) parts.add('${h}h ${m}m');
-      else if (h > 0) parts.add('${h}h');
-      else parts.add('${m}m');
+      if (h > 0 && m > 0) {
+        parts.add('${h}h ${m}m');
+      } else if (h > 0) {
+        parts.add('${h}h');
+      } else {
+        parts.add('${m}m');
+      }
     }
     return parts.join(' · ');
   }

@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import '/data/services/reading_timer_service.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 import 'post_session_page.dart';
 import 'widgets/countdown_sheet.dart';
 
@@ -327,7 +327,7 @@ class _FullscreenTimerPageState extends State<FullscreenTimerPage>
                     child: Image.file(
                       File(coverPath),
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
                     ),
                   ),
                 ),
@@ -461,7 +461,7 @@ class _FullscreenTimerPageState extends State<FullscreenTimerPage>
                       File(coverPath),
                       height: 168,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
                     ),
                   ),
                 ),

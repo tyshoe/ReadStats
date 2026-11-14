@@ -68,7 +68,6 @@ enum BookSortOption {
 class BookSearchService {
   static const String _searchBase = 'https://openlibrary.org/search.json';
   static const String _coverBase = 'https://covers.openlibrary.org/b/id';
-  static const String _coverOlidBase = 'https://covers.openlibrary.org/b/olid';
   static const String _isbnBase = 'https://openlibrary.org/api/books';
 
   static const String _fields =

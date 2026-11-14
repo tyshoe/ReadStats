@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 
 /// Interactive preview of the app's bottom tab bar, shown in Settings.
 ///

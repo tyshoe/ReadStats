@@ -7,7 +7,7 @@ import '/data/utils/series_title.dart';
 import '/ui/pages/sessions/widgets/rate_book_dialog.dart';
 import '/ui/widgets/app_snackbar.dart';
 import '/ui/widgets/book_cover.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 import 'book_search_sheet.dart';
 
 /// Everything that follows finishing a book: rate it, then — if it's part of

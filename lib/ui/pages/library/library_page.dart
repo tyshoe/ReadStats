@@ -20,7 +20,7 @@ import 'book_form_page.dart';
 import 'widgets/book_search_sheet.dart';
 import '../sessions/session_form_page.dart';
 import '/data/database/database_helper.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '../planner/planner_page.dart';
@@ -503,7 +503,7 @@ class _LibraryPageState extends State<LibraryPage> {
             onPressed: () async {
               await widget.bookRepository.deleteBooksBatch([bookId]);
               widget.refreshBooks();
-              if (mounted) {
+              if (dialogContext.mounted && pageContext.mounted) {
                 Navigator.pop(dialogContext);
                 Navigator.pop(pageContext);
               }

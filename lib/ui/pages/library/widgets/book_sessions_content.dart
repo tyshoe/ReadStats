@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import '/data/database/database_helper.dart';
 import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 import '../../sessions/session_form_page.dart';
 
 /// List of every reading session logged for a single book. Tapping a session

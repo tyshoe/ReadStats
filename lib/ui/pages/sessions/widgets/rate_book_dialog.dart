@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '/data/repositories/book_repository.dart';
-import '/viewmodels/SettingsViewModel.dart';
+import '/viewmodels/settings_view_model.dart';
 import '/ui/widgets/book_cover.dart';
 
 void showRateBookDialog({
@@ -73,14 +73,14 @@ void showRateBookDialog({
                               borderRadius: BorderRadius.circular(10),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.35),
+                                  color: Colors.black.withValues(alpha: 0.35),
                                   blurRadius: 16,
                                   offset: const Offset(0, 6),
                                 ),
                               ],
                             ),
                             child: BookCover(
-                              path: coverPath!,
+                              path: coverPath,
                               shape: coverShape,
                               width: 100,
                               borderRadius: 10,
@@ -108,7 +108,7 @@ void showRateBookDialog({
                                   author,
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: textColor.withOpacity(0.55),
+                                    color: textColor.withValues(alpha: 0.55),
                                   ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
@@ -155,7 +155,7 @@ void showRateBookDialog({
                                     : 'Tap to rate',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: textColor.withOpacity(0.5),
+                                  color: textColor.withValues(alpha: 0.5),
                                 ),
                               ),
                             ],
@@ -272,7 +272,7 @@ void showRateBookDialog({
                               child: Text(
                                 'Skip',
                                 style: TextStyle(
-                                  color: textColor.withOpacity(0.7),
+                                  color: textColor.withValues(alpha: 0.7),
                                   fontSize: 16,
                                 ),
                               ),

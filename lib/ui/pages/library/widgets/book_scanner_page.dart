@@ -11,7 +11,7 @@ import '../../../../data/repositories/book_repository.dart';
 import '../../../../data/repositories/tag_repository.dart';
 import '../../../../data/services/book_search_service.dart';
 import '../../../../data/services/cover_service.dart';
-import '../../../../viewmodels/SettingsViewModel.dart';
+import '../../../../viewmodels/settings_view_model.dart';
 import '../../../widgets/app_snackbar.dart';
 import '../book_form_page.dart';
 import 'book_tag_editor_page.dart';
@@ -400,7 +400,7 @@ class _BookScannerPageState extends State<BookScannerPage> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _items.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (_, i) => _buildThumb(_items[i]),
             ),
           ),
@@ -428,7 +428,7 @@ class _BookScannerPageState extends State<BookScannerPage> {
         ? Image.network(
             url,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) =>
+            errorBuilder: (_, _, _) =>
                 const Icon(Icons.menu_book, color: Colors.white54),
           )
         : const Icon(Icons.menu_book, color: Colors.white54);
@@ -758,7 +758,7 @@ class _ReviewSheetState extends State<_ReviewSheet> {
             ? Image.network(
                 url,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _thumbFallback(theme),
+                errorBuilder: (_, _, _) => _thumbFallback(theme),
               )
             : _thumbFallback(theme),
       ),
