@@ -29,6 +29,10 @@ class SeriesRepository {
   Future<List<Map<String, dynamic>>> placeholdersIn(int seriesId) =>
       _db.getSeriesPlaceholders(seriesId);
 
+  /// Every placeholder with its series' name — for backups.
+  Future<List<Map<String, dynamic>>> allPlaceholderRows() =>
+      _db.getAllSeriesPlaceholders();
+
   /// Every placeholder by series id — for the Library's series rows.
   Future<Map<int, List<Map<String, dynamic>>>> allPlaceholders() async {
     final map = <int, List<Map<String, dynamic>>>{};

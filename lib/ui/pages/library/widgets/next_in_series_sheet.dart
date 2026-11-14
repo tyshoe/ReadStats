@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '/data/database/database_helper.dart';
 import '/data/repositories/book_repository.dart';
+import '/data/repositories/planner_repository.dart';
+import '/data/repositories/series_repository.dart';
 import '/data/services/cover_service.dart';
 import '/data/utils/series_title.dart';
 import '/ui/pages/sessions/widgets/rate_book_dialog.dart';
@@ -125,12 +127,12 @@ Future<void> showNextInSeries({
   required BookRepository bookRepository,
   required SettingsViewModel settingsViewModel,
 }) async {
-  final db = DatabaseHelper();
-  final finished = await db.getBookById(finishedBookId);
+  final planner = PlannerRepository(DatabaseHelper());
+  final finished = await bookRepository.getBookById(finishedBookId);
   final seriesId = finished?['series_id'] as int?;
   if (finished == null || seriesId == null) return;
 
-  final books = await db.getBooksInSeries(seriesId);
+  final books = await SeriesRepository(DatabaseHelper()).booksIn(seriesId);
   final suggestion = _suggest(finished, books);
   if (suggestion == null) return;
 
@@ -142,7 +144,7 @@ Future<void> showNextInSeries({
     if (cover != null && cover.isNotEmpty) {
       next['cover_path'] = await CoverService.resolveFullPath(cover);
     }
-    inPlanner = await db.isInPlanner(next['id'] as int);
+    inPlanner = await planner.isInPlanner(next['id'] as int);
   }
   if (!context.mounted) return;
 
@@ -281,10 +283,8 @@ class _NextInSeriesSheet extends StatelessWidget {
     }
 
     Future<void> addToPlanner() async {
-      await DatabaseHelper().insertPlannerBook({
-        'book_id': book['id'],
-        'date_added': DateTime.now().toIso8601String(),
-      });
+      await PlannerRepository(DatabaseHelper())
+          .addBookById(book['id'] as int);
       if (!context.mounted) return;
       Navigator.pop(context);
       AppSnackbar.show('${book['title']} added to your planner');

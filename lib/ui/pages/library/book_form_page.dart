@@ -203,7 +203,7 @@ class _BookFormPageState extends State<BookFormPage> {
   }
 
   Future<void> _loadShelves() async {
-    final shelves = await DatabaseHelper().getShelves();
+    final shelves = await BookRepository(DatabaseHelper()).getShelves();
     if (mounted) {
       setState(() {
         _shelves = shelves;

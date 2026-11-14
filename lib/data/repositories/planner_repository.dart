@@ -11,6 +11,18 @@ class PlannerRepository {
     return await _databaseHelper.insertPlannerBook(book.toMap());
   }
 
+  /// Adds [bookId] to the end of the planner, dated now.
+  Future<int> addBookById(int bookId) => addPlannerRow({
+        'book_id': bookId,
+        'date_added': DateTime.now().toIso8601String(),
+      });
+
+  /// Inserts a planner entry from a raw row — demo data and restores.
+  Future<int> addPlannerRow(Map<String, dynamic> row) =>
+      _databaseHelper.insertPlannerBook(row);
+
+  Future<bool> isInPlanner(int bookId) => _databaseHelper.isInPlanner(bookId);
+
   Future<List<PlannerBook>> getPlannerBooks() async {
     final maps = await _databaseHelper.getPlannerBooks();
     final books = <PlannerBook>[];

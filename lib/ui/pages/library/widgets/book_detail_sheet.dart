@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../../../data/repositories/book_repository.dart';
+import '../../../../data/repositories/series_repository.dart';
 import '../../../../data/repositories/tag_repository.dart';
 import '../../../../viewmodels/settings_view_model.dart';
 import '../../sessions/widgets/rate_book_dialog.dart';
@@ -51,22 +52,22 @@ class BookPopup {
     // The sheet's builder shadows `context`; series navigation reopens this
     // popup on the page that opened it.
     final hostContext = context;
-    final DatabaseHelper dbHelper = DatabaseHelper();
-    final stats = await dbHelper.getBookStats(book['id']);
+    final seriesRepository = SeriesRepository(DatabaseHelper());
+    final stats = await bookRepository.getBookStats(book['id']);
     final int? seriesId = book['series_id'] as int?;
     // The whole series, for the strip under the series line.
     final SeriesProgress? seriesProgress = seriesId == null
         ? null
         : SeriesProgress.from(seriesId, [
             // Covers resolved, for the strip's little books.
-            for (final row in await dbHelper.getBooksInSeries(seriesId))
+            for (final row in await seriesRepository.booksIn(seriesId))
               {
                 ...row,
                 if ((row['cover_path'] as String?)?.isNotEmpty == true)
                   'cover_path': await CoverService.resolveFullPath(
                       row['cover_path'] as String),
               },
-          ], placeholders: await dbHelper.getSeriesPlaceholders(seriesId));
+          ], placeholders: await seriesRepository.placeholdersIn(seriesId));
     final int seriesCount = seriesProgress?.books.length ?? 0;
     if (!hostContext.mounted) return;
     final ThemeData theme = Theme.of(context);
@@ -74,7 +75,7 @@ class BookPopup {
     final Color subtitleColor = theme.textTheme.bodyMedium?.color ?? Colors.grey;
 
     var tags = await tagRepository.getTagsForBook(book['id']);
-    final shelves = await dbHelper.getShelves();
+    final shelves = await bookRepository.getShelves();
 
     final mutableBook = Map<String, dynamic>.from(book);
     var isPinnedState = isPinned;

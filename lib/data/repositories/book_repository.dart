@@ -11,6 +11,16 @@ class BookRepository {
     return await _databaseHelper.insertBook(book.toMap());
   }
 
+  /// Inserts a book from a raw row, as the book form builds it.
+  Future<int> addBookRow(Map<String, dynamic> book) =>
+      _databaseHelper.insertBook(book);
+
+  /// Books as raw rows, with the joined shelf and series names the screens
+  /// read. [getBooks] is the same list as models.
+  Future<List<Map<String, dynamic>>> getBookRows(
+          {int yearFilter = 0, int? shelfId}) =>
+      _databaseHelper.getBooks(yearFilter: yearFilter, shelfId: shelfId);
+
   Future<void> addBooksBatch(List<Book> books) async {
     await _databaseHelper.addBooksBatch(books);
   }

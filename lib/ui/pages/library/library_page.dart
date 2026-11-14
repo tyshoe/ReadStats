@@ -134,7 +134,7 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Future<void> _loadShelves() async {
-    final shelves = await DatabaseHelper().getShelves();
+    final shelves = await widget.bookRepository.getShelves();
     if (mounted) {
       setState(() {
         _shelves = shelves;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '/ui/widgets/book_cover.dart';
 import 'package:intl/intl.dart';
 import '/data/database/database_helper.dart';
+import '/data/repositories/session_repository.dart';
 
 Future<void> showSessionNotesSheet({
   required BuildContext context,
@@ -49,7 +50,8 @@ class _SessionNotesSheetState extends State<_SessionNotesSheet> {
   }
 
   Future<void> _load() async {
-    final all = await DatabaseHelper().getSessionsByBookId(widget.book['id']);
+    final all = await SessionRepository(DatabaseHelper())
+        .getSessionRowsByBookId(widget.book['id']);
     final withNotes = all
         .where((s) => (s['notes'] as String?)?.trim().isNotEmpty == true)
         .toList()
@@ -312,7 +314,8 @@ class _SessionNotesContentState extends State<SessionNotesContent> {
   }
 
   Future<void> _load() async {
-    final all = await DatabaseHelper().getSessionsByBookId(widget.bookId);
+    final all = await SessionRepository(DatabaseHelper())
+        .getSessionRowsByBookId(widget.bookId);
     final withNotes = all
         .where((s) => (s['notes'] as String?)?.trim().isNotEmpty == true)
         .toList()

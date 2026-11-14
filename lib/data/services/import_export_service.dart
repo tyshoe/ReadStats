@@ -20,6 +20,7 @@ import '../repositories/book_repository.dart';
 import '../repositories/session_repository.dart';
 import '../repositories/tag_repository.dart';
 import '../repositories/goal_repository.dart';
+import '../repositories/planner_repository.dart';
 import '../repositories/series_repository.dart';
 import '../utils/date_utils.dart';
 import '../utils/series_title.dart';
@@ -105,7 +106,7 @@ class ImportExportService {
       await sessionRepository.addSessionsBatch(demo.sessions);
       await tagRepository.addBookTagsBatch(demo.bookTags);
       for (final entry in demo.planner) {
-        await DatabaseHelper().insertPlannerBook(entry);
+        await PlannerRepository(DatabaseHelper()).addPlannerRow(entry);
       }
       await SeriesRepository(DatabaseHelper())
           .restorePlaceholders(demo.seriesPlaceholders);
@@ -150,7 +151,8 @@ class ImportExportService {
       addCsv('goal_target_changes_data', _goalTargetsCsvRows(goalTargets));
       addCsv('series_placeholders_data', [
         ['series_name', 'position', 'title'],
-        for (final r in await DatabaseHelper().getAllSeriesPlaceholders())
+        for (final r in await SeriesRepository(DatabaseHelper())
+            .allPlaceholderRows())
           [
             r['series_name'].toString(),
             r['position'].toString(),

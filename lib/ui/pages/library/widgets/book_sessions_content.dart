@@ -52,7 +52,8 @@ class _BookSessionsContentState extends State<BookSessionsContent> {
 
   Future<void> _load() async {
     final all = List<Map<String, dynamic>>.from(
-        await DatabaseHelper().getSessionsByBookId(widget.book['id'] as int));
+        await SessionRepository(DatabaseHelper())
+            .getSessionRowsByBookId(widget.book['id'] as int));
     all.sort((a, b) =>
         (b['date'] as String? ?? '').compareTo(a['date'] as String? ?? ''));
     if (mounted) {

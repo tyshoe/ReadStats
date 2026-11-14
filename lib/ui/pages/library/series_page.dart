@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '/data/database/database_helper.dart';
+import '/data/repositories/book_repository.dart';
+import '/data/repositories/planner_repository.dart';
 import '/data/repositories/series_repository.dart';
 import '/data/services/cover_service.dart';
 import '/data/utils/series_progress.dart';
@@ -59,6 +61,7 @@ class SeriesPage extends StatefulWidget {
 
 class _SeriesPageState extends State<SeriesPage> {
   final _repo = SeriesRepository(DatabaseHelper());
+  final _planner = PlannerRepository(DatabaseHelper());
   SeriesProgress? _progress;
   bool _nextInPlanner = false;
   bool _editing = false;
@@ -120,7 +123,7 @@ class _SeriesPageState extends State<SeriesPage> {
         placeholders: placeholders);
     final next = progress.nextUp?.book;
     final inPlanner = next != null &&
-        await DatabaseHelper().isInPlanner(next['id'] as int);
+        await _planner.isInPlanner(next['id'] as int);
     if (!mounted) return;
     setState(() {
       _progress = progress;
@@ -190,10 +193,7 @@ class _SeriesPageState extends State<SeriesPage> {
   }
 
   Future<void> _addToPlanner(Map<String, dynamic> book) async {
-    await DatabaseHelper().insertPlannerBook({
-      'book_id': book['id'],
-      'date_added': DateTime.now().toIso8601String(),
-    });
+    await _planner.addBookById(book['id'] as int);
     AppSnackbar.show('${book['title']} added to your planner');
     if (mounted) setState(() => _nextInPlanner = true);
   }
@@ -250,7 +250,7 @@ class _SeriesPageState extends State<SeriesPage> {
     final n = _panelNumber();
     if (n == null) return;
     final p = _progress!;
-    final rows = await DatabaseHelper().getBooks();
+    final rows = await BookRepository(DatabaseHelper()).getBookRows();
     final candidates = [
       for (final r in rows)
         if (r['series_id'] != widget.seriesId) await _withCover(r),

@@ -78,7 +78,6 @@ void main() async {
   await NotificationService.instance.rescheduleAll();
 
   runApp(MyApp(
-    dbHelper: dbHelper,
     themeMode: themeMode,
     bookRepository: bookRepository,
     sessionRepository: sessionRepository,
@@ -91,7 +90,6 @@ void main() async {
 }
 
 class MyApp extends StatefulWidget {
-  final DatabaseHelper dbHelper;
   final ThemeMode themeMode;
   final BookRepository bookRepository;
   final SessionRepository sessionRepository;
@@ -103,7 +101,6 @@ class MyApp extends StatefulWidget {
 
   const MyApp({
     super.key,
-    required this.dbHelper,
     required this.themeMode,
     required this.bookRepository,
     required this.sessionRepository,
@@ -440,7 +437,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _loadBooks() async {
-    final books = await widget.dbHelper.getBooks();
+    final books = await widget.bookRepository.getBookRows();
     // Resolve cover paths to current absolute paths. Stored values may be
     // filenames ("42.jpg") or legacy absolute paths from before this fix.
     // On iOS the sandbox UUID changes on app update, making old absolute paths
@@ -467,12 +464,12 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _addBook(Map<String, dynamic> book) async {
-    await widget.dbHelper.insertBook(book);
+    await widget.bookRepository.addBookRow(book);
     await _loadBooks();
   }
 
   Future<void> _loadSessions() async {
-    final sessions = await widget.dbHelper.getSessionsWithBooks();
+    final sessions = await widget.sessionRepository.getSessionRows();
     if (!mounted) return;
     setState(() {
       _sessions = sessions;

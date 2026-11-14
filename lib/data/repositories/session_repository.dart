@@ -19,6 +19,14 @@ class SessionRepository {
     return sessionsMap.map((map) => Session.fromMap(map)).toList();
   }
 
+  /// Sessions as raw rows, each with its book's title.
+  Future<List<Map<String, dynamic>>> getSessionRows({int yearFilter = 0}) =>
+      _databaseHelper.getSessionsWithBooks(yearFilter: yearFilter);
+
+  /// One book's sessions as raw rows.
+  Future<List<Map<String, dynamic>>> getSessionRowsByBookId(int bookId) =>
+      _databaseHelper.getSessionsByBookId(bookId);
+
   Future<List<int>> getSessionYears() async {
     return await _databaseHelper.getSessionYears();
   }
