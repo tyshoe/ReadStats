@@ -35,7 +35,9 @@ import '../repositories/goal_repository.dart';
 ///   offline fallback) and Open Library work keys; a few books left bare for
 ///   the no-cover paths. A new title needs an entry in `_openLibrary`.
 /// * A same-day bulk add (the activity feed's "Added N books").
-/// * Goals of each period, with target changes, created in the past.
+/// * Goals of each period, with target changes, created in the past — plus a
+///   weekly sessions goal one session short this week, so logging any session
+///   sets off the goal celebration (and its "Met your weekly goal" entry).
 /// * Planner entries.
 class DemoData {
   DemoData._();
@@ -441,6 +443,17 @@ class _Generator {
     goal(GoalMetric.booksFinished, GoalPeriod.yearly, yearlyCreated, [
       (yearlyCreated, 12),
       (DateTime(today.year, 1, 1), 15),
+    ]);
+
+    // One session short of this week's target, whatever day the demo loads:
+    // log a session and the goal celebration plays.
+    final weekStart = GoalRepository.periodStartOf(GoalPeriod.weekly, today);
+    final thisWeek = sessions
+        .where((s) => !DateTime.parse(s.date).isBefore(weekStart))
+        .length;
+    final sessionsCreated = _at(today.subtract(const Duration(days: 45)), 8, 30);
+    goal(GoalMetric.sessions, GoalPeriod.weekly, sessionsCreated, [
+      (sessionsCreated, thisWeek + 1),
     ]);
 
     return (goals, targets);

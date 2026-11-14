@@ -1,39 +1,115 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '/data/models/goal.dart';
+import '/data/services/goal_achievement_service.dart';
 import '/data/services/milestone_service.dart';
 import 'badges.dart';
 import 'reading_stats.dart';
 
-/// Full-screen celebration shown the moment a badge tier is earned.
+/// One screen of the celebration: what was achieved, and where it leaves the
+/// reader.
+class Celebration {
+  /// The medal and button colour; null for the app's accent.
+  final Color? color;
+  final IconData icon;
+
+  /// Small caps line above the title, e.g. "GOLD UNLOCKED".
+  final String eyebrow;
+  final String title;
+  final String subtitle;
+
+  /// The footer: a headline number and a line under it.
+  final String total;
+  final String note;
+
+  const Celebration({
+    this.color,
+    required this.icon,
+    required this.eyebrow,
+    required this.title,
+    required this.subtitle,
+    required this.total,
+    required this.note,
+  });
+
+  /// A badge tier just earned. The footer says what the next rung costs — a
+  /// milestone screen that only looked backward would end the moment instead
+  /// of feeding it forward.
+  factory Celebration.badge(MilestoneUnlock unlock, ReadingStats stats) {
+    final goal = unlock.goal;
+    final tier = unlock.tier;
+    final next = goal.nextTier(stats);
+    return Celebration(
+      color: badgeTierColor(tier.tier),
+      icon: goal.icon,
+      eyebrow: '${badgeTierLabel(tier.tier).toUpperCase()} UNLOCKED',
+      title: tier.title,
+      subtitle: goal.title,
+      total: goal.formatValue(goal.measure(stats)),
+      note: next == null
+          ? 'Every tier earned.'
+          : 'Next: ${next.title} at ${goal.formatShortValue(next.threshold)}',
+    );
+  }
+
+  /// A reading goal just met for its current period. Same flag and accent as
+  /// the goal's entry in the Profile activity feed.
+  factory Celebration.goal(GoalAchievement achievement) {
+    final goal = achievement.goal;
+    final p = achievement.progress;
+    final unit = switch (goal.period) {
+      GoalPeriod.weekly => 'week',
+      GoalPeriod.monthly => 'month',
+      GoalPeriod.yearly => 'year',
+    };
+    // Counted on UTC dates: across a clock change a local day is 23 or 25
+    // hours, and inDays would round the last full day away.
+    final now = DateTime.now();
+    final end = p.periodEnd;
+    final daysLeft = DateTime.utc(end.year, end.month, end.day)
+        .difference(DateTime.utc(now.year, now.month, now.day))
+        .inDays;
+    // The title already says what was reached, so the footer looks at the
+    // timing and what comes next rather than repeating the number.
+    return Celebration(
+      icon: Icons.flag,
+      eyebrow: '${goal.period.label.toUpperCase()} GOAL MET',
+      title: '${goal.metric.unitLabel(p.target)} this $unit',
+      subtitle: '${goal.metric.label} · ${goal.period.label}',
+      total: daysLeft > 0
+          ? '$daysLeft ${daysLeft == 1 ? 'day' : 'days'} to spare'
+          : 'Made it on the last day',
+      note: achievement.streak > 1
+          ? '${achievement.streak} ${unit}s in a row'
+          : 'Keep it going next $unit',
+    );
+  }
+}
+
+/// Full-screen celebration shown the moment a badge tier is earned or a
+/// reading goal is met.
 ///
 /// Presented as a non-opaque route so it reads as an overlay dropped on top of
 /// wherever the reader happened to be — usually the session they just saved.
-/// Several tiers can fall at once (one long session crosses pages, minutes and
-/// sessions together), so this pages through them rather than stacking dialogs.
+/// Several can land at once (one long session meets a goal and crosses pages,
+/// minutes and sessions badges together), so this pages through them rather
+/// than stacking dialogs.
 class MilestoneCelebrationPage extends StatefulWidget {
-  final List<MilestoneUnlock> unlocks;
-  final ReadingStats stats;
+  final List<Celebration> celebrations;
 
-  const MilestoneCelebrationPage({
-    super.key,
-    required this.unlocks,
-    required this.stats,
-  });
+  const MilestoneCelebrationPage({super.key, required this.celebrations});
 
   /// Fades in over the current screen instead of sliding a new page in — the
   /// medal arriving in place is the whole effect.
-  static Route<void> route({
-    required List<MilestoneUnlock> unlocks,
-    required ReadingStats stats,
-  }) {
+  static Route<void> route({required List<Celebration> celebrations}) {
     return PageRouteBuilder<void>(
       opaque: false,
       barrierDismissible: false,
       transitionDuration: const Duration(milliseconds: 260),
       reverseTransitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (_, _, _) =>
-          MilestoneCelebrationPage(unlocks: unlocks, stats: stats),
+          MilestoneCelebrationPage(celebrations: celebrations),
       transitionsBuilder: (_, animation, _, child) =>
           FadeTransition(opacity: animation, child: child),
     );
@@ -50,8 +126,8 @@ class _MilestoneCelebrationPageState extends State<MilestoneCelebrationPage>
   late final AnimationController _burst;
   int _index = 0;
 
-  MilestoneUnlock get _unlock => widget.unlocks[_index];
-  bool get _isLast => _index == widget.unlocks.length - 1;
+  Celebration get _celebration => widget.celebrations[_index];
+  bool get _isLast => _index == widget.celebrations.length - 1;
 
   @override
   void initState() {
@@ -93,9 +169,10 @@ class _MilestoneCelebrationPageState extends State<MilestoneCelebrationPage>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final goal = _unlock.goal;
-    final tier = _unlock.tier;
-    final tierColor = badgeTierColor(tier.tier);
+    final c = _celebration;
+    final tierColor = c.color ?? cs.primary;
+    // White reads on every tier colour; the accent brings its own pairing.
+    final onTierColor = c.color == null ? cs.onPrimary : Colors.white;
     // Honour the OS "reduce motion" switch: the medal still fades in, but the
     // confetti and the overshoot on the scale are dropped.
     final reduceMotion = MediaQuery.of(context).disableAnimations;
@@ -157,15 +234,14 @@ class _MilestoneCelebrationPageState extends State<MilestoneCelebrationPage>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildMedal(tierColor, goal, reduceMotion),
+                        _buildMedal(tierColor, c.icon, reduceMotion),
                         const SizedBox(height: 32),
                         FadeTransition(
                           opacity: fade,
                           child: Column(
                             children: [
                               Text(
-                                '${badgeTierLabel(tier.tier).toUpperCase()} '
-                                'UNLOCKED',
+                                c.eyebrow,
                                 style: theme.textTheme.labelMedium?.copyWith(
                                   color: tierColor,
                                   fontWeight: FontWeight.w700,
@@ -174,7 +250,7 @@ class _MilestoneCelebrationPageState extends State<MilestoneCelebrationPage>
                               ),
                               const SizedBox(height: 10),
                               Text(
-                                tier.title,
+                                c.title,
                                 textAlign: TextAlign.center,
                                 style: theme.textTheme.headlineMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
@@ -182,14 +258,14 @@ class _MilestoneCelebrationPageState extends State<MilestoneCelebrationPage>
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                goal.title,
+                                c.subtitle,
                                 textAlign: TextAlign.center,
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: cs.onSurfaceVariant,
                                 ),
                               ),
                               const SizedBox(height: 24),
-                              _buildFooter(theme, goal, tierColor),
+                              _buildFooter(theme, c),
                             ],
                           ),
                         ),
@@ -202,7 +278,7 @@ class _MilestoneCelebrationPageState extends State<MilestoneCelebrationPage>
                       padding: const EdgeInsets.only(bottom: 24),
                       child: Column(
                         children: [
-                          if (widget.unlocks.length > 1)
+                          if (widget.celebrations.length > 1)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 14),
                               child: _buildDots(cs, tierColor),
@@ -211,7 +287,7 @@ class _MilestoneCelebrationPageState extends State<MilestoneCelebrationPage>
                             onPressed: _advance,
                             style: FilledButton.styleFrom(
                               backgroundColor: tierColor,
-                              foregroundColor: Colors.white,
+                              foregroundColor: onTierColor,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 40,
                                 vertical: 14,
@@ -234,7 +310,7 @@ class _MilestoneCelebrationPageState extends State<MilestoneCelebrationPage>
 
   /// The medal, scaled up from the Profile grid's tile so the two read as the
   /// same object. Springs in past its final size, then settles.
-  Widget _buildMedal(Color tierColor, ReadingGoal goal, bool reduceMotion) {
+  Widget _buildMedal(Color tierColor, IconData icon, bool reduceMotion) {
     final scale = CurvedAnimation(
       parent: _entry,
       curve: reduceMotion ? Curves.easeOut : Curves.elasticOut,
@@ -276,7 +352,7 @@ class _MilestoneCelebrationPageState extends State<MilestoneCelebrationPage>
                 shape: BoxShape.circle,
                 color: tierColor.withValues(alpha: 0.16),
               ),
-              child: Icon(goal.icon, size: 58, color: tierColor),
+              child: Icon(icon, size: 58, color: tierColor),
             ),
           ],
         ),
@@ -284,13 +360,9 @@ class _MilestoneCelebrationPageState extends State<MilestoneCelebrationPage>
     );
   }
 
-  /// Where the reader stands now, and what the next rung costs — a milestone
-  /// screen that only looked backward would end the moment instead of feeding
-  /// it forward.
-  Widget _buildFooter(ThemeData theme, ReadingGoal goal, Color tierColor) {
+  /// Where the reader stands now — see the [Celebration] constructors.
+  Widget _buildFooter(ThemeData theme, Celebration c) {
     final cs = theme.colorScheme;
-    final next = goal.nextTier(widget.stats);
-    final total = goal.formatValue(goal.measure(widget.stats));
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -301,17 +373,14 @@ class _MilestoneCelebrationPageState extends State<MilestoneCelebrationPage>
       child: Column(
         children: [
           Text(
-            total,
+            c.total,
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            next == null
-                ? 'Every tier earned.'
-                : 'Next: ${next.title} at '
-                    '${goal.formatShortValue(next.threshold)}',
+            c.note,
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall?.copyWith(
               color: cs.onSurfaceVariant,
@@ -326,7 +395,7 @@ class _MilestoneCelebrationPageState extends State<MilestoneCelebrationPage>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        for (var i = 0; i < widget.unlocks.length; i++)
+        for (var i = 0; i < widget.celebrations.length; i++)
           Container(
             width: 7,
             height: 7,

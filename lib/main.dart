@@ -12,6 +12,7 @@ import 'data/services/cover_service.dart';
 import 'data/services/import_export_service.dart';
 import 'data/services/reading_timer_service.dart';
 import 'data/services/rating_service.dart';
+import 'data/services/goal_achievement_service.dart';
 import 'data/services/milestone_service.dart';
 import 'data/services/notification_prefs_store.dart';
 import 'data/services/notification_service.dart';
@@ -343,7 +344,7 @@ class _MyAppState extends State<MyApp> {
   bool _sessionsLoaded = false;
   bool _checkingMilestones = false;
   bool _milestoneRecheckQueued = false;
-  List<MilestoneUnlock> _pendingUnlocks = const [];
+  List<Celebration> _pendingCelebrations = const [];
 
   /// Diff the new stats against the stored snapshot. Runs after every reload,
   /// so anything that earns a badge — a session, a finished book, an edit that
@@ -363,12 +364,24 @@ class _MyAppState extends State<MyApp> {
     try {
       do {
         _milestoneRecheckQueued = false;
-        final unlocks = await MilestoneService.check(
-          ReadingStats.from(books: _books, sessions: _sessions),
-        );
-        if (unlocks.isNotEmpty) {
-          _pendingUnlocks = [..._pendingUnlocks, ...unlocks];
+        final stats = ReadingStats.from(books: _books, sessions: _sessions);
+        final unlocks = await MilestoneService.check(stats);
+        // Goals ride the same check: whatever earns a badge can meet a goal.
+        // Kept apart from it, though: the badge snapshot is already written
+        // by now, so a goal-check failure must not throw away the medals.
+        List<GoalAchievement> goalsMet;
+        try {
+          goalsMet = await GoalAchievementService.check(widget.goalRepository);
+        } catch (e) {
+          debugPrint('Goal achievement check failed: $e');
+          goalsMet = const [];
         }
+        // Goals first, so a night that does both builds toward the medal.
+        _pendingCelebrations = [
+          ..._pendingCelebrations,
+          for (final a in goalsMet) Celebration.goal(a),
+          for (final u in unlocks) Celebration.badge(u, stats),
+        ];
       } while (_milestoneRecheckQueued);
       _flushMilestones();
     } finally {
@@ -391,17 +404,14 @@ class _MyAppState extends State<MyApp> {
   /// shell. A finishing session leaves the rating dialog open above it, and a
   /// full-screen celebration dropped on top would bury a form mid-save.
   void _flushMilestones() {
-    if (_pendingUnlocks.isEmpty) return;
+    if (_pendingCelebrations.isEmpty) return;
     final navigator = _navigatorKey.currentState;
     if (navigator == null || !_stackObserver.isSettled) return;
 
-    final unlocks = _pendingUnlocks;
-    _pendingUnlocks = const [];
+    final celebrations = _pendingCelebrations;
+    _pendingCelebrations = const [];
     navigator.push(
-      MilestoneCelebrationPage.route(
-        unlocks: unlocks,
-        stats: ReadingStats.from(books: _books, sessions: _sessions),
-      ),
+      MilestoneCelebrationPage.route(celebrations: celebrations),
     );
   }
 

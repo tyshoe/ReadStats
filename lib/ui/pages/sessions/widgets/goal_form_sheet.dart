@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '/data/models/goal.dart';
 import '/data/repositories/goal_repository.dart';
+import '/data/services/goal_achievement_service.dart';
 import '/data/services/notification_service.dart';
 
 Future<void> showGoalFormSheet({
@@ -157,7 +158,13 @@ class _GoalFormSheetState extends State<_GoalFormSheet> {
       if (_isEditing) {
         await widget.goalRepository.updateTarget(widget.existing!, target);
       } else {
-        await widget.goalRepository.createGoal(_metric!, _period!, target);
+        final goal = await widget.goalRepository
+            .createGoal(_metric!, _period!, target);
+        // A goal already met when it's set isn't celebrated; one met later is.
+        await GoalAchievementService.adopt(
+          goal,
+          await widget.goalRepository.getCurrentProgress(goal),
+        );
       }
       // The goal check-in reminder quotes these targets, and nothing else here
       // touches books or sessions — so it has to be told directly.

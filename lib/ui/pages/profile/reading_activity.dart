@@ -154,23 +154,28 @@ class ReadingActivity {
     final result = <ActivityEntry>[];
 
     for (final (goal, changes) in goals) {
-      // Same measures as DatabaseHelper.getProgressForPeriod.
-      final items = <(DateTime, int)>[
-        if (goal.metric == GoalMetric.booksFinished)
-          for (final b in books)
-            if (_date(b['date_finished']) case final d?) (d, 1)
-        else
-          for (final s in sessions)
-            if (_date(s['date']) case final d?)
-              (
-                d,
-                switch (goal.metric) {
-                  GoalMetric.pagesRead => _int(s['pages_read']),
-                  GoalMetric.timeReading => _int(s['duration_minutes']),
-                  _ => 1,
-                }
-              ),
-      ]..sort((a, b) => a.$1.compareTo(b.$1));
+      // Same measures as DatabaseHelper.getProgressForPeriod. Two separate
+      // lists on purpose: written as one collection-if, the `else` bound to
+      // the inner finish-date check, so session goals got no items at all and
+      // a books goal counted every session as a finished book.
+      final items = goal.metric == GoalMetric.booksFinished
+          ? <(DateTime, int)>[
+              for (final b in books)
+                if (_date(b['date_finished']) case final d?) (d, 1),
+            ]
+          : <(DateTime, int)>[
+              for (final s in sessions)
+                if (_date(s['date']) case final d?)
+                  (
+                    d,
+                    switch (goal.metric) {
+                      GoalMetric.pagesRead => _int(s['pages_read']),
+                      GoalMetric.timeReading => _int(s['duration_minutes']),
+                      _ => 1,
+                    }
+                  ),
+            ];
+      items.sort((a, b) => a.$1.compareTo(b.$1));
 
       final firstPeriod = GoalRepository.periodStartOf(
           goal.period, DateTime.parse(goal.createdAt));

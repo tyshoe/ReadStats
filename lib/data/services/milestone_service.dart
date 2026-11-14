@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'goal_achievement_service.dart';
 import '/ui/pages/profile/badges.dart';
 import '/ui/pages/profile/reading_stats.dart';
 
@@ -36,11 +37,17 @@ class MilestoneService {
   /// the next check would diff a full library against zero and celebrate every
   /// medal at once. Checks are suppressed until [endBulkChange], which then
   /// adopts the finished state.
-  static void beginBulkChange() => _bulkInProgress = true;
+  ///
+  /// Goal celebrations ([GoalAchievementService]) are held off the same way.
+  static void beginBulkChange() {
+    _bulkInProgress = true;
+    GoalAchievementService.beginBulkChange();
+  }
 
   static void endBulkChange() {
     _bulkInProgress = false;
     _resyncPending = true;
+    GoalAchievementService.endBulkChange();
   }
 
   /// Diff [stats] against the snapshot and return the newly earned tier of each
