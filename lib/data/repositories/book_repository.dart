@@ -72,32 +72,6 @@ class BookRepository {
     await _databaseHelper.updateBookRating(bookId, rating, review: review);
   }
 
-  Future<void> updateBookDates(
-      int bookId, {
-        required bool isFirstSession,
-        required bool isFinalSession,
-        required DateTime sessionDate,
-        int? finishedShelfId,
-      }) async {
-    final updates = <String, dynamic>{};
-
-    if (isFirstSession) {
-      updates['date_started'] = sessionDate.toIso8601String();
-    }
-
-    if (isFinalSession) {
-      updates['date_finished'] = sessionDate.toIso8601String();
-      // Move to Finished shelf if caller provides its id, otherwise look it up
-      if (finishedShelfId != null) {
-        updates['shelf_id'] = finishedShelfId;
-      }
-    }
-
-    if (updates.isNotEmpty) {
-      await _databaseHelper.updateBookPartial(bookId, updates);
-    }
-  }
-
   /// Writes just the reading dates named in [dates] (`date_started` and/or
   /// `date_finished`, ISO strings or null to clear).
   ///

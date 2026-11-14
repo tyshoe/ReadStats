@@ -15,6 +15,10 @@ import '/ui/widgets/book_type.dart';
 /// and hands the still-available books to the callback, which owns the pick
 /// from there — so its UI takes over the screen instead of stacking on the
 /// sheet. The sheet's own Future completes with null in that case.
+///
+/// Supply [groupOf] to split the list under headings — a label and an icon
+/// for each book. A heading is shown wherever the label changes, so [books]
+/// should already be sorted by it.
 Future<Map<String, dynamic>?> showBookPickerSheet({
   required BuildContext context,
   required List<Map<String, dynamic>> books,
@@ -23,6 +27,7 @@ Future<Map<String, dynamic>?> showBookPickerSheet({
   String searchEmptyMessage = 'No books found',
   Future<bool> Function(Map<String, dynamic>)? onSelect,
   void Function(List<Map<String, dynamic>>)? onRandomPick,
+  BookGroup? Function(Map<String, dynamic>)? groupOf,
 }) {
   return showModalBottomSheet<Map<String, dynamic>>(
     context: context,
@@ -38,9 +43,16 @@ Future<Map<String, dynamic>?> showBookPickerSheet({
       searchEmptyMessage: searchEmptyMessage,
       onSelect: onSelect,
       onRandomPick: onRandomPick,
+      groupOf: groupOf,
     ),
   );
 }
+
+/// A heading in a grouped picker list.
+typedef BookGroup = ({String label, IconData icon});
+
+/// A heading row: its group and how many of the visible books it holds.
+typedef _GroupHeader = ({BookGroup group, int count});
 
 class _BookPickerSheet extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -49,6 +61,7 @@ class _BookPickerSheet extends StatefulWidget {
   final String searchEmptyMessage;
   final Future<bool> Function(Map<String, dynamic>)? onSelect;
   final void Function(List<Map<String, dynamic>>)? onRandomPick;
+  final BookGroup? Function(Map<String, dynamic>)? groupOf;
 
   const _BookPickerSheet({
     required this.books,
@@ -57,6 +70,7 @@ class _BookPickerSheet extends StatefulWidget {
     required this.searchEmptyMessage,
     this.onSelect,
     this.onRandomPick,
+    this.groupOf,
   });
 
   @override
@@ -121,36 +135,104 @@ class _BookPickerSheetState extends State<_BookPickerSheet> {
     }
   }
 
+  /// The visible books, with a heading before each group when grouping is on.
+  List<Object> _rows() {
+    final groupOf = widget.groupOf;
+    if (groupOf == null) return _filtered;
+    final groups = [for (final book in _filtered) groupOf(book)];
+    final counts = <String, int>{};
+    for (final g in groups) {
+      if (g != null) counts[g.label] = (counts[g.label] ?? 0) + 1;
+    }
+    final rows = <Object>[];
+    String? current;
+    for (var i = 0; i < _filtered.length; i++) {
+      final group = groups[i];
+      if (group != null && group.label != current) {
+        rows.add((group: group, count: counts[group.label]!));
+      }
+      current = group?.label;
+      rows.add(_filtered[i]);
+    }
+    return rows;
+  }
+
+  /// The shelf's icon and name in the accent colour, so it stands apart from
+  /// the book rows without competing with them.
+  Widget _groupHeader(ThemeData theme, _GroupHeader header) {
+    final accent = theme.colorScheme.primary;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+      child: Row(
+        children: [
+          Icon(header.group.icon, size: 16, color: accent),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              header.group.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: accent,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '${header.count}',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final maxHeight = MediaQuery.of(context).size.height * 0.75;
+    final rows = _rows();
 
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxHeight),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 8),
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.outlineVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
+          // Handle, header and search follow the bulk tag sheet, like the
+          // app's other sheets.
+          // ── Handle bar ──────────────────────────────────────────────────
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.onSurfaceVariant.withAlpha(80),
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
+          const SizedBox(height: 16),
+
+          // ── Header ──────────────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    widget.title,
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.title, style: theme.textTheme.titleLarge),
+                      Text(
+                        '${_available.length} '
+                        '${_available.length == 1 ? 'book' : 'books'}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 // Only offered while there is something left to pick from.
@@ -167,15 +249,25 @@ class _BookPickerSheetState extends State<_BookPickerSheet> {
               ],
             ),
           ),
+          // ── Search ──────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: TextField(
               controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: 'Search title or author...',
-                prefixIcon: Icon(Icons.search_rounded),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: 'Search title or author…',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
                 isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
@@ -199,23 +291,19 @@ class _BookPickerSheetState extends State<_BookPickerSheet> {
                   )
                 : Scrollbar(
                     thumbVisibility: true,
-                    child: ListView.separated(
-                      itemCount: _filtered.length,
-                      separatorBuilder: (_, __) => Divider(
-                        height: 1,
-                        indent: 16,
-                        endIndent: 16,
-                        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-                      ),
+                    child: ListView.builder(
+                      itemCount: rows.length,
                       itemBuilder: (_, i) {
-                        final book = _filtered[i];
+                        final row = rows[i];
+                        if (row is _GroupHeader) return _groupHeader(theme, row);
+                        final book = row as Map<String, dynamic>;
                         final coverPath = book['cover_path'] as String?;
                         final author = book['author'] as String?;
                         // Two copies of one title — paperback and audiobook —
                         // are identical rows without this.
                         final (typeIcon, typeLabel) =
                             bookTypeDetails(book['book_type_id'] as int?);
-                        return ListTile(
+                        final tile = ListTile(
                           leading: coverPath != null
                               ? BookCover(
                                   path: coverPath,
@@ -255,6 +343,21 @@ class _BookPickerSheetState extends State<_BookPickerSheet> {
                             ],
                           ),
                           onTap: () => _onTap(book),
+                        );
+                        // A divider between books, but not under a heading.
+                        if (i == 0 || rows[i - 1] is _GroupHeader) return tile;
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Divider(
+                              height: 1,
+                              indent: 16,
+                              endIndent: 16,
+                              color: theme.colorScheme.outlineVariant
+                                  .withValues(alpha: 0.5),
+                            ),
+                            tile,
+                          ],
                         );
                       },
                     ),

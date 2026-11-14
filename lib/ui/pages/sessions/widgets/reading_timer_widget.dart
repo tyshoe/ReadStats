@@ -98,6 +98,7 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
       books: sessionBookOptions(widget.books),
       title: 'Select a book',
       emptyMessage: 'Add a book to your library first',
+      groupOf: sessionBookGroup,
     );
 
     if (result != null) setState(() => _selectedBook = result);

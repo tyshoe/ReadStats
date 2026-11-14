@@ -1,4 +1,7 @@
+import 'package:flutter/material.dart';
+
 import '/data/database/database_helper.dart';
+import '/ui/widgets/book_picker_sheet.dart';
 
 // Currently Reading first, then To Read, Unfinished, and — though it never
 // reaches the list — Finished last.
@@ -26,9 +29,28 @@ List<Map<String, dynamic>> sessionBookOptions(
     final shelfA = _shelfOrder[a['shelf_id'] as int? ?? 0] ?? 99;
     final shelfB = _shelfOrder[b['shelf_id'] as int? ?? 0] ?? 99;
     if (shelfA != shelfB) return shelfA.compareTo(shelfB);
+    // Custom shelves all sort after the system ones; keep each together so
+    // it gets one heading in the picker.
+    final nameA = (a['shelf_name'] as String? ?? '').toLowerCase();
+    final nameB = (b['shelf_name'] as String? ?? '').toLowerCase();
+    if (nameA != nameB) return nameA.compareTo(nameB);
     final titleA = (a['title'] as String? ?? '').toLowerCase();
     final titleB = (b['title'] as String? ?? '').toLowerCase();
     return titleA.compareTo(titleB);
   });
   return options;
+}
+
+/// The heading a book sits under in the session pickers: its shelf, with the
+/// same icon the "Move to shelf" control uses for it.
+BookGroup? sessionBookGroup(Map<String, dynamic> book) {
+  final name = book['shelf_name'] as String?;
+  if (name == null) return null;
+  final icon = switch (book['shelf_id'] as int?) {
+    DatabaseHelper.shelfCurrentlyReading => Icons.menu_book_rounded,
+    DatabaseHelper.shelfWantToRead => Icons.bookmark,
+    DatabaseHelper.shelfUnfinished => Icons.do_not_disturb_on,
+    _ => Icons.label,
+  };
+  return (label: name, icon: icon);
 }

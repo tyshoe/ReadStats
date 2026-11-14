@@ -8,6 +8,7 @@ import '/data/repositories/book_repository.dart';
 import '/data/services/reading_timer_service.dart';
 import '/viewmodels/SettingsViewModel.dart';
 import '/ui/widgets/book_cover.dart';
+import 'widgets/reading_dates_row.dart';
 
 class PostSessionPage extends StatefulWidget {
   final Map<String, dynamic> book;
@@ -42,11 +43,70 @@ class _PostSessionPageState extends State<PostSessionPage> {
   bool _isSaving = false;
   bool _isEditingDuration = false;
 
+  // The book's own reading dates, shown and set here the same way the session
+  // form does it.
+  final _readingDates = ReadingDates();
+
+  /// The day the session started on — what the shelf fills empty dates with.
+  late final DateTime _sessionDay;
+
   @override
   void initState() {
     super.initState();
     _targetShelfId = widget.book['shelf_id'] as int?;
+    DateTime? parse(Object? value) =>
+        value is String ? DateTime.tryParse(value) : null;
+    _readingDates.load(
+      parse(widget.book['date_started']),
+      parse(widget.book['date_finished']),
+    );
+    final started = widget.timerService.startedAt ?? DateTime.now();
+    _sessionDay = DateTime(started.year, started.month, started.day);
     _fillDurationFields(_timerMinutes);
+    _presetFirstSession();
+  }
+
+  /// A book's first session is when it gets started: the shelf opens on
+  /// Reading and Started fills in, both visible and changeable before saving.
+  Future<void> _presetFirstSession() async {
+    final bookId = widget.book['id'] as int;
+    final sessions = await widget.sessionRepository.getSessionsByBookId(bookId);
+    // Leave it if the reader already picked a shelf while this was loading.
+    if (sessions.isNotEmpty ||
+        !mounted ||
+        _targetShelfId != widget.book['shelf_id']) {
+      return;
+    }
+    _selectShelf(DatabaseHelper.shelfCurrentlyReading);
+  }
+
+  /// The shelf fills the date fields with the session's day — a book read in
+  /// one sitting gets the same date for both. See [ReadingDates.selectShelf].
+  void _selectShelf(int shelfId) {
+    setState(() {
+      _targetShelfId = shelfId;
+      _readingDates.selectShelf(shelfId, _sessionDay);
+    });
+  }
+
+  Future<void> _pickReadingDate(bool isStart) async {
+    final date = await pickReadingDate(
+      context,
+      isStart: isStart,
+      started: _readingDates.started,
+      finished: _readingDates.finished,
+      fallback: _sessionDay,
+    );
+    if (date == null) return;
+    setState(() => isStart
+        ? _readingDates.pickStarted(date)
+        : _readingDates.pickFinished(date));
+  }
+
+  void _clearReadingDate(bool isStart) {
+    setState(() => isStart
+        ? _readingDates.clearStarted()
+        : _readingDates.clearFinished());
   }
 
   @override
@@ -226,20 +286,14 @@ class _PostSessionPageState extends State<PostSessionPage> {
       await widget.sessionRepository.addSession(session);
 
       final originalShelfId = widget.book['shelf_id'] as int?;
-      final isFirstSession = _targetShelfId == DatabaseHelper.shelfCurrentlyReading &&
-          originalShelfId == DatabaseHelper.shelfWantToRead;
       final isFinalSession = _targetShelfId == DatabaseHelper.shelfFinished;
 
-      if (isFirstSession || isFinalSession) {
-        await widget.bookRepository.updateBookDates(
-          widget.book['id'],
-          isFirstSession: isFirstSession,
-          isFinalSession: isFinalSession,
-          // The same date the session itself carries, or the book's start and
-          // finish dates would disagree with the session that set them.
-          sessionDate: sessionDate,
-        );
-      }
+      // Only the dates the user saw change are written — the shelf filled
+      // them in on screen, so nothing is set behind the reader's back.
+      await widget.bookRepository.updateReadingDates(
+        widget.book['id'],
+        _readingDates.changes,
+      );
 
       if (_targetShelfId != null && _targetShelfId != originalShelfId) {
         await widget.bookRepository.updateBookShelf(widget.book['id'], _targetShelfId!);
@@ -590,7 +644,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
                             ])
                               Expanded(
                                 child: GestureDetector(
-                                  onTap: () => setState(() => _targetShelfId = shelf.id),
+                                  onTap: () => _selectShelf(shelf.id),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(vertical: 10),
                                     decoration: BoxDecoration(
@@ -629,6 +683,15 @@ class _PostSessionPageState extends State<PostSessionPage> {
                               ),
                           ],
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      ReadingDatesRow(
+                        started: _readingDates.started,
+                        finished: _readingDates.finished,
+                        onPickStarted: () => _pickReadingDate(true),
+                        onPickFinished: () => _pickReadingDate(false),
+                        onClearStarted: () => _clearReadingDate(true),
+                        onClearFinished: () => _clearReadingDate(false),
                       ),
                     ],
                   ),
