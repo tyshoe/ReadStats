@@ -16,6 +16,7 @@ import '../../../../viewmodels/SettingsViewModel.dart';
 import '../../sessions/widgets/rate_book_dialog.dart';
 import '../book_form_page.dart';
 import '/data/database/database_helper.dart';
+import '/data/services/cover_service.dart';
 import '/data/services/gallery_save_service.dart';
 import '/data/utils/series_title.dart';
 import '/ui/widgets/book_cover.dart';
@@ -24,8 +25,10 @@ import '/ui/widgets/share_action.dart';
 import 'book_share_card.dart';
 import 'book_sessions_content.dart';
 import 'bulk_tag_sheet.dart';
+import '/data/utils/series_progress.dart';
+import '../series_page.dart';
 import 'next_in_series_sheet.dart';
-import 'series_sheet.dart';
+import 'series_strip.dart';
 
 class BookPopup {
   static void showBookPopup(
@@ -51,9 +54,20 @@ class BookPopup {
     final DatabaseHelper dbHelper = DatabaseHelper();
     final stats = await dbHelper.getBookStats(book['id']);
     final int? seriesId = book['series_id'] as int?;
-    final int seriesCount = seriesId == null
-        ? 0
-        : (await dbHelper.getBooksInSeries(seriesId)).length;
+    // The whole series, for the strip under the series line.
+    final SeriesProgress? seriesProgress = seriesId == null
+        ? null
+        : SeriesProgress.from(seriesId, [
+            // Covers resolved, for the strip's little books.
+            for (final row in await dbHelper.getBooksInSeries(seriesId))
+              {
+                ...row,
+                if ((row['cover_path'] as String?)?.isNotEmpty == true)
+                  'cover_path': await CoverService.resolveFullPath(
+                      row['cover_path'] as String),
+              },
+          ], placeholders: await dbHelper.getSeriesPlaceholders(seriesId));
+    final int seriesCount = seriesProgress?.books.length ?? 0;
     if (!hostContext.mounted) return;
     final ThemeData theme = Theme.of(context);
     final Color textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
@@ -307,16 +321,18 @@ class BookPopup {
                                                 : theme.colorScheme.primary;
                                             final position =
                                                 (book['series_position'] as num?)?.toDouble();
+                                            final total = seriesProgress?.total ?? seriesCount;
                                             final label = [
-                                              position == null
-                                                  ? book['series_name'] as String
-                                                  : '${book['series_name']} #${SeriesTitle.formatPosition(position)}',
-                                              if (seriesCount > 1) '$seriesCount books',
+                                              book['series_name'] as String,
+                                              if (position != null)
+                                                total > 1
+                                                    ? 'Book ${SeriesTitle.formatPosition(position)} of $total'
+                                                    : 'Book ${SeriesTitle.formatPosition(position)}',
                                             ].join(' · ');
                                             return InkWell(
                                               borderRadius: BorderRadius.circular(6),
                                               onTap: () async {
-                                                final picked = await showSeriesSheet(
+                                                final picked = await openSeriesPage(
                                                   context: context,
                                                   seriesId: seriesId,
                                                   currentBookId: book['id'] as int,
@@ -344,7 +360,11 @@ class BookPopup {
                                               },
                                               child: Padding(
                                                 padding: const EdgeInsets.symmetric(vertical: 2),
-                                                child: Row(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                Row(
                                                   mainAxisSize: MainAxisSize.min,
                                                   children: [
                                                     Icon(Icons.collections_bookmark, size: 16, color: color),
@@ -362,6 +382,19 @@ class BookPopup {
                                                       ),
                                                     ),
                                                     Icon(Icons.chevron_right, size: 18, color: color),
+                                                  ],
+                                                ),
+                                                // Where this book sits in the series, at a glance.
+                                                if (seriesProgress != null &&
+                                                    seriesProgress.slots.length > 1) ...[
+                                                  const SizedBox(height: 8),
+                                                  SeriesStrip(
+                                                    progress: seriesProgress,
+                                                    compact: true,
+                                                    highlight: position,
+                                                    onImage: book['cover_path'] != null,
+                                                  ),
+                                                ],
                                                   ],
                                                 ),
                                               ),

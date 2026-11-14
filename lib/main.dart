@@ -218,6 +218,8 @@ class _MyAppState extends State<MyApp> {
     final finishedYears = await SettingsViewModel.getLibraryFinishedYears();
     final tagFilterMode = await SettingsViewModel.getLibraryTagFilterMode();
     final isReviewed = await SettingsViewModel.getLibraryReviewed();
+    final groupSeries = await SettingsViewModel.getLibraryGroupSeries();
+    final seriesOnly = await SettingsViewModel.getLibrarySeriesOnly();
     final pinnedBookIds = await SettingsViewModel.getPinnedBookIds();
     final shelfId = await SettingsViewModel.getLibraryShelfFilter();
     final statsYearFilter = await SettingsViewModel.getStatsYearFilter();
@@ -273,6 +275,8 @@ class _MyAppState extends State<MyApp> {
         shelfId: shelfId,
         statsYearFilter: statsYearFilter,
         statsChartStyle: statsChartStyle,
+        groupSeries: groupSeries,
+        seriesOnly: seriesOnly,
       );
       _isReady = true;
     });

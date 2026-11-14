@@ -42,13 +42,17 @@ Future<void> addMissingSeriesBook({
   required String seriesName,
   required double position,
   String? author,
+  /// The book's title when it's known — a placeholder's — searched for in
+  /// place of the series name.
+  String? title,
 }) {
+  final what = title?.trim().isNotEmpty == true ? title!.trim() : seriesName;
   return Navigator.of(context).push(MaterialPageRoute(
     builder: (_) => BookSearchSheet(
       settingsViewModel: settingsViewModel,
       // The app reloads on any book write, so nothing to refresh by hand.
       onSave: (_) {},
-      initialQuery: [seriesName, ?author].join(' '),
+      initialQuery: [what, ?author].join(' '),
       initialSeriesName: seriesName,
       initialSeriesPosition: position,
     ),

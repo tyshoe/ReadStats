@@ -107,6 +107,8 @@ class ImportExportService {
       for (final entry in demo.planner) {
         await DatabaseHelper().insertPlannerBook(entry);
       }
+      await SeriesRepository(DatabaseHelper())
+          .restorePlaceholders(demo.seriesPlaceholders);
 
       return ImportExportResult(
         success: true,
@@ -146,6 +148,15 @@ class ImportExportService {
       addCsv('book_tags_data', _bookTagsCsvRows(bookTags));
       addCsv('goals_data', _goalsCsvRows(goals));
       addCsv('goal_target_changes_data', _goalTargetsCsvRows(goalTargets));
+      addCsv('series_placeholders_data', [
+        ['series_name', 'position', 'title'],
+        for (final r in await DatabaseHelper().getAllSeriesPlaceholders())
+          [
+            r['series_name'].toString(),
+            r['position'].toString(),
+            (r['title'] as String?) ?? '',
+          ],
+      ]);
 
       var coverCount = 0;
       final coversDir = await CoverService.coversDirectory();
@@ -383,6 +394,17 @@ class ImportExportService {
       final sessionsCount =
           await _parseAndInsertSessions(csvRows('sessions_data'));
       await _parseAndInsertBookTags(csvRows('book_tags_data'));
+      // After books, so series are already there by name. Absent from
+      // backups made before placeholders existed.
+      await SeriesRepository(DatabaseHelper()).restorePlaceholders([
+        for (final row in csvRows('series_placeholders_data'))
+          if (row.length >= 2)
+            {
+              'series_name': row[0].toString(),
+              'position': double.tryParse(row[1].toString()),
+              'title': row.length > 2 ? row[2].toString() : null,
+            },
+      ]);
 
       return ImportExportResult(
         success: true,

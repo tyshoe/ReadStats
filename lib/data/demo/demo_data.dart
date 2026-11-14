@@ -30,7 +30,13 @@ import '../repositories/goal_repository.dart';
 /// * Series: Sherlock Holmes #1 and #3 (a gap at #2 on purpose), plus #2
 ///   sitting unlinked with the series in its title, for "Find series in
 ///   titles"; and The d'Artagnan Romances with #1 in progress and #2 waiting,
-///   so finishing #1 shows "Next in series".
+///   so finishing #1 shows "Next in series"; and Anne of Green Gables across
+///   three shelves (#1 and #2 finished, #3 reading, #4 waiting and not in the
+///   planner), so the Library's series rows, the shelf-filtered expand, the
+///   "In a series" filter and the Series page's "Up next" all have a full
+///   series to show.
+/// * Series placeholders: d'Artagnan #3 with a title and Anne #5 without,
+///   so the Series page shows planned books in the strip and the list.
 /// * Real covers (downloaded from Open Library on load, drawn ones as the
 ///   offline fallback) and Open Library work keys; a few books left bare for
 ///   the no-cover paths. A new title needs an entry in `_openLibrary`.
@@ -61,6 +67,10 @@ class DemoDataset {
   /// `book_id` and `date_added` for each planner entry, in order.
   final List<Map<String, dynamic>> planner;
 
+  /// Numbers held for books not in the library, in the backup-row shape
+  /// (`series_name`, `position`, `title`).
+  final List<Map<String, dynamic>> seriesPlaceholders;
+
   /// Where to download each book's real cover, by book id. Books with a
   /// `coverPath` but no URL here (or whose download fails) get a drawn one.
   final Map<int, String> coverUrls;
@@ -73,6 +83,7 @@ class DemoDataset {
     required this.goals,
     required this.goalTargets,
     required this.planner,
+    required this.seriesPlaceholders,
     required this.coverUrls,
   });
 }
@@ -135,9 +146,13 @@ const _printFinished = [
   _Title('The Turn of the Screw', 'Henry James', 120, _ebook, ['Horror']),
   _Title('A Study in Scarlet', 'Arthur Conan Doyle', 188, _paperback, ['Mystery'],
       series: 'Sherlock Holmes', position: 1),
+  _Title('Anne of Green Gables', 'L. M. Montgomery', 320, _paperback, ['Classic'],
+      series: 'Anne of Green Gables', position: 1),
   _Title('Little Women', 'Louisa May Alcott', 449, _paperback, ['Classic']),
   _Title('The Great Gatsby', 'F. Scott Fitzgerald', 180, _paperback, ['Classic']),
   _Title('The Woman in White', 'Wilkie Collins', 720, _hardback, ['Mystery']),
+  _Title('Anne of Avonlea', 'L. M. Montgomery', 276, _paperback, ['Classic'],
+      series: 'Anne of Green Gables', position: 2),
   _Title('Persuasion', 'Jane Austen', 249, _ebook, ['Romance', 'Classic']),
 ];
 
@@ -158,6 +173,8 @@ const _audioFinished = [
 const _printCurrent = [
   _Title('The Brothers Karamazov', 'Fyodor Dostoevsky', 796, _paperback, ['Classic']),
   _Title('Emma', 'Jane Austen', 474, _ebook, ['Romance', 'Classic']),
+  _Title('Anne of the Island', 'L. M. Montgomery', 288, _ebook, ['Classic'],
+      series: 'Anne of Green Gables', position: 3),
 ];
 
 const _audioCurrent = _Title('The Three Musketeers', 'Alexandre Dumas', 0, _audiobook, ['Adventure'],
@@ -183,6 +200,10 @@ const _wantToRead = [
   // "Next in series" to offer.
   _Title('Twenty Years After', 'Alexandre Dumas', 880, _paperback, ['Adventure'],
       series: "The d'Artagnan Romances", position: 2),
+  // After #3 in progress, and past the planner's first three — so the Series
+  // page offers to add it.
+  _Title("Anne's House of Dreams", 'L. M. Montgomery', 300, _paperback, ['Classic'],
+      series: 'Anne of Green Gables', position: 4),
 ];
 
 /// Open Library cover id and work key for each title, looked up once so every
@@ -190,6 +211,10 @@ const _wantToRead = [
 /// the same source the app's own cover search uses — never bundled.
 const _openLibrary = <String, (int, String)>{
   'Twenty Years After': (14634038, '/works/OL36462W'),
+  'Anne of Green Gables': (14641084, '/works/OL77746W'),
+  'Anne of Avonlea': (14638062, '/works/OL77744W'),
+  'Anne of the Island': (14639028, '/works/OL77748W'),
+  "Anne's House of Dreams": (14640440, '/works/OL77764W'),
   'The Sign of the Four (Sherlock Holmes #2)': (9247987, '/works/OL262438W'),
   'Pride and Prejudice': (14665299, '/works/OL66554W'),
   'The Time Machine': (9008368, '/works/OL52267W'),
@@ -300,6 +325,14 @@ class _Generator {
       goals: goals,
       goalTargets: targets,
       planner: planner,
+      seriesPlaceholders: const [
+        {
+          'series_name': "The d'Artagnan Romances",
+          'position': 3.0,
+          'title': 'The Vicomte of Bragelonne',
+        },
+        {'series_name': 'Anne of Green Gables', 'position': 5.0, 'title': null},
+      ],
       coverUrls: coverUrls,
     );
   }
@@ -349,8 +382,8 @@ class _Generator {
   }
 
   void _buildCurrent() {
-    final starts = [27, 9];
-    final shares = [0.55, 0.3];
+    final starts = [27, 9, 14];
+    final shares = [0.55, 0.3, 0.4];
     for (var i = 0; i < _printCurrent.length; i++) {
       final t = _printCurrent[i];
       final readDays = _readDays(today.subtract(Duration(days: starts[i])), today,

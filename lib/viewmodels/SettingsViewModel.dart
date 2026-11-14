@@ -20,6 +20,9 @@ class SettingsViewModel {
   final ValueNotifier<List<String>> libraryFinishedYearFilterNotifier;
   final ValueNotifier<String> libraryTagFilterModeNotifier;
   final ValueNotifier<bool> libraryReviewedFilterNotifier;
+  // Series: shown as one row each (on by default), and an only-series filter.
+  final ValueNotifier<bool> libraryGroupSeriesNotifier;
+  final ValueNotifier<bool> librarySeriesOnlyNotifier;
   // Pinned Books
   final ValueNotifier<List<int>> pinnedBookIdsNotifier;
   // Library Shelf Filter
@@ -54,7 +57,11 @@ class SettingsViewModel {
     required int? shelfId,
     required int statsYearFilter,
     required String statsChartStyle,
-  })  : themeModeNotifier = ValueNotifier(themeMode),
+    bool groupSeries = true,
+    bool seriesOnly = false,
+  })  : libraryGroupSeriesNotifier = ValueNotifier(groupSeries),
+        librarySeriesOnlyNotifier = ValueNotifier(seriesOnly),
+        themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
         defaultRatingStyleNotifier = ValueNotifier(defaultRatingStyle),
@@ -201,6 +208,28 @@ class SettingsViewModel {
   static Future<bool> getLibraryReviewed() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getBool('libraryReviewed') ?? false;
+  }
+
+  Future<void> setLibraryGroupSeries(bool group) async {
+    libraryGroupSeriesNotifier.value = group;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool('libraryGroupSeries', group);
+  }
+
+  static Future<bool> getLibraryGroupSeries() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('libraryGroupSeries') ?? true;
+  }
+
+  Future<void> setLibrarySeriesOnly(bool only) async {
+    librarySeriesOnlyNotifier.value = only;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool('librarySeriesOnly', only);
+  }
+
+  static Future<bool> getLibrarySeriesOnly() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('librarySeriesOnly') ?? false;
   }
 
   // Save book format filter

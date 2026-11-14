@@ -12,6 +12,13 @@ class SortFilterOptions {
   final String tagFilterMode;
   final bool isReviewed;
 
+  /// Books in a series shown as one series row. A view choice, not a filter,
+  /// so Reset leaves it.
+  final bool groupSeries;
+
+  /// Only books that belong to a series.
+  final bool seriesOnly;
+
   const SortFilterOptions({
     required this.sortOption,
     required this.isAscending,
@@ -21,6 +28,8 @@ class SortFilterOptions {
     this.tags = const [],
     this.tagFilterMode = 'any',
     this.isReviewed = false,
+    this.groupSeries = true,
+    this.seriesOnly = false,
   });
 
   SortFilterOptions copyWith({
@@ -32,6 +41,8 @@ class SortFilterOptions {
     List<String>? tags,
     String? tagFilterMode,
     bool? isReviewed,
+    bool? groupSeries,
+    bool? seriesOnly,
   }) {
     return SortFilterOptions(
       sortOption: sortOption ?? this.sortOption,
@@ -42,6 +53,8 @@ class SortFilterOptions {
       tags: tags ?? this.tags,
       tagFilterMode: tagFilterMode ?? this.tagFilterMode,
       isReviewed: isReviewed ?? this.isReviewed,
+      groupSeries: groupSeries ?? this.groupSeries,
+      seriesOnly: seriesOnly ?? this.seriesOnly,
     );
   }
 }
@@ -130,6 +143,8 @@ class _SortFilterViewState extends State<_SortFilterView> {
         tags: [],
         tagFilterMode: 'any',
         isReviewed: false,
+        groupSeries: currentOptions.groupSeries,
+        seriesOnly: false,
       );
     });
   }
@@ -317,6 +332,31 @@ class _SortFilterViewState extends State<_SortFilterView> {
     );
   }
 
+  /// Series as one row each, or every book on its own.
+  Widget _buildGroupSeriesToggle() {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: SwitchListTile(
+        value: currentOptions.groupSeries,
+        onChanged: (value) => setState(() {
+          currentOptions = currentOptions.copyWith(groupSeries: value);
+        }),
+        secondary: const Icon(Icons.collections_bookmark),
+        title: Text('Group series', style: theme.textTheme.bodyMedium),
+        subtitle: Text(
+          'Show the books in a series together as one row',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        dense: true,
+      ),
+    );
+  }
+
   Widget _buildStatusChip({
     required String label,
     required IconData icon,
@@ -366,6 +406,10 @@ class _SortFilterViewState extends State<_SortFilterView> {
     }
 
     if (currentOptions.isReviewed) {
+      count += 1;
+    }
+
+    if (currentOptions.seriesOnly) {
       count += 1;
     }
 
@@ -427,7 +471,9 @@ class _SortFilterViewState extends State<_SortFilterView> {
                       ),
                       const SizedBox(height: 16),
                       _buildSortControls(),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 8),
+                      _buildGroupSeriesToggle(),
+                      const SizedBox(height: 16),
 
                       // ===== FILTERS SECTION =====
                       Center(
@@ -485,6 +531,18 @@ class _SortFilterViewState extends State<_SortFilterView> {
                               setState(() {
                                 currentOptions = currentOptions.copyWith(
                                   isReviewed: value,
+                                );
+                              });
+                            },
+                          ),
+                          _buildStatusChip(
+                            label: 'In a series',
+                            icon: Icons.collections_bookmark,
+                            selected: currentOptions.seriesOnly,
+                            onSelected: (value) {
+                              setState(() {
+                                currentOptions = currentOptions.copyWith(
+                                  seriesOnly: value,
                                 );
                               });
                             },

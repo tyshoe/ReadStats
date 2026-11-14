@@ -7,6 +7,10 @@ import 'package:read_stats/ui/pages/library/widgets/random_book_picker.dart';
 import '../../../data/repositories/tag_repository.dart';
 import 'widgets/bulk_tag_sheet.dart';
 import 'widgets/bulk_series_sheet.dart';
+import 'widgets/series_row.dart';
+import 'series_page.dart';
+import '/data/utils/series_progress.dart';
+import '/data/repositories/series_repository.dart';
 import 'widgets/series_detect_sheet.dart';
 import 'widgets/next_in_series_sheet.dart';
 import 'widgets/book_detail_sheet.dart';
@@ -65,6 +69,19 @@ class _LibraryPageState extends State<LibraryPage> {
   final Set<int> _selectedBookIds = {};
   Set<int> _pinnedBookIds = {};
   final GlobalKey _selectedShelfChipKey = GlobalKey();
+  bool _groupSeries = true;
+  bool _seriesOnly = false;
+
+  /// Series rows the reader has opened up, for this visit.
+  final Set<int> _expandedSeries = {};
+
+  /// Placeholders by series, for the series rows' strips and counts.
+  Map<int, List<Map<String, dynamic>>> _placeholders = const {};
+
+  Future<void> _loadPlaceholders() async {
+    final map = await SeriesRepository(DatabaseHelper()).allPlaceholders();
+    if (mounted) setState(() => _placeholders = map);
+  }
   double _filterDividerOpacity = 0;
 
   // Fade a hairline in under the pinned filter band once the book list scrolls
@@ -87,6 +104,7 @@ class _LibraryPageState extends State<LibraryPage> {
     _loadAvailableTags();
     _loadAllBookTags();
     _loadShelves();
+    _loadPlaceholders();
 
     _selectedSortOption = widget.settingsViewModel.librarySortOptionNotifier.value;
     _isAscending = widget.settingsViewModel.isLibrarySortAscendingNotifier.value;
@@ -98,6 +116,8 @@ class _LibraryPageState extends State<LibraryPage> {
     _isReviewed = widget.settingsViewModel.libraryReviewedFilterNotifier.value;
     _pinnedBookIds = widget.settingsViewModel.pinnedBookIdsNotifier.value.toSet();
     _selectedShelfId = widget.settingsViewModel.libraryShelfFilterNotifier.value;
+    _groupSeries = widget.settingsViewModel.libraryGroupSeriesNotifier.value;
+    _seriesOnly = widget.settingsViewModel.librarySeriesOnlyNotifier.value;
 
     _filteredBooks = _sortAndFilterBooks(
       List<Map<String, dynamic>>.from(widget.books),
@@ -136,6 +156,8 @@ class _LibraryPageState extends State<LibraryPage> {
     super.didUpdateWidget(oldWidget);
     if (widget.books != oldWidget.books) {
       _searchBooks();
+      // Placeholder edits announce themselves as book changes.
+      _loadPlaceholders();
     }
   }
 
@@ -164,6 +186,89 @@ class _LibraryPageState extends State<LibraryPage> {
       }
     });
   }
+
+  /// Selects every book of a series row, as a long press on a book does.
+  void _startGroupSelection(List<Map<String, dynamic>> books) {
+    setState(() {
+      _selectionMode = true;
+      _selectedBookIds.addAll(books.map((b) => b['id'] as int));
+    });
+  }
+
+  /// Selects a series row's books, or clears them if they all are.
+  void _toggleGroupSelection(List<Map<String, dynamic>> books) {
+    final ids = books.map((b) => b['id'] as int).toList();
+    setState(() {
+      if (ids.every(_selectedBookIds.contains)) {
+        _selectedBookIds.removeAll(ids);
+        if (_selectedBookIds.isEmpty) _selectionMode = false;
+      } else {
+        _selectedBookIds.addAll(ids);
+      }
+    });
+  }
+
+  Future<void> _openSeries(int seriesId) async {
+    final picked = await openSeriesPage(
+      context: context,
+      seriesId: seriesId,
+      settingsViewModel: widget.settingsViewModel,
+    );
+    if (picked != null && mounted) _showBookPopup(context, picked);
+  }
+
+  /// What the Library shows: books, with a series' books gathered into one
+  /// [_SeriesGroup] when grouping is on.
+  ///
+  /// A series takes the place of its first book in the current sort — except
+  /// by title, where its own name decides. A series with a single book on
+  /// screen stays a plain book (unless only series are shown), and pinned
+  /// books stay on their own at the top.
+  List<Object> _libraryItems() {
+    if (!_groupSeries) return _filteredBooks;
+
+    bool groupable(Map<String, dynamic> b) =>
+        b['series_id'] != null && !_pinnedBookIds.contains(b['id']);
+
+    final groups = <int, List<Map<String, dynamic>>>{};
+    for (final b in _filteredBooks.where(groupable)) {
+      groups.putIfAbsent(b['series_id'] as int, () => []).add(b);
+    }
+    final minSize = _seriesOnly ? 1 : 2;
+
+    final items = <Object>[];
+    final placed = <int>{};
+    for (final b in _filteredBooks) {
+      final id = b['series_id'] as int?;
+      final group = groupable(b) ? groups[id] : null;
+      if (group == null || group.length < minSize) {
+        items.add(b);
+      } else if (placed.add(id!)) {
+        group.sort((a, c) => ((a['series_position'] as num?) ?? 1e9)
+            .compareTo((c['series_position'] as num?) ?? 1e9));
+        items.add(_SeriesGroup(id, group));
+      }
+    }
+
+    if (_selectedSortOption != 'Title' || placed.isEmpty) return items;
+    String label(Object i) => (i is _SeriesGroup
+            ? i.books.first['series_name'] as String? ?? ''
+            : (i as Map<String, dynamic>)['title'] as String? ?? '')
+        .toLowerCase();
+    final pinned = items
+        .takeWhile((i) => i is Map && _pinnedBookIds.contains(i['id']))
+        .length;
+    final rest = items.sublist(pinned)
+      ..sort((a, b) => _isAscending
+          ? label(a).compareTo(label(b))
+          : label(b).compareTo(label(a)));
+    return [...items.take(pinned), ...rest];
+  }
+
+  bool _seriesExpanded(int seriesId) =>
+      _expandedSeries.contains(seriesId) ||
+      _selectionMode ||
+      (_isSearching && _searchController.text.trim().isNotEmpty);
 
   void _clearSelection() {
     setState(() {
@@ -302,7 +407,11 @@ class _LibraryPageState extends State<LibraryPage> {
           : baseFiltered.where((book) {
               final title = (book['title'] as String? ?? '').toLowerCase();
               final author = (book['author'] as String? ?? '').toLowerCase();
-              return title.contains(query) || author.contains(query);
+              final series =
+                  (book['series_name'] as String? ?? '').toLowerCase();
+              return title.contains(query) ||
+                  author.contains(query) ||
+                  series.contains(query);
             }).toList();
     });
   }
@@ -479,6 +588,8 @@ class _LibraryPageState extends State<LibraryPage> {
       final shelfMatch = selectedShelfId == null ||
           (book['shelf_id'] as int?) == selectedShelfId;
 
+      final seriesMatch = !_seriesOnly || book['series_id'] != null;
+
       bool yearMatch = finishedYears.isEmpty;
       if (!yearMatch && book['date_finished'] != null) {
         try {
@@ -512,6 +623,7 @@ class _LibraryPageState extends State<LibraryPage> {
           favoriteMatch &&
           reviewedMatch &&
           shelfMatch &&
+          seriesMatch &&
           yearMatch &&
           tagMatch;
     }).toList();
@@ -597,7 +709,9 @@ class _LibraryPageState extends State<LibraryPage> {
         finishedYears: _selectedFinishedYears,
         tags: _selectedTags,
         tagFilterMode: _selectedTagFilterMode,
-        isReviewed: _isReviewed);
+        isReviewed: _isReviewed,
+        groupSeries: _groupSeries,
+        seriesOnly: _seriesOnly);
 
     SortFilterPopup.show(
         context: context,
@@ -612,6 +726,8 @@ class _LibraryPageState extends State<LibraryPage> {
             _selectedTags = newOptions.tags;
             _selectedTagFilterMode = newOptions.tagFilterMode;
             _isReviewed = newOptions.isReviewed;
+            _groupSeries = newOptions.groupSeries;
+            _seriesOnly = newOptions.seriesOnly;
           });
           _searchBooks();
           widget.settingsViewModel.setLibrarySortOption(_selectedSortOption);
@@ -621,6 +737,8 @@ class _LibraryPageState extends State<LibraryPage> {
           widget.settingsViewModel.setLibraryFinishedYearFilter(_selectedFinishedYears);
           widget.settingsViewModel.setLibraryTagFilterMode(_selectedTagFilterMode);
           widget.settingsViewModel.setLibraryReviewed(_isReviewed);
+          widget.settingsViewModel.setLibraryGroupSeries(_groupSeries);
+          widget.settingsViewModel.setLibrarySeriesOnly(_seriesOnly);
         },
         availableYears: availableYears,
         settingsViewModel: widget.settingsViewModel,
@@ -1027,6 +1145,7 @@ class _LibraryPageState extends State<LibraryPage> {
                                       !_isSearching &&
                                       !_isFavorite &&
                                       !_isReviewed &&
+                                      !_seriesOnly &&
                                       _selectedBookTypes.isEmpty &&
                                       _selectedFinishedYears.isEmpty &&
                                       _selectedTags.isEmpty;
@@ -1059,7 +1178,17 @@ class _LibraryPageState extends State<LibraryPage> {
                                   );
                                 }),
                               )
-                            : Scrollbar(
+                            : Builder(builder: (context) {
+                          final items = _libraryItems();
+                          // Each series in full — the strip and counts cover
+                          // the whole series, not just what's on screen.
+                          final allBySeries =
+                              SeriesProgress.bySeries(widget.books);
+                          SeriesProgress seriesProgress(int id) =>
+                              SeriesProgress.from(
+                                  id, allBySeries[id] ?? const [],
+                                  placeholders: _placeholders[id] ?? const []);
+                          return Scrollbar(
                           child: _libraryBookView == "grid"
                               ? GridView.builder(
                             padding: const EdgeInsets.only(top: 4),
@@ -1069,9 +1198,24 @@ class _LibraryPageState extends State<LibraryPage> {
                               crossAxisSpacing: 4,
                               mainAxisSpacing: 4,
                             ),
-                            itemCount: _filteredBooks.length,
+                            itemCount: items.length,
                             itemBuilder: (context, index) {
-                              final book = _filteredBooks[index];
+                              final item = items[index];
+                              if (item is _SeriesGroup) {
+                                return SeriesGridTile(
+                                  progress: seriesProgress(item.seriesId),
+                                  books: item.books,
+                                  selected: item.books.every(
+                                      (b) => _selectedBookIds.contains(b['id'])),
+                                  selectionColor: theme.colorScheme.primary,
+                                  onTap: () => _selectionMode
+                                      ? _toggleGroupSelection(item.books)
+                                      : _openSeries(item.seriesId),
+                                  onLongPress: () =>
+                                      _startGroupSelection(item.books),
+                                );
+                              }
+                              final book = item as Map<String, dynamic>;
                               return GestureDetector(
                                 onLongPress: () => _startSelection(book['id']),
                                 child: BookGridItem(
@@ -1092,9 +1236,39 @@ class _LibraryPageState extends State<LibraryPage> {
                             },
                           )
                               : ListView.builder(
-                            itemCount: _filteredBooks.length,
+                            itemCount: items.length,
                             itemBuilder: (context, index) {
-                              final book = _filteredBooks[index];
+                              final item = items[index];
+                              if (item is _SeriesGroup) {
+                                final id = item.seriesId;
+                                return SeriesRow(
+                                  key: ValueKey('series-$id'),
+                                  progress: seriesProgress(id),
+                                  books: item.books,
+                                  expanded: _seriesExpanded(id),
+                                  onToggle: () => setState(() {
+                                    if (!_expandedSeries.remove(id)) {
+                                      _expandedSeries.add(id);
+                                    }
+                                  }),
+                                  onOpen: () => _selectionMode
+                                      ? _toggleGroupSelection(item.books)
+                                      : _openSeries(id),
+                                  onLongPress: () =>
+                                      _startGroupSelection(item.books),
+                                  onBookTap: (b) => _selectionMode
+                                      ? _toggleSelection(b['id'] as int)
+                                      : _showBookPopup(context, b),
+                                  onBookLongPress: (b) =>
+                                      _startSelection(b['id'] as int),
+                                  isSelected: _selectedBookIds.contains,
+                                  selectionColor: theme.colorScheme.primary,
+                                  showStars: widget.settingsViewModel
+                                          .defaultRatingStyleNotifier.value ==
+                                      0,
+                                );
+                              }
+                              final book = item as Map<String, dynamic>;
                               final isSelected = _selectedBookIds.contains(book['id']);
                               return GestureDetector(
                                 onLongPress: () => _startSelection(book['id']),
@@ -1118,7 +1292,8 @@ class _LibraryPageState extends State<LibraryPage> {
                               );
                             },
                           ),
-                        ),
+                        );
+                        }),
                       ),
                     ],
                   ),
@@ -1182,4 +1357,12 @@ class _LibraryPageState extends State<LibraryPage> {
       ),
     );
   }
+}
+/// A series' books as one Library entry — those that passed the filters, in
+/// series order.
+class _SeriesGroup {
+  final int seriesId;
+  final List<Map<String, dynamic>> books;
+
+  const _SeriesGroup(this.seriesId, this.books);
 }

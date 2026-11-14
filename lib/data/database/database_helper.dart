@@ -14,7 +14,7 @@ class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
   static Database? _database;
 
-  static const int _databaseVersion = 9;
+  static const int _databaseVersion = 10;
 
   // System shelf IDs — stable because shelves are seeded in a fixed order
   // and only exist from v2 onwards (v1 had no shelves).
@@ -118,6 +118,7 @@ class DatabaseHelper {
     await db.insert('shelves', {'name': 'Unfinished',        'is_system': 1, 'sort_order': 3});
 
     await db.execute(_createSeriesTable);
+    await db.execute(_createSeriesPlaceholdersTable);
 
     await db.execute('''
       CREATE TABLE books(
@@ -421,6 +422,12 @@ class DatabaseHelper {
       }
     }
 
+    if (oldVersion < 10) {
+      // Placeholders for books in a series the reader doesn't have yet.
+      await db.execute(_createSeriesPlaceholdersTable.replaceFirst(
+          'CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'));
+    }
+
   }
 
   /// Names are unique ignoring case, so "caraval" and "Caraval" are one series.
@@ -431,7 +438,93 @@ class DatabaseHelper {
     )
   ''';
 
+  /// A number in a series held for a book the reader doesn't have — one not
+  /// out yet, or not bought. Never a book: it stays out of the library, the
+  /// shelves and every stat. One per number.
+  static const _createSeriesPlaceholdersTable = '''
+    CREATE TABLE series_placeholders(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      series_id INTEGER NOT NULL REFERENCES series(id) ON DELETE CASCADE,
+      position REAL NOT NULL,
+      title TEXT,
+      UNIQUE(series_id, position)
+    )
+  ''';
+
   // ── Series ─────────────────────────────────────────────────────────────────
+
+  /// Placeholders in [seriesId], in order.
+  Future<List<Map<String, dynamic>>> getSeriesPlaceholders(int seriesId) async {
+    final db = await database;
+    return db.query('series_placeholders',
+        where: 'series_id = ?', whereArgs: [seriesId], orderBy: 'position');
+  }
+
+  /// Every placeholder, with its series' name — for the library and backups.
+  Future<List<Map<String, dynamic>>> getAllSeriesPlaceholders() async {
+    final db = await database;
+    return db.rawQuery('''
+      SELECT p.*, se.name AS series_name FROM series_placeholders p
+      INNER JOIN series se ON p.series_id = se.id
+      ORDER BY se.name COLLATE NOCASE, p.position
+    ''');
+  }
+
+  /// Holds [position] in [seriesId], replacing any placeholder already there.
+  Future<void> saveSeriesPlaceholder(
+      int seriesId, double position, String? title) async {
+    final db = await database;
+    await db.insert(
+      'series_placeholders',
+      {'series_id': seriesId, 'position': position, 'title': title},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    booksChanged.notify();
+  }
+
+  /// Moves or renames a placeholder. Taking a number another placeholder
+  /// holds replaces that one.
+  Future<void> updateSeriesPlaceholder(
+      int id, int seriesId, double position, String? title) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.delete('series_placeholders',
+          where: 'series_id = ? AND position = ? AND id != ?',
+          whereArgs: [seriesId, position, id]);
+      await txn.update('series_placeholders',
+          {'position': position, 'title': title},
+          where: 'id = ?', whereArgs: [id]);
+    });
+    booksChanged.notify();
+  }
+
+  /// Moves several placeholders at once — a drag that swaps two of them.
+  /// Each first steps aside to a number nothing uses, or the one-per-number
+  /// rule would refuse the swap halfway.
+  Future<void> repositionSeriesPlaceholders(
+      Map<int, double> positionsById) async {
+    if (positionsById.isEmpty) return;
+    final db = await database;
+    await db.transaction((txn) async {
+      for (final id in positionsById.keys) {
+        await txn.update('series_placeholders', {'position': -id},
+            where: 'id = ?', whereArgs: [id]);
+      }
+      for (final e in positionsById.entries) {
+        await txn.update('series_placeholders', {'position': e.value},
+            where: 'id = ?', whereArgs: [e.key]);
+      }
+    });
+    booksChanged.notify();
+  }
+
+  Future<void> deleteSeriesPlaceholders(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final db = await database;
+    await db.delete('series_placeholders',
+        where: 'id IN (${ids.map((_) => '?').join(', ')})', whereArgs: ids);
+    booksChanged.notify();
+  }
 
   /// The id of the series called [name], creating it if needed. Matching
   /// ignores case and surrounding space; the first spelling used is kept.
@@ -805,6 +898,7 @@ class DatabaseHelper {
     final db = await database;
     final result = await db.delete('books');
     // Series exist only through their books.
+    await db.delete('series_placeholders');
     await db.delete('series');
     booksChanged.notify();
     return result;
