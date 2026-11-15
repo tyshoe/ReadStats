@@ -45,6 +45,10 @@ class SessionPosition {
   /// is the start of the book (false), or was typed (null).
   bool? startIsLastStop;
 
+  /// Whether that start had bare durations added in, and so is only as right
+  /// as they are — see [suggestStart].
+  bool startIsEstimated = false;
+
   /// Whether the start time's fields are open. It is usually filled in
   /// already, so it sits as a line of text until the reader asks to change
   /// it.
@@ -64,12 +68,18 @@ class SessionPosition {
   }
 
   /// Offers where this session starts, unless the reader already typed their
-  /// own: the time the last session stopped on ([lastStop]), or the start of
-  /// the book when there is none or it was listened to its end. [countsDown]
-  /// is the direction the last session was logged in, and [byDuration]
-  /// whether it was logged as a bare duration instead.
+  /// own: where the reader is in the book, or its start when nothing was
+  /// logged or it was listened to its end.
+  ///
+  /// Where the reader is comes from the time the last session with times
+  /// stopped on ([lastStop], in the direction [countsDown] gives) moved on by
+  /// [minutesSince], what sessions after it logged as a bare duration. With
+  /// no [lastStop] those minutes are counted from the start of the book,
+  /// which for time left needs the book's length. [byDuration] is whether
+  /// the reader has gone back to logging a bare duration.
   void suggestStart({
     int? lastStop,
+    int minutesSince = 0,
     required bool countsDown,
     bool byDuration = false,
   }) {
@@ -77,10 +87,23 @@ class SessionPosition {
     byRange = !byDuration;
     this.countsDown = countsDown;
     final total = bookMinutes ?? 0;
-    final finished = lastStop != null &&
-        (countsDown ? lastStop == 0 : total > 0 && lastStop >= total);
-    if (lastStop != null && !finished) {
-      _write(fromHours, fromMinutes, lastStop);
+
+    int? reached;
+    if (lastStop != null) {
+      reached = countsDown
+          ? (lastStop - minutesSince).clamp(0, lastStop)
+          : lastStop + minutesSince;
+    } else if (minutesSince > 0 && !countsDown) {
+      reached = minutesSince;
+    } else if (minutesSince > 0 && total > 0) {
+      reached = (total - minutesSince).clamp(0, total);
+    }
+    final finished = reached != null &&
+        (countsDown ? reached == 0 : total > 0 && reached >= total);
+
+    startIsEstimated = minutesSince > 0;
+    if (reached != null && !finished) {
+      _write(fromHours, fromMinutes, reached);
       startIsLastStop = true;
     } else if (!countsDown) {
       _write(fromHours, fromMinutes, 0);
@@ -373,7 +396,9 @@ class SessionPositionField extends StatelessWidget {
         ? 'Started at ${formatPositionMinutes(start)} left'
         : 'Started at ${formatPositionMinutes(start)}';
     final why = switch (position.startIsLastStop) {
-      true => ' · where you left off',
+      true => position.startIsEstimated
+          ? ' · estimated from earlier sessions'
+          : ' · where you left off',
       false => ' · the beginning',
       null => '',
     };

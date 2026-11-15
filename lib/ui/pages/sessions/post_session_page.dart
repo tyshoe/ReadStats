@@ -93,6 +93,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
       _position.minutesAfter = around.after;
       _position.suggestStart(
         lastStop: last.lastStop,
+        minutesSince: last.minutesSince,
         countsDown: last.countsDown,
         byDuration: last.byDuration,
       );

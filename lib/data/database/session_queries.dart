@@ -168,22 +168,61 @@ extension SessionQueries on DatabaseHelper {
     );
   }
 
-  /// How [bookId]'s last session before [before] (an ISO timestamp) was
-  /// logged, which is how the next one starts out: the time the player showed
-  /// when it stopped, and whether that was time left, counting down, or time
-  /// played — or, with `byDuration`, that it held a bare duration and no
-  /// times at all.
+  /// Where the reader is in [bookId] before [before] (an ISO timestamp), and
+  /// how its sessions are logged, which is how the next one starts out.
   ///
-  /// A book with no session yet goes by the last audiobook session of any
-  /// book, since the choice follows the app the reader listens in. With no
-  /// times logged anywhere it is time left: the figure most players show.
-  Future<({int? lastStop, bool countsDown, bool byDuration})> getLastPosition(
-      int bookId, String before) async {
+  /// `lastStop` is the time the player showed when the last session that
+  /// recorded its times stopped — time left, counting down, or time played,
+  /// as `countsDown` says — and `minutesSince` what sessions after it logged
+  /// as a bare duration. With no such session `lastStop` is null and
+  /// `minutesSince` is everything logged, so a book in progress from before
+  /// the times were kept can still be placed against its length. A place
+  /// that leans on `minutesSince` is only as right as those durations are.
+  ///
+  /// `byDuration` says the reader has gone back to a bare duration: for this
+  /// book, when it has times and then sessions without; otherwise by the
+  /// last audiobook session of any book, since the choice follows the app
+  /// the reader listens in. With no times logged anywhere it is time left:
+  /// the figure most players show.
+  Future<
+      ({
+        int? lastStop,
+        int minutesSince,
+        bool countsDown,
+        bool byDuration,
+      })> getLastPosition(int bookId, String before) async {
     final db = await database;
     bool timed(Map<String, Object?> row) =>
         row['start_position'] != null && row['end_position'] != null;
     bool down(Map<String, Object?> row) =>
         (row['start_position'] as int) >= (row['end_position'] as int);
+
+    final last = await db.query(
+      'sessions',
+      columns: ['start_position', 'end_position', 'date'],
+      where: 'book_id = ? AND start_position IS NOT NULL '
+          'AND end_position IS NOT NULL AND date < ?',
+      whereArgs: [bookId, before],
+      orderBy: 'date DESC',
+      limit: 1,
+    );
+    final since = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(duration_minutes), 0) AS minutes, COUNT(*) AS sessions
+      FROM sessions
+      WHERE book_id = ? AND date < ? AND date > ?
+      ''',
+      [bookId, before, last.isEmpty ? '' : last.first['date']],
+    );
+    final minutesSince = (since.first['minutes'] as num).toInt();
+    if (last.isNotEmpty) {
+      return (
+        lastStop: last.first['end_position'] as int,
+        minutesSince: minutesSince,
+        countsDown: down(last.first),
+        byDuration: (since.first['sessions'] as int) > 0,
+      );
+    }
 
     final lastTimed = await db.query(
       'sessions',
@@ -192,28 +231,6 @@ extension SessionQueries on DatabaseHelper {
       orderBy: 'date DESC',
       limit: 1,
     );
-    final countsDown = lastTimed.isEmpty || down(lastTimed.first);
-
-    final last = await db.query(
-      'sessions',
-      columns: ['start_position', 'end_position'],
-      where: 'book_id = ? AND date < ?',
-      whereArgs: [bookId, before],
-      orderBy: 'date DESC',
-      limit: 1,
-    );
-    if (last.isNotEmpty) {
-      return timed(last.first)
-          ? (
-              lastStop: last.first['end_position'] as int,
-              countsDown: down(last.first),
-              byDuration: false,
-            )
-          : (lastStop: null, countsDown: countsDown, byDuration: true);
-    }
-
-    // A new book: a bare duration only if that is what the reader has gone
-    // back to since logging times.
     final lastAudio = await db.rawQuery('''
       SELECT s.start_position, s.end_position FROM sessions s
       INNER JOIN books b ON b.id = s.book_id
@@ -222,7 +239,8 @@ extension SessionQueries on DatabaseHelper {
     ''');
     return (
       lastStop: null,
-      countsDown: countsDown,
+      minutesSince: minutesSince,
+      countsDown: lastTimed.isEmpty || down(lastTimed.first),
       byDuration: lastTimed.isNotEmpty &&
           lastAudio.isNotEmpty &&
           !timed(lastAudio.first),

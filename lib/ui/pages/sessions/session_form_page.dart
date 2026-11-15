@@ -142,6 +142,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
       if (last != null) {
         _position.suggestStart(
           lastStop: last.lastStop,
+          minutesSince: last.minutesSince,
           countsDown: last.countsDown,
           byDuration: last.byDuration,
         );
