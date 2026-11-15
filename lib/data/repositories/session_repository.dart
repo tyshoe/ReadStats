@@ -32,6 +32,18 @@ class SessionRepository {
   Future<({int page, bool exact})?> getLastPage(int bookId, DateTime before) =>
       _databaseHelper.getLastPage(bookId, before.toIso8601String());
 
+  /// Where an audiobook's last session before [before] stopped, and how it
+  /// was logged. See [SessionQueries.getLastPosition].
+  Future<({int? lastStop, bool countsDown, bool byDuration})> getLastPosition(
+          int bookId, DateTime before) =>
+      _databaseHelper.getLastPosition(bookId, before.toIso8601String());
+
+  /// Minutes logged for a book before and after [date].
+  Future<({int before, int after})> getMinutesAround(int bookId, DateTime date,
+          {int? excludeId}) =>
+      _databaseHelper.getMinutesAround(bookId, date.toIso8601String(),
+          excludeId: excludeId);
+
   /// Pages logged for a book before and after [date], and whether any
   /// session follows it. See [SessionQueries.getPagesAround].
   Future<({int pagesBefore, int pagesAfter, bool hasLater})> getPagesAround(

@@ -12,6 +12,13 @@ class Session {
   final int? startPage;
   final int? endPage;
 
+  /// The times an audiobook's player showed when the session started and
+  /// stopped, in minutes, as typed: time played, which runs up, or time
+  /// left, which runs down — so a start larger than the stop means time
+  /// left. Null on sessions logged as a bare duration.
+  final int? startPosition;
+  final int? endPosition;
+
   Session({
     this.id,
     required this.bookId,
@@ -21,6 +28,8 @@ class Session {
     this.notes,
     this.startPage,
     this.endPage,
+    this.startPosition,
+    this.endPosition,
   });
 
   Map<String, dynamic> toMap() {
@@ -33,6 +42,8 @@ class Session {
       'notes': notes,
       'start_page': startPage,
       'end_page': endPage,
+      'start_position': startPosition,
+      'end_position': endPosition,
     };
   }
 
@@ -46,6 +57,8 @@ class Session {
       notes: map['notes'] as String?,
       startPage: map['start_page'] as int?,
       endPage: map['end_page'] as int?,
+      startPosition: map['start_position'] as int?,
+      endPosition: map['end_position'] as int?,
     );
   }
 }

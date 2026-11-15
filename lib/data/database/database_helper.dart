@@ -24,7 +24,7 @@ class DatabaseHelper {
 
   static Database? _database;
 
-  static const int _databaseVersion = 12;
+  static const int _databaseVersion = 13;
 
   // System shelf IDs — stable because shelves are seeded in a fixed order
   // and only exist from v2 onwards (v1 had no shelves).
@@ -172,6 +172,8 @@ class DatabaseHelper {
         notes TEXT,
         start_page INTEGER,
         end_page INTEGER,
+        start_position INTEGER,
+        end_position INTEGER,
         FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
       )
     ''');
@@ -459,6 +461,17 @@ class DatabaseHelper {
       }
       if (!cols.any((c) => c['name'] == 'end_page')) {
         await db.execute('ALTER TABLE sessions ADD COLUMN end_page INTEGER');
+      }
+    }
+
+    if (oldVersion < 13) {
+      // The times an audiobook session started and stopped on. Nothing to
+      // backfill — older sessions only ever held a duration.
+      final cols = await db.rawQuery('PRAGMA table_info(sessions)');
+      for (final name in ['start_position', 'end_position']) {
+        if (!cols.any((c) => c['name'] == name)) {
+          await db.execute('ALTER TABLE sessions ADD COLUMN $name INTEGER');
+        }
       }
     }
   }

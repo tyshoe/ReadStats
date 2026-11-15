@@ -10,6 +10,7 @@ import '/viewmodels/settings_view_model.dart';
 import '/ui/widgets/book_cover.dart';
 import 'widgets/reading_dates_row.dart';
 import 'widgets/session_pages_field.dart';
+import 'widgets/session_position_field.dart';
 
 class PostSessionPage extends StatefulWidget {
   final Map<String, dynamic> book;
@@ -35,6 +36,7 @@ class PostSessionPage extends StatefulWidget {
 
 class _PostSessionPageState extends State<PostSessionPage> {
   final _pages = SessionPages();
+  final _position = SessionPosition();
   // The shelf the book was headed for before reaching its last page moved it
   // to Finished, to put back if the page is corrected.
   int? _shelfBeforeLastPage;
@@ -67,11 +69,35 @@ class _PostSessionPageState extends State<PostSessionPage> {
     _sessionDay = DateTime(started.year, started.month, started.day);
     _fillDurationFields(_timerMinutes);
     _pages.bookPageCount = _bookPageCount;
+    _position.bookMinutes = widget.book['duration_minutes'] as int?;
     _presetFirstSession();
     _suggestStartPage();
+    _suggestStartPosition();
   }
 
   int? get _bookPageCount => widget.book['page_count'] as int?;
+
+  /// For an audiobook, fills the start time with the one the last session
+  /// stopped on, so only the time reached this time is left to type. The
+  /// session's length stays the timer's: the times record where the reader
+  /// is in the book, which at another speed isn't how long they listened.
+  Future<void> _suggestStartPosition() async {
+    if (widget.book['book_type_id'] != 4) return;
+    final at = widget.timerService.startedAt ?? DateTime.now();
+    final bookId = widget.book['id'] as int;
+    final around = await widget.sessionRepository.getMinutesAround(bookId, at);
+    final last = await widget.sessionRepository.getLastPosition(bookId, at);
+    if (!mounted) return;
+    setState(() {
+      _position.minutesBefore = around.before;
+      _position.minutesAfter = around.after;
+      _position.suggestStart(
+        lastStop: last.lastStop,
+        countsDown: last.countsDown,
+        byDuration: last.byDuration,
+      );
+    });
+  }
 
   /// Fills "From page" with the page the last session stopped on, so only
   /// the page reached this time is left to type, and loads the pages logged
@@ -101,10 +127,13 @@ class _PostSessionPageState extends State<PostSessionPage> {
     });
   }
 
-  /// Reaching the book's last page offers the Finished shelf, and takes the
-  /// offer back if the page is corrected.
+  /// Reaching the end of the book — its last page, or no time left in an
+  /// audiobook — offers the Finished shelf, and takes the offer back if what
+  /// was typed is corrected.
   void _onPagesChanged() {
-    final reached = _pages.reachesEnd;
+    final reached = widget.book['book_type_id'] == 4
+        ? _position.reachesEnd
+        : _pages.reachesEnd;
     if (reached &&
         !_finishedByLastPage &&
         _targetShelfId != DatabaseHelper.shelfFinished) {
@@ -170,6 +199,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
   @override
   void dispose() {
     _pages.dispose();
+    _position.dispose();
     _notesController.dispose();
     _hoursController.dispose();
     _minutesController.dispose();
@@ -307,6 +337,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
   }
 
   Future<void> _save() async {
+    if (widget.book['book_type_id'] == 4 && _position.isBackwards) return;
     setState(() => _isSaving = true);
     try {
       // Read the fields before stopping — they hold the timer's own figure
@@ -325,6 +356,8 @@ class _PostSessionPageState extends State<PostSessionPage> {
         pagesRead: isAudiobook ? null : _pages.pagesRead,
         startPage: isAudiobook ? null : _pages.startPage,
         endPage: isAudiobook ? null : _pages.endPage,
+        startPosition: isAudiobook ? _position.startPosition : null,
+        endPosition: isAudiobook ? _position.endPosition : null,
         durationMinutes: durationMinutes,
         date: sessionDate.toIso8601String(),
         notes: _notesController.text.trim().isEmpty
@@ -532,6 +565,13 @@ class _PostSessionPageState extends State<PostSessionPage> {
                       if (!isAudiobook) ...[
                         SessionPagesField(
                           pages: _pages,
+                          onChanged: _onPagesChanged,
+                        ),
+                        const SizedBox(height: 16),
+                      ] else ...[
+                        SessionPositionField(
+                          position: _position,
+                          durationMinutes: _enteredMinutes,
                           onChanged: _onPagesChanged,
                         ),
                         const SizedBox(height: 16),

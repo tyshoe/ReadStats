@@ -238,7 +238,7 @@ class ImportExportService {
     return [
       [
         'session_id', 'book_id', 'pages_read', 'duration_minutes', 'date',
-        'notes', 'start_page', 'end_page',
+        'notes', 'start_page', 'end_page', 'start_position', 'end_position',
       ],
       ...sessions.map((s) => [
         s.id.toString(),
@@ -249,6 +249,8 @@ class ImportExportService {
         s.notes ?? '',
         s.startPage?.toString() ?? '',
         s.endPage?.toString() ?? '',
+        s.startPosition?.toString() ?? '',
+        s.endPosition?.toString() ?? '',
       ]),
     ];
   }
@@ -828,6 +830,10 @@ class ImportExportService {
           // Absent from backups made before page numbers were kept.
           startPage: row.length > 6 ? int.tryParse(row[6].toString()) : null,
           endPage: row.length > 7 ? int.tryParse(row[7].toString()) : null,
+          // And from ones made before audiobook positions were.
+          startPosition:
+              row.length > 8 ? int.tryParse(row[8].toString()) : null,
+          endPosition: row.length > 9 ? int.tryParse(row[9].toString()) : null,
         ));
       } catch (e) {
         if (kDebugMode) print('Skipping session row: $e');

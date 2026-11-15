@@ -5,6 +5,7 @@ import '/data/repositories/session_repository.dart';
 import '/data/repositories/book_repository.dart';
 import '/viewmodels/settings_view_model.dart';
 import '../../sessions/session_form_page.dart';
+import '../../sessions/widgets/session_position_field.dart';
 
 /// List of every reading session logged for a single book. Tapping a session
 /// opens it for editing. A book-filtered version of the Sessions page list.
@@ -176,7 +177,10 @@ class _BookSessionsContentState extends State<BookSessionsContent> {
     final duration = _durationStr(minutes);
     final startPage = s['start_page'] as int?;
     final endPage = s['end_page'] as int?;
+    final positions = formatPositionRange(
+        s['start_position'] as int?, s['end_position'] as int?);
     final secondary = [
+      ?positions,
       if (startPage != null && endPage != null) 'p. $startPage–$endPage',
       if (pages > 0) '$pages ${pages == 1 ? 'page' : 'pages'}',
       if (pages > 0 && minutes > 0) '${(pages / minutes).toStringAsFixed(1)}/min',

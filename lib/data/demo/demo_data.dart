@@ -29,6 +29,10 @@ import '../repositories/goal_repository.dart';
 /// * Start and stop pages on print sessions from the last year, so a new
 ///   session opens on the page the last one stopped at; older print sessions
 ///   keep a bare page count, as sessions from before page numbers do.
+/// * Time left at the start and stop of audiobook sessions from the last
+///   year, counting down to zero on the finished ones, so a new audiobook
+///   session opens on the time the last one stopped at; older ones keep a
+///   bare duration.
 /// * Ratings (halves included), reviews, favourites, tags with colours.
 /// * Series: Sherlock Holmes #1 and #3 (a gap at #2 on purpose), plus #2
 ///   sitting unlinked with the series in its title, for "Find series in
@@ -546,7 +550,7 @@ class _Generator {
       if (!_inBreak(day) && weekday && rng.nextDouble() < 0.8) {
         final at = _clampToNow(_at(day, 7, 30 + rng.nextInt(70)));
         if (at != null) {
-          _session(bookId, at, 0, split[i]);
+          _session(bookId, at, 0, split[i], bookMinutes: bookMinutes);
           times.add(at);
           i++;
         }
@@ -555,7 +559,7 @@ class _Generator {
     }
     if (times.isEmpty) {
       final at = _at(DateTime(start.year, start.month, start.day), 8, 0);
-      _session(bookId, at, 0, minutes);
+      _session(bookId, at, 0, minutes, bookMinutes: bookMinutes);
       times.add(at);
     }
     return times;
@@ -587,7 +591,12 @@ class _Generator {
   /// Whether a book's sessions carry page numbers, settled by its first one.
   final _numbered = <int, bool>{};
 
-  void _session(int bookId, DateTime at, int pages, int minutes) {
+  /// The minutes of each audiobook listened to so far, so sessions carry the
+  /// time left when they started and stopped.
+  final _minutesPlayed = <int, int>{};
+
+  void _session(int bookId, DateTime at, int pages, int minutes,
+      {int bookMinutes = 0}) {
     // Only books started in the last year carry page numbers. Older ones keep
     // a bare count, as sessions logged before page numbers existed do — which
     // is what the "estimated from earlier sessions" start page is for.
@@ -600,11 +609,21 @@ class _Generator {
       end = start + pages;
       _pageReached[bookId] = end;
     }
+    // Audiobooks the same way, as the time left the player showed.
+    int? startLeft, endLeft;
+    if (numbered && bookMinutes > 0) {
+      final played = _minutesPlayed[bookId] ?? 0;
+      startLeft = max(0, bookMinutes - played);
+      endLeft = max(0, startLeft - minutes);
+      _minutesPlayed[bookId] = played + minutes;
+    }
     sessions.add(Session(
       bookId: bookId,
       pagesRead: pages,
       startPage: start,
       endPage: end,
+      startPosition: startLeft,
+      endPosition: endLeft,
       durationMinutes: minutes,
       date: at.toIso8601String(),
       notes: rng.nextDouble() < 0.07 ? _notes[rng.nextInt(_notes.length)] : null,

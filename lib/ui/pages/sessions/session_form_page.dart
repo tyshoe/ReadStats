@@ -7,6 +7,7 @@ import '../../widgets/book_selector_tile.dart';
 import 'session_book_options.dart';
 import 'widgets/reading_dates_row.dart';
 import 'widgets/session_pages_field.dart';
+import 'widgets/session_position_field.dart';
 import 'package:intl/intl.dart';
 import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
@@ -42,6 +43,7 @@ class SessionFormPage extends StatefulWidget {
 
 class _SessionFormPageState extends State<SessionFormPage> {
   final _pages = SessionPages();
+  final _position = SessionPosition();
   // The shelf the book was headed for before reaching its last page moved it
   // to Finished, to put back if the page is corrected.
   int? _shelfBeforeLastPage;
@@ -84,11 +86,17 @@ class _SessionFormPageState extends State<SessionFormPage> {
       _notesController.text = widget.session!['notes'] ?? '';
       _selectedBook = widget.book;
       _pages.bookPageCount = _bookPageCount;
+      _position.bookMinutes = _bookMinutes;
+      _position.load(
+        startPosition: widget.session!['start_position'] as int?,
+        endPosition: widget.session!['end_position'] as int?,
+      );
       // Without this the shelf selector renders with nothing highlighted, as
       // though the book were on no shelf at all.
       _targetShelfId = widget.book?['shelf_id'] as int?;
       _loadReadingDates();
       _suggestStartPage();
+      _suggestStartPosition();
     } else {
       _sessionDate = DateTime.now();
 
@@ -99,14 +107,60 @@ class _SessionFormPageState extends State<SessionFormPage> {
         );
         _targetShelfId = _selectedBook!['shelf_id'] as int?;
         _pages.bookPageCount = _bookPageCount;
+        _position.bookMinutes = _bookMinutes;
         _loadReadingDates();
         _presetFirstSession();
         _suggestStartPage();
+        _suggestStartPosition();
       }
     }
   }
 
   int? get _bookPageCount => _selectedBook?['page_count'] as int?;
+  int? get _bookMinutes => _selectedBook?['duration_minutes'] as int?;
+
+  /// For an audiobook, fills the start time with the one the last session
+  /// stopped on, logged the way that session was, so only the time reached
+  /// this time is left to type — and loads the minutes logged around this
+  /// session, for the bar.
+  Future<void> _suggestStartPosition() async {
+    final book = _selectedBook;
+    if (book == null || _tracksPages) return;
+    final bookId = book['id'] as int;
+    final around = await widget.sessionRepository.getMinutesAround(
+      bookId,
+      _sessionDate,
+      excludeId: widget.session?['id'] as int?,
+    );
+    final last = widget.isEditing
+        ? null
+        : await widget.sessionRepository.getLastPosition(bookId, _sessionDate);
+    if (!mounted || _selectedBook != book) return;
+    setState(() {
+      _position.minutesBefore = around.before;
+      _position.minutesAfter = around.after;
+      if (last != null) {
+        _position.suggestStart(
+          lastStop: last.lastStop,
+          countsDown: last.countsDown,
+          byDuration: last.byDuration,
+        );
+      }
+    });
+  }
+
+  /// The two times say how much of the book went by, which is the session's
+  /// length. The length fields take it, so it is there to correct after
+  /// switching to a bare duration.
+  void _onPositionChanged() {
+    final minutes = _position.minutes;
+    if (minutes != null && minutes > 0) {
+      _hoursController.text = minutes >= 60 ? '${minutes ~/ 60}' : '';
+      _minutesController.text = '${minutes % 60}';
+    }
+    // Rebuilds, and moves the book to Finished when it has no time left.
+    _onPagesChanged();
+  }
 
   /// Loads what the page fields need to know about the book's other
   /// sessions: where the reader left off, to fill "From page" on a new
@@ -143,10 +197,12 @@ class _SessionFormPageState extends State<SessionFormPage> {
     });
   }
 
-  /// Reaching the book's last page offers the Finished shelf, and takes the
-  /// offer back if the page is corrected.
+  /// Reaching the end of the book — its last page, or no time left in an
+  /// audiobook — offers the Finished shelf, and takes the offer back if what
+  /// was typed is corrected.
   void _onPagesChanged() {
-    final reached = !widget.isEditing && _pages.reachesEnd;
+    final reached = !widget.isEditing &&
+        (_tracksPages ? _pages.reachesEnd : _position.reachesEnd);
     if (reached &&
         !_finishedByLastPage &&
         _targetShelfId != DatabaseHelper.shelfFinished) {
@@ -198,6 +254,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
   @override
   void dispose() {
     _pages.dispose();
+    _position.dispose();
     _hoursController.dispose();
     _minutesController.dispose();
     _startHoursController.dispose();
@@ -288,6 +345,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
     if (_selectedBook == null) return;
 
     if (_tracksPages && _pages.isBackwards) return;
+    if (!_tracksPages && _position.isBackwards) return;
     final int? pagesRead = _tracksPages ? _pages.pagesRead : null;
     int? durationMinutes;
 
@@ -295,6 +353,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
     // leaves its fields filled in, and reading them anyway would overwrite the
     // hours and minutes typed afterwards with a number nothing on screen shows.
     final hasTimeRange =
+        _tracksPages &&
         _showTimeRange &&
         (_startHoursController.text.isNotEmpty ||
             _startMinutesController.text.isNotEmpty ||
@@ -320,6 +379,8 @@ class _SessionFormPageState extends State<SessionFormPage> {
         pagesRead: pagesRead,
         startPage: _tracksPages ? _pages.startPage : null,
         endPage: _tracksPages ? _pages.endPage : null,
+        startPosition: _tracksPages ? null : _position.startPosition,
+        endPosition: _tracksPages ? null : _position.endPosition,
         durationMinutes: durationMinutes,
         date: _sessionDate.toIso8601String(),
         notes: _notesController.text.trim().isEmpty
@@ -457,6 +518,94 @@ class _SessionFormPageState extends State<SessionFormPage> {
     );
   }
 
+  /// How long the session was. On its own line for a paper book; for an
+  /// audiobook the times work it out, and these are for a bare duration.
+  Widget _buildDurationRow(ThemeData theme) {
+    return Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _hoursController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            onChanged: (_) => setState(() {}),
+                            onTapOutside: (_) =>
+                                FocusManager.instance.primaryFocus?.unfocus(),
+                            decoration: InputDecoration(
+                              labelText: 'Hours',
+                              filled: true,
+                              fillColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              border: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                6,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _minutesController,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            onChanged: (v) {
+                              final val = int.tryParse(v);
+                              if (val != null && val > 59) {
+                                _minutesController.text = '59';
+                              }
+                              setState(() {});
+                            },
+                            onTapOutside: (_) =>
+                                FocusManager.instance.primaryFocus?.unfocus(),
+                            decoration: InputDecoration(
+                              labelText: 'Minutes',
+                              filled: true,
+                              fillColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              border: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: UnderlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                6,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+  }
+
   Future<void> _showDatePicker(BuildContext context) async {
     final date = await showDatePicker(
       context: context,
@@ -483,6 +632,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
       });
       // A session logged for an earlier day starts where the reader was then.
       _suggestStartPage();
+      _suggestStartPosition();
     }
   }
 
@@ -558,10 +708,13 @@ class _SessionFormPageState extends State<SessionFormPage> {
         _loadReadingDates();
         _pages.clear();
         _pages.bookPageCount = _bookPageCount;
+        _position.clear();
+        _position.bookMinutes = _bookMinutes;
         _finishedByLastPage = false;
       });
       _presetFirstSession();
       _suggestStartPage();
+      _suggestStartPosition();
     }
   }
 
@@ -662,90 +815,17 @@ class _SessionFormPageState extends State<SessionFormPage> {
                     ),
                     const Divider(height: 48),
 
-                    // Duration Field
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _hoursController,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            onChanged: (_) => setState(() {}),
-                            onTapOutside: (_) =>
-                                FocusManager.instance.primaryFocus?.unfocus(),
-                            decoration: InputDecoration(
-                              labelText: 'Hours',
-                              filled: true,
-                              fillColor:
-                                  theme.colorScheme.surfaceContainerHighest,
-                              border: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.fromLTRB(
-                                12,
-                                10,
-                                12,
-                                6,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _minutesController,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            onChanged: (v) {
-                              final val = int.tryParse(v);
-                              if (val != null && val > 59) {
-                                _minutesController.text = '59';
-                              }
-                              setState(() {});
-                            },
-                            onTapOutside: (_) =>
-                                FocusManager.instance.primaryFocus?.unfocus(),
-                            decoration: InputDecoration(
-                              labelText: 'Minutes',
-                              filled: true,
-                              fillColor:
-                                  theme.colorScheme.surfaceContainerHighest,
-                              border: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.fromLTRB(
-                                12,
-                                10,
-                                12,
-                                6,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    if (_tracksPages) _buildDurationRow(theme),
+                    if (!_tracksPages) ...[
+                      SessionPositionField(
+                        position: _position,
+                        lengthFields: _buildDurationRow(theme),
+                        durationMinutes:
+                            (int.tryParse(_hoursController.text) ?? 0) * 60 +
+                                (int.tryParse(_minutesController.text) ?? 0),
+                        onChanged: _onPositionChanged,
+                      ),
+                    ] else ...[
                     const SizedBox(height: 8),
                     Container(
                       decoration: BoxDecoration(
@@ -823,6 +903,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
                         ],
                       ),
                     ),
+                    ],
 
                     if (_tracksPages) ...[
                       const SizedBox(height: 24),

@@ -168,6 +168,88 @@ extension SessionQueries on DatabaseHelper {
     );
   }
 
+  /// How [bookId]'s last session before [before] (an ISO timestamp) was
+  /// logged, which is how the next one starts out: the time the player showed
+  /// when it stopped, and whether that was time left, counting down, or time
+  /// played — or, with `byDuration`, that it held a bare duration and no
+  /// times at all.
+  ///
+  /// A book with no session yet goes by the last audiobook session of any
+  /// book, since the choice follows the app the reader listens in. With no
+  /// times logged anywhere it is time left: the figure most players show.
+  Future<({int? lastStop, bool countsDown, bool byDuration})> getLastPosition(
+      int bookId, String before) async {
+    final db = await database;
+    bool timed(Map<String, Object?> row) =>
+        row['start_position'] != null && row['end_position'] != null;
+    bool down(Map<String, Object?> row) =>
+        (row['start_position'] as int) >= (row['end_position'] as int);
+
+    final lastTimed = await db.query(
+      'sessions',
+      columns: ['start_position', 'end_position'],
+      where: 'start_position IS NOT NULL AND end_position IS NOT NULL',
+      orderBy: 'date DESC',
+      limit: 1,
+    );
+    final countsDown = lastTimed.isEmpty || down(lastTimed.first);
+
+    final last = await db.query(
+      'sessions',
+      columns: ['start_position', 'end_position'],
+      where: 'book_id = ? AND date < ?',
+      whereArgs: [bookId, before],
+      orderBy: 'date DESC',
+      limit: 1,
+    );
+    if (last.isNotEmpty) {
+      return timed(last.first)
+          ? (
+              lastStop: last.first['end_position'] as int,
+              countsDown: down(last.first),
+              byDuration: false,
+            )
+          : (lastStop: null, countsDown: countsDown, byDuration: true);
+    }
+
+    // A new book: a bare duration only if that is what the reader has gone
+    // back to since logging times.
+    final lastAudio = await db.rawQuery('''
+      SELECT s.start_position, s.end_position FROM sessions s
+      INNER JOIN books b ON b.id = s.book_id
+      WHERE b.book_type_id = 4
+      ORDER BY s.date DESC LIMIT 1
+    ''');
+    return (
+      lastStop: null,
+      countsDown: countsDown,
+      byDuration: lastTimed.isNotEmpty &&
+          lastAudio.isNotEmpty &&
+          !timed(lastAudio.first),
+    );
+  }
+
+  /// The minutes logged for [bookId] before and after [date] (an ISO
+  /// timestamp). [excludeId] leaves out the session being edited.
+  Future<({int before, int after})> getMinutesAround(int bookId, String date,
+      {int? excludeId}) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT
+        COALESCE(SUM(CASE WHEN date < ? THEN duration_minutes END), 0) AS before,
+        COALESCE(SUM(CASE WHEN date > ? THEN duration_minutes END), 0) AS after
+      FROM sessions
+      WHERE book_id = ? AND id != ?
+      ''',
+      [date, date, bookId, excludeId ?? -1],
+    );
+    return (
+      before: (rows.first['before'] as num).toInt(),
+      after: (rows.first['after'] as num).toInt(),
+    );
+  }
+
   Future<List<Map<String, dynamic>>> getSessionsByBookId(int bookId) async {
     final db = await database;
     return await db.query(
