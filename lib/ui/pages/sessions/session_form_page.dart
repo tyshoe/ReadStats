@@ -266,6 +266,8 @@ class _SessionFormPageState extends State<SessionFormPage> {
     super.dispose();
   }
 
+  /// The gap between the two times, whichever is larger — a clock counts up
+  /// and time left counts down, and either way the difference is the session.
   int _calculateDurationFromTimeRange() {
     final startH = int.tryParse(_startHoursController.text) ?? 0;
     final startM = int.tryParse(_startMinutesController.text) ?? 0;
@@ -275,13 +277,13 @@ class _SessionFormPageState extends State<SessionFormPage> {
     final startTotal = startH * 60 + startM;
     final endTotal = endH * 60 + endM;
 
-    if (endTotal <= startTotal) {
-      setState(() => _timeRangeError = 'End time must be after start time');
+    if (endTotal == startTotal) {
+      setState(() => _timeRangeError = 'Start and end time are the same');
       return 0;
     }
 
     setState(() => _timeRangeError = null);
-    return endTotal - startTotal;
+    return (endTotal - startTotal).abs();
   }
 
   void _updateDurationFromTimeRange() {
@@ -355,9 +357,10 @@ class _SessionFormPageState extends State<SessionFormPage> {
     final hasTimeRange =
         _tracksPages &&
         _showTimeRange &&
+        // Both ends, or a lone time would count as a gap from zero.
         (_startHoursController.text.isNotEmpty ||
-            _startMinutesController.text.isNotEmpty ||
-            _endHoursController.text.isNotEmpty ||
+            _startMinutesController.text.isNotEmpty) &&
+        (_endHoursController.text.isNotEmpty ||
             _endMinutesController.text.isNotEmpty);
     if (hasTimeRange) {
       durationMinutes = _calculateDurationFromTimeRange();
