@@ -571,6 +571,7 @@ class _EditionTile extends StatelessWidget {
     final details = [
       if (edition.formatLabel != null) edition.formatLabel!,
       if (edition.pageCount != null) '${edition.pageCount} pages',
+      ?edition.durationLabel,
       if (edition.languageName != null) edition.languageName!,
     ];
     final isbn = edition.isbn;

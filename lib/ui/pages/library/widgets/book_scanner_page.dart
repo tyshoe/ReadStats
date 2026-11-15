@@ -174,7 +174,10 @@ class _BookScannerPageState extends State<BookScannerPage> {
     final duplicate = await _bookRepo.doesBookExist(result.title, result.author);
     if (!mounted) return;
     final item = _ScanItem(isbn, result)
-      ..bookTypeId = widget.settingsViewModel.defaultBookTypeNotifier.value
+      // The format Open Library has for this edition, so a scanned audiobook
+      // is one; the reader's usual format where it doesn't say.
+      ..bookTypeId = result.edition?.bookTypeId ??
+          widget.settingsViewModel.defaultBookTypeNotifier.value
       ..isDuplicate = duplicate;
     // Start downloading the cover now, while scanning continues, so it's a local
     // file by save time.
@@ -262,6 +265,8 @@ class _BookScannerPageState extends State<BookScannerPage> {
           isbn: item.isbnValue.trim().isEmpty ? null : item.isbnValue.trim(),
           openLibraryKey: r.workKey,
           coverShape: DatabaseHelper.defaultCoverShape(item.bookTypeId),
+          durationMinutes:
+              item.bookTypeId == 4 ? r.edition?.durationMinutes : null,
         );
       }
       try {

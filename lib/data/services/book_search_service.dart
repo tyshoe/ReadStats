@@ -17,6 +17,10 @@ class BookEdition {
   /// As entered: "Paperback", "Mass Market Paperback", "Audio CD"…
   final String? format;
   final int? pageCount;
+
+  /// An audiobook's running time, where Open Library has it — see
+  /// [durationFromNotes].
+  final int? durationMinutes;
   final List<String> isbns;
   final int? coverId;
 
@@ -30,6 +34,7 @@ class BookEdition {
     this.publishDate,
     this.format,
     this.pageCount,
+    this.durationMinutes,
     this.isbns = const [],
     this.coverId,
     this.language,
@@ -43,10 +48,37 @@ class BookEdition {
         publishDate: publishDate ?? other.publishDate,
         format: format ?? other.format,
         pageCount: pageCount ?? other.pageCount,
+        durationMinutes: durationMinutes ?? other.durationMinutes,
         isbns: isbns.isEmpty ? other.isbns : isbns,
         coverId: coverId ?? other.coverId,
         language: language ?? other.language,
       );
+
+  /// "16h 12m", for an edition with a running time.
+  String? get durationLabel {
+    final minutes = durationMinutes;
+    if (minutes == null) return null;
+    final hours = minutes ~/ 60;
+    return hours > 0 ? '${hours}h ${minutes % 60}m' : '${minutes}m';
+  }
+
+  /// An audiobook's running time in minutes, from an edition's notes. Open
+  /// Library has no field for it: editions imported from audiobook sellers
+  /// carry it in their free-text notes, in seconds, as "Duration: 58,341
+  /// seconds". Null without that line, which is most audiobooks there.
+  static int? durationFromNotes(dynamic notes) {
+    // Notes come as text or as {type, value}.
+    final text = notes is Map ? notes['value'] : notes;
+    if (text is! String) return null;
+    final match = RegExp(
+      r'duration\s*:?\s*([\d,]+)\s*seconds?',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (match == null) return null;
+    final seconds = int.tryParse(match.group(1)!.replaceAll(',', ''));
+    if (seconds == null || seconds <= 0) return null;
+    return (seconds / 60).round();
+  }
 
   /// The 13-digit ISBN when there is one, as that is what barcodes carry.
   String? get isbn {
@@ -148,6 +180,7 @@ class BookEdition {
       publishDate: _text(map['publish_date']),
       format: _text(map['physical_format']),
       pageCount: pages is int && pages > 0 ? pages : null,
+      durationMinutes: durationFromNotes(map['notes']),
       // 13-digit first: see [isbn].
       isbns: [..._texts(map['isbn_13']), ..._texts(map['isbn_10'])],
       coverId: _firstCover(map['covers']),
@@ -570,6 +603,14 @@ class BookSearchService {
     final clean = isbn.replaceAll(RegExp(r'[^\dX]'), '');
     if (clean.isEmpty) return null;
     try {
+      // Asked for alongside: the edition's own record has what this lookup
+      // leaves out — its format, its work, an audiobook's running time. The
+      // lookup stands without it if it fails.
+      final record = editionByIsbn(clean).then<
+          ({BookEdition edition, String? workKey})?>(
+        (found) => found,
+        onError: (_) => null,
+      );
       final uri = Uri.parse('$_isbnBase?bibkeys=ISBN:$clean&format=json&jscmd=data');
       final response = await http.get(uri).timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) return null;
@@ -594,6 +635,17 @@ class BookSearchService {
           ? (publishers.first as Map<String, dynamic>)['name'] as String?
           : null;
 
+      final listed = BookEdition(
+        key: entry['key'] as String? ?? '',
+        title: title,
+        publisher: publisher,
+        publishDate: entry['publish_date'] as String?,
+        pageCount: pageCount,
+        durationMinutes: BookEdition.durationFromNotes(entry['notes']),
+        isbns: [clean],
+      );
+      final found = await record;
+
       return BookSearchResult(
         title: title,
         author: authors.join(', '),
@@ -601,14 +653,8 @@ class BookSearchService {
         thumbnailUrl: cover?['medium'] as String?,
         coverUrl: large == null ? null : '$large?default=false',
         isbn: clean,
-        edition: BookEdition(
-          key: entry['key'] as String? ?? '',
-          title: title,
-          publisher: publisher,
-          publishDate: entry['publish_date'] as String?,
-          pageCount: pageCount,
-          isbns: [clean],
-        ),
+        edition: found == null ? listed : listed.filledFrom(found.edition),
+        workKey: found?.workKey,
       );
     } catch (_) {
       return null;
