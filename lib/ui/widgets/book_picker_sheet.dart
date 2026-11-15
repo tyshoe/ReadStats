@@ -324,23 +324,33 @@ class _BookPickerSheetState extends State<_BookPickerSheet> {
                                   overflow: TextOverflow.ellipsis,
                                 )
                               : null,
-                          trailing: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                typeIcon,
-                                size: 16,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                typeLabel,
-                                style: theme.textTheme.labelSmall?.copyWith(
+                          // One width for every format, so the icons and
+                          // labels share a centre line down the list — sized
+                          // to its own label, "eBook" sat further right than
+                          // the longer names.
+                          trailing: SizedBox(
+                            width: 60,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  typeIcon,
+                                  size: 16,
                                   color: theme.colorScheme.onSurfaceVariant,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 2),
+                                Text(
+                                  typeLabel,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.visible,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           onTap: () => _onTap(book),
                         );
