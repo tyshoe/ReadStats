@@ -51,6 +51,12 @@ class DatabaseHelper {
 
   static const int coverShapeSquare   = 1;
 
+  /// The shape a new book of [bookTypeId] starts with: square for an
+  /// audiobook (4), as that is how their art is made, portrait otherwise.
+  /// Only a starting point — see above.
+  static int defaultCoverShape(int bookTypeId) =>
+      bookTypeId == 4 ? coverShapeSquare : coverShapePortrait;
+
   /// Width / height for [shape]. Drives both the crop frame and every place a
   /// cover is drawn, so what the user framed is what the library shows.
   static double coverAspectRatio(int? shape) =>

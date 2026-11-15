@@ -4,6 +4,7 @@ import '../../../../data/services/book_search_service.dart';
 import '../../../../viewmodels/settings_view_model.dart';
 import '../book_form_page.dart';
 import 'book_scanner_page.dart';
+import 'edition_picker_page.dart';
 
 class BookSearchSheet extends StatefulWidget {
   final SettingsViewModel settingsViewModel;
@@ -175,12 +176,34 @@ class _BookSearchSheetState extends State<BookSearchSheet> {
     );
   }
 
-  void _openForm(BookSearchResult? result) {
+  /// A search finds the book; which edition of it the reader has is asked
+  /// next, before the form loads a cover or fills anything in, so the form
+  /// opens once with that edition's details. A search by ISBN has already
+  /// found the edition and goes straight to the form.
+  Future<void> _openForm(BookSearchResult result) async {
     _dismissKeyboard();
+    var book = result;
+    if (result.edition == null && result.workKey != null) {
+      final choice = await Navigator.of(context).push<EditionChoice>(
+        MaterialPageRoute(
+          builder: (_) => EditionPickerPage(
+            workKey: result.workKey,
+            general: result,
+          ),
+        ),
+      );
+      // Backed out: still choosing a book.
+      if (choice == null || !mounted) return;
+      final edition = choice.edition;
+      if (edition != null) {
+        book = result.withEdition(edition, workKey: choice.workKey);
+      }
+    }
+    if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => BookFormPage(
-          searchResult: result,
+          searchResult: book,
           onSave: widget.onSave,
           settingsViewModel: widget.settingsViewModel,
           initialSeriesName: widget.initialSeriesName,

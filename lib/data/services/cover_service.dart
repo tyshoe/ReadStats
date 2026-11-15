@@ -110,17 +110,24 @@ class CoverService {
     if (url.isEmpty) return null;
     try {
       final response =
-          await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+          await http.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
       if (response.statusCode != 200) return null;
+      // Open Library answers a missing cover with a blank 1×1 image (43
+      // bytes) unless asked not to. That isn't a cover.
+      if (response.bodyBytes.length < 100) return null;
       final dir = await getTemporaryDirectory();
-      final file = File(
-          '${dir.path}/api_cover_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      // Numbered as well as timed: two downloads landing in one millisecond
+      // would otherwise share a file, and a book would get the other's cover.
+      final file = File('${dir.path}/api_cover_'
+          '${DateTime.now().millisecondsSinceEpoch}_${_downloads++}.jpg');
       await file.writeAsBytes(response.bodyBytes);
       return file;
     } catch (_) {
       return null;
     }
   }
+
+  static int _downloads = 0;
 
   static Future<Directory> _coversDir() async {
     final base = await getApplicationDocumentsDirectory();

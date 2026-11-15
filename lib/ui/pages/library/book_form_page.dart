@@ -20,6 +20,7 @@ import '../../../data/repositories/tag_repository.dart';
 import '../../../data/utils/series_title.dart';
 import '../../../data/services/cover_service.dart';
 import 'widgets/cover_search_sheet.dart';
+import 'widgets/edition_picker_page.dart';
 import 'widgets/cover_camera_page.dart';
 import '/ui/widgets/image_editor_page.dart';
 import '/viewmodels/settings_view_model.dart';
@@ -44,6 +45,13 @@ class BookFormPage extends StatefulWidget {
   )?
   onSubmitData;
 
+  /// With [coverSettled], the cover the form opens with: the caller already
+  /// holds the book's cover (or knows it has none), so [searchResult]'s is
+  /// not downloaded over it. Batch scan re-opens the form for a queued book
+  /// this way, so a cover chosen there survives a second visit.
+  final File? initialCover;
+  final bool coverSettled;
+
   /// Prefills the series fields of a new book — adding one for a series gap.
   final String? initialSeriesName;
   final double? initialSeriesPosition;
@@ -57,6 +65,8 @@ class BookFormPage extends StatefulWidget {
     this.initialData,
     this.initialTagIds,
     this.onSubmitData,
+    this.initialCover,
+    this.coverSettled = false,
     this.initialSeriesName,
     this.initialSeriesPosition,
   }) : isEditing = book != null;
@@ -97,6 +107,10 @@ class _BookFormPageState extends State<BookFormPage> {
   Set<int> _selectedTagIds = {};
   bool _titleTitleCaseEnabled = true;
   bool _authorTitleCaseEnabled = true;
+  /// The cover as it will be saved, and the only one the form draws. A cover
+  /// from the internet is shown once it has been downloaded, never straight
+  /// from its URL: drawing the URL and saving a separate download of it let
+  /// the two come apart, so the form could show a cover it didn't save.
   File? _coverFile;
   // The full, pre-crop image behind the current cover. The editor re-loads this
   // so the user can always zoom out / reposition against the whole image rather
@@ -105,17 +119,30 @@ class _BookFormPageState extends State<BookFormPage> {
   File? _coverOriginalFile;
   /// Frames the crop editor and every place the cover is later drawn.
   int _coverShape = DatabaseHelper.coverShapePortrait;
-  String? _coverUrl;
+  // Whether that shape is one the reader cropped a cover to. Until it is, a
+  // new book's shape follows its format — see [_shapeFollowsFormat].
+  bool _coverShapeChosen = false;
   bool _coverChanged = false;
-  // True only when the user explicitly removed the cover. Distinguishes
-  // "remove it" from "a replacement was chosen but hasn't downloaded yet" so a
-  // failed download never deletes the existing cover.
+  // True only when the user explicitly removed the cover, which is the only
+  // thing that deletes one: a replacement that fails to download leaves the
+  // existing cover in place.
   bool _coverRemoved = false;
   bool _isPickingCover = false;
   bool _isSaving = false;
-  // In-flight cover download (search result, online search, or ISBN lookup).
-  // _saveBook awaits this so saving quickly can't drop the image.
-  Future<File?>? _pendingCoverDownload;
+  // A cover on its way down (search result, edition, online search or ISBN
+  // lookup), completing with whether it arrived. _saveBook awaits this so
+  // saving quickly can't drop the image.
+  Future<bool>? _coverLoad;
+  bool _coverLoading = false;
+  // Counts cover changes, so a download that finishes after the reader has
+  // moved on to another cover can't put the old one back.
+  int _coverRequest = 0;
+
+  /// The Open Library work this book is, which is what lists its editions.
+  String? _workKey;
+
+  /// The edition picked, or found by its ISBN, in this visit to the form.
+  BookEdition? _edition;
 
   @override
   void initState() {
@@ -129,9 +156,13 @@ class _BookFormPageState extends State<BookFormPage> {
       if (mounted) setState(() => _seriesNames = names);
     });
 
+    _workKey = widget.isEditing
+        ? widget.book!['open_library_key'] as String?
+        : widget.searchResult?.workKey;
     if (widget.searchResult != null) {
       _prefillFromSearchResult(widget.searchResult!);
     }
+    if (widget.coverSettled) _coverFile = widget.initialCover;
 
     if (widget.initialSeriesName != null) {
       _seriesController.text = widget.initialSeriesName!;
@@ -158,6 +189,11 @@ class _BookFormPageState extends State<BookFormPage> {
       _seriesController.text = d['series_name'] ?? '';
       _seriesPositionController.text = _formatSeriesPosition(d['series_position']);
       _selectedTagIds = {...?widget.initialTagIds};
+      final shape = d['cover_shape'] as int?;
+      if (shape != null) {
+        _coverShape = shape;
+        _coverShapeChosen = true;
+      }
     }
 
     if (widget.isEditing) {
@@ -200,6 +236,16 @@ class _BookFormPageState extends State<BookFormPage> {
       _coverShape = (widget.book!['cover_shape'] as int?) ??
           DatabaseHelper.coverShapePortrait;
     }
+    _shapeFollowsFormat();
+  }
+
+  /// Gives a new book the cover shape its format usually has — square for an
+  /// audiobook — whenever the format is set or changes. Stops once the
+  /// reader has cropped a cover to a shape, and never touches a book already
+  /// in the library, whose cover was framed for the shape it has.
+  void _shapeFollowsFormat() {
+    if (widget.isEditing || _coverShapeChosen) return;
+    _coverShape = DatabaseHelper.defaultCoverShape(_selectedBookType + 1);
   }
 
   Future<void> _loadShelves() async {
@@ -363,25 +409,23 @@ class _BookFormPageState extends State<BookFormPage> {
           ? p.basename(widget.book!['cover_path'] as String)
           : null,
       "cover_shape": _coverShape,
-      "open_library_key": widget.isEditing
-          ? widget.book!['open_library_key'] as String?
-          : widget.searchResult?.workKey,
+      "open_library_key": _workKey,
     };
 
     // A cover picked from search or a URL may still be downloading — wait for
-    // it here rather than silently saving the book without its image.
-    File? coverFile = _coverFile;
-    if (coverFile == null && _pendingCoverDownload != null) {
-      coverFile = await _pendingCoverDownload;
-    }
-    if (coverFile == null && _coverUrl != null) {
-      // The background download failed (or never ran) — one direct attempt.
-      coverFile = await CoverService.downloadFromUrl(_coverUrl!);
-    }
+    // it here rather than silently saving the book without its image. If it
+    // never arrives the book keeps the cover on screen, and the reader is
+    // told the new one was lost.
+    final coverLoad = _coverLoad;
+    final lostCover = coverLoad != null && !await coverLoad;
+    final File? coverFile = _coverFile;
 
     // Return mode: hand the assembled data back and let the caller persist.
     if (widget.isReturnMode) {
       widget.onSubmitData!(bookData, coverFile, _selectedTagIds.toList());
+      if (lostCover) {
+        AppSnackbar.show("The cover couldn't be downloaded", isError: true);
+      }
       if (mounted) Navigator.pop(context);
       return;
     }
@@ -445,7 +489,7 @@ class _BookFormPageState extends State<BookFormPage> {
       }
 
       widget.onSave(bookData);
-      _handleSaveSuccess();
+      _handleSaveSuccess(lostCover: lostCover);
 
       if (mounted) {
         Navigator.pop(context);
@@ -471,12 +515,21 @@ class _BookFormPageState extends State<BookFormPage> {
     }
   }
 
-  void _handleSaveSuccess() {
-    AppSnackbar.show(
-      widget.isEditing
-          ? 'Book updated successfully!'
-          : 'Book added successfully!',
-    );
+  void _handleSaveSuccess({bool lostCover = false}) {
+    if (lostCover) {
+      AppSnackbar.show(
+        widget.isEditing
+            ? "Book updated, but the new cover couldn't be downloaded"
+            : "Book added, but its cover couldn't be downloaded",
+        isError: true,
+      );
+    } else {
+      AppSnackbar.show(
+        widget.isEditing
+            ? 'Book updated successfully!'
+            : 'Book added successfully!',
+      );
+    }
     if (!widget.isEditing) {
       _clearFormInputs();
     }
@@ -512,15 +565,96 @@ class _BookFormPageState extends State<BookFormPage> {
       _pageCountController.text = result.pageCount.toString();
     }
     if (result.isbn != null) _isbnController.text = result.isbn!;
-    if (result.thumbnailUrl != null) {
-      _coverUrl = result.thumbnailUrl;
-      _coverOriginalFile = null;
-      _pendingCoverDownload = CoverService.downloadFromUrl(result.thumbnailUrl!)
-        ..then((file) {
-          if (file != null && mounted) {
-            setState(() => _coverFile = file);
-          }
-        });
+    _edition = result.edition;
+    final type = result.edition?.bookTypeId;
+    if (type != null) _selectedBookType = type - 1;
+    final cover = result.coverUrl ?? result.thumbnailUrl;
+    if (cover != null && !widget.coverSettled) _loadCoverFromUrl(cover);
+  }
+
+  /// Downloads the cover at [url] and makes it the book's, completing with
+  /// whether it arrived. Until then the form keeps showing the cover it had,
+  /// under a spinner; if the download fails that cover stays, and the reader
+  /// is told. So the cover on screen is always the one a save would store.
+  Future<bool> _loadCoverFromUrl(String url) {
+    final request = ++_coverRequest;
+    final load = () async {
+      final file = await CoverService.downloadFromUrl(url);
+      // The reader chose another cover, or removed it, in the meantime.
+      if (!mounted || request != _coverRequest) return false;
+      setState(() {
+        _coverLoading = false;
+        _coverLoad = null;
+        if (file != null) {
+          _coverFile = file;
+          _coverOriginalFile = null;
+          _coverChanged = true;
+          _coverRemoved = false;
+        }
+      });
+      // A save that is waiting on this reports the loss itself.
+      if (file == null && !_isSaving) {
+        AppSnackbar.show("Couldn't download that cover", isError: true);
+      }
+      return file != null;
+    }();
+    setState(() {
+      _coverLoad = load;
+      _coverLoading = true;
+    });
+    return load;
+  }
+
+  /// Stops a cover that is downloading from landing: the reader has chosen
+  /// something else. Call inside setState.
+  void _cancelCoverLoad() {
+    _coverRequest++;
+    _coverLoading = false;
+    _coverLoad = null;
+  }
+
+  Future<void> _chooseEdition() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final choice = await Navigator.of(context).push<EditionChoice>(
+      MaterialPageRoute(
+        builder: (_) => EditionPickerPage(
+          workKey: _workKey,
+          isbn: _isbnController.text,
+        ),
+      ),
+    );
+    final edition = choice?.edition;
+    if (edition == null || !mounted) return;
+    _applyEdition(edition, choice!.workKey);
+  }
+
+  /// Makes the book the edition the reader picked: its cover, ISBN and page
+  /// count, which then all describe the same copy. What the edition doesn't
+  /// record is left as it is. A new book also takes the edition's title and
+  /// format; one already in the library keeps its own, which the reader may
+  /// have set and which sessions were logged against.
+  void _applyEdition(BookEdition edition, String? workKey) {
+    setState(() {
+      _edition = edition;
+      _workKey = workKey ?? _workKey;
+      if (edition.isbn != null) _isbnController.text = edition.isbn!;
+      if (edition.pageCount != null) {
+        _pageCountController.text = edition.pageCount.toString();
+      }
+      if (!widget.isEditing) {
+        if (edition.title.isNotEmpty) _titleController.text = edition.title;
+        final type = edition.bookTypeId;
+        if (type != null) _selectedBookType = type - 1;
+        _shapeFollowsFormat();
+      }
+    });
+    final cover = edition.coverUrl;
+    if (cover != null) {
+      _loadCoverFromUrl(cover);
+    } else if (_coverFile != null || _coverLoading) {
+      AppSnackbar.show(
+        'That edition has no cover on Open Library, so the cover is unchanged',
+      );
     }
   }
 
@@ -537,19 +671,9 @@ class _BookFormPageState extends State<BookFormPage> {
       _pageCountController.text = result.pageCount.toString();
     }
     setState(() {});
-    if (_coverFile == null && result.thumbnailUrl != null) {
-      // Mark the cover as changed up front so a save that lands mid-download
-      // still applies the image once _saveBook awaits the pending future.
-      _coverUrl = result.thumbnailUrl;
-      _coverOriginalFile = null;
-      _coverChanged = true;
-      _coverRemoved = false;
-      final download = CoverService.downloadFromUrl(result.thumbnailUrl!);
-      _pendingCoverDownload = download;
-      final file = await download;
-      if (file != null && mounted) {
-        setState(() => _coverFile = file);
-      }
+    final cover = result.coverUrl ?? result.thumbnailUrl;
+    if (_coverFile == null && !_coverLoading && cover != null) {
+      await _loadCoverFromUrl(cover);
     }
   }
 
@@ -752,10 +876,10 @@ class _BookFormPageState extends State<BookFormPage> {
     setState(() {
       _coverFile = edited;
       _coverOriginalFile = file;
-      _coverUrl = null;
+      _coverShapeChosen = true;
       _coverChanged = true;
       _coverRemoved = false;
-      _pendingCoverDownload = null;
+      _cancelCoverLoad();
     });
   }
 
@@ -803,10 +927,10 @@ class _BookFormPageState extends State<BookFormPage> {
     setState(() {
       _coverFile = edited;
       _coverOriginalFile = source;
-      _coverUrl = null;
+      _coverShapeChosen = true;
       _coverChanged = true;
       _coverRemoved = false;
-      _pendingCoverDownload = null;
+      _cancelCoverLoad();
     });
   }
 
@@ -820,22 +944,61 @@ class _BookFormPageState extends State<BookFormPage> {
       ),
     );
     if (url == null || !mounted) return;
+    await _loadCoverFromUrl(url);
+  }
 
-    // Show the remote image immediately, then swap in the downloaded file that
-    // gets persisted on save (mirrors the search-result cover flow).
-    setState(() {
-      _coverUrl = url;
-      _coverFile = null;
-      _coverOriginalFile = null;
-      _coverChanged = true;
-      _coverRemoved = false;
-    });
-    final download = CoverService.downloadFromUrl(url);
-    _pendingCoverDownload = download;
-    final file = await download;
-    if (file != null && mounted) {
-      setState(() => _coverFile = file);
+  /// Which edition of the book this is, and the way to pick another: a
+  /// search finds the book, not the reader's copy of it.
+  Widget _buildEditionRow(ThemeData theme) {
+    final edition = _edition;
+    final muted = theme.colorScheme.onSurfaceVariant;
+    final String label;
+    if (edition == null) {
+      label = 'Choose the one you own';
+    } else if (edition.summary.isNotEmpty) {
+      label = edition.summary;
+    } else if (edition.isbn != null) {
+      label = 'ISBN ${edition.isbn}';
+    } else {
+      label = edition.title.isEmpty ? 'Chosen' : edition.title;
     }
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: _chooseEdition,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+          child: Row(
+            children: [
+              Icon(Icons.auto_stories, size: 20, color: muted),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Edition',
+                      style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                    ),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: edition == null ? muted : null,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: muted),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildCoverPicker() {
@@ -843,10 +1006,10 @@ class _BookFormPageState extends State<BookFormPage> {
     const double coverW = 150;
     final double coverH =
         coverW / DatabaseHelper.coverAspectRatio(_coverShape);
-    final bool hasCover = _coverFile != null || _coverUrl != null;
+    final bool hasCover = _coverFile != null;
     // Enough room for the cover plus the surrounding blurred margin. Follows
     // the cover's height so a square one doesn't sit in a portrait-sized well.
-    final double areaH = hasCover ? coverH + 70 : 90.0;
+    final double areaH = hasCover || _coverLoading ? coverH + 70 : 90.0;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -857,14 +1020,7 @@ class _BookFormPageState extends State<BookFormPage> {
           alignment: Alignment.center,
           children: [
             // Background — blurred cover or plain surface
-            if (_coverUrl != null)
-              Positioned.fill(
-                child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
-                  child: Image.network(_coverUrl!, fit: BoxFit.cover),
-                ),
-              )
-            else if (_coverFile != null)
+            if (_coverFile != null)
               Positioned.fill(
                 child: ImageFiltered(
                   imageFilter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
@@ -900,28 +1056,7 @@ class _BookFormPageState extends State<BookFormPage> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: _coverUrl != null
-                      ? Image.network(
-                          _coverUrl!,
-                          width: coverW,
-                          height: coverH,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (_, child, progress) {
-                            if (progress == null) return child;
-                            return _CoverLoadingPlaceholder(
-                              width: coverW,
-                              height: coverH,
-                              theme: theme,
-                              progress: progress.expectedTotalBytes != null
-                                  ? progress.cumulativeBytesLoaded /
-                                        progress.expectedTotalBytes!
-                                  : null,
-                            );
-                          },
-                          errorBuilder: (_, _, _) =>
-                              _coverPlaceholder(theme, coverW, coverH),
-                        )
-                      : _coverFile != null
+                  child: _coverFile != null
                       ? Image.file(
                           _coverFile!,
                           width: coverW,
@@ -930,14 +1065,32 @@ class _BookFormPageState extends State<BookFormPage> {
                           errorBuilder: (_, _, _) =>
                               _coverPlaceholder(theme, coverW, coverH),
                         )
+                      : _coverLoading
+                      ? _CoverLoadingPlaceholder(
+                          width: coverW,
+                          height: coverH,
+                          theme: theme,
+                        )
                       : _emptyPlaceholder(theme),
                 ),
               ],
             ),
 
-            // Edit button — top-left corner. Only shown once a local file is
-            // available to feed the editor.
-            if (hasCover && _coverFile != null)
+            // A replacement on its way down. The cover underneath is still
+            // the book's, and stays so if the new one never arrives.
+            if (_coverLoading && hasCover)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    alignment: Alignment.center,
+                    child: const CircularProgressIndicator(color: Colors.white),
+                  ),
+                ),
+              ),
+
+            // Edit button — top-left corner.
+            if (hasCover)
               Positioned(
                 top: 8,
                 left: 8,
@@ -954,7 +1107,7 @@ class _BookFormPageState extends State<BookFormPage> {
               ),
 
             // Remove button — top-right corner
-            if (hasCover)
+            if (hasCover || _coverLoading)
               Positioned(
                 top: 8,
                 right: 8,
@@ -963,10 +1116,9 @@ class _BookFormPageState extends State<BookFormPage> {
                     setState(() {
                       _coverFile = null;
                       _coverOriginalFile = null;
-                      _coverUrl = null;
                       _coverChanged = true;
                       _coverRemoved = true;
-                      _pendingCoverDownload = null;
+                      _cancelCoverLoad();
                     });
                   },
                   icon: const Icon(Icons.delete, size: 22),
@@ -1356,6 +1508,8 @@ class _BookFormPageState extends State<BookFormPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildCoverPicker(),
+                    const SizedBox(height: 8),
+                    _buildEditionRow(theme),
                     const SizedBox(height: 16),
                     _buildTitleField(),
                     const SizedBox(height: 16),
@@ -1402,6 +1556,7 @@ class _BookFormPageState extends State<BookFormPage> {
                         if (newValue != null) {
                           setState(() {
                             _selectedBookType = newValue;
+                            _shapeFollowsFormat();
                           });
                         }
                       },
@@ -1638,7 +1793,9 @@ class _BookFormPageState extends State<BookFormPage> {
                               ),
                               keyboardType: TextInputType.number,
                               inputFormatters: [IsbnInputFormatter()],
-                              onChanged: (value) => setState(() {}),
+                              // Another ISBN is another edition.
+                              onChanged: (value) =>
+                                  setState(() => _edition = null),
                               onTapOutside: (event) {
                                 FocusManager.instance.primaryFocus?.unfocus();
                               },
@@ -1666,6 +1823,7 @@ class _BookFormPageState extends State<BookFormPage> {
                                     if (result != null) {
                                       setState(() {
                                         _isbnController.text = result;
+                                        _edition = null;
                                       });
                                       _lookupByIsbn(result);
                                     }
@@ -2169,13 +2327,11 @@ class _CoverLoadingPlaceholder extends StatefulWidget {
   final double width;
   final double height;
   final ThemeData theme;
-  final double? progress;
 
   const _CoverLoadingPlaceholder({
     required this.width,
     required this.height,
     required this.theme,
-    this.progress,
   });
 
   @override
@@ -2217,19 +2373,6 @@ class _CoverLoadingPlaceholderState extends State<_CoverLoadingPlaceholder>
           color: Color.lerp(base, highlight, _anim.value),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: widget.progress != null
-            ? Align(
-                alignment: Alignment.bottomCenter,
-                child: LinearProgressIndicator(
-                  value: widget.progress,
-                  minHeight: 2,
-                  backgroundColor: Colors.transparent,
-                  color: widget.theme.colorScheme.primary.withValues(
-                    alpha: 0.5,
-                  ),
-                ),
-              )
-            : null,
       ),
     );
   }

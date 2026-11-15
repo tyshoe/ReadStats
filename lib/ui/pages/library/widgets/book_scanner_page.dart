@@ -38,11 +38,17 @@ class _ScanItem {
   int shelfId = DatabaseHelper.shelfWantToRead;
   double? rating;
   bool isFavorite = false;
-  // A cover the user chose in the edit screen; overrides the lookup thumbnail.
-  File? coverFile;
-  // Lookup-thumbnail download kicked off at scan time so it's ready (local) by
+  // The cover as it will be saved, and the one the strip and review list
+  // draw: the lookup's once it has downloaded, or whatever the edit screen
+  // handed back. Drawing the lookup's URL instead showed covers whose
+  // download had failed, which then weren't saved.
+  final ValueNotifier<File?> cover = ValueNotifier(null);
+  // Lookup-cover download kicked off at scan time so it's ready (local) by
   // the time the user saves — keeps the save fast and covers present up front.
-  Future<File?>? coverFetch;
+  Future<void>? coverFetch;
+  // Set once the edit screen has had its say: the cover is then exactly what
+  // it returned, even if that is none, and the lookup's no longer applies.
+  bool coverEdited = false;
   // Per-book tags chosen in the edit screen (merged with the batch-wide tags).
   Set<int> tagIds = {};
   // Full field map returned by the edit screen — persisted verbatim so every
@@ -172,9 +178,11 @@ class _BookScannerPageState extends State<BookScannerPage> {
       ..isDuplicate = duplicate;
     // Start downloading the cover now, while scanning continues, so it's a local
     // file by save time.
-    final url = result.thumbnailUrl;
+    final url = result.coverUrl ?? result.thumbnailUrl;
     if (url != null && url.isNotEmpty) {
-      item.coverFetch = CoverService.downloadFromUrl(url);
+      item.coverFetch = CoverService.downloadFromUrl(url).then((file) {
+        if (!item.coverEdited) item.cover.value = file;
+      });
     }
     // Newest first — front of the strip (left) and top of the review list.
     setState(() => _items.insert(0, item));
@@ -220,13 +228,11 @@ class _BookScannerPageState extends State<BookScannerPage> {
 
     // Resolve covers first. These were pre-fetched during scanning, so this is
     // usually instant — the save stays fast and books show covers immediately.
-    final covers = await Future.wait(
-      toSave.map((i) async {
-        if (i.coverFile != null) return i.coverFile;
-        final fetch = i.coverFetch;
-        return fetch == null ? null : await fetch;
-      }),
-    );
+    await Future.wait([
+      for (final i in toSave)
+        if (!i.coverEdited && i.coverFetch != null) i.coverFetch!,
+    ]);
+    final covers = [for (final i in toSave) i.cover.value];
 
     for (var idx = 0; idx < toSave.length; idx++) {
       final item = toSave[idx];
@@ -255,6 +261,7 @@ class _BookScannerPageState extends State<BookScannerPage> {
           shelfId: item.shelfId,
           isbn: item.isbnValue.trim().isEmpty ? null : item.isbnValue.trim(),
           openLibraryKey: r.workKey,
+          coverShape: DatabaseHelper.defaultCoverShape(item.bookTypeId),
         );
       }
       try {
@@ -423,20 +430,19 @@ class _BookScannerPageState extends State<BookScannerPage> {
   }
 
   Widget _buildThumb(_ScanItem item) {
-    final url = item.result.thumbnailUrl;
-    final Widget child = (url != null && url.isNotEmpty)
-        ? Image.network(
-            url,
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) =>
-                const Icon(Icons.menu_book, color: Colors.white54),
-          )
-        : const Icon(Icons.menu_book, color: Colors.white54);
     return AspectRatio(
       aspectRatio: 3 / 4,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(6),
-        child: Container(color: Colors.white10, child: child),
+        child: Container(
+          color: Colors.white10,
+          child: ValueListenableBuilder<File?>(
+            valueListenable: item.cover,
+            builder: (_, file, _) => file != null
+                ? Image.file(file, fit: BoxFit.cover)
+                : const Icon(Icons.menu_book, color: Colors.white54),
+          ),
+        ),
       ),
     );
   }
@@ -487,6 +493,11 @@ class _ReviewSheetState extends State<_ReviewSheet> {
           searchResult: item.result,
           settingsViewModel: widget.settingsViewModel,
           onSave: (_) {},
+          // The cover this book already has, when there is one to hand over:
+          // one the edit screen returned before, or the lookup's once it is
+          // down. Otherwise the form fetches the lookup's itself.
+          initialCover: item.cover.value,
+          coverSettled: item.coverEdited || item.cover.value != null,
           initialTagIds: item.tagIds,
           initialData: {
             'title': item.title,
@@ -497,6 +508,9 @@ class _ReviewSheetState extends State<_ReviewSheet> {
             'shelf_id': item.shelfId,
             'rating': item.rating,
             'is_favorite': item.isFavorite ? 1 : 0,
+            // Only once the edit screen has set one; until then the form
+            // works it out from the format.
+            'cover_shape': item.editedData?['cover_shape'],
           },
           onSubmitData: (data, cover, tagIds) {
             item.editedData = data;
@@ -509,7 +523,8 @@ class _ReviewSheetState extends State<_ReviewSheet> {
             item.shelfId = (data['shelf_id'] as int?) ?? item.shelfId;
             item.rating = (data['rating'] as num?)?.toDouble();
             item.isFavorite = data['is_favorite'] == 1;
-            item.coverFile = cover;
+            item.coverEdited = true;
+            item.cover.value = cover;
             item.tagIds = tagIds.toSet();
           },
         ),
@@ -745,22 +760,17 @@ class _ReviewSheetState extends State<_ReviewSheet> {
   }
 
   Widget _cover(ThemeData theme, _ScanItem item) {
-    final coverFile = item.coverFile;
-    final url = item.result.thumbnailUrl;
     return SizedBox(
       width: 36,
       height: 50,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(4),
-        child: coverFile != null
-            ? Image.file(coverFile, fit: BoxFit.cover)
-            : (url != null && url.isNotEmpty)
-            ? Image.network(
-                url,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _thumbFallback(theme),
-              )
-            : _thumbFallback(theme),
+        child: ValueListenableBuilder<File?>(
+          valueListenable: item.cover,
+          builder: (_, file, _) => file != null
+              ? Image.file(file, fit: BoxFit.cover)
+              : _thumbFallback(theme),
+        ),
       ),
     );
   }
