@@ -24,7 +24,7 @@ class DatabaseHelper {
 
   static Database? _database;
 
-  static const int _databaseVersion = 11;
+  static const int _databaseVersion = 12;
 
   // System shelf IDs — stable because shelves are seeded in a fixed order
   // and only exist from v2 onwards (v1 had no shelves).
@@ -170,6 +170,8 @@ class DatabaseHelper {
         duration_minutes INTEGER,
         date DATETIME,
         notes TEXT,
+        start_page INTEGER,
+        end_page INTEGER,
         FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE
       )
     ''');
@@ -446,6 +448,18 @@ class DatabaseHelper {
 
     if (oldVersion < 11) {
       await _createIndexes(db);
+    }
+
+    if (oldVersion < 12) {
+      // The pages a session started and stopped on. Nothing to backfill —
+      // older sessions only ever held a count, and keep it.
+      final cols = await db.rawQuery('PRAGMA table_info(sessions)');
+      if (!cols.any((c) => c['name'] == 'start_page')) {
+        await db.execute('ALTER TABLE sessions ADD COLUMN start_page INTEGER');
+      }
+      if (!cols.any((c) => c['name'] == 'end_page')) {
+        await db.execute('ALTER TABLE sessions ADD COLUMN end_page INTEGER');
+      }
     }
   }
 

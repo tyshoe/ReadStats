@@ -236,7 +236,10 @@ class ImportExportService {
 
   List<List<String>> _sessionsCsvRows(List<Session> sessions) {
     return [
-      ['session_id', 'book_id', 'pages_read', 'duration_minutes', 'date', 'notes'],
+      [
+        'session_id', 'book_id', 'pages_read', 'duration_minutes', 'date',
+        'notes', 'start_page', 'end_page',
+      ],
       ...sessions.map((s) => [
         s.id.toString(),
         s.bookId.toString(),
@@ -244,6 +247,8 @@ class ImportExportService {
         s.durationMinutes.toString(),
         s.date.toString(),
         s.notes ?? '',
+        s.startPage?.toString() ?? '',
+        s.endPage?.toString() ?? '',
       ]),
     ];
   }
@@ -820,6 +825,9 @@ class ImportExportService {
           durationMinutes: int.tryParse(row[3].toString()) ?? 0,
           date: DateUtils.parseAndFormatDate(row[4].toString()),
           notes: row.length > 5 ? _nullableString(row[5]) : null,
+          // Absent from backups made before page numbers were kept.
+          startPage: row.length > 6 ? int.tryParse(row[6].toString()) : null,
+          endPage: row.length > 7 ? int.tryParse(row[7].toString()) : null,
         ));
       } catch (e) {
         if (kDebugMode) print('Skipping session row: $e');

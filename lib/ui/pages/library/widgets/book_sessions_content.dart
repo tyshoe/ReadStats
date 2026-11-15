@@ -174,7 +174,10 @@ class _BookSessionsContentState extends State<BookSessionsContent> {
     final minutes = (s['duration_minutes'] as int?) ?? 0;
     final notes = (s['notes'] as String?)?.trim() ?? '';
     final duration = _durationStr(minutes);
+    final startPage = s['start_page'] as int?;
+    final endPage = s['end_page'] as int?;
     final secondary = [
+      if (startPage != null && endPage != null) 'p. $startPage–$endPage',
       if (pages > 0) '$pages ${pages == 1 ? 'page' : 'pages'}',
       if (pages > 0 && minutes > 0) '${(pages / minutes).toStringAsFixed(1)}/min',
     ].join(' · ');

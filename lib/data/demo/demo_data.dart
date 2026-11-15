@@ -26,6 +26,9 @@ import '../repositories/goal_repository.dart';
 /// * ~26 months of sessions on two tracks — print in the evenings and at
 ///   weekends, audio on weekday mornings — with notes on some, and two breaks
 ///   so the longest streak isn't simply "all of it".
+/// * Start and stop pages on print sessions from the last year, so a new
+///   session opens on the page the last one stopped at; older print sessions
+///   keep a bare page count, as sessions from before page numbers do.
 /// * Ratings (halves included), reviews, favourites, tags with colours.
 /// * Series: Sherlock Holmes #1 and #3 (a gap at #2 on purpose), plus #2
 ///   sitting unlinked with the series in its title, for "Find series in
@@ -317,6 +320,7 @@ class _Generator {
     sessions.sort((a, b) => a.date.compareTo(b.date));
     final (goals, targets) = _buildGoals();
 
+    _stopOnLastPage();
     return DemoDataset(
       tags: tags,
       books: books,
@@ -557,10 +561,50 @@ class _Generator {
     return times;
   }
 
+  /// A book read to its end stops on its last page, not the one after it —
+  /// the session that finishes a book reads through its stop page.
+  void _stopOnLastPage() {
+    for (var i = 0; i < sessions.length; i++) {
+      final s = sessions[i];
+      final total = books[s.bookId - 1].pageCount ?? 0;
+      if (s.endPage == null || total <= 0 || s.endPage! <= total) continue;
+      sessions[i] = Session(
+        bookId: s.bookId,
+        pagesRead: s.pagesRead,
+        startPage: s.startPage,
+        endPage: total,
+        durationMinutes: s.durationMinutes,
+        date: s.date,
+        notes: s.notes,
+      );
+    }
+  }
+
+  /// The page each print book has been read to, so sessions carry the pages
+  /// they started and stopped on.
+  final _pageReached = <int, int>{};
+
+  /// Whether a book's sessions carry page numbers, settled by its first one.
+  final _numbered = <int, bool>{};
+
   void _session(int bookId, DateTime at, int pages, int minutes) {
+    // Only books started in the last year carry page numbers. Older ones keep
+    // a bare count, as sessions logged before page numbers existed do — which
+    // is what the "estimated from earlier sessions" start page is for.
+    final numbered =
+        _numbered[bookId] ??= today.difference(at).inDays < 365;
+    int? start, end;
+    if (numbered && pages > 0) {
+      // Page 1 is the first read; the stop page is the next one to read.
+      start = _pageReached[bookId] ?? 1;
+      end = start + pages;
+      _pageReached[bookId] = end;
+    }
     sessions.add(Session(
       bookId: bookId,
       pagesRead: pages,
+      startPage: start,
+      endPage: end,
       durationMinutes: minutes,
       date: at.toIso8601String(),
       notes: rng.nextDouble() < 0.07 ? _notes[rng.nextInt(_notes.length)] : null,

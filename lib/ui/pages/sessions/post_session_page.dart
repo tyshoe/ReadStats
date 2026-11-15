@@ -9,6 +9,7 @@ import '/data/services/reading_timer_service.dart';
 import '/viewmodels/settings_view_model.dart';
 import '/ui/widgets/book_cover.dart';
 import 'widgets/reading_dates_row.dart';
+import 'widgets/session_pages_field.dart';
 
 class PostSessionPage extends StatefulWidget {
   final Map<String, dynamic> book;
@@ -33,9 +34,11 @@ class PostSessionPage extends StatefulWidget {
 }
 
 class _PostSessionPageState extends State<PostSessionPage> {
-  final _pagesController = TextEditingController();
-  final _startPageController = TextEditingController();
-  final _endPageController = TextEditingController();
+  final _pages = SessionPages();
+  // The shelf the book was headed for before reaching its last page moved it
+  // to Finished, to put back if the page is corrected.
+  int? _shelfBeforeLastPage;
+  bool _finishedByLastPage = false;
   final _notesController = TextEditingController();
   final _hoursController = TextEditingController();
   final _minutesController = TextEditingController();
@@ -63,7 +66,62 @@ class _PostSessionPageState extends State<PostSessionPage> {
     final started = widget.timerService.startedAt ?? DateTime.now();
     _sessionDay = DateTime(started.year, started.month, started.day);
     _fillDurationFields(_timerMinutes);
+    _pages.bookPageCount = _bookPageCount;
     _presetFirstSession();
+    _suggestStartPage();
+  }
+
+  int? get _bookPageCount => widget.book['page_count'] as int?;
+
+  /// Fills "From page" with the page the last session stopped on, so only
+  /// the page reached this time is left to type, and loads the pages logged
+  /// before, to square the session that finishes the book with the book's
+  /// length. A book read to its end starts over from the beginning.
+  Future<void> _suggestStartPage() async {
+    if (widget.book['book_type_id'] == 4) return;
+    final bookId = widget.book['id'] as int;
+    final at = widget.timerService.startedAt ?? DateTime.now();
+    const suggest = true;
+    final last = await widget.sessionRepository.getLastPage(bookId, at);
+    final around = await widget.sessionRepository.getPagesAround(bookId, at);
+    if (!mounted) return;
+    final total = _bookPageCount ?? 0;
+    // Read to its end already, by pages logged — not by page number, which
+    // needn't run from 1 to the page count.
+    final finished = total > 0 && around.pagesBefore >= total;
+    setState(() {
+      _pages.pagesBefore = around.pagesBefore;
+      _pages.pagesAfter = around.pagesAfter;
+      _pages.isLastSession = !around.hasLater;
+      if (last case final last? when !finished) {
+        _pages.suggestStart(last.page, exact: last.exact);
+      } else if (suggest) {
+        _pages.suggestStart(1, exact: true);
+      }
+    });
+  }
+
+  /// Reaching the book's last page offers the Finished shelf, and takes the
+  /// offer back if the page is corrected.
+  void _onPagesChanged() {
+    final reached = _pages.reachesEnd;
+    if (reached &&
+        !_finishedByLastPage &&
+        _targetShelfId != DatabaseHelper.shelfFinished) {
+      _shelfBeforeLastPage = _targetShelfId;
+      _finishedByLastPage = true;
+      _selectShelf(DatabaseHelper.shelfFinished);
+    } else if (!reached && _finishedByLastPage) {
+      _finishedByLastPage = false;
+      final before = _shelfBeforeLastPage;
+      if (_targetShelfId == DatabaseHelper.shelfFinished && before != null) {
+        _selectShelf(before);
+        return;
+      }
+      setState(() {});
+    } else {
+      setState(() {});
+    }
   }
 
   /// A book's first session is when it gets started: the shelf opens on
@@ -111,9 +169,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
 
   @override
   void dispose() {
-    _pagesController.dispose();
-    _startPageController.dispose();
-    _endPageController.dispose();
+    _pages.dispose();
     _notesController.dispose();
     _hoursController.dispose();
     _minutesController.dispose();
@@ -222,16 +278,6 @@ class _PostSessionPageState extends State<PostSessionPage> {
     );
   }
 
-  void _calculatePages() {
-    final start = int.tryParse(_startPageController.text) ?? 0;
-    final end = int.tryParse(_endPageController.text) ?? 0;
-    if (start > 0 && end > 0 && end >= start) {
-      setState(() => _pagesController.text = (end - start + 1).toString());
-    } else {
-      setState(() => _pagesController.clear());
-    }
-  }
-
   void _goBack() {
     Navigator.pop(context);
   }
@@ -272,10 +318,13 @@ class _PostSessionPageState extends State<PostSessionPage> {
       // covers a session saved with no timer behind it.
       final sessionDate = widget.timerService.startedAt ?? DateTime.now();
       widget.timerService.stop();
+      final isAudiobook = widget.book['book_type_id'] == 4;
 
       final session = Session(
         bookId: widget.book['id'],
-        pagesRead: int.tryParse(_pagesController.text),
+        pagesRead: isAudiobook ? null : _pages.pagesRead,
+        startPage: isAudiobook ? null : _pages.startPage,
+        endPage: isAudiobook ? null : _pages.endPage,
         durationMinutes: durationMinutes,
         date: sessionDate.toIso8601String(),
         notes: _notesController.text.trim().isEmpty
@@ -481,115 +530,11 @@ class _PostSessionPageState extends State<PostSessionPage> {
                       ],
 
                       if (!isAudiobook) ...[
-                        TextField(
-                          controller: _pagesController,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          onChanged: (_) => setState(() {}),
-                          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-                          decoration: InputDecoration(
-                            labelText: 'Pages read',
-                            filled: true,
-                            fillColor: theme.colorScheme.surfaceContainerHighest,
-                            border: UnderlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: UnderlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: UnderlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                          ),
+                        SessionPagesField(
+                          pages: _pages,
+                          onChanged: _onPagesChanged,
                         ),
-                        const SizedBox(height: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: theme.colorScheme.outlineVariant.withAlpha(120),
-                            ),
-                          ),
-                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'calculate pages — not saved',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _startPageController,
-                                      keyboardType: TextInputType.number,
-                                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                      onChanged: (_) => _calculatePages(),
-                                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-                                      decoration: InputDecoration(
-                                        labelText: 'Start page',
-                                        filled: true,
-                                        fillColor: theme.colorScheme.surfaceContainer,
-                                        border: UnderlineInputBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                        enabledBorder: UnderlineInputBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                        focusedBorder: UnderlineInputBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Icon(Icons.arrow_forward, color: theme.colorScheme.onSurface.withAlpha(100)),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _endPageController,
-                                      keyboardType: TextInputType.number,
-                                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                      onChanged: (_) => _calculatePages(),
-                                      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-                                      decoration: InputDecoration(
-                                        labelText: 'End page',
-                                        filled: true,
-                                        fillColor: theme.colorScheme.surfaceContainer,
-                                        border: UnderlineInputBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                        enabledBorder: UnderlineInputBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                        focusedBorder: UnderlineInputBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                          borderSide: BorderSide.none,
-                                        ),
-                                        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
                       ],
 
                       TextField(

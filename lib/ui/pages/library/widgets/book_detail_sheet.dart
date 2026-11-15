@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../../../data/repositories/book_repository.dart';
 import '../../../../data/repositories/series_repository.dart';
+import '../../../../data/repositories/session_repository.dart';
 import '../../../../data/repositories/tag_repository.dart';
 import '../../../../viewmodels/settings_view_model.dart';
 import '../../sessions/widgets/rate_book_dialog.dart';
@@ -54,6 +55,15 @@ class BookPopup {
     final hostContext = context;
     final seriesRepository = SeriesRepository(DatabaseHelper());
     final stats = await bookRepository.getBookStats(book['id']);
+    // The page the reader is on, to show beside their progress. Progress
+    // itself is pages read against the book's length: the page count says how
+    // many pages there are, not what number the last one carries.
+    final int currentPage = (await SessionRepository(DatabaseHelper()).getLastPage(
+          book['id'] as int,
+          DateTime.now().add(const Duration(days: 1)),
+        ))
+            ?.page ??
+        0;
     final int? seriesId = book['series_id'] as int?;
     // The whole series, for the strip under the series line.
     final SeriesProgress? seriesProgress = seriesId == null
@@ -710,7 +720,7 @@ class BookPopup {
                             Text(
                               isAudiobook
                                   ? _getAudiobookProgressCompact(stats['total_time'] ?? 0, book['duration_minutes'] ?? 0)
-                                  : _getTimeToFinishCompact(stats['total_pages'] ?? 0, book['page_count'] ?? 0, stats['pages_per_minute'] ?? 0),
+                                  : _getTimeToFinishCompact(stats['total_pages'] ?? 0, book['page_count'] ?? 0, stats['pages_per_minute'] ?? 0, currentPage: currentPage),
                               style: TextStyle(fontSize: 12, color: subtitleColor),
                             ),
                           ],
@@ -1519,14 +1529,16 @@ class BookPopup {
   static String _getTimeToFinishCompact(
       int pagesRead,
       int totalPages,
-      double pagesPerMinute,
-      ) {
+      double pagesPerMinute, {
+      int currentPage = 0,
+      }) {
     if (totalPages <= 0) return "";
 
     final percentage = ((pagesRead / totalPages) * 100).clamp(0, 100).toStringAsFixed(1);
+    final position = currentPage > 0 ? "On page $currentPage · " : "";
 
     if (pagesPerMinute <= 0 || totalPages <= pagesRead) {
-      return "$percentage% complete";
+      return "$position$percentage%";
     }
 
     final remainingPages = totalPages - pagesRead;
@@ -1537,7 +1549,7 @@ class BookPopup {
 
     final timeString = hours > 0 ? "${hours}h ${minutes}m left" : "${minutes}m left";
 
-    return "$percentage% (${remainingPages}p, $timeString)";
+    return "$position$percentage% ($timeString)";
   }
 
   static String _getAudiobookProgressCompact(

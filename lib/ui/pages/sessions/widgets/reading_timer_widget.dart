@@ -9,6 +9,7 @@ import '../fullscreen_timer_page.dart';
 import '/ui/widgets/book_picker_sheet.dart';
 import '../session_book_options.dart';
 import '/ui/widgets/book_cover.dart';
+import '/ui/widgets/book_page_progress.dart';
 import '/ui/widgets/book_selector_tile.dart';
 
 class ReadingTimerWidget extends StatefulWidget {
@@ -220,6 +221,14 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
                 : 'Tap to choose...',
             onTap: widget.books.isEmpty ? null : _showBookPicker,
           ),
+          // Where the reader is in a paper book — audiobooks have no pages.
+          if (_selectedBook != null && _selectedBook!['book_type_id'] != 4)
+            BookPageProgress(
+              bookId: _selectedBook!['id'] as int,
+              pageCount: _selectedBook!['page_count'] as int?,
+              sessionRepository: widget.sessionRepository,
+              color: accent,
+            ),
           const SizedBox(height: 10),
           FilledButton.icon(
             onPressed: (_selectedBook == null || widget.books.isEmpty)

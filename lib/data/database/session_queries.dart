@@ -109,6 +109,65 @@ extension SessionQueries on DatabaseHelper {
     return result;
   }
 
+  /// The page the reader was on in [bookId] before [before] (an ISO
+  /// timestamp) — the next one to read — or null when nothing with pages was
+  /// logged by then.
+  ///
+  /// Taken from the last session that recorded the page it stopped on, plus
+  /// the page counts of any sessions after it that didn't; with no such
+  /// session, the counts are taken from page 1. `exact` is false when counts
+  /// had to be added in — a book logged before page numbers were kept is only
+  /// as right as its counts are.
+  Future<({int page, bool exact})?> getLastPage(
+      int bookId, String before) async {
+    final db = await database;
+    final last = await db.query(
+      'sessions',
+      columns: ['end_page', 'date'],
+      where: 'book_id = ? AND end_page IS NOT NULL AND date < ?',
+      whereArgs: [bookId, before],
+      orderBy: 'date DESC',
+      limit: 1,
+    );
+    final lastPage = last.isEmpty ? null : last.first['end_page'] as int;
+    final counted = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(pages_read), 0) AS pages FROM sessions
+      WHERE book_id = ? AND date < ? AND date > ?
+      ''',
+      [bookId, before, last.isEmpty ? '' : last.first['date']],
+    );
+    final extra = (counted.first['pages'] as num).toInt();
+    if (lastPage == null && extra == 0) return null;
+    return (page: (lastPage ?? 1) + extra, exact: extra == 0);
+  }
+
+  /// The pages logged for [bookId] before and after [date] (an ISO
+  /// timestamp), and whether any session comes after it — what a session
+  /// needs to place itself in the book and square its pages with the book's
+  /// length. [excludeId] leaves out the session being edited.
+  Future<({int pagesBefore, int pagesAfter, bool hasLater})> getPagesAround(
+      int bookId, String date,
+      {int? excludeId}) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT
+        COALESCE(SUM(CASE WHEN date < ? THEN pages_read END), 0) AS before,
+        COALESCE(SUM(CASE WHEN date > ? THEN pages_read END), 0) AS after,
+        COUNT(CASE WHEN date > ? THEN 1 END) AS later
+      FROM sessions
+      WHERE book_id = ? AND id != ?
+      ''',
+      [date, date, date, bookId, excludeId ?? -1],
+    );
+    return (
+      pagesBefore: (rows.first['before'] as num).toInt(),
+      pagesAfter: (rows.first['after'] as num).toInt(),
+      hasLater: (rows.first['later'] as int) > 0,
+    );
+  }
+
   Future<List<Map<String, dynamic>>> getSessionsByBookId(int bookId) async {
     final db = await database;
     return await db.query(

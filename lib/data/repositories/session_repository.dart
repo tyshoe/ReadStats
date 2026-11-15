@@ -27,6 +27,19 @@ class SessionRepository {
   Future<List<Map<String, dynamic>>> getSessionRowsByBookId(int bookId) =>
       _databaseHelper.getSessionsByBookId(bookId);
 
+  /// The page the reader had reached in a book before [before] — where the
+  /// next session starts. See [SessionQueries.getLastPage].
+  Future<({int page, bool exact})?> getLastPage(int bookId, DateTime before) =>
+      _databaseHelper.getLastPage(bookId, before.toIso8601String());
+
+  /// Pages logged for a book before and after [date], and whether any
+  /// session follows it. See [SessionQueries.getPagesAround].
+  Future<({int pagesBefore, int pagesAfter, bool hasLater})> getPagesAround(
+          int bookId, DateTime date,
+          {int? excludeId}) =>
+      _databaseHelper.getPagesAround(bookId, date.toIso8601String(),
+          excludeId: excludeId);
+
   Future<List<int>> getSessionYears() async {
     return await _databaseHelper.getSessionYears();
   }

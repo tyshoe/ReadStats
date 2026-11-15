@@ -6,6 +6,7 @@ import '../../widgets/book_picker_sheet.dart';
 import '../../widgets/book_selector_tile.dart';
 import 'session_book_options.dart';
 import 'widgets/reading_dates_row.dart';
+import 'widgets/session_pages_field.dart';
 import 'package:intl/intl.dart';
 import '/data/models/session.dart';
 import '/data/repositories/session_repository.dart';
@@ -40,9 +41,11 @@ class SessionFormPage extends StatefulWidget {
 }
 
 class _SessionFormPageState extends State<SessionFormPage> {
-  final TextEditingController _pagesController = TextEditingController();
-  final TextEditingController _startPageController = TextEditingController();
-  final TextEditingController _endPageController = TextEditingController();
+  final _pages = SessionPages();
+  // The shelf the book was headed for before reaching its last page moved it
+  // to Finished, to put back if the page is corrected.
+  int? _shelfBeforeLastPage;
+  bool _finishedByLastPage = false;
   final TextEditingController _hoursController = TextEditingController();
   final TextEditingController _minutesController = TextEditingController();
   final TextEditingController _startHoursController = TextEditingController();
@@ -72,21 +75,21 @@ class _SessionFormPageState extends State<SessionFormPage> {
         _minutesController.text = (editDuration % 60).toString();
       }
 
-      // pages_read is nullable — .toString() on a null put the literal "null"
-      // in the field.
-      _pagesController.text =
-          (widget.session!['pages_read'] as int?)?.toString() ?? '';
+      _pages.load(
+        startPage: widget.session!['start_page'] as int?,
+        endPage: widget.session!['end_page'] as int?,
+        pagesRead: widget.session!['pages_read'] as int?,
+      );
       _sessionDate = DateTime.parse(widget.session!['date']);
       _notesController.text = widget.session!['notes'] ?? '';
       _selectedBook = widget.book;
+      _pages.bookPageCount = _bookPageCount;
       // Without this the shelf selector renders with nothing highlighted, as
       // though the book were on no shelf at all.
       _targetShelfId = widget.book?['shelf_id'] as int?;
       _loadReadingDates();
+      _suggestStartPage();
     } else {
-      _pagesController.text = '';
-      _startPageController.text = '';
-      _endPageController.text = '';
       _sessionDate = DateTime.now();
 
       if (widget.book != null) {
@@ -95,9 +98,71 @@ class _SessionFormPageState extends State<SessionFormPage> {
           orElse: () => widget.book!,
         );
         _targetShelfId = _selectedBook!['shelf_id'] as int?;
+        _pages.bookPageCount = _bookPageCount;
         _loadReadingDates();
         _presetFirstSession();
+        _suggestStartPage();
       }
+    }
+  }
+
+  int? get _bookPageCount => _selectedBook?['page_count'] as int?;
+
+  /// Loads what the page fields need to know about the book's other
+  /// sessions: where the reader left off, to fill "From page" on a new
+  /// session, and the pages logged before this one, to square the session
+  /// that finishes the book with the book's length. A book read to its end
+  /// starts over from the beginning.
+  Future<void> _suggestStartPage() async {
+    final book = _selectedBook;
+    if (book == null || !_tracksPages) return;
+    final bookId = book['id'] as int;
+    final suggest = !widget.isEditing;
+    final last = suggest
+        ? await widget.sessionRepository.getLastPage(bookId, _sessionDate)
+        : null;
+    final around = await widget.sessionRepository.getPagesAround(
+      bookId,
+      _sessionDate,
+      excludeId: widget.session?['id'] as int?,
+    );
+    if (!mounted || _selectedBook != book) return;
+    final total = _bookPageCount ?? 0;
+    // Read to its end already, by pages logged — not by page number, which
+    // needn't run from 1 to the page count.
+    final finished = total > 0 && around.pagesBefore >= total;
+    setState(() {
+      _pages.pagesBefore = around.pagesBefore;
+      _pages.pagesAfter = around.pagesAfter;
+      _pages.isLastSession = !around.hasLater;
+      if (last case final last? when !finished) {
+        _pages.suggestStart(last.page, exact: last.exact);
+      } else if (suggest) {
+        _pages.suggestStart(1, exact: true);
+      }
+    });
+  }
+
+  /// Reaching the book's last page offers the Finished shelf, and takes the
+  /// offer back if the page is corrected.
+  void _onPagesChanged() {
+    final reached = !widget.isEditing && _pages.reachesEnd;
+    if (reached &&
+        !_finishedByLastPage &&
+        _targetShelfId != DatabaseHelper.shelfFinished) {
+      _shelfBeforeLastPage = _targetShelfId;
+      _finishedByLastPage = true;
+      _selectShelf(DatabaseHelper.shelfFinished);
+    } else if (!reached && _finishedByLastPage) {
+      _finishedByLastPage = false;
+      final before = _shelfBeforeLastPage;
+      if (_targetShelfId == DatabaseHelper.shelfFinished && before != null) {
+        _selectShelf(before);
+        return;
+      }
+      setState(() {});
+    } else {
+      setState(() {});
     }
   }
 
@@ -132,9 +197,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
   @override
   void dispose() {
-    _pagesController.dispose();
-    _startPageController.dispose();
-    _endPageController.dispose();
+    _pages.dispose();
     _hoursController.dispose();
     _minutesController.dispose();
     _startHoursController.dispose();
@@ -186,18 +249,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
   }
 
-  void _calculatePagesRead() {
-    final startPage = int.tryParse(_startPageController.text) ?? 0;
-    final endPage = int.tryParse(_endPageController.text) ?? 0;
-
-    if (startPage > 0 && endPage > 0 && endPage >= startPage) {
-      final pagesRead = endPage - startPage + 1;
-      _pagesController.text = pagesRead.toString();
-    } else {
-      _pagesController.clear();
-    }
-  }
-
   /// Audiobooks have no pages, so the form doesn't offer the field for them.
   /// The save has to ask the same question: the controller keeps whatever was
   /// typed for a previously selected paper book.
@@ -236,9 +287,8 @@ class _SessionFormPageState extends State<SessionFormPage> {
   void _saveSession() async {
     if (_selectedBook == null) return;
 
-    final int? pagesRead = _tracksPages
-        ? int.tryParse(_pagesController.text)
-        : null;
+    if (_tracksPages && _pages.isBackwards) return;
+    final int? pagesRead = _tracksPages ? _pages.pagesRead : null;
     int? durationMinutes;
 
     // Only a range the user can still see counts. Collapsing the calculator
@@ -268,6 +318,8 @@ class _SessionFormPageState extends State<SessionFormPage> {
         id: widget.isEditing ? widget.session!['id'] : null,
         bookId: _selectedBook!['id'],
         pagesRead: pagesRead,
+        startPage: _tracksPages ? _pages.startPage : null,
+        endPage: _tracksPages ? _pages.endPage : null,
         durationMinutes: durationMinutes,
         date: _sessionDate.toIso8601String(),
         notes: _notesController.text.trim().isEmpty
@@ -429,6 +481,8 @@ class _SessionFormPageState extends State<SessionFormPage> {
         );
         _readingDates.moveSessionDay(date);
       });
+      // A session logged for an earlier day starts where the reader was then.
+      _suggestStartPage();
     }
   }
 
@@ -502,8 +556,12 @@ class _SessionFormPageState extends State<SessionFormPage> {
         _selectedBook = picked;
         _targetShelfId = picked['shelf_id'] as int?;
         _loadReadingDates();
+        _pages.clear();
+        _pages.bookPageCount = _bookPageCount;
+        _finishedByLastPage = false;
       });
       _presetFirstSession();
+      _suggestStartPage();
     }
   }
 
@@ -766,181 +824,13 @@ class _SessionFormPageState extends State<SessionFormPage> {
                       ),
                     ),
 
-                    if (_tracksPages)
-                      Column(
-                        children: [
-                          const SizedBox(height: 24),
-                          TextField(
-                            controller: _pagesController,
-                            decoration: InputDecoration(
-                              labelText: 'Pages',
-                              hintText: 'Enter number of pages',
-                              border: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              filled: true,
-                              fillColor:
-                                  theme.colorScheme.surfaceContainerHighest,
-                              contentPadding: const EdgeInsets.fromLTRB(
-                                12,
-                                10,
-                                12,
-                                6,
-                              ),
-                            ),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            onChanged: (value) => setState(() {}),
-                            onTapOutside: (event) {
-                              FocusManager.instance.primaryFocus?.unfocus();
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: theme.colorScheme.outlineVariant
-                                    .withAlpha(120),
-                              ),
-                            ),
-                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      'calculate pages — not saved',
-                                      style: theme.textTheme.labelSmall
-                                          ?.copyWith(
-                                            color: theme
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextField(
-                                        controller: _startPageController,
-                                        decoration: InputDecoration(
-                                          labelText: 'Start Page',
-                                          border: UnderlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            borderSide: BorderSide.none,
-                                          ),
-                                          enabledBorder: UnderlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            borderSide: BorderSide.none,
-                                          ),
-                                          focusedBorder: UnderlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            borderSide: BorderSide.none,
-                                          ),
-                                          filled: true,
-                                          fillColor: theme
-                                              .colorScheme
-                                              .surfaceContainer,
-                                          contentPadding:
-                                              const EdgeInsets.fromLTRB(
-                                                12,
-                                                10,
-                                                12,
-                                                6,
-                                              ),
-                                        ),
-                                        keyboardType: TextInputType.number,
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter
-                                              .digitsOnly,
-                                        ],
-                                        onChanged: (value) {
-                                          _calculatePagesRead();
-                                          setState(() {});
-                                        },
-                                        onTapOutside: (event) {
-                                          FocusManager.instance.primaryFocus
-                                              ?.unfocus();
-                                        },
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Icon(
-                                      Icons.arrow_forward,
-                                      color: theme.colorScheme.onSurface
-                                          .withAlpha(100),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: TextField(
-                                        controller: _endPageController,
-                                        decoration: InputDecoration(
-                                          labelText: 'End Page',
-                                          border: UnderlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            borderSide: BorderSide.none,
-                                          ),
-                                          enabledBorder: UnderlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            borderSide: BorderSide.none,
-                                          ),
-                                          focusedBorder: UnderlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            borderSide: BorderSide.none,
-                                          ),
-                                          filled: true,
-                                          fillColor: theme
-                                              .colorScheme
-                                              .surfaceContainer,
-                                          contentPadding:
-                                              const EdgeInsets.fromLTRB(
-                                                12,
-                                                10,
-                                                12,
-                                                6,
-                                              ),
-                                        ),
-                                        keyboardType: TextInputType.number,
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter
-                                              .digitsOnly,
-                                        ],
-                                        onChanged: (value) {
-                                          _calculatePagesRead();
-                                          setState(() {});
-                                        },
-                                        onTapOutside: (event) {
-                                          FocusManager.instance.primaryFocus
-                                              ?.unfocus();
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                    if (_tracksPages) ...[
+                      const SizedBox(height: 24),
+                      SessionPagesField(
+                        pages: _pages,
+                        onChanged: _onPagesChanged,
                       ),
+                    ],
 
                     const SizedBox(height: 24),
                     Text('Move to shelf', style: textTheme.bodyMedium),

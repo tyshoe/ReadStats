@@ -6,6 +6,12 @@ class Session {
   final String date;
   final String? notes;
 
+  /// The pages the session started and stopped on, bookmark style, so
+  /// [pagesRead] is the gap between them. Null on sessions logged as a bare
+  /// count, and on everything from before page numbers were kept.
+  final int? startPage;
+  final int? endPage;
+
   Session({
     this.id,
     required this.bookId,
@@ -13,6 +19,8 @@ class Session {
     required this.durationMinutes,
     required this.date,
     this.notes,
+    this.startPage,
+    this.endPage,
   });
 
   Map<String, dynamic> toMap() {
@@ -23,6 +31,8 @@ class Session {
       'duration_minutes': durationMinutes,
       'date': date,
       'notes': notes,
+      'start_page': startPage,
+      'end_page': endPage,
     };
   }
 
@@ -34,6 +44,8 @@ class Session {
       durationMinutes: map['duration_minutes'],
       date: map['date'],
       notes: map['notes'] as String?,
+      startPage: map['start_page'] as int?,
+      endPage: map['end_page'] as int?,
     );
   }
 }
