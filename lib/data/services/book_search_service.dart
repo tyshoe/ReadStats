@@ -21,6 +21,10 @@ class BookEdition {
   /// An audiobook's running time, where Open Library has it — see
   /// [durationFromNotes].
   final int? durationMinutes;
+
+  /// Who reads an audiobook, comma-separated when there are several — see
+  /// [narratorFrom].
+  final String? narrator;
   final List<String> isbns;
   final int? coverId;
 
@@ -35,6 +39,7 @@ class BookEdition {
     this.format,
     this.pageCount,
     this.durationMinutes,
+    this.narrator,
     this.isbns = const [],
     this.coverId,
     this.language,
@@ -49,6 +54,7 @@ class BookEdition {
         format: format ?? other.format,
         pageCount: pageCount ?? other.pageCount,
         durationMinutes: durationMinutes ?? other.durationMinutes,
+        narrator: narrator ?? other.narrator,
         isbns: isbns.isEmpty ? other.isbns : isbns,
         coverId: coverId ?? other.coverId,
         language: language ?? other.language,
@@ -78,6 +84,31 @@ class BookEdition {
     final seconds = int.tryParse(match.group(1)!.replaceAll(',', ''));
     if (seconds == null || seconds <= 0) return null;
     return (seconds / 60).round();
+  }
+
+  /// An audiobook's narrators from an edition record, which names them one
+  /// of two ways: among `contributors`, as {role: "Narrator/Reader", name},
+  /// or among `contributions`, as "Rob Inglis (Narrator)". Null when it
+  /// names none.
+  static String? narratorFrom(Map<String, dynamic> map) {
+    final role = RegExp(r'narrat|reader', caseSensitive: false);
+    final names = <String>{};
+    final contributors = map['contributors'];
+    for (final entry in contributors is List ? contributors : const []) {
+      if (entry is! Map) continue;
+      final name = _text(entry['name']);
+      if (name != null && role.hasMatch(_text(entry['role']) ?? '')) {
+        names.add(name);
+      }
+    }
+    final credit = RegExp(r'^(.+?)\s*\(([^)]*)\)$');
+    for (final entry in _texts(map['contributions'])) {
+      final match = credit.firstMatch(entry);
+      if (match != null && role.hasMatch(match.group(2)!)) {
+        names.add(match.group(1)!.trim());
+      }
+    }
+    return names.isEmpty ? null : names.join(', ');
   }
 
   /// The 13-digit ISBN when there is one, as that is what barcodes carry.
@@ -181,6 +212,7 @@ class BookEdition {
       format: _text(map['physical_format']),
       pageCount: pages is int && pages > 0 ? pages : null,
       durationMinutes: durationFromNotes(map['notes']),
+      narrator: narratorFrom(map),
       // 13-digit first: see [isbn].
       isbns: [..._texts(map['isbn_13']), ..._texts(map['isbn_10'])],
       coverId: _firstCover(map['covers']),
@@ -604,7 +636,7 @@ class BookSearchService {
     if (clean.isEmpty) return null;
     try {
       // Asked for alongside: the edition's own record has what this lookup
-      // leaves out — its format, its work, an audiobook's running time. The
+      // leaves out — its format, its work, an audiobook's length and reader. The
       // lookup stands without it if it fails.
       final record = editionByIsbn(clean).then<
           ({BookEdition edition, String? workKey})?>(

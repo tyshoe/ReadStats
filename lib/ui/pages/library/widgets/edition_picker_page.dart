@@ -629,6 +629,15 @@ class _EditionTile extends StatelessWidget {
                       style: small,
                     ),
                   ],
+                  if (edition.narrator != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Read by ${edition.narrator}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: small,
+                    ),
+                  ],
                   if (isbn != null) ...[
                     const SizedBox(height: 4),
                     Text('ISBN $isbn', style: small),

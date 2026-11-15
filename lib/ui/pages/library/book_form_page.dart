@@ -568,18 +568,21 @@ class _BookFormPageState extends State<BookFormPage> {
     _edition = result.edition;
     final type = result.edition?.bookTypeId;
     if (type != null) _selectedBookType = type - 1;
-    _fillDuration(result.edition);
+    _fillAudio(result.edition);
     final cover = result.coverUrl ?? result.thumbnailUrl;
     if (cover != null && !widget.coverSettled) _loadCoverFromUrl(cover);
   }
 
-  /// Fills in an audiobook's length from its edition, where Open Library
-  /// has one. The fields only show, and only save, for an audiobook.
-  void _fillDuration(BookEdition? edition) {
+  /// Fills in an audiobook's length and narrator from its edition, where
+  /// Open Library has them. The fields only show for an audiobook.
+  void _fillAudio(BookEdition? edition) {
     final minutes = edition?.durationMinutes;
-    if (minutes == null) return;
-    _durationHoursController.text = (minutes ~/ 60).toString();
-    _durationMinutesController.text = (minutes % 60).toString();
+    if (minutes != null) {
+      _durationHoursController.text = (minutes ~/ 60).toString();
+      _durationMinutesController.text = (minutes % 60).toString();
+    }
+    final narrator = edition?.narrator;
+    if (narrator != null) _narratorController.text = narrator;
   }
 
   /// Downloads the cover at [url] and makes it the book's, completing with
@@ -651,7 +654,7 @@ class _BookFormPageState extends State<BookFormPage> {
       if (edition.pageCount != null) {
         _pageCountController.text = edition.pageCount.toString();
       }
-      _fillDuration(edition);
+      _fillAudio(edition);
       if (!widget.isEditing) {
         if (edition.title.isNotEmpty) _titleController.text = edition.title;
         final type = edition.bookTypeId;

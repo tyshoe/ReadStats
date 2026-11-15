@@ -267,6 +267,7 @@ class _BookScannerPageState extends State<BookScannerPage> {
           coverShape: DatabaseHelper.defaultCoverShape(item.bookTypeId),
           durationMinutes:
               item.bookTypeId == 4 ? r.edition?.durationMinutes : null,
+          narrator: item.bookTypeId == 4 ? r.edition?.narrator : null,
         );
       }
       try {
