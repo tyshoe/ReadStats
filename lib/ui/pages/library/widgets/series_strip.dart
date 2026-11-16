@@ -5,10 +5,24 @@ import 'package:flutter/material.dart';
 import '/data/utils/series_progress.dart';
 import '/ui/widgets/book_cover.dart';
 
+/// The colour of a finished book's marks: the green a met goal turns — or
+/// blue where the accent is itself green-ish, so finished still reads apart
+/// from it.
+///
+/// A series keeps its colours to what they say: this for a book that is
+/// done, the accent for the one being read or up next, and grey for the
+/// rest.
+Color seriesFinishedColor(ColorScheme cs) {
+  final hue = HSLColor.fromColor(cs.primary).hue;
+  if (hue >= 80 && hue <= 170) return const Color(0xFF2196F3);
+  return Colors.green.shade600;
+}
+
 /// A series as a row of little books, one per number, each showing its
 /// number. A book with a cover shows the cover — in full colour once read,
 /// greyed while it's still to read. Without one, the tile is filled in for
-/// read and outlined otherwise. The book being read has an accent border;
+/// read, in the finished green, and outlined otherwise. The book being read
+/// has an accent border;
 /// the one up next a dashed accent outline; a missing number is an empty
 /// dashed slot.
 ///
@@ -155,7 +169,11 @@ class SeriesStrip extends StatelessWidget {
                 child: Center(child: _numberPill(theme, number)),
               ),
               if (!compact && slot.state == SeriesSlotState.finished)
-                Positioned(top: 4, right: 4, child: _badge(cs, Icons.check)),
+                Positioned(
+                    top: 4,
+                    right: 4,
+                    child: _badge(cs, Icons.check,
+                        color: seriesFinishedColor(cs))),
               if (!compact && slot.state == SeriesSlotState.unfinished)
                 Positioned(
                     top: 4,
@@ -217,8 +235,8 @@ class SeriesStrip extends StatelessWidget {
     IconData? icon;
     switch (slot.state) {
       case SeriesSlotState.finished:
-        fill = onImage ? Colors.white : cs.primary;
-        fg = onImage ? Colors.black87 : cs.onPrimary;
+        fill = onImage ? Colors.white : seriesFinishedColor(cs);
+        fg = onImage ? Colors.black87 : Colors.white;
         icon = Icons.check_rounded;
       case SeriesSlotState.reading:
         fill = onImage
@@ -302,16 +320,20 @@ class SeriesStrip extends StatelessWidget {
     );
   }
 
-  Widget _badge(ColorScheme cs, IconData icon, {bool muted = false}) {
+  Widget _badge(ColorScheme cs, IconData icon,
+      {bool muted = false, Color? color}) {
     return Container(
       width: 18,
       height: 18,
       decoration: BoxDecoration(
-        color: muted ? Colors.black.withValues(alpha: 0.6) : cs.primary,
+        color: muted
+            ? Colors.black.withValues(alpha: 0.6)
+            : (color ?? cs.primary),
         shape: BoxShape.circle,
       ),
       child: Icon(icon,
-          size: 12, color: muted ? Colors.white : cs.onPrimary),
+          size: 12,
+          color: Colors.white),
     );
   }
 
@@ -405,7 +427,7 @@ class SeriesProgressBar extends StatelessWidget {
   Widget _segment(SeriesSlot s, ColorScheme cs, Color empty, Color outline,
       double h) {
     final (Color? fill, Border? border) = switch (s.state) {
-      SeriesSlotState.finished => (cs.primary, null),
+      SeriesSlotState.finished => (seriesFinishedColor(cs), null),
       SeriesSlotState.reading => (cs.primary.withValues(alpha: 0.45), null),
       SeriesSlotState.unfinished => (outline.withValues(alpha: 0.35), null),
       SeriesSlotState.toRead => (empty, null),

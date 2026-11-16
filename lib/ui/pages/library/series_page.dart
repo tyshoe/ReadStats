@@ -483,7 +483,7 @@ class _SeriesPageState extends State<SeriesPage> {
             children: [
               Text('SERIES',
                   style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.primary,
+                      color: muted,
                       letterSpacing: 1.2,
                       fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
@@ -515,7 +515,8 @@ class _SeriesPageState extends State<SeriesPage> {
           children: [
             if (p.isComplete) ...[
               Icon(Icons.check_circle,
-                  size: 18, color: theme.colorScheme.primary),
+                  size: 18,
+                  color: seriesFinishedColor(theme.colorScheme)),
               const SizedBox(width: 6),
               Text('Series complete',
                   style: theme.textTheme.titleMedium
@@ -657,14 +658,31 @@ class _SeriesPageState extends State<SeriesPage> {
     );
   }
 
-  /// Pages read and when the series was started and last finished — numbers
-  /// only the books' own dates are needed for.
+  /// How much of the series is read and when it was started and last
+  /// finished — numbers only the books' own lengths and dates are needed for.
+  ///
+  /// A series can be read in any mix of formats, so how much is counted both
+  /// ways: the pages of the finished print and ebooks, and the length of the
+  /// finished audiobooks. Each shows when it has something to count; a series
+  /// with nothing finished shows the one its books are.
   Widget _statsRow(ThemeData theme, SeriesProgress p) {
+    bool isAudio(Map<String, dynamic> b) => b['book_type_id'] == 4;
     final finished = p.books
         .where((b) => b['shelf_id'] == DatabaseHelper.shelfFinished)
         .toList();
-    final pages = finished.fold<int>(
+    final pages = finished.where((b) => !isAudio(b)).fold<int>(
         0, (sum, b) => sum + ((b['page_count'] as num?)?.toInt() ?? 0));
+    final minutes = finished.where(isAudio).fold<int>(
+        0, (sum, b) => sum + ((b['duration_minutes'] as num?)?.toInt() ?? 0));
+    final showListened = minutes > 0 ||
+        (pages == 0 && p.books.isNotEmpty && p.books.every(isAudio));
+    final showPages = pages > 0 || !showListened;
+    final hours = minutes ~/ 60, mins = minutes % 60;
+    final listened = hours == 0
+        ? '${mins}m'
+        : mins == 0
+            ? '${NumberFormat.decimalPattern().format(hours)}h'
+            : '${NumberFormat.decimalPattern().format(hours)}h ${mins}m';
     DateTime? parse(Object? v) => v is String ? DateTime.tryParse(v) : null;
     final starts = p.books.map((b) => parse(b['date_started'])).nonNulls;
     final ends = finished.map((b) => parse(b['date_finished'])).nonNulls;
@@ -675,37 +693,48 @@ class _SeriesPageState extends State<SeriesPage> {
     final fmt = DateFormat('MMM y');
 
     final tiles = [
-      (NumberFormat.decimalPattern().format(pages), 'pages read'),
+      if (showPages)
+        (NumberFormat.decimalPattern().format(pages), 'pages read'),
+      if (showListened) (listened, 'listened'),
       (started == null ? '–' : fmt.format(started), 'started'),
       (last == null ? '–' : fmt.format(last), 'last finished'),
     ];
-    return Row(
+    Widget row(List<(String, String)> tiles) => Row(
+          children: [
+            for (var i = 0; i < tiles.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(tiles[i].$1,
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      Text(tiles[i].$2,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+    // Four don't fit across a phone, so both counts get a row of their own.
+    if (tiles.length < 4) return row(tiles);
+    return Column(
       children: [
-        for (var i = 0; i < tiles.length; i++) ...[
-          if (i > 0) const SizedBox(width: 8),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(tiles[i].$1,
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                  Text(tiles[i].$2,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant)),
-                ],
-              ),
-            ),
-          ),
-        ],
+        row(tiles.sublist(0, 2)),
+        const SizedBox(height: 8),
+        row(tiles.sublist(2)),
       ],
     );
   }
@@ -750,7 +779,11 @@ class _SeriesPageState extends State<SeriesPage> {
     final (IconData icon, String label, Color color) =
         switch (book['shelf_id'] as int?) {
       DatabaseHelper.shelfFinished =>
-        (Icons.check_circle, 'Finished', cs.primary),
+        (
+          Icons.check_circle,
+          'Finished',
+          seriesFinishedColor(cs),
+        ),
       DatabaseHelper.shelfCurrentlyReading =>
         (Icons.menu_book_rounded, 'Reading', cs.primary),
       DatabaseHelper.shelfUnfinished =>
@@ -805,9 +838,14 @@ class _SeriesPageState extends State<SeriesPage> {
                     children: [
                       Icon(icon, size: 14, color: color),
                       const SizedBox(width: 4),
+                      // The check says finished; only the book being
+                      // read has its word in colour too.
                       Text(label,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: color)),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: book['shelf_id'] ==
+                                      DatabaseHelper.shelfCurrentlyReading
+                                  ? color
+                                  : cs.onSurfaceVariant)),
                       if (rating != null && rating > 0) ...[
                         const SizedBox(width: 10),
                         const Icon(Icons.star_rounded,

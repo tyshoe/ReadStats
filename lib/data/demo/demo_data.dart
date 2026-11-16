@@ -42,6 +42,11 @@ import '../repositories/goal_repository.dart';
 ///   planner), so the Library's series rows, the shelf-filtered expand, the
 ///   "In a series" filter and the Series page's "Up next" all have a full
 ///   series to show.
+/// * Series by format: Voyages Extraordinaires finished half in paperback and
+///   half on audio (#1 and #2), so the Series page counts pages read and
+///   time listened side by side, under a "Series complete" heading; and
+///   Tom Sawyer & Huckleberry Finn with
+///   only an audiobook (#2, a gap at #1), so it counts time listened alone.
 /// * Series placeholders: d'Artagnan #3 with a title and Anne #5 without,
 ///   so the Series page shows planned books in the strip and the list.
 /// * Real covers (downloaded from Open Library on load, drawn ones as the
@@ -148,7 +153,8 @@ const _printFinished = [
   _Title('The Moonstone', 'Wilkie Collins', 528, _paperback, ['Mystery']),
   _Title('The Picture of Dorian Gray', 'Oscar Wilde', 254, _paperback, ['Classic', 'Horror']),
   _Title('Walden', 'Henry David Thoreau', 352, _ebook, ['Nonfiction', 'Philosophy']),
-  _Title('Twenty Thousand Leagues Under the Seas', 'Jules Verne', 432, _paperback, ['Adventure', 'Science Fiction']),
+  _Title('Twenty Thousand Leagues Under the Seas', 'Jules Verne', 432, _paperback, ['Adventure', 'Science Fiction'],
+      series: 'Voyages Extraordinaires', position: 1),
   _Title('Crime and Punishment', 'Fyodor Dostoevsky', 671, _hardback, ['Classic']),
   _Title('The Turn of the Screw', 'Henry James', 120, _ebook, ['Horror']),
   _Title('A Study in Scarlet', 'Arthur Conan Doyle', 188, _paperback, ['Mystery'],
@@ -166,9 +172,11 @@ const _printFinished = [
 /// Finished on the audio track, oldest first.
 const _audioFinished = [
   _Title('Adventures of Huckleberry Finn', 'Mark Twain', 0, _audiobook, ['Adventure', 'Classic'],
-      minutes: 680, narrator: 'Eleanor Hale'),
+      minutes: 680, narrator: 'Eleanor Hale',
+      series: 'Tom Sawyer & Huckleberry Finn', position: 2),
   _Title('Around the World in Eighty Days', 'Jules Verne', 0, _audiobook, ['Adventure'],
-      minutes: 420, narrator: 'Marcus Webb'),
+      minutes: 420, narrator: 'Marcus Webb',
+      series: 'Voyages Extraordinaires', position: 2),
   _Title('Strange Case of Dr Jekyll and Mr Hyde', 'Robert Louis Stevenson', 0, _audiobook, ['Horror'],
       minutes: 170, narrator: 'Eleanor Hale'),
   _Title('The Call of the Wild', 'Jack London', 0, _audiobook, ['Adventure'],

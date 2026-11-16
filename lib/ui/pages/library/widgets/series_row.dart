@@ -80,7 +80,7 @@ class SeriesRow extends StatelessWidget {
                         Row(
                           children: [
                             Icon(Icons.collections_bookmark,
-                                size: 16, color: theme.colorScheme.primary),
+                                size: 16, color: muted),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
@@ -210,7 +210,7 @@ class SeriesRow extends StatelessWidget {
                       ? '–'
                       : '#${SeriesProgress.formatNumber(position)}',
                   style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.primary,
+                    color: muted,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

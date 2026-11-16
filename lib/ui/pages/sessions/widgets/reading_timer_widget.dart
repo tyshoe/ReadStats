@@ -222,20 +222,21 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
             onTap: widget.books.isEmpty ? null : _showBookPicker,
           ),
           // Where the reader is in the book: by page, or for an audiobook,
-          // which has none, by time.
+          // which has none, by time. Dimmed like the session form's "read
+          // before", so the button under it is the card's one full accent.
           if (_selectedBook != null && _selectedBook!['book_type_id'] == 4)
             BookAudioProgress(
               bookId: _selectedBook!['id'] as int,
               bookMinutes: _selectedBook!['duration_minutes'] as int?,
               sessionRepository: widget.sessionRepository,
-              color: accent,
+              color: accent.withValues(alpha: 0.4),
             )
           else if (_selectedBook != null)
             BookPageProgress(
               bookId: _selectedBook!['id'] as int,
               pageCount: _selectedBook!['page_count'] as int?,
               sessionRepository: widget.sessionRepository,
-              color: accent,
+              color: accent.withValues(alpha: 0.4),
             ),
           const SizedBox(height: 10),
           FilledButton.icon(
