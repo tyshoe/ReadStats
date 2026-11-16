@@ -221,8 +221,16 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
                 : 'Tap to choose...',
             onTap: widget.books.isEmpty ? null : _showBookPicker,
           ),
-          // Where the reader is in a paper book — audiobooks have no pages.
-          if (_selectedBook != null && _selectedBook!['book_type_id'] != 4)
+          // Where the reader is in the book: by page, or for an audiobook,
+          // which has none, by time.
+          if (_selectedBook != null && _selectedBook!['book_type_id'] == 4)
+            BookAudioProgress(
+              bookId: _selectedBook!['id'] as int,
+              bookMinutes: _selectedBook!['duration_minutes'] as int?,
+              sessionRepository: widget.sessionRepository,
+              color: accent,
+            )
+          else if (_selectedBook != null)
             BookPageProgress(
               bookId: _selectedBook!['id'] as int,
               pageCount: _selectedBook!['page_count'] as int?,
