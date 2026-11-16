@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:archive/archive.dart';
+import 'dart:isolate';
+import 'package:archive/archive_io.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/painting.dart' show FileImage;
+import 'package:flutter/painting.dart' show FileImage, PaintingBinding;
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -30,6 +31,100 @@ class ImportExportResult {
   final bool success;
   final String message;
   const ImportExportResult({required this.success, required this.message});
+}
+
+/// How far along an import is, for the screen that started it.
+class ImportProgress {
+  /// What is happening now: "Restoring covers · 12 of 69".
+  final String label;
+
+  /// How much of the whole import is done, 0 to 1 — or null while there is
+  /// nothing to count yet.
+  final double? fraction;
+
+  const ImportProgress(this.label, [this.fraction]);
+}
+
+typedef ImportProgressCallback = void Function(ImportProgress progress);
+
+/// Unpacks a backup zip off the UI thread: writes every cover into
+/// [coversPath] and hands back the text of each CSV by filename.
+///
+/// The covers are most of a backup — tens of megabytes — and inflating them
+/// where the app draws froze it for the length of the restore. [progress]
+/// is sent `[done, total]` as each cover lands.
+///
+/// Top-level so the isolate's closure can only capture what is passed in.
+Future<({Map<String, String> csvs, int covers})> _unpackBackup(
+    String zipPath, String coversPath, SendPort progress) {
+  return Isolate.run(() {
+    final archive = ZipDecoder().decodeBytes(File(zipPath).readAsBytesSync());
+    final csvs = <String, String>{};
+    final covers = <(String, ArchiveFile)>[];
+    for (final file in archive.files) {
+      if (!file.isFile) continue;
+      final name = file.name.replaceAll('\\', '/');
+      final base = p.basename(name);
+      if (base.isEmpty) continue;
+      if (name.startsWith('covers/')) {
+        covers.add((base, file));
+      } else if (base.endsWith('.csv')) {
+        csvs[base] = utf8.decode(file.content as List<int>);
+        file.clear();
+      }
+    }
+
+    Directory(coversPath).createSync(recursive: true);
+    progress.send([0, covers.length]);
+    for (var i = 0; i < covers.length; i++) {
+      final (base, file) = covers[i];
+      File(p.join(coversPath, base))
+          .writeAsBytesSync(file.content as List<int>);
+      file.clear();
+      progress.send([i + 1, covers.length]);
+    }
+    return (csvs: csvs, covers: covers.length);
+  });
+}
+
+/// Packs a backup zip off the UI thread: [csvs] by filename, then every file
+/// in [coversPath], written straight to [zipPath]. Returns how many covers
+/// went in.
+///
+/// The covers are read and written one at a time, so the backup is never
+/// held whole in memory, and stored rather than deflated — a cover is
+/// already compressed, and squeezing it again only cost time. [progress] is
+/// sent `[done, total]` as each one is packed.
+///
+/// Top-level so the isolate's closure can only capture what is passed in.
+Future<int> _packBackup(String zipPath, Map<String, String> csvs,
+    String coversPath, SendPort progress) {
+  return Isolate.run(() {
+    final output = OutputFileStream(zipPath);
+    try {
+      final encoder = ZipEncoder()..startEncode(output);
+      csvs.forEach((name, text) {
+        final bytes = utf8.encode(text);
+        encoder.addFile(ArchiveFile(name, bytes.length, bytes));
+      });
+
+      final dir = Directory(coversPath);
+      final covers = dir.existsSync()
+          ? dir.listSync().whereType<File>().toList()
+          : const <File>[];
+      progress.send([0, covers.length]);
+      for (var i = 0; i < covers.length; i++) {
+        final bytes = covers[i].readAsBytesSync();
+        encoder.addFile(ArchiveFile.noCompress(
+            'covers/${p.basename(covers[i].path)}', bytes.length, bytes));
+        progress.send([i + 1, covers.length]);
+      }
+      encoder.endEncode();
+      return covers.length;
+    } finally {
+      output.closeSync();
+    }
+  });
 }
 
 class ImportExportService {
@@ -65,7 +160,10 @@ class ImportExportService {
   ///
   /// With [onlyIfEmpty], refuses when the library already has books — the
   /// onboarding entry, which has no confirmation step of its own.
-  Future<ImportExportResult> loadDemoData({bool onlyIfEmpty = false}) async {
+  Future<ImportExportResult> loadDemoData({
+    bool onlyIfEmpty = false,
+    ImportProgressCallback? onProgress,
+  }) async {
     try {
       if (onlyIfEmpty && (await bookRepository.getBooks()).isNotEmpty) {
         return const ImportExportResult(
@@ -75,6 +173,7 @@ class ImportExportService {
         );
       }
 
+      onProgress?.call(const ImportProgress('Clearing your library…'));
       final wipe = await deleteAllData();
       if (!wipe.success) return wipe;
 
@@ -88,6 +187,11 @@ class ImportExportService {
       final coversDir = await CoverService.coversDirectory();
       final withCovers = demo.books.where((b) => b.coverPath != null).toList();
       for (var i = 0; i < withCovers.length; i += 6) {
+        // The downloads are nearly all of the wait.
+        onProgress?.call(ImportProgress(
+          'Fetching covers · $i of ${withCovers.length}',
+          0.9 * i / withCovers.length,
+        ));
         await Future.wait(withCovers.skip(i).take(6).map((book) async {
           final file = File(p.join(coversDir.path, book.coverPath!));
           await file.writeAsBytes(await DemoCovers.obtain(
@@ -101,6 +205,8 @@ class ImportExportService {
         }));
       }
 
+      onProgress
+          ?.call(const ImportProgress('Adding books and sessions…', 0.9));
       await SeriesRepository(DatabaseHelper()).resolveNames(demo.books);
       await bookRepository.addBooksBatch(demo.books);
       await sessionRepository.addSessionsBatch(demo.sessions);
@@ -128,20 +234,24 @@ class ImportExportService {
   /// Export everything — the data CSVs plus every cover image — as a
   /// single zip. Bundling the images is what lets covers survive an uninstall:
   /// the CSVs only reference cover filenames, they don't contain the pixels.
-  Future<ImportExportResult> exportBackup() async {
+  ///
+  /// [onProgress] follows the packing; it goes quiet once the share sheet is
+  /// up, since what happens to the file from there — an upload to a cloud
+  /// folder, say — is the receiving app's and can't be seen from here.
+  Future<ImportExportResult> exportBackup(
+      {ImportProgressCallback? onProgress}) async {
     try {
+      onProgress?.call(const ImportProgress('Preparing backup…'));
+      final clock = Stopwatch()..start();
       final books = await bookRepository.getBooks();
       final sessions = await sessionRepository.getSessions();
       final tags = await tagRepository.getAllTags();
       final bookTags = await tagRepository.getAllBookTagsForExport();
       final (goals, goalTargets) = await goalRepository.getBackupRows();
 
-      final archive = Archive();
-      void addCsv(String name, List<List<String>> rows) {
-        final bytes =
-            utf8.encode(const ListToCsvConverter().convert(rows));
-        archive.addFile(ArchiveFile('$name.csv', bytes.length, bytes));
-      }
+      final csvs = <String, String>{};
+      void addCsv(String name, List<List<String>> rows) =>
+          csvs['$name.csv'] = const ListToCsvConverter().convert(rows);
 
       addCsv('books_data', _booksCsvRows(books));
       addCsv('sessions_data', _sessionsCsvRows(sessions));
@@ -160,26 +270,43 @@ class ImportExportService {
           ],
       ]);
 
-      var coverCount = 0;
-      final coversDir = await CoverService.coversDirectory();
-      if (await coversDir.exists()) {
-        await for (final entity in coversDir.list()) {
-          if (entity is! File) continue;
-          final bytes = await entity.readAsBytes();
-          archive.addFile(ArchiveFile(
-              'covers/${p.basename(entity.path)}', bytes.length, bytes));
-          coverCount++;
+      // Earlier backups stay behind in the temp folder otherwise, each the
+      // size of the whole library's covers.
+      final tempDir = await getTemporaryDirectory();
+      await for (final entity in tempDir.list()) {
+        final name = p.basename(entity.path);
+        if (entity is File &&
+            name.startsWith('readstats_backup_') &&
+            name.endsWith('.zip')) {
+          await entity.delete();
         }
       }
 
-      final zipBytes = ZipEncoder().encode(archive);
-      if (zipBytes == null) throw Exception('Failed to encode backup zip.');
-
       final stamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final tempDir = await getTemporaryDirectory();
       final zipPath = p.join(tempDir.path, 'readstats_backup_$stamp.zip');
-      await File(zipPath).writeAsBytes(zipBytes);
+      final coversDir = await CoverService.coversDirectory();
+      final port = ReceivePort();
+      port.listen((message) {
+        final [done as int, total as int] = message as List;
+        if (total == 0) return;
+        onProgress?.call(ImportProgress(
+            'Packing covers · $done of $total', done / total));
+      });
+      final int coverCount;
+      try {
+        coverCount =
+            await _packBackup(zipPath, csvs, coversDir.path, port.sendPort);
+      } finally {
+        port.close();
+      }
+      if (kDebugMode) {
+        print('Export: packed $coverCount covers, '
+            '${File(zipPath).lengthSync() ~/ 1024} KB, in '
+            '${clock.elapsedMilliseconds} ms');
+      }
 
+      // Over to the share sheet: nothing more to show from here.
+      onProgress?.call(const ImportProgress('Backup ready', 1));
       await SharePlus.instance.share(ShareParams(files: [XFile(zipPath)]));
 
       return ImportExportResult(
@@ -341,13 +468,38 @@ class ImportExportService {
   }
 
   // ─── IMPORT ───────────────────────────────────────────────────────────────
+  /// Deletes the copies the picker made of the files it handed over. It
+  /// keeps every one, and a backup is tens of megabytes each time.
+  void _clearPickedFiles() {
+    FilePicker.platform.clearTemporaryFiles().catchError((_) => false);
+  }
+
+  /// Asks for the file to import.
+  ///
+  /// A file chosen from a cloud folder is downloaded before the picker hands
+  /// it over, which for a backup with its covers is a wait of its own — so
+  /// [onProgress] hears about it as soon as the choice is made.
+  Future<FilePickerResult?> _pickFile(ImportProgressCallback? onProgress) {
+    return FilePicker.platform.pickFiles(
+      type: FileType.any,
+      onFileLoading: (status) {
+        if (status == FilePickerStatus.picking) {
+          onProgress?.call(const ImportProgress('Fetching file…'));
+        }
+      },
+    );
+  }
 
   /// Restore a backup zip produced by [exportBackup]: cover images are copied
   /// back into the covers directory and every CSV is imported. Also
   /// accepts a legacy books CSV from the old CSV-only export.
-  Future<ImportExportResult> importBackup() async {
+  ///
+  /// [onProgress] hears nothing until a file is chosen, so a screen can wait
+  /// for the first report before showing anything.
+  Future<ImportExportResult> importBackup(
+      {ImportProgressCallback? onProgress}) async {
     try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.any);
+      final result = await _pickFile(onProgress);
       if (result == null) {
         return const ImportExportResult(success: false, message: 'Cancelled.');
       }
@@ -356,52 +508,71 @@ class ImportExportService {
       if (p.extension(path).toLowerCase() != '.zip') {
         // Legacy export: a lone CSV from the old per-type export. Detect
         // which table it holds from the header row (no images back then).
+        onProgress?.call(const ImportProgress('Importing…'));
         return _importLegacyCsv(await File(path).readAsString());
       }
 
-      final archive = ZipDecoder().decodeBytes(await File(path).readAsBytes());
+      onProgress?.call(const ImportProgress('Reading backup…'));
+      final clock = Stopwatch()..start();
 
       // Restore cover images first so books display them as soon as the rows
-      // land.
-      var coverCount = 0;
+      // land. They are nearly all of a restore's work, so they get most of
+      // the bar; the rows go in as a handful of batches after.
+      const coverShare = 0.85;
       final coversDir = await CoverService.coversDirectory();
-      for (final file in archive.files) {
-        if (!file.isFile) continue;
-        final name = file.name.replaceAll('\\', '/');
-        if (!name.startsWith('covers/')) continue;
-        final base = p.basename(name);
-        if (base.isEmpty) continue;
-        await File(p.join(coversDir.path, base))
-            .writeAsBytes(file.content as List<int>);
-        coverCount++;
+      final port = ReceivePort();
+      port.listen((message) {
+        final [done as int, total as int] = message as List;
+        if (total == 0) return;
+        onProgress?.call(ImportProgress(
+          'Restoring covers · $done of $total',
+          coverShare * done / total,
+        ));
+      });
+      final ({Map<String, String> csvs, int covers}) unpacked;
+      try {
+        unpacked = await _unpackBackup(path, coversDir.path, port.sendPort);
+      } finally {
+        port.close();
+      }
+      final coverCount = unpacked.covers;
+      if (kDebugMode) {
+        print('Restore: unpacked $coverCount covers in '
+            '${clock.elapsedMilliseconds} ms');
       }
 
+      // Covers written over ones already on screen have to be read again.
+      PaintingBinding.instance.imageCache.clear();
+
       List<List<dynamic>> csvRows(String prefix) {
-        for (final file in archive.files) {
-          final base = p.basename(file.name.replaceAll('\\', '/'));
-          if (file.isFile &&
-              base.startsWith(prefix) &&
-              base.endsWith('.csv')) {
-            final rows = const CsvToListConverter()
-                .convert(utf8.decode(file.content as List<int>));
+        for (final entry in unpacked.csvs.entries) {
+          if (entry.key.startsWith(prefix)) {
+            final rows = const CsvToListConverter().convert(entry.value);
             return rows.length <= 1 ? const [] : rows.skip(1).toList();
           }
         }
         return const [];
       }
 
+      void step(String label, double done) => onProgress
+          ?.call(ImportProgress(label, coverShare + (1 - coverShare) * done));
+
       // Goals before books: screens reload their goals when the book list
       // changes, so they have to be in place by the time books land.
+      step('Restoring goals…', 0);
       final goalsCount = await _parseAndInsertGoals(
         csvRows('goals_data'),
         csvRows('goal_target_changes_data'),
       );
 
       // Books and tags first — sessions and book_tags reference them by id.
+      step('Restoring books…', 0.1);
       final booksCount = await _parseAndInsertBooks(csvRows('books_data'));
       final tagsCount = await _parseAndInsertTags(csvRows('tags_data'));
+      step('Restoring sessions…', 0.5);
       final sessionsCount =
           await _parseAndInsertSessions(csvRows('sessions_data'));
+      step('Finishing up…', 0.9);
       await _parseAndInsertBookTags(csvRows('book_tags_data'));
       // After books, so series are already there by name. Absent from
       // backups made before placeholders existed.
@@ -415,6 +586,9 @@ class ImportExportService {
             },
       ]);
 
+      if (kDebugMode) {
+        print('Restore: done in ${clock.elapsedMilliseconds} ms');
+      }
       return ImportExportResult(
         success: true,
         message: 'Restored $booksCount books, $sessionsCount sessions, '
@@ -423,6 +597,8 @@ class ImportExportService {
     } catch (e) {
       if (kDebugMode) print('Import error (backup): $e');
       return ImportExportResult(success: false, message: 'Restore failed: $e');
+    } finally {
+      _clearPickedFiles();
     }
   }
 
@@ -460,13 +636,15 @@ class ImportExportService {
     );
   }
 
-  Future<ImportExportResult> importGoodreadsCSV() async {
+  Future<ImportExportResult> importGoodreadsCSV(
+      {ImportProgressCallback? onProgress}) async {
     try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.any);
+      final result = await _pickFile(onProgress);
       if (result == null) {
         return const ImportExportResult(success: false, message: 'Cancelled.');
       }
 
+      onProgress?.call(const ImportProgress('Importing books…'));
       final csvString = await File(result.files.single.path!).readAsString();
       final rows = _parseGoodreadsCSV(csvString);
       if (rows.length <= 1) throw Exception('CSV has no data rows.');
@@ -479,6 +657,8 @@ class ImportExportService {
     } catch (e) {
       if (kDebugMode) print('Import error (goodreads): $e');
       return ImportExportResult(success: false, message: 'Import failed: $e');
+    } finally {
+      _clearPickedFiles();
     }
   }
 
@@ -491,13 +671,15 @@ class ImportExportService {
   /// `collections`, to resolve the "Favorite" collection). Sessions and notes
   /// are intentionally not imported. Cover images are best-effort: Bookmory
   /// stores only a URL, so each is re-downloaded and any failures are skipped.
-  Future<ImportExportResult> importBookmory() async {
+  Future<ImportExportResult> importBookmory(
+      {ImportProgressCallback? onProgress}) async {
     try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.any);
+      final result = await _pickFile(onProgress);
       if (result == null) {
         return const ImportExportResult(success: false, message: 'Cancelled.');
       }
 
+      onProgress?.call(const ImportProgress('Reading export…'));
       final bytes = await File(result.files.single.path!).readAsBytes();
 
       // A .bookmory file is a zip (PK magic); extracted, it's the raw db text.
@@ -521,14 +703,17 @@ class ImportExportService {
         dbText = utf8.decode(bytes);
       }
 
-      return await _parseAndInsertBookmory(dbText);
+      return await _parseAndInsertBookmory(dbText, onProgress);
     } catch (e) {
       if (kDebugMode) print('Import error (bookmory): $e');
       return ImportExportResult(success: false, message: 'Import failed: $e');
+    } finally {
+      _clearPickedFiles();
     }
   }
 
-  Future<ImportExportResult> _parseAndInsertBookmory(String dbText) async {
+  Future<ImportExportResult> _parseAndInsertBookmory(
+      String dbText, ImportProgressCallback? onProgress) async {
     final books = <Map<String, dynamic>>[];
     final collectionNames = <String, String>{}; // key → name
 
@@ -561,7 +746,12 @@ class ImportExportService {
 
     var inserted = 0;
     var covers = 0;
-    for (final b in books) {
+    for (final (i, b) in books.indexed) {
+      // Each book waits on its cover's download, so this is the whole wait.
+      onProgress?.call(ImportProgress(
+        'Importing books · $i of ${books.length}',
+        i / books.length,
+      ));
       try {
         final book = _bookFromBookmory(b, collectionNames);
         final id = await bookRepository.addBook(book);

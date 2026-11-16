@@ -239,12 +239,19 @@ class _ImportContentState extends State<_ImportContent> {
   };
   final Map<String, String> _messages = {};
 
+  /// How far along the import that is running is, for its tile.
+  final Map<String, ImportProgress> _progress = {};
+
   Future<void> _runImport(
     String key,
-    Future<ImportExportResult> Function() fn,
+    Future<ImportExportResult> Function(ImportProgressCallback report) fn,
   ) async {
     setState(() => _states[key] = _ImportState.loading);
-    final result = await fn();
+    final result = await fn((progress) {
+      if (mounted) setState(() => _progress[key] = progress);
+    });
+    if (!mounted) return;
+    _progress.remove(key);
     final importedZero = result.success && result.message.startsWith('Imported 0');
     setState(() {
       _states[key] = importedZero
@@ -302,9 +309,11 @@ class _ImportContentState extends State<_ImportContent> {
             subtitle: null,
             state: _states['goodreads']!,
             message: _messages['goodreads'],
+            progress: _progress['goodreads'],
             onTap: () => _runImport(
               'goodreads',
-              widget.importExportService.importGoodreadsCSV,
+              (report) => widget.importExportService
+                  .importGoodreadsCSV(onProgress: report),
             ),
           ),
           const SizedBox(height: 16),
@@ -322,9 +331,11 @@ class _ImportContentState extends State<_ImportContent> {
             subtitle: "Use Bookmory's 'Database' export (.bookmory)",
             state: _states['bookmory']!,
             message: _messages['bookmory'],
+            progress: _progress['bookmory'],
             onTap: () => _runImport(
               'bookmory',
-              widget.importExportService.importBookmory,
+              (report) => widget.importExportService
+                  .importBookmory(onProgress: report),
             ),
           ),
           const SizedBox(height: 16),
@@ -342,11 +353,13 @@ class _ImportContentState extends State<_ImportContent> {
             subtitle: null,
             state: _states['books']!,
             message: _messages['books'],
+            progress: _progress['books'],
             // Accepts a full backup zip (books, sessions, tags, covers) or a
             // legacy books-only CSV export.
             onTap: () => _runImport(
               'books',
-              widget.importExportService.importBackup,
+              (report) => widget.importExportService
+                  .importBackup(onProgress: report),
             ),
           ),
           const SizedBox(height: 16),
@@ -368,13 +381,14 @@ class _ImportContentState extends State<_ImportContent> {
             subtitle: 'A sample library you can replace any time',
             state: _states['demo']!,
             message: _messages['demo'],
-            onTap: () => _runImport('demo', () async {
+            progress: _progress['demo'],
+            onTap: () => _runImport('demo', (report) async {
               // A whole library at once isn't something to celebrate medal by
               // medal — adopt it, as Settings does for its bulk changes.
               MilestoneService.beginBulkChange();
               try {
                 return await widget.importExportService
-                    .loadDemoData(onlyIfEmpty: true);
+                    .loadDemoData(onlyIfEmpty: true, onProgress: report);
               } finally {
                 MilestoneService.endBulkChange();
               }
@@ -414,6 +428,9 @@ class _ImportTile extends StatelessWidget {
   final String? subtitle;
   final _ImportState state;
   final String? message;
+
+  /// What the running import is doing, shown in place of the subtitle.
+  final ImportProgress? progress;
   final VoidCallback onTap;
 
   const _ImportTile({
@@ -422,6 +439,7 @@ class _ImportTile extends StatelessWidget {
     required this.subtitle,
     required this.state,
     required this.message,
+    this.progress,
     required this.onTap,
   });
 
@@ -442,14 +460,19 @@ class _ImportTile extends StatelessWidget {
                   color: state == _ImportState.success ? Colors.green : colorScheme.error,
                 ),
               )
-            : subtitle != null
-                ? Text(subtitle!)
-                : null,
+            : isLoading && progress != null
+                ? Text(progress!.label)
+                : subtitle != null
+                    ? Text(subtitle!)
+                    : null,
         trailing: isLoading
             ? SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
+                  // Fills as the import goes, once there is something to
+                  // count; spins until then.
+                  value: progress?.fraction,
                   strokeWidth: 2,
                   color: colorScheme.primary,
                 ),

@@ -1,3 +1,4 @@
+import 'ui/widgets/import_progress_dialog.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -508,6 +509,8 @@ class _MyAppState extends State<MyApp> {
                   scaffoldMessengerKey: scaffoldMessengerKey,
                   navigatorKey: _navigatorKey,
                   navigatorObservers: [_stackObserver],
+                  builder: (context, child) =>
+                      ImportBannerHost(child: child ?? const SizedBox.shrink()),
                   theme: AppTheme.lightTheme(_settingsViewModel),
                   darkTheme: AppTheme.darkTheme(_settingsViewModel),
                   themeMode: themeMode,

@@ -1,3 +1,4 @@
+import '/ui/widgets/import_progress_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../widgets/app_snackbar.dart';
@@ -196,21 +197,27 @@ class SettingsPage extends StatelessWidget {
                 icon: Icons.file_upload,
                 title: 'Export Backup',
                 onTap: () =>
-                    _handleImportExport(context, importExportService.exportBackup),
+                    _handleExport(context),
               ),
               _buildActionTile(
                 context,
                 icon: Icons.settings_backup_restore,
                 title: 'Restore Backup',
                 onTap: () =>
-                    _handleImportExport(context, importExportService.importBackup),
+                    _handleImport(
+                        context,
+                        (report) => importExportService.importBackup(
+                            onProgress: report)),
               ),
               _buildActionTile(
                 context,
                 icon: Icons.file_download,
                 title: 'Import from Goodreads',
                 onTap: () =>
-                    _handleImportExport(context, importExportService.importGoodreadsCSV),
+                    _handleImport(
+                        context,
+                        (report) => importExportService.importGoodreadsCSV(
+                            onProgress: report)),
               ),
               _buildActionTile(
                 context,
@@ -218,7 +225,10 @@ class SettingsPage extends StatelessWidget {
                 title: 'Import from Bookmory',
                 subtitle: "Use Bookmory's 'Database' export (.bookmory)",
                 onTap: () =>
-                    _handleImportExport(context, importExportService.importBookmory),
+                    _handleImport(
+                        context,
+                        (report) => importExportService.importBookmory(
+                            onProgress: report)),
               ),
               _buildActionTile(
                 context,
@@ -321,8 +331,11 @@ class SettingsPage extends StatelessWidget {
 
   Future<void> _handleImportExport(
       BuildContext context,
-      Future<ImportExportResult> Function() action,
-      ) async {
+      Future<ImportExportResult> Function() action, {
+      // Report the result even after Settings has been left, for an import
+      // the reader was free to walk away from.
+      bool evenIfLeft = false,
+      }) async {
     // Backup restores, CSV imports and the full wipe all move the numbers by
     // an amount the reader didn't just read — adopt the result rather than
     // celebrating it. Bracketed because a restore wipes before it inserts, and
@@ -334,13 +347,90 @@ class SettingsPage extends StatelessWidget {
     } finally {
       MilestoneService.endBulkChange();
     }
-    if (context.mounted) {
+    if (evenIfLeft || context.mounted) {
       AppSnackbar.show(result.message, isError: !result.success);
       if (result.success) {
         refreshBooks();
         refreshSessions();
       }
     }
+  }
+
+  /// Exports a backup with its packing shown in the pinned pill. The pill
+  /// comes down as the share sheet goes up: from there the file is the
+  /// receiving app's to deal with.
+  Future<void> _handleExport(BuildContext context) async {
+    if (importBanner.value != null) {
+      AppSnackbar.show('An import is already running.');
+      return;
+    }
+    await _handleImportExport(context, () async {
+      try {
+        return await importExportService.exportBackup(onProgress: (value) {
+          importBanner.value = value.fraction == 1 ? null : value;
+        });
+      } finally {
+        importBanner.value = null;
+      }
+    }, evenIfLeft: true);
+  }
+
+  /// [_handleImportExport] for an import, with its progress on screen.
+  ///
+  /// Nothing shows until the import's first report: an import opens with the
+  /// file picker, and there is nothing to wait for until a file is chosen.
+  /// From then on its progress is a pill pinned over the app, which stays
+  /// usable — Settings included, so it can be left. The snackbar says how it
+  /// ended, wherever the reader is by then.
+  ///
+  /// [holdScreen] shows a dialog instead, for an import that empties the
+  /// library before filling it and so leaves nothing to use meanwhile.
+  Future<void> _handleImport(
+    BuildContext context,
+    Future<ImportExportResult> Function(ImportProgressCallback report)
+        action, {
+    bool holdScreen = false,
+  }) async {
+    if (importBanner.value != null) {
+      AppSnackbar.show('An import is already running.');
+      return;
+    }
+    final progress = ValueNotifier<ImportProgress?>(null);
+    final navigator = Navigator.of(context, rootNavigator: true);
+    var dialogUp = false;
+    DateTime? pinnedAt;
+    void report(ImportProgress value) {
+      if (!holdScreen) {
+        pinnedAt ??= DateTime.now();
+        importBanner.value = value;
+        return;
+      }
+      progress.value = value;
+      if (dialogUp) return;
+      dialogUp = true;
+      navigator.push(DialogRoute<void>(
+        context: navigator.context,
+        barrierDismissible: false,
+        builder: (_) => ImportProgressDialog(progress: progress),
+      ));
+    }
+
+    await _handleImportExport(context, () async {
+      try {
+        return await action(report);
+      } finally {
+        if (dialogUp) navigator.pop();
+        // A restore from a file already on the device is over in under a
+        // second; keep the pill up long enough to be read, not glimpsed.
+        final since = pinnedAt;
+        if (since != null) {
+          final shown = DateTime.now().difference(since);
+          const least = Duration(milliseconds: 1200);
+          if (shown < least) await Future<void>.delayed(least - shown);
+        }
+        importBanner.value = null;
+      }
+    }, evenIfLeft: true);
   }
 
   /// Same shape as [_confirmDeleteData] — loading the demo wipes first.
@@ -361,7 +451,7 @@ class SettingsPage extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _handleImportExport(context, importExportService.exportBackup);
+              _handleExport(context);
             },
             child: const Text('Export Backup'),
           ),
@@ -369,8 +459,11 @@ class SettingsPage extends StatelessWidget {
             onPressed: () async {
               Navigator.pop(ctx);
               timerService.stop();
-              await _handleImportExport(
-                  context, importExportService.loadDemoData);
+              await _handleImport(
+                  context,
+                  (report) =>
+                      importExportService.loadDemoData(onProgress: report),
+                  holdScreen: true);
             },
             child: const Text('Load'),
           ),
@@ -400,7 +493,7 @@ class SettingsPage extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              _handleImportExport(context, importExportService.exportBackup);
+              _handleExport(context);
             },
             child: const Text('Export Backup'),
           ),
