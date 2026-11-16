@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'goal_achievement_service.dart';
 import '/ui/pages/profile/badges.dart';
 import '/ui/pages/profile/reading_stats.dart';
+import '/ui/pages/profile/seasons.dart';
 
 /// A badge tier the reader has just crossed for the first time.
 class MilestoneUnlock {
@@ -25,7 +26,10 @@ class MilestoneService {
   static const _snapshotKey = 'milestoneSnapshot';
   static const _seededKey = 'milestoneSnapshotSeeded';
 
+  static const _seasonSnapshotKey = 'seasonMilestoneSnapshot';
+
   static bool _resyncPending = false;
+  static bool _seasonResyncPending = false;
   static bool _bulkInProgress = false;
 
   /// Bracket a bulk data change — backup restore, CSV import, full wipe — where
@@ -47,6 +51,7 @@ class MilestoneService {
   static void endBulkChange() {
     _bulkInProgress = false;
     _resyncPending = true;
+    _seasonResyncPending = true;
     GoalAchievementService.endBulkChange();
   }
 
@@ -93,6 +98,60 @@ class MilestoneService {
 
     if (unlocks.isEmpty) return const [];
     await _write(prefs, merged);
+    unlocks.sort((a, b) => a.tier.tier.index.compareTo(b.tier.tier.index));
+    return unlocks;
+  }
+
+  /// [check] for the seasonal medals: the tiers of [kSeasonGoals] newly
+  /// reached in [season], given its [seasonStats].
+  ///
+  /// The snapshot is kept per season. A new season starts it from nothing —
+  /// nothing can have been earned in a season before the app was opened in
+  /// it — so the first medal of a season is celebrated like any other. The
+  /// first ever call adopts what is already there, as [check] does, so the
+  /// update that brings seasons in doesn't open on a pile of them.
+  static Future<List<MilestoneUnlock>> checkSeason(
+      Season season, ReadingStats stats) async {
+    if (_bulkInProgress) return const [];
+    final prefs = await SharedPreferences.getInstance();
+    final current = {
+      for (final g in kSeasonGoals) g.id: g.achievedIndex(stats),
+    };
+    Future<void> write(Map<String, int> tiers) => prefs.setString(
+        _seasonSnapshotKey, jsonEncode({'season': season.id, 'tiers': tiers}));
+
+    Map<String, int>? snapshot;
+    String? snapshotSeason;
+    try {
+      final raw = prefs.getString(_seasonSnapshotKey);
+      if (raw != null && raw.isNotEmpty) {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        snapshotSeason = decoded['season'] as String?;
+        snapshot = (decoded['tiers'] as Map<String, dynamic>)
+            .map((k, v) => MapEntry(k, (v as num).toInt()));
+      }
+    } catch (_) {
+      snapshot = null;
+    }
+
+    if (snapshot == null || snapshotSeason == null || _seasonResyncPending) {
+      _seasonResyncPending = false;
+      await write(current);
+      return const [];
+    }
+
+    final rolled = snapshotSeason != season.id;
+    final unlocks = <MilestoneUnlock>[];
+    final merged = <String, int>{};
+    for (final goal in kSeasonGoals) {
+      final was = rolled ? -1 : (snapshot[goal.id] ?? -1);
+      final now = current[goal.id]!;
+      if (now > was) unlocks.add(MilestoneUnlock(goal, goal.tiers[now]));
+      merged[goal.id] = now > was ? now : was;
+    }
+
+    if (unlocks.isEmpty && !rolled) return const [];
+    await write(merged);
     unlocks.sort((a, b) => a.tier.tier.index.compareTo(b.tier.tier.index));
     return unlocks;
   }

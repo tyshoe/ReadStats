@@ -56,6 +56,9 @@ import '../repositories/goal_repository.dart';
 /// * Goals of each period, with target changes, created in the past — plus a
 ///   weekly sessions goal one session short this week, so logging any session
 ///   sets off the goal celebration (and its "Met your weekly goal" entry).
+/// * Seasonal achievements: the sessions and finish dates above run through
+///   the current season and eight before it, so Profile's season wall has
+///   medals earned and in progress, and "Past seasons" has a history.
 /// * Planner entries.
 class DemoData {
   DemoData._();

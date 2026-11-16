@@ -1,3 +1,4 @@
+import 'ui/pages/profile/seasons.dart';
 import 'ui/widgets/import_progress_dialog.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/foundation.dart';
@@ -378,10 +379,24 @@ class _MyAppState extends State<MyApp> {
           debugPrint('Goal achievement check failed: $e');
           goalsMet = const [];
         }
-        // Goals first, so a night that does both builds toward the medal.
+        // Seasonal medals ride it too, and are kept apart for the same
+        // reason.
+        final season = Season.of(DateTime.now());
+        final inSeason = seasonStats(season, _books, _sessions);
+        List<MilestoneUnlock> seasonal;
+        try {
+          seasonal = await MilestoneService.checkSeason(season, inSeason);
+        } catch (e) {
+          debugPrint('Seasonal milestone check failed: $e');
+          seasonal = const [];
+        }
+        // Goals first, so a night that does both builds toward the medal;
+        // the season's before the lifetime ones, which are the rarer.
         _pendingCelebrations = [
           ..._pendingCelebrations,
           for (final a in goalsMet) Celebration.goal(a),
+          for (final u in seasonal)
+            Celebration.seasonBadge(u, inSeason, season),
           for (final u in unlocks) Celebration.badge(u, stats),
         ];
       } while (_milestoneRecheckQueued);

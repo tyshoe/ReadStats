@@ -6,6 +6,7 @@ import '/data/services/goal_achievement_service.dart';
 import '/data/services/milestone_service.dart';
 import 'badges.dart';
 import 'reading_stats.dart';
+import 'seasons.dart';
 
 /// One screen of the celebration: what was achieved, and where it leaves the
 /// reader.
@@ -49,6 +50,27 @@ class Celebration {
       total: goal.formatValue(goal.measure(stats)),
       note: next == null
           ? 'Every tier earned.'
+          : 'Next: ${next.title} at ${goal.formatShortValue(next.threshold)}',
+    );
+  }
+
+  /// A seasonal medal just earned: [Celebration.badge] with the season in
+  /// the eyebrow, and [stats] the season's own.
+  factory Celebration.seasonBadge(
+      MilestoneUnlock unlock, ReadingStats stats, Season season) {
+    final goal = unlock.goal;
+    final tier = unlock.tier;
+    final next = goal.nextTier(stats);
+    return Celebration(
+      color: badgeTierColor(tier.tier),
+      icon: goal.icon,
+      eyebrow: '${season.name.toUpperCase()} · '
+          '${badgeTierLabel(tier.tier).toUpperCase()}',
+      title: tier.title,
+      subtitle: goal.title,
+      total: goal.formatValue(goal.measure(stats)),
+      note: next == null
+          ? 'Every tier earned this season.'
           : 'Next: ${next.title} at ${goal.formatShortValue(next.threshold)}',
     );
   }
