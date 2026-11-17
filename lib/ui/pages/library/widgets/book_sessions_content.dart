@@ -183,7 +183,7 @@ class _BookSessionsContentState extends State<BookSessionsContent> {
       ?positions,
       if (startPage != null && endPage != null) 'p. $startPage–$endPage',
       if (pages > 0) '$pages ${pages == 1 ? 'page' : 'pages'}',
-      if (pages > 0 && minutes > 0) '${(pages / minutes).toStringAsFixed(1)}/min',
+      if (pages > 0 && minutes > 0) '${(pages * 60 / minutes).round()}/hr',
     ].join(' · ');
 
     return Container(

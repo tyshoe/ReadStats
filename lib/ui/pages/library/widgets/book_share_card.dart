@@ -679,7 +679,7 @@ class _BookShareCardState extends State<BookShareCard> {
       parts.add('${widget.wordsPerMinute.round()} wpm');
     }
     if (widget.pagesPerMinute > 0) {
-      parts.add('${widget.pagesPerMinute.toStringAsFixed(1)} pg/min');
+      parts.add('${(widget.pagesPerMinute * 60).round()} pg/hr');
     }
     if (widget.sessionCount > 0 && widget.totalTime > 0) {
       final avg = (widget.totalTime / widget.sessionCount).round();

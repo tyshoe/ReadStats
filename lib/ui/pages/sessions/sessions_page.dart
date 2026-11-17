@@ -526,7 +526,7 @@ class _SessionsPageState extends State<SessionsPage>
                         ),
                         const SizedBox(width: 2),
                         Text(
-                          '${pagesPerMinute.toStringAsFixed(1)}/min',
+                          '${(pagesPerMinute * 60).round()}/hr',
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: theme.colorScheme.onSurface.withAlpha(153),
                           ),

@@ -923,7 +923,7 @@ class BookPopup {
                               if (!isAudiobook) ('Pages Read', stats['total_pages']?.toString() ?? '0'),
                               if (totalTime > 0) ('Avg Session', _formatTime(avgSession)),
                               if (wpm > 0) ('Words/Min', wpm.round().toString()),
-                              if (!isAudiobook && ppm > 0) ('Pages/Min', ppm.toStringAsFixed(1)),
+                              if (!isAudiobook && ppm > 0) ('Pages/Hour', (ppm * 60).round().toString()),
                             ];
 
                             final rows = <List<(String, String)>>[];

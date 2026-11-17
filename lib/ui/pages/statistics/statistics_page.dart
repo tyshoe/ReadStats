@@ -1307,8 +1307,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
                     ),
                   ),
                   StatCard(
-                    title: 'Avg Pages/Min',
-                    value: _stats['avgPagesPerMinute'].toStringAsFixed(2),
+                    title: 'Avg Pages/Hour',
+                    value: (_stats['avgPagesPerMinute'] * 60).round().toString(),
                   ),
                 ]),
               ),
