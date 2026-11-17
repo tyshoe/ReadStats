@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
+import '/data/utils/money.dart';
 
 class SettingsViewModel {
   final ValueNotifier<ThemeMode> themeModeNotifier;
@@ -35,6 +36,11 @@ class SettingsViewModel {
   final ValueNotifier<String> profileNameNotifier = ValueNotifier('');
   final ValueNotifier<String?> profileAvatarNotifier =
       ValueNotifier<String?>(null);
+  // Spending: whether books carry a price at all — off unless the reader
+  // turns it on, and nothing about money shows while it is — and the one
+  // currency every amount is in. Loaded like the profile.
+  final ValueNotifier<bool> spendingEnabledNotifier = ValueNotifier(false);
+  final ValueNotifier<String> currencyNotifier = ValueNotifier('USD');
 
   SettingsViewModel({
     required ThemeMode themeMode,
@@ -92,6 +98,23 @@ class SettingsViewModel {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     profileNameNotifier.value = prefs.getString('profileName') ?? '';
     profileAvatarNotifier.value = prefs.getString('profileAvatar');
+    spendingEnabledNotifier.value = prefs.getBool('spendingEnabled') ?? false;
+    currencyNotifier.value =
+        prefs.getString('spendingCurrency') ?? Money.deviceDefault();
+  }
+
+  Future<void> setSpendingEnabled(bool enabled) async {
+    spendingEnabledNotifier.value = enabled;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('spendingEnabled', enabled);
+  }
+
+  /// Changes the symbol amounts are shown with. Nothing is converted: the
+  /// numbers already entered stay as they are.
+  Future<void> setCurrency(String code) async {
+    currencyNotifier.value = code;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('spendingCurrency', code);
   }
 
   Future<void> setProfileName(String name) async {

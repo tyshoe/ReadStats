@@ -328,6 +328,7 @@ class ImportExportService {
         'date_started', 'date_finished', 'isbn', 'user_review',
         'duration_minutes', 'shelf_id', 'cover_path', 'open_library_key',
         'cover_shape', 'narrator', 'series_name', 'series_position',
+        'price_paid',
       ],
       ...books.map((b) => [
         b.id.toString(),
@@ -357,6 +358,7 @@ class ImportExportService {
         // By name, not id: series ids are local and get recreated on restore.
         b.seriesName ?? '',
         b.seriesPosition?.toString() ?? '',
+        b.pricePaid?.toString() ?? '',
       ]),
     ];
   }
@@ -995,6 +997,9 @@ class ImportExportService {
           seriesName: row.length > 20 ? _nullableString(row[20]) : null,
           seriesPosition:
               row.length > 21 ? double.tryParse(row[21].toString()) : null,
+          // Absent from backups made before prices were kept.
+          pricePaid:
+              row.length > 22 ? double.tryParse(row[22].toString()) : null,
         ));
       } catch (e) {
         if (kDebugMode) print('Skipping book row: $e');

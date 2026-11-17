@@ -19,6 +19,7 @@ import 'widgets/rating_style_picker.dart';
 import '../settings/widgets/book_type_picker.dart';
 import '../settings/widgets/theme_mode_picker.dart';
 import 'widgets/date_format_picker.dart';
+import 'widgets/currency_picker.dart';
 
 class SettingsPage extends StatelessWidget {
   final Function(ThemeMode) toggleTheme;
@@ -164,6 +165,47 @@ class SettingsPage extends StatelessWidget {
                 onTap: () => showDateFormatPicker(context, settingsViewModel),
               ),
             ],
+          ),
+
+          // Spending Section — an extra for readers who want to know what their
+          // books cost. Off by default; while it is, no screen mentions money.
+          ValueListenableBuilder<bool>(
+            valueListenable: settingsViewModel.spendingEnabledNotifier,
+            builder: (context, enabled, _) => _buildSettingsSection(
+              context,
+              header: 'Spending',
+              children: [
+                SwitchListTile(
+                  secondary: _leadingSlot(
+                      context, const Icon(Icons.payments, size: 22)),
+                  title: Text('Track spending',
+                      style: TextStyle(color: colors.onSurface)),
+                  subtitle: Text(
+                    'Record what you paid for each book',
+                    style: TextStyle(color: colors.onSurfaceVariant),
+                  ),
+                  value: enabled,
+                  activeThumbColor:
+                      settingsViewModel.accentColorNotifier.value,
+                  onChanged: settingsViewModel.setSpendingEnabled,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                if (enabled)
+                  _buildValueTile(
+                    context,
+                    icon: Icons.currency_exchange,
+                    title: 'Currency',
+                    value: ValueListenableBuilder<String>(
+                      valueListenable: settingsViewModel.currencyNotifier,
+                      builder: (context, code, _) => _valueLabel(
+                          context, currencyLabel(code)),
+                    ),
+                    onTap: () =>
+                        showCurrencyPicker(context, settingsViewModel),
+                  ),
+              ],
+            ),
           ),
 
           // Notifications Section — local reminders, each configured on its own

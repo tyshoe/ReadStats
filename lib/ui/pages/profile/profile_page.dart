@@ -6,6 +6,7 @@ import '/data/models/goal.dart';
 import '/data/models/preset_avatar.dart';
 import '/data/repositories/goal_repository.dart';
 import '/data/services/avatar_service.dart';
+import '/data/utils/money.dart';
 import '/ui/widgets/image_editor_page.dart';
 import '/viewmodels/settings_view_model.dart';
 import 'activity_page.dart';
@@ -15,6 +16,7 @@ import 'reading_activity.dart';
 import 'reading_stats.dart';
 import 'seasons.dart';
 import 'seasons_page.dart';
+import 'spending_page.dart';
 
 /// The reader's identity surface: avatar + name, lifetime headline stats, and
 /// a tiered achievements wall. Deliberately the "headline" to the Statistics
@@ -404,6 +406,7 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 8),
           _buildHeroStats(theme),
           _buildThisYear(theme, accent),
+          _buildSpending(theme, accent),
           _buildGoals(theme, accent),
           _buildActivity(theme, accent),
           _buildSeason(theme, accent),
@@ -622,6 +625,84 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
+    );
+  }
+
+  /// The way in to the spending page — one row, and only for readers who
+  /// turned spending on in Settings. Everyone else never sees money.
+  Widget _buildSpending(ThemeData theme, Color accent) {
+    final settings = widget.settingsViewModel;
+    return ValueListenableBuilder<bool>(
+      valueListenable: settings.spendingEnabledNotifier,
+      builder: (context, enabled, _) {
+        if (!enabled) return const SizedBox.shrink();
+        return ValueListenableBuilder<String>(
+          valueListenable: settings.currencyNotifier,
+          builder: (context, currency, _) {
+            var count = 0;
+            var spent = 0.0;
+            for (final b in widget.books) {
+              final paid = b['price_paid'] as num?;
+              if (paid == null) continue;
+              count++;
+              spent += paid;
+            }
+            final muted = theme.colorScheme.onSurfaceVariant;
+
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Card(
+                margin: EdgeInsets.zero,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                child: InkWell(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => SpendingPage(
+                        books: widget.books,
+                        sessions: widget.sessions,
+                        settingsViewModel: settings,
+                      ),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+                    child: Row(
+                      children: [
+                        Icon(Icons.payments, size: 20, color: accent),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Spending',
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                    fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                count == 0
+                                    ? 'Add a price to a book to start'
+                                    : '${Money.format(spent, currency, whole: true)}'
+                                        ' on $count ${count == 1 ? 'book' : 'books'}',
+                                style: theme.textTheme.bodySmall
+                                    ?.copyWith(color: muted),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: muted),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

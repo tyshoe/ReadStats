@@ -29,6 +29,9 @@ class Book {
   /// novella can sit at 1.5. Both null for standalones.
   int? seriesId;
   double? seriesPosition;
+  /// What the reader paid for this copy, in their own currency. Optional,
+  /// and only entered by those who track their spending.
+  double? pricePaid;
   // Denormalized from JOIN — populated when loaded from DB, not written back
   final String? shelfName;
   /// Joined series name on reads. Also carries a name to resolve into
@@ -58,6 +61,7 @@ class Book {
     this.narrator,
     this.seriesId,
     this.seriesPosition,
+    this.pricePaid,
     this.shelfName,
     this.seriesName,
   });
@@ -87,6 +91,7 @@ class Book {
       'narrator': narrator,
       'series_id': seriesId,
       'series_position': seriesPosition,
+      'price_paid': pricePaid,
       // tags stored separately in book_tags
     };
   }
@@ -115,6 +120,7 @@ class Book {
       narrator: map['narrator'] as String?,
       seriesId: map['series_id'] as int?,
       seriesPosition: (map['series_position'] as num?)?.toDouble(),
+      pricePaid: (map['price_paid'] as num?)?.toDouble(),
       shelfName: map['shelf_name'] as String?,
       seriesName: map['series_name'] as String?,
     );

@@ -59,6 +59,10 @@ import '../repositories/goal_repository.dart';
 /// * Seasonal achievements: the sessions and finish dates above run through
 ///   the current season and eight before it, so Profile's season wall has
 ///   medals earned and in progress, and "Past seasons" has a history.
+/// * Spending (Settings → Spending → Track spending): a price on most books
+///   in every format and on every shelf, with one in seven left unpriced, so
+///   the Spending page has totals, years and formats to compare, money in
+///   unread books, a cost per hour read, and an "aren't counted" note.
 /// * Planner entries.
 class DemoData {
   DemoData._();
@@ -713,6 +717,7 @@ class _Generator {
 
     books.add(Book(
       id: id,
+      pricePaid: _price(id, t),
       title: t.title,
       author: t.author,
       pageCount: t.isAudio ? null : t.pages,
@@ -738,6 +743,23 @@ class _Generator {
     for (final tag in t.tags) {
       bookTags.add(BookTag(bookId: id, tagId: tagIds[tag]!));
     }
+  }
+
+  /// What book [id] cost, or null for the one in seven left unpriced, as a
+  /// library filled in over time has.
+  ///
+  /// Worked out from the id, never [rng]: a draw here would shift every
+  /// random choice made after it and change the rest of the library.
+  double? _price(int id, _Title t) {
+    if (id % 7 == 3) return null;
+    const prices = {
+      _paperback: [9.99, 11.50, 12.99, 14.00, 8.75],
+      _hardback: [22.00, 26.99, 24.50, 32.00],
+      _ebook: [2.99, 4.99, 0.99, 6.49],
+      _audiobook: [14.95, 19.99, 12.50],
+    };
+    final pool = prices[t.format]!;
+    return pool[id % pool.length];
   }
 
   /// Added to the library a few days to a few weeks before being started.

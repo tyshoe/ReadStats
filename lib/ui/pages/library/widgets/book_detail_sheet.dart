@@ -21,6 +21,7 @@ import '/data/database/database_helper.dart';
 import '/data/services/cover_service.dart';
 import '/data/services/gallery_save_service.dart';
 import '/data/utils/series_title.dart';
+import '/data/utils/money.dart';
 import '/ui/widgets/book_cover.dart';
 import '/ui/widgets/book_type.dart';
 import '/ui/widgets/share_action.dart';
@@ -134,6 +135,17 @@ class BookPopup {
     final String narratorString = isAudiobook
         ? (book['narrator'] as String? ?? '').trim()
         : '';
+
+    // "Paid $12.99" — only for readers who track their spending, and only
+    // on a book that has a price.
+    String costString = '';
+    if (settingsViewModel.spendingEnabledNotifier.value) {
+      final paid = (book['price_paid'] as num?)?.toDouble();
+      if (paid != null) {
+        costString =
+            'Paid ${Money.format(paid, settingsViewModel.currencyNotifier.value)}';
+      }
+    }
 
     final (bookTypeIcon, bookTypeString) = _bookTypeDetails(book['book_type_id'] as int?);
 
@@ -438,6 +450,13 @@ class BookPopup {
                                         if (isAudiobook && durationString != '') ...[
                                           const SizedBox(height: 4),
                                           Text(durationString, style: TextStyle(
+                                            fontSize: 14,
+                                            color: book['cover_path'] != null ? Colors.white.withValues(alpha: 0.7) : subtitleColor,
+                                          )),
+                                        ],
+                                        if (costString != '') ...[
+                                          const SizedBox(height: 4),
+                                          Text(costString, style: TextStyle(
                                             fontSize: 14,
                                             color: book['cover_path'] != null ? Colors.white.withValues(alpha: 0.7) : subtitleColor,
                                           )),

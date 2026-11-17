@@ -18,6 +18,7 @@ import '../../../data/repositories/book_repository.dart';
 import '../../../data/repositories/series_repository.dart';
 import '../../../data/repositories/tag_repository.dart';
 import '../../../data/utils/series_title.dart';
+import '../../../data/utils/money.dart';
 import '../../../data/services/cover_service.dart';
 import 'widgets/cover_search_sheet.dart';
 import 'widgets/edition_picker_page.dart';
@@ -90,6 +91,7 @@ class _BookFormPageState extends State<BookFormPage> {
   final TextEditingController _durationMinutesController =
       TextEditingController();
   final TextEditingController _narratorController = TextEditingController();
+  final TextEditingController _pricePaidController = TextEditingController();
   final TextEditingController _seriesController = TextEditingController();
   final TextEditingController _seriesPositionController =
       TextEditingController();
@@ -186,6 +188,7 @@ class _BookFormPageState extends State<BookFormPage> {
       _isFavorite = d['is_favorite'] == 1;
       _selectedBookType = ((d['book_type_id'] as int?) ?? 1) - 1;
       _narratorController.text = d['narrator'] ?? _narratorController.text;
+      _pricePaidController.text = Money.forField(d['price_paid'] as num?);
       _seriesController.text = d['series_name'] ?? '';
       _seriesPositionController.text = _formatSeriesPosition(d['series_position']);
       _selectedTagIds = {...?widget.initialTagIds};
@@ -218,6 +221,8 @@ class _BookFormPageState extends State<BookFormPage> {
         _durationMinutesController.text = (editDuration % 60).toString();
       }
       _narratorController.text = widget.book!['narrator'] ?? '';
+      _pricePaidController.text =
+          Money.forField(widget.book!['price_paid'] as num?);
       _seriesController.text = widget.book!['series_name'] ?? '';
       _seriesPositionController.text =
           _formatSeriesPosition(widget.book!['series_position']);
@@ -273,6 +278,7 @@ class _BookFormPageState extends State<BookFormPage> {
     _durationHoursController.dispose();
     _durationMinutesController.dispose();
     _narratorController.dispose();
+    _pricePaidController.dispose();
     _seriesController.dispose();
     _seriesPositionController.dispose();
     _seriesFocus.dispose();
@@ -399,6 +405,10 @@ class _BookFormPageState extends State<BookFormPage> {
       "narrator": _narratorController.text.trim().isEmpty
           ? null
           : _narratorController.text.trim(),
+      // Written whether or not the field is showing, like the narrator:
+      // turning spending off hides it, and a save made meanwhile must not
+      // wipe what was entered.
+      "price_paid": Money.parse(_pricePaidController.text),
       "user_review": _userReviewController.text.trim().isEmpty
           ? null
           : _userReviewController.text.trim(),
@@ -543,6 +553,7 @@ class _BookFormPageState extends State<BookFormPage> {
     _isbnController.clear();
     _userReviewController.clear();
     _narratorController.clear();
+    _pricePaidController.clear();
     _seriesController.clear();
     _seriesPositionController.clear();
     setState(() {
@@ -2174,6 +2185,10 @@ class _BookFormPageState extends State<BookFormPage> {
                     ),
                     const SizedBox(height: 16),
 
+                    // Price paid, for readers who track their spending
+                    if (widget.settingsViewModel.spendingEnabledNotifier.value)
+                      _buildPriceField(theme),
+
                     // Tags Section
                     InkWell(
                       onTap: () async {
@@ -2302,6 +2317,52 @@ class _BookFormPageState extends State<BookFormPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// What the reader paid for this copy. Optional.
+  Widget _buildPriceField(ThemeData theme) {
+    final symbol =
+        Money.symbol(widget.settingsViewModel.currencyNotifier.value);
+    // Digits with up to two decimals, either mark. A keystroke that would
+    // break that is dropped rather than clearing what is there.
+    final amount = RegExp(r'^\d{0,9}([.,]\d{0,2})?$');
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextField(
+        controller: _pricePaidController,
+        decoration: InputDecoration(
+          labelText: 'Price paid',
+          hintText: '0.00',
+          prefixText: '$symbol ',
+          filled: true,
+          fillColor: theme.colorScheme.surfaceContainerHighest,
+          border: UnderlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: UnderlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: UnderlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+        ),
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          TextInputFormatter.withFunction(
+            (oldValue, newValue) =>
+                amount.hasMatch(newValue.text) ? newValue : oldValue,
+          ),
+        ],
+        onTapOutside: (event) {
+          FocusManager.instance.primaryFocus?.unfocus();
+        },
       ),
     );
   }
