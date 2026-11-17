@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'badges.dart';
 import 'goal_medals.dart';
 import 'reading_stats.dart';
 import 'seasons.dart';
@@ -94,7 +93,6 @@ class SeasonsPage extends StatelessWidget {
           final season = seasons[index];
           final stats = seasonStats(season, books, sessions);
           final current = season.contains(now);
-          final best = _bestTier(stats);
 
           return Container(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
@@ -107,11 +105,7 @@ class SeasonsPage extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(
-                      season.icon,
-                      size: 18,
-                      color: best == null ? muted : badgeTierColor(best),
-                    ),
+                    Icon(season.icon, size: 18, color: season.color),
                     const SizedBox(width: 8),
                     Text(
                       season.name,
@@ -143,18 +137,6 @@ class SeasonsPage extends StatelessWidget {
         },
       ),
     );
-  }
-
-  /// The highest tier any medal reached, which colours the season's icon.
-  static BadgeTier? _bestTier(ReadingStats stats) {
-    BadgeTier? best;
-    for (final goal in kSeasonGoals) {
-      final tier = goal.highestTier(stats)?.tier;
-      if (tier != null && (best == null || tier.index > best.index)) {
-        best = tier;
-      }
-    }
-    return best;
   }
 
   /// "4 books · 31h"

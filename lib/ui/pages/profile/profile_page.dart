@@ -928,7 +928,7 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           Row(
             children: [
-              Icon(season.icon, size: 18, color: muted),
+              Icon(season.icon, size: 18, color: season.color),
               const SizedBox(width: 8),
               Text(
                 season.name,

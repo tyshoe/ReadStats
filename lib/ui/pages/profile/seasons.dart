@@ -63,6 +63,16 @@ class Season {
         Icons.eco_rounded,
       ][_quarter];
 
+  /// The colour of the time of year: blue for winter, green for spring,
+  /// yellow for summer, orange for fall. Tints the season's icon in its
+  /// heading; the medals keep the colour of their tier.
+  Color get color => const [
+        Color(0xFF42A5F5),
+        Color(0xFF66BB6A),
+        Color(0xFFFFC107),
+        Color(0xFFFB8C00),
+      ][_quarter];
+
   /// "Sep – Nov"
   String get months {
     final last = DateTime(start.year, start.month + 2);
