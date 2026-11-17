@@ -537,12 +537,4 @@ class DatabaseHelper {
       UNIQUE(series_id, position)
     )
   ''';
-
-  Future<void> printDatabaseVersion() async {
-    final db = await database;
-    final version = await db.getVersion();
-    if (kDebugMode) {
-      print('Current database version: $version');
-    }
-  }
 }

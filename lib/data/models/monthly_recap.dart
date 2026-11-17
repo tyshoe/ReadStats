@@ -21,16 +21,6 @@ class RecapBook {
     required this.coverShape,
     required this.pages,
   });
-
-  RecapBook withCoverPath(String? path) => RecapBook(
-        id: id,
-        title: title,
-        author: author,
-        rating: rating,
-        coverPath: path,
-        coverShape: coverShape,
-        pages: pages,
-      );
 }
 
 /// One calendar month of reading, worked out from the book and session maps the
@@ -142,14 +132,9 @@ class MonthlyRecap {
     return ((minutes - previousMinutes) / previousMinutes * 100).round();
   }
 
-  int get booksChange => booksFinishedCount - previousBooksFinished;
-
   String get monthLabel => DateFormat('MMMM yyyy').format(DateTime(year, month));
 
   String get monthNameOnly => DateFormat('MMMM').format(DateTime(year, month));
-
-  String get shortMonthLabel =>
-      DateFormat('MMM yyyy').format(DateTime(year, month));
 
   /// Sortable identity for a month, used as the key for "already seen".
   int get key => monthKey(year, month);

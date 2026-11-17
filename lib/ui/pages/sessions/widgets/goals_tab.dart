@@ -47,8 +47,6 @@ class GoalsTabState extends State<GoalsTab> {
   Set<String> get _takenSlots =>
       _goals.map((g) => '${g.metric.dbValue}:${g.period.dbValue}').toSet();
 
-  void openAdd() => _openAdd();
-
   void _openAdd() {
     final accentColor = widget.settingsViewModel.accentColorNotifier.value;
     showGoalFormSheet(

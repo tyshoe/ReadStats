@@ -720,11 +720,4 @@ class SettingsPage extends StatelessWidget {
     0: "Stars",
     1: "Numbers",
   };
-
-  static const Map<int, String> bookTypeNames = {
-    1: "Paperback",
-    2: "Hardback",
-    3: "eBook",
-    4: "Audiobook",
-  };
 }

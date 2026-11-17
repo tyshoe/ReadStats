@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '/ui/widgets/field_decoration.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '/data/repositories/book_repository.dart';
@@ -162,24 +163,9 @@ void showRateBookDialog({
                           )
                         : TextField(
                             controller: ratingController,
-                            decoration: InputDecoration(
+                            decoration: filledFieldDecoration(theme).copyWith(
                               labelText: 'Rating',
                               hintText: 'Enter rating (0–5)',
-                              filled: true,
-                              fillColor: theme.colorScheme.surfaceContainerHighest,
-                              border: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                               suffixIcon: ratingController.text.isNotEmpty
                                   ? IconButton(
                                       icon: const Icon(Icons.clear),
@@ -224,24 +210,9 @@ void showRateBookDialog({
 
                     TextField(
                       controller: reviewController,
-                      decoration: InputDecoration(
+                      decoration: filledFieldDecoration(theme).copyWith(
                         labelText: 'Review (optional)',
                         hintText: 'What did you think?',
-                        filled: true,
-                        fillColor: theme.colorScheme.surfaceContainerHighest,
-                        border: UnderlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: UnderlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                         alignLabelWithHint: true,
                       ),
                       minLines: 3,

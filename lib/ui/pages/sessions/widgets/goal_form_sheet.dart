@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/ui/widgets/field_decoration.dart';
 import 'package:flutter/services.dart';
 import '/data/models/goal.dart';
 import '/data/repositories/goal_repository.dart';
@@ -293,15 +294,9 @@ class _GoalFormSheetState extends State<_GoalFormSheet> {
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     onChanged: (_) => setState(() {}),
                     onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-                    decoration: InputDecoration(
+                    decoration: filledFieldDecoration(theme).copyWith(
                       labelText: 'Hours',
-                      filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest,
-                      border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       disabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                     ),
                   ),
                 ),
@@ -318,15 +313,9 @@ class _GoalFormSheetState extends State<_GoalFormSheet> {
                       setState(() {});
                     },
                     onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-                    decoration: InputDecoration(
+                    decoration: filledFieldDecoration(theme).copyWith(
                       labelText: 'Minutes',
-                      filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest,
-                      border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       disabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                     ),
                   ),
                 ),
@@ -340,42 +329,33 @@ class _GoalFormSheetState extends State<_GoalFormSheet> {
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               onChanged: (_) => setState(() {}),
               onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-              decoration: InputDecoration(
+              decoration: filledFieldDecoration(theme).copyWith(
                 labelText: switch (_metric) {
                   GoalMetric.pagesRead => 'Pages',
                   GoalMetric.sessions => 'Sessions',
                   GoalMetric.booksFinished => 'Books',
                   _ => null,
                 },
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest,
-                border: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                enabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                focusedBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 disabledBorder: UnderlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
               ),
             ),
           const SizedBox(height: 24),
 
-          Opacity(
-            opacity: _canSave ? 1.0 : 0.4,
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _save,
-                style: FilledButton.styleFrom(
-                  backgroundColor: widget.accentColor,
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                child: _saving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : Text(_isEditing ? 'Update Goal' : 'Set Goal'),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _canSave ? _save : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: widget.accentColor,
+                minimumSize: const Size.fromHeight(48),
               ),
+              child: _saving
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text(_isEditing ? 'Update Goal' : 'Set Goal'),
             ),
           ),
           ],

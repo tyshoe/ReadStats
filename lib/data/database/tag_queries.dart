@@ -38,15 +38,6 @@ extension TagQueries on DatabaseHelper {
   ''', [bookId]);
   }
 
-  Future<List<Map<String, dynamic>>> getBooksForTag(int tagId) async {
-    final db = await database;
-    return await db.rawQuery('''
-    SELECT books.* FROM books
-    INNER JOIN book_tags ON books.id = book_tags.book_id
-    WHERE book_tags.tag_id = ?
-  ''', [tagId]);
-  }
-
   Future<List<Tag>> getAllTagsWithCount() async {
     final db = await database;
 

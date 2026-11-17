@@ -37,18 +37,6 @@ class _TagState {
         }
     }
   }
-
-  /// Coverage label shown next to the tag name.
-  String? get coverageLabel {
-    if (intent != _TagIntent.unchanged) return null; // hide once user acted
-    switch (initialCoverage) {
-      case _TagCoverage.all:
-      case _TagCoverage.none:
-        return null; // obvious from the checkbox
-      case _TagCoverage.some:
-        return 'Some';
-    }
-  }
 }
 
 /// Shows a modal bottom sheet that lets the user bulk-apply / remove tags

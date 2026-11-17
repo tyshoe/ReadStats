@@ -147,7 +147,7 @@ class BookPopup {
       }
     }
 
-    final (bookTypeIcon, bookTypeString) = _bookTypeDetails(book['book_type_id'] as int?);
+    final (bookTypeIcon, bookTypeString) = bookTypeDetails(book['book_type_id'] as int?);
 
     final statsKey = GlobalKey();
     double? statsHeight;
@@ -1593,7 +1593,6 @@ class BookPopup {
     return "$percentage% ($timeString)";
   }
 
-  static (IconData, String) _bookTypeDetails(int? id) => bookTypeDetails(id);
 
   static String _formatTime(int totalMinutes) {
     final days = totalMinutes ~/ (24 * 60);

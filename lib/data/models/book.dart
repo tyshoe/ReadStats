@@ -128,10 +128,6 @@ class Book {
 
   bool get isFinished => dateFinished != null;
 
-  void addTag(Tag tag) => tags.add(tag);
-  void removeTag(Tag tag) => tags.remove(tag);
-  bool hasTag(Tag tag) => tags.any((t) => t.id == tag.id);
-
   @override
   String toString() => 'Book(id: $id, title: $title, shelfId: $shelfId, tags: ${tags.length})';
 }

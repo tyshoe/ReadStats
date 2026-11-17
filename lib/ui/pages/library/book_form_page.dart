@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '/ui/widgets/field_decoration.dart';
 import '../../widgets/app_snackbar.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -1221,25 +1222,10 @@ class _BookFormPageState extends State<BookFormPage> {
         Expanded(
           child: TextField(
             controller: _titleController,
-            decoration: InputDecoration(
+            decoration: filledFieldDecoration(theme).copyWith(
               labelText: 'Title',
               hintText: 'Enter book title',
               floatingLabelBehavior: FloatingLabelBehavior.auto,
-              filled: true,
-              fillColor: theme.colorScheme.surfaceContainerHighest,
-              border: UnderlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: UnderlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: UnderlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
             ),
             onChanged: (value) {
               if (_titleTitleCaseEnabled && value.isNotEmpty) {
@@ -1320,25 +1306,10 @@ class _BookFormPageState extends State<BookFormPage> {
                   return TextField(
                     controller: _authorController,
                     focusNode: focusNode,
-                    decoration: InputDecoration(
+                    decoration: filledFieldDecoration(theme).copyWith(
                       labelText: 'Author',
                       hintText: 'Enter author',
                       floatingLabelBehavior: FloatingLabelBehavior.auto,
-                      filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest,
-                      border: UnderlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: UnderlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                     ),
                     onChanged: (value) {
                       if (_authorTitleCaseEnabled && value.isNotEmpty) {
@@ -1412,24 +1383,9 @@ class _BookFormPageState extends State<BookFormPage> {
   Widget _buildSeriesField() {
     final theme = Theme.of(context);
 
-    InputDecoration decoration(String label, String hint) => InputDecoration(
+    InputDecoration decoration(String label, String hint) => filledFieldDecoration(theme).copyWith(
           labelText: label,
           hintText: hint,
-          filled: true,
-          fillColor: theme.colorScheme.surfaceContainerHighest,
-          border: UnderlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: UnderlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: UnderlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
         );
 
     return Row(
@@ -1548,28 +1504,8 @@ class _BookFormPageState extends State<BookFormPage> {
                     DropdownButtonFormField<int>(
                       initialValue: _selectedBookType,
                       style: theme.textTheme.bodyLarge,
-                      decoration: InputDecoration(
+                      decoration: filledFieldDecoration(theme).copyWith(
                         labelText: 'Format',
-                        filled: true,
-                        fillColor: theme.colorScheme.surfaceContainerHighest,
-                        border: UnderlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: UnderlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.fromLTRB(
-                          12,
-                          10,
-                          12,
-                          6,
-                        ),
                       ),
                       items: const [
                         DropdownMenuItem(value: 0, child: Text('Paperback')),
@@ -1592,29 +1528,9 @@ class _BookFormPageState extends State<BookFormPage> {
                     if (!isAudiobook) ...[
                       TextField(
                         controller: _pageCountController,
-                        decoration: InputDecoration(
+                        decoration: filledFieldDecoration(theme).copyWith(
                           labelText: 'Pages',
                           hintText: 'Enter number of pages',
-                          filled: true,
-                          fillColor: theme.colorScheme.surfaceContainerHighest,
-                          border: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.fromLTRB(
-                            12,
-                            10,
-                            12,
-                            6,
-                          ),
                         ),
                         keyboardType: TextInputType.number,
                         inputFormatters: [
@@ -1628,29 +1544,9 @@ class _BookFormPageState extends State<BookFormPage> {
                       const SizedBox(height: 16),
                       TextField(
                         controller: _wordCountController,
-                        decoration: InputDecoration(
+                        decoration: filledFieldDecoration(theme).copyWith(
                           labelText: 'Words',
                           hintText: 'Enter number of words',
-                          filled: true,
-                          fillColor: theme.colorScheme.surfaceContainerHighest,
-                          border: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.fromLTRB(
-                            12,
-                            10,
-                            12,
-                            6,
-                          ),
                         ),
                         keyboardType: TextInputType.number,
                         onChanged: (value) => setState(() {}),
@@ -1669,31 +1565,11 @@ class _BookFormPageState extends State<BookFormPage> {
                         onChanged: (_) => setState(() {}),
                         onTapOutside: (_) =>
                             FocusManager.instance.primaryFocus?.unfocus(),
-                        decoration: InputDecoration(
+                        decoration: filledFieldDecoration(theme).copyWith(
                           labelText: 'Narrator',
                           // Plural because full-cast recordings are common —
                           // the field takes a comma-separated list.
                           hintText: 'Enter narrator(s)',
-                          filled: true,
-                          fillColor: theme.colorScheme.surfaceContainerHighest,
-                          border: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.fromLTRB(
-                            12,
-                            10,
-                            12,
-                            6,
-                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -1709,29 +1585,8 @@ class _BookFormPageState extends State<BookFormPage> {
                               onChanged: (_) => setState(() {}),
                               onTapOutside: (_) =>
                                   FocusManager.instance.primaryFocus?.unfocus(),
-                              decoration: InputDecoration(
+                              decoration: filledFieldDecoration(theme).copyWith(
                                 labelText: 'Hours',
-                                filled: true,
-                                fillColor:
-                                    theme.colorScheme.surfaceContainerHighest,
-                                border: UnderlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                enabledBorder: UnderlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                focusedBorder: UnderlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  10,
-                                  12,
-                                  6,
-                                ),
                               ),
                             ),
                           ),
@@ -1752,29 +1607,8 @@ class _BookFormPageState extends State<BookFormPage> {
                               },
                               onTapOutside: (_) =>
                                   FocusManager.instance.primaryFocus?.unfocus(),
-                              decoration: InputDecoration(
+                              decoration: filledFieldDecoration(theme).copyWith(
                                 labelText: 'Minutes',
-                                filled: true,
-                                fillColor:
-                                    theme.colorScheme.surfaceContainerHighest,
-                                border: UnderlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                enabledBorder: UnderlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                focusedBorder: UnderlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  10,
-                                  12,
-                                  6,
-                                ),
                               ),
                             ),
                           ),
@@ -1791,30 +1625,9 @@ class _BookFormPageState extends State<BookFormPage> {
                           Expanded(
                             child: TextField(
                               controller: _isbnController,
-                              decoration: InputDecoration(
+                              decoration: filledFieldDecoration(theme).copyWith(
                                 labelText: 'ISBN',
                                 hintText: '978-X-XX-XXXXXX-X',
-                                filled: true,
-                                fillColor:
-                                    theme.colorScheme.surfaceContainerHighest,
-                                border: UnderlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                enabledBorder: UnderlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                focusedBorder: UnderlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  10,
-                                  12,
-                                  6,
-                                ),
                               ),
                               keyboardType: TextInputType.number,
                               inputFormatters: [IsbnInputFormatter()],
@@ -1873,28 +1686,8 @@ class _BookFormPageState extends State<BookFormPage> {
                       DropdownButtonFormField<int>(
                         initialValue: _shelfId,
                         style: theme.textTheme.bodyLarge,
-                        decoration: InputDecoration(
+                        decoration: filledFieldDecoration(theme).copyWith(
                           labelText: 'Shelf',
-                          filled: true,
-                          fillColor: theme.colorScheme.surfaceContainerHighest,
-                          border: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.fromLTRB(
-                            12,
-                            10,
-                            12,
-                            6,
-                          ),
                         ),
                         items: _shelves.map((shelf) {
                           return DropdownMenuItem<int>(
@@ -1927,29 +1720,8 @@ class _BookFormPageState extends State<BookFormPage> {
                                       'MMM d, y',
                                     ).format(_dateStarted!),
                             ),
-                            decoration: InputDecoration(
+                            decoration: filledFieldDecoration(theme).copyWith(
                               labelText: 'Start Date',
-                              filled: true,
-                              fillColor:
-                                  theme.colorScheme.surfaceContainerHighest,
-                              border: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.fromLTRB(
-                                12,
-                                10,
-                                12,
-                                6,
-                              ),
                               suffixIcon: _dateStarted != null
                                   ? IconButton(
                                       icon: const Icon(Icons.clear),
@@ -1974,29 +1746,8 @@ class _BookFormPageState extends State<BookFormPage> {
                                       'MMM d, y',
                                     ).format(_dateFinished!),
                             ),
-                            decoration: InputDecoration(
+                            decoration: filledFieldDecoration(theme).copyWith(
                               labelText: 'Finish Date',
-                              filled: true,
-                              fillColor:
-                                  theme.colorScheme.surfaceContainerHighest,
-                              border: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              enabledBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding: const EdgeInsets.fromLTRB(
-                                12,
-                                10,
-                                12,
-                                6,
-                              ),
                               suffixIcon: _dateFinished != null
                                   ? IconButton(
                                       icon: const Icon(Icons.clear),
@@ -2044,31 +1795,9 @@ class _BookFormPageState extends State<BookFormPage> {
                                 )
                               : TextField(
                                   controller: _ratingController,
-                                  decoration: InputDecoration(
+                                  decoration: filledFieldDecoration(theme).copyWith(
                                     labelText: 'Rating',
                                     hintText: 'Enter rating (0–5)',
-                                    filled: true,
-                                    fillColor: theme
-                                        .colorScheme
-                                        .surfaceContainerHighest,
-                                    border: UnderlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    enabledBorder: UnderlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    focusedBorder: UnderlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    contentPadding: const EdgeInsets.fromLTRB(
-                                      12,
-                                      10,
-                                      12,
-                                      6,
-                                    ),
                                     suffixIcon:
                                         _ratingController.text.isNotEmpty
                                         ? IconButton(
@@ -2143,29 +1872,9 @@ class _BookFormPageState extends State<BookFormPage> {
                     // User Review
                     TextField(
                       controller: _userReviewController,
-                      decoration: InputDecoration(
+                      decoration: filledFieldDecoration(theme).copyWith(
                         labelText: 'Review',
                         hintText: 'Write your thoughts on this book...',
-                        filled: true,
-                        fillColor: theme.colorScheme.surfaceContainerHighest,
-                        border: UnderlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: UnderlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.fromLTRB(
-                          12,
-                          10,
-                          12,
-                          6,
-                        ),
                         alignLabelWithHint: true,
                         suffixIcon: _userReviewController.text.isNotEmpty
                             ? IconButton(
@@ -2299,20 +2008,17 @@ class _BookFormPageState extends State<BookFormPage> {
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: Opacity(
-                opacity:
+              child: FilledButton(
+                onPressed:
                     _titleController.text.trim().isEmpty ||
                         _authorController.text.trim().isEmpty
-                    ? 0.4
-                    : 1.0,
-                child: FilledButton(
-                  onPressed: _saveBook,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: accentColor,
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                  child: Text(widget.isEditing ? 'Update Book' : 'Save Book'),
+                    ? null
+                    : _saveBook,
+                style: FilledButton.styleFrom(
+                  backgroundColor: accentColor,
+                  minimumSize: const Size.fromHeight(48),
                 ),
+                child: Text(widget.isEditing ? 'Update Book' : 'Save Book'),
               ),
             ),
           ),
@@ -2333,25 +2039,10 @@ class _BookFormPageState extends State<BookFormPage> {
       padding: const EdgeInsets.only(bottom: 16),
       child: TextField(
         controller: _pricePaidController,
-        decoration: InputDecoration(
+        decoration: filledFieldDecoration(theme).copyWith(
           labelText: 'Price paid',
           hintText: '0.00',
           prefixText: '$symbol ',
-          filled: true,
-          fillColor: theme.colorScheme.surfaceContainerHighest,
-          border: UnderlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: UnderlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: UnderlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
         ),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         inputFormatters: [

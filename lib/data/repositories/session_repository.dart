@@ -73,8 +73,4 @@ class SessionRepository {
     final sessionsMap = await _databaseHelper.getSessionsByBookId(bookId);
     return sessionsMap.map((map) => Session.fromMap(map)).toList();
   }
-
-  Future<Map<String, dynamic>> getCompleteBookStats(int bookId) async {
-    return await _databaseHelper.getCompleteBookStats(bookId);
-  }
 }

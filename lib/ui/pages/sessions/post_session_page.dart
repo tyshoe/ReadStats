@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '/ui/widgets/field_decoration.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import '/data/database/database_helper.dart';
@@ -288,23 +289,8 @@ class _PostSessionPageState extends State<PostSessionPage> {
         setState(() {});
       },
       onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-      decoration: InputDecoration(
+      decoration: filledFieldDecoration(theme).copyWith(
         labelText: label,
-        filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest,
-        border: UnderlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: UnderlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: UnderlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
       ),
     );
   }
@@ -584,24 +570,9 @@ class _PostSessionPageState extends State<PostSessionPage> {
                         maxLines: null,
                         onChanged: (_) => setState(() {}),
                         onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-                        decoration: InputDecoration(
+                        decoration: filledFieldDecoration(theme).copyWith(
                           labelText: 'Notes',
                           hintText: 'Reflect on your reading session...',
-                          filled: true,
-                          fillColor: theme.colorScheme.surfaceContainerHighest,
-                          border: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: UnderlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
                           alignLabelWithHint: true,
                           suffixIcon: _notesController.text.isNotEmpty
                               ? IconButton(

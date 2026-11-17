@@ -61,9 +61,6 @@ extension BookQueries on DatabaseHelper {
 
   Future<int> insertBook(Map<String, dynamic> book) async {
     final db = await database;
-    if (kDebugMode) {
-      print('Attempt add book: $book');
-    }
     final id = await db.insert('books', book);
     DatabaseHelper.booksChanged.notify();
     return id;

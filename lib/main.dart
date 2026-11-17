@@ -476,7 +476,6 @@ class _MyAppState extends State<MyApp> {
     _checkMilestones();
     _syncNotificationData();
     _handleNotificationTap();
-    if (kDebugMode) print('Books: $_books');
   }
 
   Future<void> _addBook(Map<String, dynamic> book) async {

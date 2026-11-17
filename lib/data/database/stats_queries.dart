@@ -27,9 +27,6 @@ extension StatsQueries on DatabaseHelper {
     GROUP BY books.id
   ''', [bookId]);
 
-    if (kDebugMode) {
-      print(result);
-    }
     if (result.isNotEmpty) {
       return result.first;
     } else {
@@ -226,20 +223,6 @@ extension StatsQueries on DatabaseHelper {
     }
 
     return distribution;
-  }
-
-  Future<Map<String, dynamic>> getCompleteBookStats(int bookId) async {
-    final book = await getBookById(bookId);
-    final stats = await getBookStats(bookId);
-
-    if (book != null) {
-      return {
-        'book': book,
-        'stats': stats,
-      };
-    } else {
-      return {};
-    }
   }
 
   Future<List<Map<String, dynamic>>> getBookCountsPerType() async {

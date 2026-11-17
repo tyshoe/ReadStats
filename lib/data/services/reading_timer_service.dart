@@ -48,7 +48,6 @@ class ReadingTimerService extends ChangeNotifier {
 
   TimerState get state => _state;
   int? get bookId => _bookId;
-  bool get isActive => _state != TimerState.idle;
 
   /// True while the session sits paused because a sleep countdown ran out,
   /// rather than because the reader tapped Pause. Cleared on resume.
