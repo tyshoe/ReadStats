@@ -105,6 +105,7 @@ class _BookFormPageState extends State<BookFormPage> {
   List<Map<String, dynamic>> _shelves = [];
   int _selectedBookType = 0;
   DateTime? _dateStarted;
+  DateTime? _datePurchased;
   DateTime? _dateFinished;
   late bool _useStarRating;
   Set<int> _selectedTagIds = {};
@@ -190,6 +191,8 @@ class _BookFormPageState extends State<BookFormPage> {
       _selectedBookType = ((d['book_type_id'] as int?) ?? 1) - 1;
       _narratorController.text = d['narrator'] ?? _narratorController.text;
       _pricePaidController.text = Money.forField(d['price_paid'] as num?);
+      _datePurchased =
+          DateTime.tryParse(d['date_purchased']?.toString() ?? '');
       _seriesController.text = d['series_name'] ?? '';
       _seriesPositionController.text = _formatSeriesPosition(d['series_position']);
       _selectedTagIds = {...?widget.initialTagIds};
@@ -224,6 +227,8 @@ class _BookFormPageState extends State<BookFormPage> {
       _narratorController.text = widget.book!['narrator'] ?? '';
       _pricePaidController.text =
           Money.forField(widget.book!['price_paid'] as num?);
+      _datePurchased = DateTime.tryParse(
+          widget.book!['date_purchased']?.toString() ?? '');
       _seriesController.text = widget.book!['series_name'] ?? '';
       _seriesPositionController.text =
           _formatSeriesPosition(widget.book!['series_position']);
@@ -410,6 +415,7 @@ class _BookFormPageState extends State<BookFormPage> {
       // turning spending off hides it, and a save made meanwhile must not
       // wipe what was entered.
       "price_paid": Money.parse(_pricePaidController.text),
+      "date_purchased": _datePurchased?.toIso8601String(),
       "user_review": _userReviewController.text.trim().isEmpty
           ? null
           : _userReviewController.text.trim(),
@@ -558,6 +564,7 @@ class _BookFormPageState extends State<BookFormPage> {
     _seriesController.clear();
     _seriesPositionController.clear();
     setState(() {
+      _datePurchased = null;
       _rating = 0;
       _isFavorite = false;
       _shelfId = DatabaseHelper.shelfWantToRead;
@@ -2027,7 +2034,19 @@ class _BookFormPageState extends State<BookFormPage> {
     );
   }
 
-  /// What the reader paid for this copy. Optional.
+  Future<void> _selectPurchaseDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _datePurchased ?? _dateToday,
+      firstDate: DateTime(1900),
+      lastDate: _dateToday,
+    );
+    if (picked != null) setState(() => _datePurchased = picked);
+  }
+
+  /// What the reader paid for this copy and when they bought it, side by
+  /// side. Both optional; without a date the book counts as bought the day
+  /// it was added.
   Widget _buildPriceField(ThemeData theme) {
     final symbol =
         Money.symbol(widget.settingsViewModel.currencyNotifier.value);
@@ -2037,23 +2056,52 @@ class _BookFormPageState extends State<BookFormPage> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: TextField(
-        controller: _pricePaidController,
-        decoration: filledFieldDecoration(theme).copyWith(
-          labelText: 'Price paid',
-          hintText: '0.00',
-          prefixText: '$symbol ',
-        ),
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        inputFormatters: [
-          TextInputFormatter.withFunction(
-            (oldValue, newValue) =>
-                amount.hasMatch(newValue.text) ? newValue : oldValue,
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _pricePaidController,
+              decoration: filledFieldDecoration(theme).copyWith(
+                labelText: 'Price paid',
+                hintText: '0.00',
+                prefixText: '$symbol ',
+              ),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                TextInputFormatter.withFunction(
+                  (oldValue, newValue) =>
+                      amount.hasMatch(newValue.text) ? newValue : oldValue,
+                ),
+              ],
+              onTapOutside: (event) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextFormField(
+              readOnly: true,
+              onTap: _selectPurchaseDate,
+              controller: TextEditingController(
+                text: _datePurchased == null
+                    ? ''
+                    : DateFormat('MMM d, y').format(_datePurchased!),
+              ),
+              decoration: filledFieldDecoration(theme).copyWith(
+                labelText: 'Bought on',
+                suffixIcon: _datePurchased != null
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () =>
+                            setState(() => _datePurchased = null),
+                      )
+                    : const Icon(Icons.calendar_today),
+              ),
+            ),
           ),
         ],
-        onTapOutside: (event) {
-          FocusManager.instance.primaryFocus?.unfocus();
-        },
       ),
     );
   }

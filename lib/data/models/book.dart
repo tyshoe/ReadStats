@@ -32,6 +32,9 @@ class Book {
   /// What the reader paid for this copy, in their own currency. Optional,
   /// and only entered by those who track their spending.
   double? pricePaid;
+  /// When this copy was bought. Null means "when it was added", which is
+  /// what spending counts from in that case.
+  String? datePurchased;
   // Denormalized from JOIN — populated when loaded from DB, not written back
   final String? shelfName;
   /// Joined series name on reads. Also carries a name to resolve into
@@ -62,6 +65,7 @@ class Book {
     this.seriesId,
     this.seriesPosition,
     this.pricePaid,
+    this.datePurchased,
     this.shelfName,
     this.seriesName,
   });
@@ -92,6 +96,7 @@ class Book {
       'series_id': seriesId,
       'series_position': seriesPosition,
       'price_paid': pricePaid,
+      'date_purchased': datePurchased,
       // tags stored separately in book_tags
     };
   }
@@ -121,6 +126,7 @@ class Book {
       seriesId: map['series_id'] as int?,
       seriesPosition: (map['series_position'] as num?)?.toDouble(),
       pricePaid: (map['price_paid'] as num?)?.toDouble(),
+      datePurchased: map['date_purchased'] as String?,
       shelfName: map['shelf_name'] as String?,
       seriesName: map['series_name'] as String?,
     );

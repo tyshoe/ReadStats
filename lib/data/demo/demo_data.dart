@@ -62,7 +62,10 @@ import '../repositories/goal_repository.dart';
 /// * Spending (Settings → Spending → Track spending): a price on most books
 ///   in every format and on every shelf, with one in seven left unpriced, so
 ///   the Spending page has totals, years and formats to compare, money in
-///   unread books, a cost per hour read, and an "aren't counted" note.
+///   unread books, a cost per hour read, and an "aren't counted" note. One
+///   priced book in three also has a purchase date, a week to a few months
+///   before it was added, so both the dated and the fall-back-to-added paths
+///   are exercised.
 /// * Planner entries.
 class DemoData {
   DemoData._();
@@ -718,6 +721,7 @@ class _Generator {
     books.add(Book(
       id: id,
       pricePaid: _price(id, t),
+      datePurchased: _purchased(id, t, added)?.toIso8601String(),
       title: t.title,
       author: t.author,
       pageCount: t.isAudio ? null : t.pages,
@@ -760,6 +764,15 @@ class _Generator {
     };
     final pool = prices[t.format]!;
     return pool[id % pool.length];
+  }
+
+  /// When book [id] was bought, for the one priced book in three that says:
+  /// a week to a few months before it was added. Null for the rest, which
+  /// count as bought when added. From the id, like [_price], never [rng].
+  DateTime? _purchased(int id, _Title t, DateTime added) {
+    if (_price(id, t) == null || id % 3 != 1) return null;
+    final day = added.subtract(Duration(days: 7 + (id * 13) % 90));
+    return DateTime(day.year, day.month, day.day);
   }
 
   /// Added to the library a few days to a few weeks before being started.

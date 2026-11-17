@@ -9,7 +9,8 @@ class PricedBook {
   final String? coverPath;
   final int? coverShape;
 
-  /// When it joined the library, which is when its price counts as spent.
+  /// When its price counts as spent: the purchase date, or the day it joined
+  /// the library when none was entered.
   final DateTime bought;
   final double paid;
 
@@ -65,8 +66,8 @@ enum ReadStatus {
 /// What the reader's books cost, worked out from the price on each one.
 ///
 /// Only books with a price count; the rest of the library is left out of
-/// every figure rather than counted as free. A book's price is spent on the
-/// day it was added — the app doesn't keep a purchase date of its own.
+/// every figure rather than counted as free. A book's price is spent on its
+/// purchase date, or on the day it was added when it has none.
 class SpendingSummary {
   /// Books with a price, dearest first.
   final List<PricedBook> books;
@@ -142,7 +143,9 @@ class SpendingSummary {
         bookTypeId: row['book_type_id'] as int?,
         coverPath: row['cover_path'] as String?,
         coverShape: row['cover_shape'] as int?,
-        bought: DateTime.tryParse(row['date_added']?.toString() ?? '') ?? today,
+        bought: DateTime.tryParse(row['date_purchased']?.toString() ?? '') ??
+            DateTime.tryParse(row['date_added']?.toString() ?? '') ??
+            today,
         paid: paid,
       ));
     }

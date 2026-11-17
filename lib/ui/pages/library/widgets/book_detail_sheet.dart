@@ -136,14 +136,19 @@ class BookPopup {
         ? (book['narrator'] as String? ?? '').trim()
         : '';
 
-    // "Paid $12.99" — only for readers who track their spending, and only
-    // on a book that has a price.
+    // "Paid $12.99 · Oct 3, 2026" — only for readers who track their
+    // spending, and only on a book that has a price. The date is the
+    // purchase date, when one was entered.
     String costString = '';
     if (settingsViewModel.spendingEnabledNotifier.value) {
       final paid = (book['price_paid'] as num?)?.toDouble();
       if (paid != null) {
-        costString =
-            'Paid ${Money.format(paid, settingsViewModel.currencyNotifier.value)}';
+        final bought =
+            DateTime.tryParse(book['date_purchased']?.toString() ?? '');
+        costString = [
+          'Paid ${Money.format(paid, settingsViewModel.currencyNotifier.value)}',
+          if (bought != null) dateFormat.format(bought),
+        ].join(' · ');
       }
     }
 

@@ -24,7 +24,7 @@ class DatabaseHelper {
 
   static Database? _database;
 
-  static const int _databaseVersion = 14;
+  static const int _databaseVersion = 15;
 
   // System shelf IDs — stable because shelves are seeded in a fixed order
   // and only exist from v2 onwards (v1 had no shelves).
@@ -164,6 +164,7 @@ class DatabaseHelper {
         series_id INTEGER REFERENCES series(id) ON DELETE SET NULL,
         series_position REAL,
         price_paid REAL,
+        date_purchased DATETIME,
         FOREIGN KEY(book_type_id) REFERENCES book_types(id),
         FOREIGN KEY(shelf_id) REFERENCES shelves(id)
       )
@@ -488,6 +489,15 @@ class DatabaseHelper {
       final cols = await db.rawQuery('PRAGMA table_info(books)');
       if (!cols.any((c) => c['name'] == 'price_paid')) {
         await db.execute('ALTER TABLE books ADD COLUMN price_paid REAL');
+      }
+    }
+
+    if (oldVersion < 15) {
+      // When a book was bought, which isn't always when it was added to the
+      // library. Left empty: spending falls back to date_added without it.
+      final cols = await db.rawQuery('PRAGMA table_info(books)');
+      if (!cols.any((c) => c['name'] == 'date_purchased')) {
+        await db.execute('ALTER TABLE books ADD COLUMN date_purchased DATETIME');
       }
     }
   }
