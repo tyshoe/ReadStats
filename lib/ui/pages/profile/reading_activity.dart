@@ -5,6 +5,7 @@ import '/data/models/goal.dart';
 import '/data/repositories/goal_repository.dart';
 import 'badges.dart';
 import 'reading_stats.dart';
+import 'seasons.dart';
 
 /// What happened, in the order entries outrank one another when they share a
 /// moment: a badge earned by finishing a book reads above the finish itself.
@@ -29,6 +30,9 @@ class ActivityEntry {
   final ReadingGoal? badge;
   final GoalTier? tier;
 
+  /// The season a seasonal medal was earned in; null for a lifetime one.
+  final Season? season;
+
   const ActivityEntry({
     required this.kind,
     required this.date,
@@ -38,6 +42,7 @@ class ActivityEntry {
     this.target = 0,
     this.badge,
     this.tier,
+    this.season,
   });
 }
 
@@ -224,6 +229,10 @@ class ReadingActivity {
   /// When each badge tier was earned, found by replaying the reader's history
   /// in order through the same [kGoals] ladders the Achievements grid uses.
   ///
+  /// The seasonal medals come out of the same replay, on a second tally that
+  /// starts from nothing whenever the season turns — which is what
+  /// [seasonStats] counts, a step at a time.
+  ///
   /// Ratings and reviews carry no date of their own, so they count from the
   /// book's finish (or, unfinished, its add date) — when they're usually given.
   /// Finished books without a finish date can't be placed and are left out.
@@ -271,23 +280,39 @@ class ReadingActivity {
 
     final tally = _Tally();
     final reached = List.filled(kGoals.length, -1);
+    Season? season;
+    var seasonTally = _Tally();
+    var seasonReached = List.filled(kSeasonGoals.length, -1);
     final result = <ActivityEntry>[];
 
-    for (final (date, apply) in steps) {
-      apply(tally);
-      final stats = tally.snapshot();
-      for (var i = 0; i < kGoals.length; i++) {
-        final idx = kGoals[i].achievedIndex(stats);
+    // Several rungs at once (a first 1,200-page book) show as the top one.
+    void emit(List<ReadingGoal> goals, List<int> reached, ReadingStats stats,
+        DateTime date, Season? season) {
+      for (var i = 0; i < goals.length; i++) {
+        final idx = goals[i].achievedIndex(stats);
         if (idx <= reached[i]) continue;
         reached[i] = idx;
-        // Several rungs at once (a first 1,200-page book) show as the top one.
         result.add(ActivityEntry(
           kind: ActivityKind.badge,
           date: date,
-          badge: kGoals[i],
-          tier: kGoals[i].tiers[idx],
+          badge: goals[i],
+          tier: goals[i].tiers[idx],
+          season: season,
         ));
       }
+    }
+
+    for (final (date, apply) in steps) {
+      final now = Season.of(date);
+      if (now != season) {
+        season = now;
+        seasonTally = _Tally();
+        seasonReached = List.filled(kSeasonGoals.length, -1);
+      }
+      apply(tally);
+      apply(seasonTally);
+      emit(kGoals, reached, tally.snapshot(), date, null);
+      emit(kSeasonGoals, seasonReached, seasonTally.snapshot(), date, season);
     }
     return result;
   }

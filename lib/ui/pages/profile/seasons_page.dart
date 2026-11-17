@@ -57,18 +57,19 @@ class SeasonMedalGrid extends StatelessWidget {
   }
 }
 
-/// Every season the reader has read in, newest first, each with the medals
-/// it ended on.
+/// Every season the reader has read in, newest first — the one in progress,
+/// then each earlier one with the medals it ended on. The Seasons tab of the
+/// Achievements screen.
 ///
 /// Nothing is stored for this: a season's medals are worked out from the
 /// sessions and finish dates inside it, so seasons from before the feature
 /// existed are here too, and editing an old session changes its season.
-class SeasonsPage extends StatelessWidget {
+class SeasonsList extends StatelessWidget {
   final List<Map<String, dynamic>> books;
   final List<Map<String, dynamic>> sessions;
   final Color accent;
 
-  const SeasonsPage({
+  const SeasonsList({
     super.key,
     required this.books,
     required this.sessions,
@@ -82,11 +83,9 @@ class SeasonsPage extends StatelessWidget {
     final now = DateTime.now();
     final seasons = seasonsWithReading(books, sessions, now);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Seasons')),
-      body: ListView.separated(
+    return ListView.separated(
         padding: EdgeInsets.fromLTRB(
-            16, 8, 16, 24 + MediaQuery.paddingOf(context).bottom),
+            16, 16, 16, 24 + MediaQuery.paddingOf(context).bottom),
         itemCount: seasons.length,
         separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
@@ -124,7 +123,13 @@ class SeasonsPage extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   [
-                    current ? 'In progress' : season.months,
+                    if (current)
+                      () {
+                        final left = season.daysLeft(now);
+                        return '$left ${left == 1 ? 'day' : 'days'} left';
+                      }()
+                    else
+                      season.months,
                     _summary(stats),
                   ].join(' · '),
                   style: theme.textTheme.bodySmall?.copyWith(color: muted),
@@ -135,7 +140,6 @@ class SeasonsPage extends StatelessWidget {
             ),
           );
         },
-      ),
     );
   }
 

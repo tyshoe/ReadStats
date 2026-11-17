@@ -10,6 +10,7 @@ import 'package:read_stats/ui/pages/statistics/widgets/stacked_bar_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/top_authors_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/rating_summary.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stat_card.dart';
+import 'package:read_stats/ui/pages/statistics/widgets/year_summary.dart';
 import 'package:read_stats/ui/pages/statistics/monthly_recap_page.dart';
 import '../../../data/models/book.dart';
 import '/data/models/monthly_recap.dart';
@@ -1230,6 +1231,11 @@ class _StatisticsPageState extends State<StatisticsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: _spaced([
+                  YearSummary(
+                    books: widget.books,
+                    sessions: widget.sessions,
+                    year: selectedYear,
+                  ),
                   _buildRecapEntries(theme),
                   _buildSectionHeader('Overview'),
                   _buildShelfChart(),

@@ -9,13 +9,12 @@ import '/data/services/avatar_service.dart';
 import '/data/utils/money.dart';
 import '/ui/widgets/image_editor_page.dart';
 import '/viewmodels/settings_view_model.dart';
+import 'achievements_page.dart';
 import 'activity_page.dart';
 import 'badges.dart';
-import 'goal_medals.dart';
 import 'reading_activity.dart';
 import 'reading_stats.dart';
 import 'seasons.dart';
-import 'seasons_page.dart';
 import 'spending_page.dart';
 
 /// The reader's identity surface: avatar + name, lifetime headline stats, and
@@ -358,13 +357,26 @@ class _ProfilePageState extends State<ProfilePage> {
     await AvatarService.delete(previous);
   }
 
-  void _showGoalDetail(ReadingGoal goal) {
-    GoalDetailSheet.show(
+  /// Opens the ladder for a medal — a seasonal one against [season].
+  void _showMedal(ReadingGoal goal, [Season? season]) {
+    showMedalDetail(
       context,
       goal: goal,
-      stats: _stats,
+      season: season,
+      books: widget.books,
+      sessions: widget.sessions,
       accent: widget.settingsViewModel.accentColorNotifier.value,
     );
+  }
+
+  void _openAchievements(Color accent) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => AchievementsPage(
+        books: widget.books,
+        sessions: widget.sessions,
+        accent: accent,
+      ),
+    ));
   }
 
   // ── Build ───────────────────────────────────────────────────────────────────
@@ -405,12 +417,10 @@ class _ProfilePageState extends State<ProfilePage> {
           _buildHeader(theme, accent),
           const SizedBox(height: 8),
           _buildHeroStats(theme),
-          _buildThisYear(theme, accent),
           _buildSpending(theme, accent),
           _buildGoals(theme, accent),
-          _buildActivity(theme, accent),
-          _buildSeason(theme, accent),
           _buildAchievements(theme, accent),
+          _buildActivity(theme, accent),
         ],
       ),
     );
@@ -590,43 +600,6 @@ class _ProfilePageState extends State<ProfilePage> {
         endIndent: 4,
         color: theme.dividerColor.withAlpha(80),
       );
-
-  // Compact accent strip under the lifetime hero card: "This year" momentum at
-  // a glance, deliberately lighter weight so it reads as a footnote to the
-  // cumulative numbers above rather than a competing twin card.
-  Widget _buildThisYear(ThemeData theme, Color accent) {
-    final books = _stats.booksThisYear;
-    final summary = '${_compact(books)} ${books == 1 ? 'book' : 'books'}'
-        ' · ${_compact(_stats.hoursThisYear)}h'
-        ' · ${_compact(_stats.pagesThisYear)} pages';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-      child: Row(
-        children: [
-          Icon(Icons.calendar_today_rounded, size: 14, color: accent),
-          const SizedBox(width: 8),
-          Text(
-            'This year',
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              summary,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   /// The way in to the spending page — one row, and only for readers who
   /// turned spending on in Settings. Everyone else never sees money.
@@ -856,9 +829,15 @@ class _ProfilePageState extends State<ProfilePage> {
   static const _recentActivityCount = 5;
 
   /// The latest few things the reader did; the full feed is a tap away.
+  /// Medals are left to the Achievements card above, which shows the latest
+  /// of those — the full feed still has them.
   Widget _buildActivity(ThemeData theme, Color accent) {
     if (_activity.isEmpty) return const SizedBox.shrink();
-    final recent = _activity.take(_recentActivityCount).toList();
+    final recent = _activity
+        .where((e) => e.kind != ActivityKind.badge)
+        .take(_recentActivityCount)
+        .toList();
+    if (recent.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
@@ -889,11 +868,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ],
           ),
           const SizedBox(height: 12),
-          ActivityCard(
-            entries: recent,
-            accent: accent,
-            onBadgeTap: _showGoalDetail,
-          ),
+          ActivityCard(entries: recent, accent: accent),
         ],
       ),
     );
@@ -904,131 +879,202 @@ class _ProfilePageState extends State<ProfilePage> {
       builder: (_) => ActivityPage(
         entries: _activity,
         accent: accent,
-        onBadgeTap: _showGoalDetail,
+        onBadgeTap: (e) => _showMedal(e.badge!, e.season),
       ),
     ));
   }
 
-  /// This season's medals: the same wall as Achievements, counted from the
-  /// first day of the season and starting over at the next. Sits above the
-  /// lifetime wall because it is the one that still moves once that is full.
-  Widget _buildSeason(ThemeData theme, Color accent) {
-    final now = DateTime.now();
-    final season = Season.of(now);
-    final stats = seasonStats(season, widget.books, widget.sessions);
+  static const _recentMedalCount = 3;
+
+  /// The medals most recently earned, lifetime and seasonal together, and
+  /// the one nearest to being earned next. Both walls are a tap away, on the
+  /// Achievements screen.
+  Widget _buildAchievements(ThemeData theme, Color accent) {
     final muted = theme.colorScheme.onSurfaceVariant;
-    final left = season.daysLeft(now);
-    final hasPast =
-        seasonsWithReading(widget.books, widget.sessions, now).length > 1;
+    final season = Season.of(DateTime.now());
+    final inSeason = seasonStats(season, widget.books, widget.sessions);
+
+    final recent = _activity
+        .where((e) => e.kind == ActivityKind.badge)
+        .take(_recentMedalCount)
+        .toList();
+
+    // Every medal with a rung still to reach, nearest first, as the share of
+    // the way to that rung. Ones not started yet aren't "next".
+    final upcoming = <(double, ReadingGoal, GoalTier, ReadingStats, Season?)>[
+      for (final (goals, stats, of) in [
+        (kSeasonGoals, inSeason, season as Season?),
+        (kGoals, _stats, null as Season?),
+      ])
+        for (final goal in goals)
+          if (goal.nextTier(stats) case final next?)
+            if (goal.measure(stats) > 0)
+              (goal.measure(stats) / next.threshold, goal, next, stats, of),
+    ]..sort((a, b) => b.$1.compareTo(a.$1));
+    // With nothing earned yet the card is all "next"; otherwise one is enough.
+    final next = upcoming.take(recent.isEmpty ? _recentMedalCount : 1);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(season.icon, size: 18, color: season.color),
-              const SizedBox(width: 8),
-              Text(
-                season.name,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${earnedSeasonMilestones(stats)} of $totalSeasonMilestones',
-                style: theme.textTheme.bodyMedium?.copyWith(color: muted),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Seasonal achievements · '
-                  '$left ${left == 1 ? 'day' : 'days'} left',
-                  style: theme.textTheme.bodySmall?.copyWith(color: muted),
-                ),
-              ),
-              if (hasPast)
-                TextButton(
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          GestureDetector(
+            onTap: () => _openAchievements(accent),
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
+                Text(
+                  'Achievements',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => SeasonsPage(
-                        books: widget.books,
-                        sessions: widget.sessions,
-                        accent: accent,
-                      ),
-                    ),
-                  ),
-                  child: const Text('Past seasons'),
                 ),
-            ],
+                const Spacer(),
+                Text(
+                  'See all',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: accent,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
-          SeasonMedalGrid(season: season, stats: stats, accent: accent),
+          Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InkWell(
+                  onTap: () => _openAchievements(accent),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
+                    child: Row(
+                      children: [
+                        Icon(season.icon, size: 16, color: season.color),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${season.name} · '
+                            '${earnedSeasonMilestones(inSeason)} of '
+                            '$totalSeasonMilestones'
+                            '   Lifetime · ${earnedMilestones(_stats)} of '
+                            '$totalMilestones',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: muted),
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, size: 18, color: muted),
+                      ],
+                    ),
+                  ),
+                ),
+                if (recent.isEmpty && next.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Text(
+                      'Finish a book or log a session to earn your first '
+                      'medal.',
+                      style:
+                          theme.textTheme.bodySmall?.copyWith(color: muted),
+                    ),
+                  ),
+                for (final e in recent)
+                  ActivityTile(
+                    entry: e,
+                    accent: accent,
+                    onTap: () => _showMedal(e.badge!, e.season),
+                  ),
+                for (final (share, goal, tier, stats, of) in next)
+                  _buildNextMedal(theme, accent, share, goal, tier, stats, of),
+                const SizedBox(height: 4),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildAchievements(ThemeData theme, Color accent) {
-    final earned = earnedMilestones(_stats);
-    final total = totalMilestones;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Achievements',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+  /// A medal not yet earned and how far along it is: "Next: Half Dozen",
+  /// "Fall 2026 · 5 of 6 books", and a bar.
+  Widget _buildNextMedal(
+    ThemeData theme,
+    Color accent,
+    double share,
+    ReadingGoal goal,
+    GoalTier tier,
+    ReadingStats stats,
+    Season? season,
+  ) {
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return InkWell(
+      onTap: () => _showMedal(goal, season),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            // Matches the medal rows above it, but unearned: no tier colour.
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                shape: BoxShape.circle,
               ),
-              const Spacer(),
-              Text(
-                '$earned of $total',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 8,
-              childAspectRatio: 0.92,
+              child: Icon(goal.icon, size: 18, color: muted),
             ),
-            itemCount: kGoals.length,
-            itemBuilder: (context, index) {
-              final goal = kGoals[index];
-              return GoalTile(
-                goal: goal,
-                stats: _stats,
-                accent: accent,
-                onTap: () => _showGoalDetail(goal),
-              );
-            },
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text.rich(
+                    TextSpan(
+                      style: theme.textTheme.bodyMedium,
+                      children: [
+                        const TextSpan(text: 'Next: '),
+                        TextSpan(
+                          text: tier.title,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${season?.name ?? 'Lifetime'} · '
+                    '${goal.formatShortValue(goal.measure(stats))} of '
+                    '${goal.formatValue(tier.threshold)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: share.clamp(0, 1).toDouble(),
+                      minHeight: 4,
+                      backgroundColor:
+                          theme.colorScheme.surfaceContainerHighest,
+                      valueColor: AlwaysStoppedAnimation(accent),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

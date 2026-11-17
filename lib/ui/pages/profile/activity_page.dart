@@ -35,8 +35,9 @@ class ActivityPage extends StatefulWidget {
   final List<ActivityEntry> entries;
   final Color accent;
 
-  /// Opens a badge's detail sheet, which lives with the Achievements grid.
-  final void Function(ReadingGoal goal)? onBadgeTap;
+  /// Opens a medal's detail sheet. Handed the entry, not just the medal: a
+  /// seasonal one is measured against the season it was earned in.
+  final void Function(ActivityEntry entry)? onBadgeTap;
 
   const ActivityPage({
     super.key,
@@ -152,7 +153,7 @@ class _ActivityPageState extends State<ActivityPage> {
 class ActivityCard extends StatelessWidget {
   final List<ActivityEntry> entries;
   final Color accent;
-  final void Function(ReadingGoal goal)? onBadgeTap;
+  final void Function(ActivityEntry entry)? onBadgeTap;
 
   const ActivityCard({
     super.key,
@@ -176,7 +177,7 @@ class ActivityCard extends StatelessWidget {
                 entry: e,
                 accent: accent,
                 onTap: e.badge != null && onBadgeTap != null
-                    ? () => onBadgeTap!(e.badge!)
+                    ? () => onBadgeTap!(e)
                     : null,
               ),
           ],
@@ -324,8 +325,11 @@ class ActivityTile extends StatelessWidget {
         final metric = entry.goal!.metric;
         return '${metric.label} · ${metric.unitLabel(entry.target)}';
       case ActivityKind.badge:
-        return '${badgeTierLabel(entry.tier!.tier)} · '
-            '${entry.badge!.formatValue(entry.tier!.threshold)}';
+        return [
+          if (entry.season case final season?) season.name,
+          badgeTierLabel(entry.tier!.tier),
+          entry.badge!.formatValue(entry.tier!.threshold),
+        ].join(' · ');
       case ActivityKind.added:
       case ActivityKind.started:
       case ActivityKind.setAside:
