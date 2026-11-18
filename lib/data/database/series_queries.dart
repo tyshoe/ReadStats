@@ -76,14 +76,36 @@ extension SeriesQueries on DatabaseHelper {
   }
 
   /// The id of the series called [name], creating it if needed. Matching
-  /// ignores case and surrounding space; the first spelling used is kept.
+  /// ignores case, punctuation and a leading "The" or trailing "Series"
+  /// (see [SeriesTitle.matchKey]), so names from Open Library join the
+  /// reader's own; the first spelling used is kept.
   Future<int> seriesIdFor(String name) async {
     final db = await database;
     final clean = name.trim();
     final existing = await db.query('series',
         columns: ['id'], where: 'name = ?', whereArgs: [clean], limit: 1);
     if (existing.isNotEmpty) return existing.first['id'] as int;
+    final key = SeriesTitle.matchKey(clean);
+    if (key.isNotEmpty) {
+      for (final row in await db.query('series', columns: ['id', 'name'])) {
+        if (SeriesTitle.matchKey(row['name'] as String) == key) {
+          return row['id'] as int;
+        }
+      }
+    }
     return db.insert('series', {'name': clean});
+  }
+
+  /// The reader's own spelling of the series [name] is, if they have it.
+  Future<String?> existingSeriesName(String name) async {
+    final db = await database;
+    final key = SeriesTitle.matchKey(name);
+    if (key.isEmpty) return null;
+    for (final row in await db.query('series', columns: ['name'])) {
+      final existing = row['name'] as String;
+      if (SeriesTitle.matchKey(existing) == key) return existing;
+    }
+    return null;
   }
 
   /// Names of series that still have at least one book, A–Z — for suggestions.

@@ -8,6 +8,7 @@ import '../../../../data/database/database_helper.dart';
 import '../../../../data/models/book.dart';
 import '../../../../data/models/tag.dart';
 import '../../../../data/repositories/book_repository.dart';
+import '../../../../data/repositories/series_repository.dart';
 import '../../../../data/repositories/tag_repository.dart';
 import '../../../../data/services/book_search_service.dart';
 import '../../../../data/services/cover_service.dart';
@@ -49,6 +50,11 @@ class _ScanItem {
   // Set once the edit screen has had its say: the cover is then exactly what
   // it returned, even if that is none, and the lookup's no longer applies.
   bool coverEdited = false;
+  // The series Open Library puts the book in, looked up at scan time like
+  // the cover; the edit screen's answer replaces it.
+  String? seriesName;
+  double? seriesPosition;
+  Future<void>? seriesFetch;
   // Per-book tags chosen in the edit screen (merged with the batch-wide tags).
   Set<int> tagIds = {};
   // Full field map returned by the edit screen — persisted verbatim so every
@@ -187,6 +193,14 @@ class _BookScannerPageState extends State<BookScannerPage> {
         if (!item.coverEdited) item.cover.value = file;
       });
     }
+    item.seriesFetch = BookSearchService.seriesFor(
+      edition: result.edition,
+      workKey: result.workKey,
+    ).then((series) {
+      if (series == null || item.editedData != null) return;
+      item.seriesName = series.name;
+      item.seriesPosition = series.position;
+    });
     // Newest first — front of the strip (left) and top of the review list.
     setState(() => _items.insert(0, item));
   }
@@ -234,7 +248,10 @@ class _BookScannerPageState extends State<BookScannerPage> {
     await Future.wait([
       for (final i in toSave)
         if (!i.coverEdited && i.coverFetch != null) i.coverFetch!,
+      for (final i in toSave)
+        if (i.editedData == null && i.seriesFetch != null) i.seriesFetch!,
     ]);
+    final seriesRepo = SeriesRepository(DatabaseHelper());
     final covers = [for (final i in toSave) i.cover.value];
 
     for (var idx = 0; idx < toSave.length; idx++) {
@@ -268,9 +285,13 @@ class _BookScannerPageState extends State<BookScannerPage> {
           durationMinutes:
               item.bookTypeId == 4 ? r.edition?.durationMinutes : null,
           narrator: item.bookTypeId == 4 ? r.edition?.narrator : null,
+          seriesName: item.seriesName,
+          seriesPosition: item.seriesName == null ? null : item.seriesPosition,
         );
       }
       try {
+        // Joins a series the reader already has under any spelling of it.
+        await seriesRepo.resolveNames([book]);
         final id = await _bookRepo.addBook(book);
         for (final tagId in itemTags) {
           await tagRepo.addTagToBook(id, tagId);
@@ -514,6 +535,8 @@ class _ReviewSheetState extends State<_ReviewSheet> {
             'shelf_id': item.shelfId,
             'rating': item.rating,
             'is_favorite': item.isFavorite ? 1 : 0,
+            'series_name': item.seriesName,
+            'series_position': item.seriesPosition,
             // Only once the edit screen has set one; until then the form
             // works it out from the format.
             'cover_shape': item.editedData?['cover_shape'],
@@ -529,6 +552,8 @@ class _ReviewSheetState extends State<_ReviewSheet> {
             item.shelfId = (data['shelf_id'] as int?) ?? item.shelfId;
             item.rating = (data['rating'] as num?)?.toDouble();
             item.isFavorite = data['is_favorite'] == 1;
+            item.seriesName = data['series_name'] as String?;
+            item.seriesPosition = (data['series_position'] as num?)?.toDouble();
             item.coverEdited = true;
             item.cover.value = cover;
             item.tagIds = tagIds.toSet();

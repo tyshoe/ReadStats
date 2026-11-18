@@ -4,6 +4,7 @@ import 'package:path/path.dart';
 import '../models/book.dart';
 import '../models/session.dart';
 import '../models/tag.dart';
+import '../utils/series_title.dart';
 
 part 'book_queries.dart';
 part 'goal_queries.dart';

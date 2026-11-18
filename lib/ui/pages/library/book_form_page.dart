@@ -148,6 +148,13 @@ class _BookFormPageState extends State<BookFormPage> {
   /// The edition picked, or found by its ISBN, in this visit to the form.
   BookEdition? _edition;
 
+  // What Open Library last put in the series fields, so a later lookup may
+  // replace it but never what the reader typed; and a count so a slow
+  // lookup can't land over a newer one.
+  String? _filledSeriesName;
+  String? _filledSeriesPosition;
+  int _seriesRequest = 0;
+
   @override
   void initState() {
     super.initState();
@@ -563,6 +570,9 @@ class _BookFormPageState extends State<BookFormPage> {
     _pricePaidController.clear();
     _seriesController.clear();
     _seriesPositionController.clear();
+    _seriesRequest++;
+    _filledSeriesName = null;
+    _filledSeriesPosition = null;
     setState(() {
       _datePurchased = null;
       _rating = 0;
@@ -588,8 +598,49 @@ class _BookFormPageState extends State<BookFormPage> {
     final type = result.edition?.bookTypeId;
     if (type != null) _selectedBookType = type - 1;
     _fillAudio(result.edition);
+    _fillSeries(result.edition, result.workKey);
     final cover = result.coverUrl ?? result.thumbnailUrl;
     if (cover != null && !widget.coverSettled) _loadCoverFromUrl(cover);
+  }
+
+  /// Fills in the series and number where Open Library knows them, spelled
+  /// the way the reader already has that series so it joins theirs rather
+  /// than starting a second one. Never replaces what the reader typed — only
+  /// what an earlier lookup filled in, as when another edition is picked.
+  Future<void> _fillSeries(BookEdition? edition, String? workKey) async {
+    final request = ++_seriesRequest;
+    final found =
+        await BookSearchService.seriesFor(edition: edition, workKey: workKey);
+    if (found == null || !mounted || request != _seriesRequest) return;
+    final name =
+        await SeriesRepository(DatabaseHelper()).existingName(found.name) ??
+            found.name;
+    if (!mounted || request != _seriesRequest) return;
+
+    final typedName = _seriesController.text.trim();
+    final ownName = typedName.isNotEmpty && typedName != _filledSeriesName;
+    // The reader named a different series: theirs stands, number and all.
+    if (ownName &&
+        SeriesTitle.matchKey(typedName) != SeriesTitle.matchKey(name)) {
+      return;
+    }
+    final typedPosition = _seriesPositionController.text.trim();
+    final ownPosition =
+        typedPosition.isNotEmpty && typedPosition != _filledSeriesPosition;
+    final position = found.position == null
+        ? ''
+        : SeriesTitle.formatPosition(found.position!);
+
+    setState(() {
+      if (!ownName) {
+        _seriesController.text = name;
+        _filledSeriesName = name;
+      }
+      if (!ownPosition) {
+        _seriesPositionController.text = position;
+        _filledSeriesPosition = position;
+      }
+    });
   }
 
   /// Fills in an audiobook's length and narrator from its edition, where
@@ -674,6 +725,7 @@ class _BookFormPageState extends State<BookFormPage> {
         _pageCountController.text = edition.pageCount.toString();
       }
       _fillAudio(edition);
+      _fillSeries(edition, _workKey);
       if (!widget.isEditing) {
         if (edition.title.isNotEmpty) _titleController.text = edition.title;
         final type = edition.bookTypeId;
@@ -703,6 +755,7 @@ class _BookFormPageState extends State<BookFormPage> {
     if (_pageCountController.text.isEmpty && result.pageCount != null) {
       _pageCountController.text = result.pageCount.toString();
     }
+    _fillSeries(result.edition, result.workKey);
     setState(() {});
     final cover = result.coverUrl ?? result.thumbnailUrl;
     if (_coverFile == null && !_coverLoading && cover != null) {

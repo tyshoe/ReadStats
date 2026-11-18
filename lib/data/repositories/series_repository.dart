@@ -9,6 +9,9 @@ class SeriesRepository {
   /// The id for the series called [name], creating it on first use.
   Future<int> idFor(String name) => _db.seriesIdFor(name);
 
+  /// The reader's spelling of the series [name] names, if they have it.
+  Future<String?> existingName(String name) => _db.existingSeriesName(name);
+
   /// Series that have books, A–Z.
   Future<List<String>> names() => _db.getSeriesNames();
 

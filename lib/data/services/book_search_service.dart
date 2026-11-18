@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../utils/series_title.dart';
 
 /// One published edition of a book, as Open Library records it. A work (the
 /// book as written) has many: each printing, format and translation is its
@@ -31,6 +32,11 @@ class BookEdition {
   /// Three-letter MARC code, e.g. "eng".
   final String? language;
 
+  /// The series this edition names and its number in it, read from Open
+  /// Library's free-text series line — see [SeriesTitle.parseListing].
+  final String? seriesName;
+  final double? seriesPosition;
+
   const BookEdition({
     required this.key,
     required this.title,
@@ -43,6 +49,8 @@ class BookEdition {
     this.isbns = const [],
     this.coverId,
     this.language,
+    this.seriesName,
+    this.seriesPosition,
   });
 
   /// This edition with [other]'s details wherever this one has none.
@@ -58,7 +66,25 @@ class BookEdition {
         isbns: isbns.isEmpty ? other.isbns : isbns,
         coverId: coverId ?? other.coverId,
         language: language ?? other.language,
+        // Name and number go together: one series' number never goes on
+        // another's name.
+        seriesName: seriesName ?? other.seriesName,
+        seriesPosition:
+            seriesName == null ? other.seriesPosition : seriesPosition,
       );
+
+  /// The series line that says the most: one with a number over one
+  /// without. Null when the edition lists none.
+  static ({String name, double? position})? seriesFrom(dynamic listed) {
+    ({String name, double? position})? best;
+    for (final line in _texts(listed)) {
+      final parsed = SeriesTitle.parseListing(line);
+      if (parsed == null) continue;
+      if (parsed.position != null) return parsed;
+      best ??= parsed;
+    }
+    return best;
+  }
 
   /// "16h 12m", for an edition with a running time.
   String? get durationLabel {
@@ -204,6 +230,7 @@ class BookEdition {
       if (languageKey is String) language = languageKey.split('/').last;
     }
     final pages = map['number_of_pages'];
+    final series = seriesFrom(map['series']);
     return BookEdition(
       key: key,
       title: _text(map['title']) ?? '',
@@ -217,6 +244,8 @@ class BookEdition {
       isbns: [..._texts(map['isbn_13']), ..._texts(map['isbn_10'])],
       coverId: _firstCover(map['covers']),
       language: language,
+      seriesName: series?.name,
+      seriesPosition: series?.position,
     );
   }
 
@@ -574,6 +603,60 @@ class BookSearchService {
             ).filledFrom(edition),
       workKey: workKey is String ? workKey : null,
     );
+  }
+
+  /// The series a book is in and its number, as far as Open Library knows:
+  /// the [edition]'s own series line first, then the work's series record
+  /// (which gives a number), then a "series:" subject (which doesn't). Null
+  /// when none says, or on any failure — a nicety, never an error.
+  static Future<({String name, double? position})?> seriesFor({
+    BookEdition? edition,
+    String? workKey,
+  }) async {
+    var name = edition?.seriesName;
+    var position = edition?.seriesPosition;
+    final id =
+        workKey == null ? null : RegExp(r'OL\d+W').firstMatch(workKey)?.group(0);
+    if ((name == null || position == null) && id != null) {
+      try {
+        final work = await _getJson('$_worksBase/$id.json');
+        final listed = work?['series'];
+        for (final entry in listed is List ? listed : const []) {
+          if (entry is! Map) continue;
+          final series = entry['series'];
+          final key = series is Map ? series['key'] : null;
+          if (key is! String || !RegExp(r'^/series/OL\d+L$').hasMatch(key)) {
+            continue;
+          }
+          final record = await _getJson('https://openlibrary.org$key.json');
+          final recordName = BookEdition._text(record?['name']);
+          if (recordName == null) continue;
+          // The work's number only counts for the series the edition names.
+          if (name != null &&
+              SeriesTitle.matchKey(name) != SeriesTitle.matchKey(recordName)) {
+            continue;
+          }
+          name ??= recordName;
+          final listedPosition = entry['position'];
+          position ??= listedPosition == null
+              ? null
+              : SeriesTitle.parseNumber(listedPosition.toString());
+          break;
+        }
+        if (name == null) {
+          final subjects = BookEdition._texts(work?['subjects']);
+          for (final subject in subjects) {
+            if (subject.toLowerCase().startsWith('series:')) {
+              name = SeriesTitle.parseListing(subject.substring(7))?.name;
+              if (name != null) break;
+            }
+          }
+        }
+      } catch (_) {
+        // Keep whatever the edition said.
+      }
+    }
+    return name == null ? null : (name: name, position: position);
   }
 
   /// The JSON object at [url], or null if there is nothing there (404).
