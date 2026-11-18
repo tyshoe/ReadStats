@@ -134,7 +134,7 @@ class SettingsPage extends StatelessWidget {
               _buildValueTile(
                 context,
                 icon: Icons.menu_book,
-                title: 'Default Book Format',
+                title: 'Book Format',
                 value: ValueListenableBuilder<int>(
                   valueListenable: settingsViewModel.defaultBookTypeNotifier,
                   builder: (context, type, _) =>
@@ -163,6 +163,28 @@ class SettingsPage extends StatelessWidget {
                       context, _getFormattedDate(DateTime.now(), format)),
                 ),
                 onTap: () => showDateFormatPicker(context, settingsViewModel),
+              ),
+            ],
+          ),
+
+          // Notifications Section — local reminders, each configured on its own
+          // schedule. A drill-in rather than inline rows: every type carries a
+          // time and a set of days, which is more than a settings row can hold.
+          // Above Spending: reminders are for everyone, spending is opt-in.
+          _buildSettingsSection(
+            context,
+            header: 'Notifications',
+            children: [
+              _buildValueTile(
+                context,
+                icon: Icons.notifications,
+                title: 'Reminders',
+                value: Icon(Icons.chevron_right,
+                    size: 20, color: colors.onSurfaceVariant),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const NotificationsPage()),
+                ),
               ),
             ],
           ),
@@ -208,27 +230,6 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
 
-          // Notifications Section — local reminders, each configured on its own
-          // schedule. A drill-in rather than inline rows: every type carries a
-          // time and a set of days, which is more than a settings row can hold.
-          _buildSettingsSection(
-            context,
-            header: 'Notifications',
-            children: [
-              _buildValueTile(
-                context,
-                icon: Icons.notifications,
-                title: 'Reminders',
-                value: Icon(Icons.chevron_right,
-                    size: 20, color: colors.onSurfaceVariant),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const NotificationsPage()),
-                ),
-              ),
-            ],
-          ),
-
           // Data Section — import/export actions.
           _buildSettingsSection(
             context,
@@ -251,26 +252,15 @@ class SettingsPage extends StatelessWidget {
                         (report) => importExportService.importBackup(
                             onProgress: report)),
               ),
-              _buildActionTile(
+              // One row for every source: each is used once, and a new one
+              // joins the sheet rather than lengthening the list.
+              _buildValueTile(
                 context,
                 icon: Icons.file_download,
-                title: 'Import from Goodreads',
-                onTap: () =>
-                    _handleImport(
-                        context,
-                        (report) => importExportService.importGoodreadsCSV(
-                            onProgress: report)),
-              ),
-              _buildActionTile(
-                context,
-                icon: Icons.file_download,
-                title: 'Import from Bookmory',
-                subtitle: "Use Bookmory's 'Database' export (.bookmory)",
-                onTap: () =>
-                    _handleImport(
-                        context,
-                        (report) => importExportService.importBookmory(
-                            onProgress: report)),
+                title: 'Import from Another App',
+                value: Icon(Icons.chevron_right,
+                    size: 20, color: colors.onSurfaceVariant),
+                onTap: () => _showImportSheet(context),
               ),
               _buildActionTile(
                 context,
@@ -298,6 +288,34 @@ class SettingsPage extends StatelessWidget {
             children: [
               _buildLinkTile(
                 context,
+                icon: const Icon(Icons.email, size: 22),
+                title: 'Send Feedback',
+                onTap: () => _launchUrl(
+                    'mailto:readstatsdev@gmail.com?subject=ReadStats%20Feedback'),
+              ),
+              _buildLinkTile(
+                context,
+                icon: const FaIcon(FontAwesomeIcons.discord, size: 20),
+                title: 'Join our Discord',
+                onTap: () => _launchUrl('https://discord.gg/cA6CDkUY4x'),
+              ),
+              _buildActionTile(
+                context,
+                icon: Icons.play_circle,
+                title: 'Replay Tutorial',
+                onTap: () => _replayOnboarding(context),
+              ),
+            ],
+          ),
+
+          // About Section — supporting the app, then project and legal
+          // references (not contact, which is Help & Feedback's).
+          _buildSettingsSection(
+            context,
+            header: 'About',
+            children: [
+              _buildLinkTile(
+                context,
                 icon: const Icon(Icons.star, size: 22),
                 title: 'Rate ReadStats',
                 onTap: () => RatingService.instance.openStoreListing(),
@@ -311,33 +329,6 @@ class SettingsPage extends StatelessWidget {
                   mode: LaunchMode.externalApplication,
                 ),
               ),
-              _buildActionTile(
-                context,
-                icon: Icons.play_circle,
-                title: 'Replay Tutorial',
-                onTap: () => _replayOnboarding(context),
-              ),
-              _buildLinkTile(
-                context,
-                icon: const Icon(Icons.email, size: 22),
-                title: 'Send Feedback',
-                onTap: () => _launchUrl(
-                    'mailto:readstatsdev@gmail.com?subject=ReadStats%20Feedback'),
-              ),
-              _buildLinkTile(
-                context,
-                icon: const FaIcon(FontAwesomeIcons.discord, size: 20),
-                title: 'Join our Discord',
-                onTap: () => _launchUrl('https://discord.gg/cA6CDkUY4x'),
-              ),
-            ],
-          ),
-
-          // About Section — project and legal references (not contact).
-          _buildSettingsSection(
-            context,
-            header: 'About',
-            children: [
               _buildLinkTile(
                 context,
                 icon: const FaIcon(FontAwesomeIcons.github, size: 20),
@@ -427,6 +418,99 @@ class SettingsPage extends StatelessWidget {
   ///
   /// [holdScreen] shows a dialog instead, for an import that empties the
   /// library before filling it and so leaves nothing to use meanwhile.
+  /// The apps a library can be imported from, in the app's sheet design.
+  /// Picking one closes the sheet and starts that import.
+  void _showImportSheet(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    Widget source(BuildContext sheet,
+            {required String logo,
+            required String name,
+            required String hint,
+            required Future<ImportExportResult> Function(
+                    ImportProgressCallback report)
+                run}) =>
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          // The apps' own icons, as onboarding shows them.
+          leading: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset(logo, width: 36, height: 36, fit: BoxFit.cover),
+          ),
+          title: Text(name, style: TextStyle(color: colors.onSurface)),
+          subtitle:
+              Text(hint, style: TextStyle(color: colors.onSurfaceVariant)),
+          trailing: Icon(Icons.chevron_right, color: colors.onSurfaceVariant),
+          onTap: () {
+            Navigator.pop(sheet);
+            _handleImport(context, run);
+          },
+        );
+
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colors.onSurfaceVariant.withAlpha(80),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Import', style: theme.textTheme.titleLarge),
+                  Text(
+                    'Bring your books over from another app',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: colors.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 4),
+            source(
+              sheet,
+              logo: 'assets/icon/goodreads.png',
+              name: 'Goodreads',
+              hint: 'Use the library export (.csv)',
+              run: (report) =>
+                  importExportService.importGoodreadsCSV(onProgress: report),
+            ),
+            source(
+              sheet,
+              logo: 'assets/icon/bookmory.png',
+              name: 'Bookmory',
+              hint: 'Use the Database export (.bookmory)',
+              run: (report) =>
+                  importExportService.importBookmory(onProgress: report),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleImport(
     BuildContext context,
     Future<ImportExportResult> Function(ImportProgressCallback report)
