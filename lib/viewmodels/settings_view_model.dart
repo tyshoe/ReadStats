@@ -24,6 +24,8 @@ class SettingsViewModel {
   // Series: shown as one row each (on by default), and an only-series filter.
   final ValueNotifier<bool> libraryGroupSeriesNotifier;
   final ValueNotifier<bool> librarySeriesOnlyNotifier;
+  // Cover filter: 'all', 'with' or 'without'.
+  final ValueNotifier<String> libraryCoverFilterNotifier;
   // Pinned Books
   final ValueNotifier<List<int>> pinnedBookIdsNotifier;
   // Library Shelf Filter
@@ -65,8 +67,10 @@ class SettingsViewModel {
     required String statsChartStyle,
     bool groupSeries = true,
     bool seriesOnly = false,
+    String coverFilter = 'all',
   })  : libraryGroupSeriesNotifier = ValueNotifier(groupSeries),
         librarySeriesOnlyNotifier = ValueNotifier(seriesOnly),
+        libraryCoverFilterNotifier = ValueNotifier(coverFilter),
         themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
@@ -253,6 +257,17 @@ class SettingsViewModel {
   static Future<bool> getLibrarySeriesOnly() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getBool('librarySeriesOnly') ?? false;
+  }
+
+  Future<void> setLibraryCoverFilter(String filter) async {
+    libraryCoverFilterNotifier.value = filter;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('libraryCoverFilter', filter);
+  }
+
+  static Future<String> getLibraryCoverFilter() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString('libraryCoverFilter') ?? 'all';
   }
 
   // Save book format filter

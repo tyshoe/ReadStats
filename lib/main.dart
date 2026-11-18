@@ -219,6 +219,7 @@ class _MyAppState extends State<MyApp> {
     final isReviewed = await SettingsViewModel.getLibraryReviewed();
     final groupSeries = await SettingsViewModel.getLibraryGroupSeries();
     final seriesOnly = await SettingsViewModel.getLibrarySeriesOnly();
+    final coverFilter = await SettingsViewModel.getLibraryCoverFilter();
     final pinnedBookIds = await SettingsViewModel.getPinnedBookIds();
     final shelfId = await SettingsViewModel.getLibraryShelfFilter();
     final statsYearFilter = await SettingsViewModel.getStatsYearFilter();
@@ -276,6 +277,7 @@ class _MyAppState extends State<MyApp> {
         statsChartStyle: statsChartStyle,
         groupSeries: groupSeries,
         seriesOnly: seriesOnly,
+        coverFilter: coverFilter,
       );
       _isReady = true;
     });

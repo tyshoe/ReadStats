@@ -19,6 +19,9 @@ class SortFilterOptions {
   /// Only books that belong to a series.
   final bool seriesOnly;
 
+  /// 'all', 'with' (has a cover) or 'without'.
+  final String coverFilter;
+
   const SortFilterOptions({
     required this.sortOption,
     required this.isAscending,
@@ -30,6 +33,7 @@ class SortFilterOptions {
     this.isReviewed = false,
     this.groupSeries = true,
     this.seriesOnly = false,
+    this.coverFilter = 'all',
   });
 
   SortFilterOptions copyWith({
@@ -43,6 +47,7 @@ class SortFilterOptions {
     bool? isReviewed,
     bool? groupSeries,
     bool? seriesOnly,
+    String? coverFilter,
   }) {
     return SortFilterOptions(
       sortOption: sortOption ?? this.sortOption,
@@ -55,6 +60,7 @@ class SortFilterOptions {
       isReviewed: isReviewed ?? this.isReviewed,
       groupSeries: groupSeries ?? this.groupSeries,
       seriesOnly: seriesOnly ?? this.seriesOnly,
+      coverFilter: coverFilter ?? this.coverFilter,
     );
   }
 }
@@ -145,6 +151,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
         isReviewed: false,
         groupSeries: currentOptions.groupSeries,
         seriesOnly: false,
+        coverFilter: 'all',
       );
     });
   }
@@ -413,6 +420,10 @@ class _SortFilterViewState extends State<_SortFilterView> {
       count += 1;
     }
 
+    if (currentOptions.coverFilter != 'all') {
+      count += 1;
+    }
+
     if (currentOptions.finishedYears.isNotEmpty) {
       count += 1;
     }
@@ -548,6 +559,33 @@ class _SortFilterViewState extends State<_SortFilterView> {
                             },
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Cover Filter (one choice at a time)
+                      _buildSectionHeader('Cover'),
+                      _buildFilterChips(
+                        options: const ['All', 'With cover', 'Without cover'],
+                        selected: [
+                          switch (currentOptions.coverFilter) {
+                            'with' => 'With cover',
+                            'without' => 'Without cover',
+                            _ => 'All',
+                          },
+                        ],
+                        onChanged: (selected) {
+                          // Chips add to the selection; keep only the newest.
+                          final pick = selected.isEmpty ? 'All' : selected.last;
+                          setState(() {
+                            currentOptions = currentOptions.copyWith(
+                              coverFilter: switch (pick) {
+                                'With cover' => 'with',
+                                'Without cover' => 'without',
+                                _ => 'all',
+                              },
+                            );
+                          });
+                        },
                       ),
                       const SizedBox(height: 16),
 

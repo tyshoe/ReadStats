@@ -71,6 +71,7 @@ class _LibraryPageState extends State<LibraryPage> {
   final GlobalKey _selectedShelfChipKey = GlobalKey();
   bool _groupSeries = true;
   bool _seriesOnly = false;
+  String _coverFilter = 'all';
 
   /// Series rows the reader has opened up, for this visit.
   final Set<int> _expandedSeries = {};
@@ -118,6 +119,7 @@ class _LibraryPageState extends State<LibraryPage> {
     _selectedShelfId = widget.settingsViewModel.libraryShelfFilterNotifier.value;
     _groupSeries = widget.settingsViewModel.libraryGroupSeriesNotifier.value;
     _seriesOnly = widget.settingsViewModel.librarySeriesOnlyNotifier.value;
+    _coverFilter = widget.settingsViewModel.libraryCoverFilterNotifier.value;
 
     _filteredBooks = _sortAndFilterBooks(
       List<Map<String, dynamic>>.from(widget.books),
@@ -590,6 +592,14 @@ class _LibraryPageState extends State<LibraryPage> {
 
       final seriesMatch = !_seriesOnly || book['series_id'] != null;
 
+      final hasCover =
+          (book['cover_path'] as String?)?.isNotEmpty ?? false;
+      final coverMatch = switch (_coverFilter) {
+        'with' => hasCover,
+        'without' => !hasCover,
+        _ => true,
+      };
+
       bool yearMatch = finishedYears.isEmpty;
       if (!yearMatch && book['date_finished'] != null) {
         try {
@@ -624,6 +634,7 @@ class _LibraryPageState extends State<LibraryPage> {
           reviewedMatch &&
           shelfMatch &&
           seriesMatch &&
+          coverMatch &&
           yearMatch &&
           tagMatch;
     }).toList();
@@ -711,7 +722,8 @@ class _LibraryPageState extends State<LibraryPage> {
         tagFilterMode: _selectedTagFilterMode,
         isReviewed: _isReviewed,
         groupSeries: _groupSeries,
-        seriesOnly: _seriesOnly);
+        seriesOnly: _seriesOnly,
+        coverFilter: _coverFilter);
 
     SortFilterPopup.show(
         context: context,
@@ -728,6 +740,7 @@ class _LibraryPageState extends State<LibraryPage> {
             _isReviewed = newOptions.isReviewed;
             _groupSeries = newOptions.groupSeries;
             _seriesOnly = newOptions.seriesOnly;
+            _coverFilter = newOptions.coverFilter;
           });
           _searchBooks();
           widget.settingsViewModel.setLibrarySortOption(_selectedSortOption);
@@ -739,6 +752,7 @@ class _LibraryPageState extends State<LibraryPage> {
           widget.settingsViewModel.setLibraryReviewed(_isReviewed);
           widget.settingsViewModel.setLibraryGroupSeries(_groupSeries);
           widget.settingsViewModel.setLibrarySeriesOnly(_seriesOnly);
+          widget.settingsViewModel.setLibraryCoverFilter(_coverFilter);
         },
         availableYears: availableYears,
         settingsViewModel: widget.settingsViewModel,
@@ -937,6 +951,7 @@ class _LibraryPageState extends State<LibraryPage> {
             icon: Badge(
               isLabelVisible: _isFavorite ||
                   _isReviewed ||
+                  _coverFilter != 'all' ||
                   _selectedBookTypes.isNotEmpty ||
                   _selectedFinishedYears.isNotEmpty ||
                   _selectedTags.isNotEmpty,
@@ -1146,6 +1161,7 @@ class _LibraryPageState extends State<LibraryPage> {
                                       !_isFavorite &&
                                       !_isReviewed &&
                                       !_seriesOnly &&
+                                      _coverFilter == 'all' &&
                                       _selectedBookTypes.isEmpty &&
                                       _selectedFinishedYears.isEmpty &&
                                       _selectedTags.isEmpty;
