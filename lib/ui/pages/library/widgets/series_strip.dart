@@ -513,16 +513,25 @@ class SeriesCoverStack extends StatelessWidget {
   /// Width of each cover; the stack is wider by its offsets.
   final double coverWidth;
 
+  /// How far the back cover sits from the front one, as a fraction of
+  /// [coverWidth].
+  final double spread;
+
   const SeriesCoverStack({
     super.key,
     required this.books,
     required this.coverWidth,
+    this.spread = 0.3,
   });
 
   static const _max = 3;
 
-  /// The width the stack takes for [coverWidth].
-  static double widthFor(double coverWidth) => coverWidth * 1.3;
+  /// How much higher each cover sits than the one in front of it.
+  static const _rise = 4.0;
+
+  /// The width the stack takes for [coverWidth] and [spread].
+  static double widthFor(double coverWidth, {double spread = 0.3}) =>
+      coverWidth * (1 + spread);
 
   @override
   Widget build(BuildContext context) {
@@ -530,18 +539,18 @@ class SeriesCoverStack extends StatelessWidget {
     // Front of the pile is the first book; draw back to front.
     final shown = books.take(_max).toList().reversed.toList();
     final coverHeight = coverWidth * 1.5;
-    final step = coverWidth * 0.3 / math.max(1, _max - 1);
+    final step = coverWidth * spread / math.max(1, _max - 1);
 
     return SizedBox(
-      width: widthFor(coverWidth),
-      height: coverHeight + 4,
+      width: widthFor(coverWidth, spread: spread),
+      height: coverHeight + _rise * (_max - 1),
       child: Stack(
         children: [
           for (var i = 0; i < shown.length; i++)
             Positioned(
-              // Back covers sit right and slightly higher.
+              // Each cover further back sits further right and a step higher.
               left: (shown.length - 1 - i) * step,
-              top: (shown.length - 1 - i) == 0 ? 4 : 0,
+              top: i * _rise,
               child: _cover(theme, shown[i], coverWidth, coverHeight,
                   front: i == shown.length - 1),
             ),

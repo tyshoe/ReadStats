@@ -393,6 +393,7 @@ class _SeriesPageState extends State<SeriesPage> {
               child: CustomScrollView(
                 slivers: [
                   _padded(SliverList.list(children: [
+                    const SizedBox(height: 12),
                     _header(theme, p),
                     const SizedBox(height: 24),
                     _progressSection(theme, p),

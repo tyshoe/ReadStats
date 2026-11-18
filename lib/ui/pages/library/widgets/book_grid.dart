@@ -27,6 +27,7 @@ class BookGridItem extends StatelessWidget {
     final blurSelected = selectionMode && isSelected && hasCover;
 
     return Card(
+      margin: EdgeInsets.zero,
       elevation: 0,
       color: hasCover ? null : (isSelected ? selectionColor.withValues(alpha: 0.45) : theme.cardTheme.color),
       clipBehavior: Clip.antiAlias,

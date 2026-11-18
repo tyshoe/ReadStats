@@ -297,6 +297,7 @@ class SeriesGridTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
+      margin: EdgeInsets.zero,
       elevation: 0,
       clipBehavior: Clip.antiAlias,
       color: theme.colorScheme.surfaceContainerHighest,
@@ -310,15 +311,19 @@ class SeriesGridTile extends StatelessWidget {
         onTap: onTap,
         onLongPress: onLongPress,
         child: LayoutBuilder(builder: (context, c) {
-          final coverWidth = c.maxWidth * 0.62;
+          final coverWidth = c.maxWidth * 0.52;
+          const spread = 0.7;
           return Stack(
             children: [
               Positioned(
-                top: 10,
-                left: (c.maxWidth - SeriesCoverStack.widthFor(coverWidth)) / 2,
+                top: 8,
+                left: (c.maxWidth -
+                        SeriesCoverStack.widthFor(coverWidth, spread: spread)) /
+                    2,
                 child: SeriesCoverStack(
                   books: progress.books,
                   coverWidth: coverWidth,
+                  spread: spread,
                 ),
               ),
               Positioned(

@@ -1206,12 +1206,14 @@ class _LibraryPageState extends State<LibraryPage> {
                           return Scrollbar(
                           child: _libraryBookView == "grid"
                               ? GridView.builder(
-                            padding: const EdgeInsets.only(top: 4),
+                            // Tiles have no margin, so the cell is exactly
+                            // the 2:3 cover shape and covers aren't cropped.
+                            padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 3,
-                              childAspectRatio: 0.58,
-                              crossAxisSpacing: 4,
-                              mainAxisSpacing: 4,
+                              childAspectRatio: 2 / 3,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
                             ),
                             itemCount: items.length,
                             itemBuilder: (context, index) {
