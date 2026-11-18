@@ -26,7 +26,7 @@ import '/data/models/notification_pref.dart';
 import '/data/utils/reading_clock.dart';
 import '/data/database/database_helper.dart';
 import '/viewmodels/settings_view_model.dart';
-import '/ui/pages/library/widgets/book_detail_sheet.dart';
+import '/ui/pages/library/book_detail_page.dart';
 import '/ui/pages/library/book_form_page.dart';
 import '/ui/pages/sessions/session_form_page.dart';
 import '/ui/pages/library/widgets/next_in_series_sheet.dart';
@@ -742,20 +742,16 @@ class _StatisticsPageState extends State<StatisticsPage> {
     }
 
     if (!mounted) return;
-    BookPopup.showBookPopup(
+    openBookDetail(
       context,
       mutableBook,
-      widget.settingsViewModel.defaultRatingStyleNotifier.value,
-      widget.settingsViewModel.defaultDateFormatNotifier.value,
-      _navigateToEditBookPage,
-      _navigateToAddSessionPage,
-      _confirmDelete,
-      TagRepository(DatabaseHelper()),
-      BookRepository(DatabaseHelper()),
-      widget.settingsViewModel,
+      navigateToEditBookPage: _navigateToEditBookPage,
+      navigateToAddSessionPage: _navigateToAddSessionPage,
+      confirmDelete: _confirmDelete,
+      tagRepository: TagRepository(DatabaseHelper()),
+      bookRepository: BookRepository(DatabaseHelper()),
+      settingsViewModel: widget.settingsViewModel,
       refreshCallback: loadStats,
-      isPinned: false,
-      onTogglePin: (_) {},
     );
   }
 

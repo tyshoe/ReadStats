@@ -13,7 +13,7 @@ import '/data/utils/series_progress.dart';
 import '/data/repositories/series_repository.dart';
 import 'widgets/series_detect_sheet.dart';
 import 'widgets/next_in_series_sheet.dart';
-import 'widgets/book_detail_sheet.dart';
+import 'book_detail_page.dart';
 import 'widgets/book_row.dart';
 import 'widgets/filter_sort_sheet.dart';
 import 'book_form_page.dart';
@@ -211,12 +211,13 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Future<void> _openSeries(int seriesId) async {
-    final picked = await openSeriesPage(
+    // The book opens over the series, so back returns to it.
+    await openSeriesPage(
       context: context,
       seriesId: seriesId,
       settingsViewModel: widget.settingsViewModel,
+      onOpenBook: _openBookPage,
     );
-    if (picked != null && mounted) _showBookPopup(context, picked);
   }
 
   /// What the Library shows: books, with a series' books gathered into one
@@ -517,18 +518,16 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  void _showBookPopup(BuildContext context, Map<String, dynamic> book) async {
-    BookPopup.showBookPopup(
+  void _openBookPage(BuildContext context, Map<String, dynamic> book) async {
+    openBookDetail(
       context,
       book,
-      widget.settingsViewModel.defaultRatingStyleNotifier.value,
-      widget.settingsViewModel.defaultDateFormatNotifier.value,
-      _navigateToEditBookPage,
-      _navigateToAddSessionPage,
-      _confirmDelete,
-      _tagRepository,
-      widget.bookRepository,
-      widget.settingsViewModel,
+      navigateToEditBookPage: _navigateToEditBookPage,
+      navigateToAddSessionPage: _navigateToAddSessionPage,
+      confirmDelete: _confirmDelete,
+      tagRepository: _tagRepository,
+      bookRepository: widget.bookRepository,
+      settingsViewModel: widget.settingsViewModel,
       refreshCallback: () {
         widget.refreshBooks();
         _refreshTags();
@@ -802,7 +801,7 @@ class _LibraryPageState extends State<LibraryPage> {
       ),
     );
     if (picked != null && mounted) {
-      _showBookPopup(context, picked);
+      _openBookPage(context, picked);
     }
   }
 
@@ -1240,7 +1239,7 @@ class _LibraryPageState extends State<LibraryPage> {
                                     if (_selectionMode) {
                                       _toggleSelection(book['id']);
                                     } else {
-                                      _showBookPopup(context, book);
+                                      _openBookPage(context, book);
                                     }
                                   },
                                   isPinned: _pinnedBookIds.contains(book['id']),
@@ -1274,7 +1273,7 @@ class _LibraryPageState extends State<LibraryPage> {
                                       _startGroupSelection(item.books),
                                   onBookTap: (b) => _selectionMode
                                       ? _toggleSelection(b['id'] as int)
-                                      : _showBookPopup(context, b),
+                                      : _openBookPage(context, b),
                                   onBookLongPress: (b) =>
                                       _startSelection(b['id'] as int),
                                   isSelected: _selectedBookIds.contains,
@@ -1301,7 +1300,7 @@ class _LibraryPageState extends State<LibraryPage> {
                                     if (_selectionMode) {
                                       _toggleSelection(book['id']);
                                     } else {
-                                      _showBookPopup(context, book);
+                                      _openBookPage(context, book);
                                     }
                                   },
                                 ),

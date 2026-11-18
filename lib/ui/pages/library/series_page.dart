@@ -19,12 +19,15 @@ import 'widgets/series_strip.dart';
 /// Opens a series' page. Returns the book the reader tapped (cover path
 /// resolved, ready for the detail sheet), or null if they went back.
 ///
-/// [currentBookId] marks the book it was opened from, if any.
+/// [currentBookId] marks the book it was opened from, if any. With
+/// [onOpenBook], a tapped book opens on top of the series instead of being
+/// returned, so it arrives in one transition and back leads to the series.
 Future<Map<String, dynamic>?> openSeriesPage({
   required BuildContext context,
   required int seriesId,
   required SettingsViewModel settingsViewModel,
   int? currentBookId,
+  void Function(BuildContext context, Map<String, dynamic> book)? onOpenBook,
 }) {
   return Navigator.of(context).push<Map<String, dynamic>>(
     MaterialPageRoute(
@@ -32,6 +35,7 @@ Future<Map<String, dynamic>?> openSeriesPage({
         seriesId: seriesId,
         currentBookId: currentBookId,
         settingsViewModel: settingsViewModel,
+        onOpenBook: onOpenBook,
       ),
     ),
   );
@@ -48,11 +52,17 @@ class SeriesPage extends StatefulWidget {
   final int? currentBookId;
   final SettingsViewModel settingsViewModel;
 
+  /// Opens a tapped book on top of this page. Without it, the page closes
+  /// and hands the book back.
+  final void Function(BuildContext context, Map<String, dynamic> book)?
+      onOpenBook;
+
   const SeriesPage({
     super.key,
     required this.seriesId,
     required this.settingsViewModel,
     this.currentBookId,
+    this.onOpenBook,
   });
 
   @override
@@ -203,7 +213,12 @@ class _SeriesPageState extends State<SeriesPage> {
       Navigator.pop(context);
       return;
     }
-    Navigator.pop(context, book);
+    final open = widget.onOpenBook;
+    if (open != null) {
+      open(context, book);
+    } else {
+      Navigator.pop(context, book);
+    }
   }
 
   /// Opens the add panel at [number], scrolled into view.

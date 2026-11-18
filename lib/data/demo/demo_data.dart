@@ -33,7 +33,10 @@ import '../repositories/goal_repository.dart';
 ///   year, counting down to zero on the finished ones, so a new audiobook
 ///   session opens on the time the last one stopped at; older ones keep a
 ///   bare duration.
-/// * Ratings (halves included), reviews, favourites, tags with colours.
+/// * Ratings (halves included), reviews — one long enough to fold behind
+///   the book page's "Read more" — favourites, tags with colours.
+/// * ISBNs on three books in four (made up, valid check digits), so the book
+///   page's Details shows the row and its absence.
 /// * Series: Sherlock Holmes #1 and #3 (a gap at #2 on purpose), plus #2
 ///   sitting unlinked with the series in its title, for "Find series in
 ///   titles"; and The d'Artagnan Romances with #1 in progress and #2 waiting,
@@ -291,6 +294,15 @@ const _reviews = [
   'Funnier than I expected, and sharper too.',
   'A comfort read. Exactly what I needed this month.',
   'Dense in places, but rewarding if you give it time.',
+  // Long enough to fold behind "Read more" on the book page.
+  'I went in expecting a museum piece and came out arguing with it. The '
+      'first hundred pages are slow — a lot of scene-setting, a lot of '
+      'people introduced at once — but once the main thread pulls tight it '
+      'barely lets go. The middle section is the best thing I\'ve read this '
+      'year: patient, funny in places, and quietly devastating by the end of '
+      'it. I didn\'t love every detour, and the last chapter tidies things up '
+      'a little too neatly for me, but I keep coming back to a handful of '
+      'scenes days later. Would happily reread it in a few years.',
 ];
 const _lowReview = 'Not for me — I admired it more than I enjoyed it.';
 
@@ -722,6 +734,7 @@ class _Generator {
 
     books.add(Book(
       id: id,
+      isbn: _isbn(id),
       pricePaid: _price(id, t),
       datePurchased: _purchased(id, t, added)?.toIso8601String(),
       title: t.title,
@@ -775,6 +788,19 @@ class _Generator {
     if (_price(id, t) == null || id % 3 != 1) return null;
     final day = added.subtract(Duration(days: 7 + (id * 13) % 90));
     return DateTime(day.year, day.month, day.day);
+  }
+
+  /// An ISBN-13 for book [id], or null for one in four, as for books added
+  /// by hand. Made up — 979-0 numbers aren't issued to books — but with a
+  /// valid check digit. From the id, never [rng].
+  static String? _isbn(int id) {
+    if (id % 4 == 3) return null;
+    final body = '9790${(id * 7919 % 100000000).toString().padLeft(8, '0')}';
+    var sum = 0;
+    for (var i = 0; i < 12; i++) {
+      sum += int.parse(body[i]) * (i.isEven ? 1 : 3);
+    }
+    return '$body${(10 - sum % 10) % 10}';
   }
 
   /// Added to the library a few days to a few weeks before being started.
