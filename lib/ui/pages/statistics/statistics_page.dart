@@ -6,7 +6,6 @@ import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_single.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/habit_bar_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/when_you_read_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/pie_chart.dart';
-import 'package:read_stats/ui/pages/statistics/widgets/stacked_bar_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/top_authors_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/rating_summary.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stat_card.dart';
@@ -38,7 +37,6 @@ import '/ui/pages/library/widgets/next_in_series_sheet.dart';
 class StatsData {
   final int year;
   final Map<String, dynamic> stats;
-  final List<Map<String, dynamic>> shelfData;
   final List<Map<String, dynamic>> bookTypeData;
   final List<Map<String, dynamic>> topAuthors;
   final Map<String, int> booksDist;
@@ -65,7 +63,6 @@ class StatsData {
   const StatsData({
     required this.year,
     required this.stats,
-    required this.shelfData,
     required this.bookTypeData,
     required this.topAuthors,
     required this.booksDist,
@@ -235,16 +232,14 @@ class _StatisticsPageState extends State<StatisticsPage> {
       sessionRepo.getSessions(yearFilter: year),
       bookRepo.getBooks(yearFilter: year),
       bookRepo.getAllBookStats(year),
-      bookRepo.getBookCountsPerShelf(),
       bookRepo.getBookCountsPerType(),
       bookRepo.getRatingDistribution(selectedYear: year),
     ]);
     final sessions = results[0] as List<Session>;
     final books = results[1] as List<Book>;
     final bookStats = results[2] as Map<String, dynamic>;
-    final shelfData = results[3] as List<Map<String, dynamic>>;
-    final bookTypeData = results[4] as List<Map<String, dynamic>>;
-    final ratingDist = results[5] as Map<double, int>;
+    final bookTypeData = results[3] as List<Map<String, dynamic>>;
+    final ratingDist = results[4] as Map<double, int>;
 
     String periodKey(String date) {
       final d = DateTime.parse(date);
@@ -386,7 +381,6 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return StatsData(
       year: year,
       stats: stats,
-      shelfData: shelfData,
       bookTypeData: bookTypeData,
       topAuthors: topAuthorsData,
       booksDist: booksDist,
@@ -664,26 +658,6 @@ class _StatisticsPageState extends State<StatisticsPage> {
         'Hardback':   _safeColor(const Color(0xFF9575CD), Theme.of(context).primaryColor),
         'EBook':      _safeColor(const Color(0xFF4CAF50), Theme.of(context).primaryColor),
         'Audiobook':  _safeColor(const Color(0xFFFF9800), Theme.of(context).primaryColor),
-      },
-    );
-  }
-
-  Widget _buildShelfChart() {
-    final primary = Theme.of(context).primaryColor;
-    const shelfOrder = ['Want to Read', 'Currently Reading', 'Finished', 'Unfinished'];
-    final sorted = [..._data!.shelfData]..sort((a, b) {
-        final ai = shelfOrder.indexOf(a['name'] as String);
-        final bi = shelfOrder.indexOf(b['name'] as String);
-        return (ai == -1 ? 999 : ai).compareTo(bi == -1 ? 999 : bi);
-      });
-    return StackedBarChartWidget(
-      title: 'Library Shelves',
-      data: sorted,
-      colors: {
-        'Currently Reading': primary,
-        'Want to Read':      _safeColor(const Color(0xFF9575CD), primary),
-        'Finished':          _safeColor(const Color(0xFF4CAF50), primary),
-        'Unfinished':        _safeColor(const Color(0xFFFF9800), primary),
       },
     );
   }
@@ -1238,7 +1212,6 @@ class _StatisticsPageState extends State<StatisticsPage> {
                   ),
                   _buildRecapEntries(theme),
                   _buildSectionHeader('Overview'),
-                  _buildShelfChart(),
                   _buildBookTypeChart(),
                   _buildBooksChart(),
                   _buildSessionsChart(),

@@ -235,15 +235,4 @@ extension StatsQueries on DatabaseHelper {
       ORDER BY bt.id ASC
     ''');
   }
-
-  Future<List<Map<String, dynamic>>> getBookCountsPerShelf() async {
-    final db = await database;
-    return await db.rawQuery('''
-      SELECT s.name, COUNT(b.id) as book_count
-      FROM shelves s
-      LEFT JOIN books b ON b.shelf_id = s.id
-      GROUP BY s.id
-      ORDER BY s.sort_order ASC
-    ''');
-  }
 }
