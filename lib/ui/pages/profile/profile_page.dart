@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:read_stats/data/models/goal.dart';
 import 'package:read_stats/data/models/preset_avatar.dart';
 import 'package:read_stats/data/repositories/goal_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/avatar_service.dart';
 import 'package:read_stats/data/utils/money.dart';
 import 'package:read_stats/domain/badges.dart';
@@ -373,6 +374,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _openAchievements(Color accent) {
+    AnalyticsService.instance.screen('achievements');
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => AchievementsPage(
         books: widget.books,

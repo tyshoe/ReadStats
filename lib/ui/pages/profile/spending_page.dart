@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/utils/money.dart';
 import 'package:read_stats/domain/spending_summary.dart';
 import 'package:read_stats/ui/settings_view_model.dart';
@@ -30,6 +31,12 @@ class SpendingPage extends StatefulWidget {
 }
 
 class _SpendingPageState extends State<SpendingPage> {
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService.instance.screen('spending');
+  }
+
   /// How many books the list shows before "Show all".
   static const _preview = 5;
 

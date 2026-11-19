@@ -7,6 +7,7 @@ import 'package:read_stats/data/models/session.dart';
 import 'package:read_stats/data/models/shelf.dart';
 import 'package:read_stats/data/repositories/book_repository.dart';
 import 'package:read_stats/data/repositories/session_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/rating_service.dart';
 import 'package:read_stats/ui/pages/sessions/session_book_options.dart';
 import 'package:read_stats/ui/pages/sessions/widgets/reading_dates_row.dart';
@@ -71,6 +72,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen(widget.isEditing ? 'session_edit' : 'session_add');
 
     if (widget.isEditing) {
       final editDuration = widget.session!['duration_minutes'] as int?;
@@ -406,6 +408,13 @@ class _SessionFormPageState extends State<SessionFormPage> {
 
         final isFinalSession = await _applyShelfSelection();
         await _applyReadingDates();
+
+        final bookTypeId = _selectedBook!['book_type_id'] as int?;
+        AnalyticsService.instance
+            .sessionLogged(method: 'manual', bookTypeId: bookTypeId);
+        if (isFinalSession) {
+          AnalyticsService.instance.bookFinished(bookTypeId: bookTypeId);
+        }
 
         AppSnackbar.show('Session added successfully!');
 

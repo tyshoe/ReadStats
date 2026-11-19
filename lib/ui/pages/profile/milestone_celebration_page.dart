@@ -1,7 +1,9 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:read_stats/data/models/goal.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/goal_achievement_service.dart';
 import 'package:read_stats/data/services/milestone_service.dart';
 import 'package:read_stats/domain/badges.dart';
@@ -154,6 +156,7 @@ class _MilestoneCelebrationPageState extends State<MilestoneCelebrationPage>
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('milestone_celebration');
     _entry = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 620),

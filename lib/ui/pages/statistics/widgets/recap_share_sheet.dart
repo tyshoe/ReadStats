@@ -7,6 +7,7 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/gallery_save_service.dart';
 import 'package:read_stats/domain/monthly_recap.dart';
 import 'package:read_stats/ui/pages/book/widgets/book_share_card.dart' show CheckerboardBackground;
@@ -72,6 +73,7 @@ Future<void> showRecapShareSheet({
       final directory = await getTemporaryDirectory();
       final path = '${directory.path}/recap_${recap.key}.png';
       await File(path).writeAsBytes(bytes);
+      AnalyticsService.instance.shared('recap');
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(path)],

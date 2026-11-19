@@ -1,6 +1,7 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:read_stats/app_config.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/import_export_service.dart';
 import 'package:read_stats/data/services/milestone_service.dart';
 import 'package:read_stats/data/services/notification_service.dart';
@@ -27,6 +28,12 @@ class OnboardingPage extends StatefulWidget {
 }
 
 class _OnboardingPageState extends State<OnboardingPage> {
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService.instance.screen('onboarding');
+  }
+
   final _controller = PageController();
   int _currentPage = 0;
   bool _hasImported = false;
@@ -62,6 +69,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   Future<void> _finish() async {
     await SettingsViewModel.setHasSeenOnboarding();
+    AnalyticsService.instance.onboardingFinished();
     // The streak reminder ships switched on, so permission is asked for here —
     // at the end of the tour that just explained what the app tracks, which is
     // the most context this request will ever have. Awaited so the reader

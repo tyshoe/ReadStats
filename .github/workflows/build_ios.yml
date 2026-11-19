@@ -23,6 +23,10 @@ jobs:
         run: flutter pub get
 
       - name: Build iOS (Release)
+        # Firebase Analytics without the advertising identifier when built
+        # through Swift Package Manager (the Podfile covers CocoaPods).
+        env:
+          FIREBASE_ANALYTICS_WITHOUT_ADID: 'true'
         run: flutter build ios --release --no-codesign
 
       - name: Create Folder

@@ -6,6 +6,7 @@ import 'package:read_stats/data/models/shelf.dart';
 import 'package:read_stats/data/repositories/book_repository.dart';
 import 'package:read_stats/data/repositories/planner_repository.dart';
 import 'package:read_stats/data/repositories/series_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/cover_service.dart';
 import 'package:read_stats/data/utils/series_title.dart';
 import 'package:read_stats/domain/series_progress.dart';
@@ -90,6 +91,7 @@ class _SeriesPageState extends State<SeriesPage> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('series');
     _load();
   }
 

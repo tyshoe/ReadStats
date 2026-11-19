@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/ui/pages/library/widgets/book_row.dart';
 import 'package:read_stats/ui/settings_view_model.dart';
 
@@ -51,6 +52,7 @@ class _FontSelectionPageState extends State<FontSelectionPage> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('font');
     _tags = (_tagPool.toList()..shuffle()).take(3).toList();
     _prepareCover();
   }

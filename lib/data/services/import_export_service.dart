@@ -24,6 +24,7 @@ import 'package:read_stats/data/repositories/planner_repository.dart';
 import 'package:read_stats/data/repositories/series_repository.dart';
 import 'package:read_stats/data/repositories/session_repository.dart';
 import 'package:read_stats/data/repositories/tag_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/cover_service.dart';
 import 'package:read_stats/data/utils/date_utils.dart';
 import 'package:read_stats/data/utils/series_title.dart';
@@ -219,6 +220,7 @@ class ImportExportService {
       await SeriesRepository()
           .restorePlaceholders(demo.seriesPlaceholders);
 
+      AnalyticsService.instance.dataImported('demo');
       return ImportExportResult(
         success: true,
         message: 'Demo library loaded: ${demo.books.length} books, '
@@ -311,6 +313,7 @@ class ImportExportService {
       onProgress?.call(const ImportProgress('Backup ready', 1));
       await SharePlus.instance.share(ShareParams(files: [XFile(zipPath)]));
 
+      AnalyticsService.instance.backupExported();
       return ImportExportResult(
         success: true,
         message:
@@ -594,6 +597,7 @@ class ImportExportService {
       if (kDebugMode) {
         print('Restore: done in ${clock.elapsedMilliseconds} ms');
       }
+      AnalyticsService.instance.dataImported('backup');
       return ImportExportResult(
         success: true,
         message: 'Restored $booksCount books, $sessionsCount sessions, '
@@ -655,6 +659,7 @@ class ImportExportService {
       if (rows.length <= 1) throw Exception('CSV has no data rows.');
 
       final count = await _parseAndInsertGoodreadsBooks(rows);
+      AnalyticsService.instance.dataImported('goodreads');
       return ImportExportResult(
         success: true,
         message: 'Imported $count books successfully.',
@@ -708,7 +713,9 @@ class ImportExportService {
         dbText = utf8.decode(bytes);
       }
 
-      return await _parseAndInsertBookmory(dbText, onProgress);
+      final imported = await _parseAndInsertBookmory(dbText, onProgress);
+      if (imported.success) AnalyticsService.instance.dataImported('bookmory');
+      return imported;
     } catch (e) {
       if (kDebugMode) print('Import error (bookmory): $e');
       return ImportExportResult(success: false, message: 'Import failed: $e');

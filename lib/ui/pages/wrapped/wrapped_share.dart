@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/gallery_save_service.dart';
 import 'package:read_stats/domain/wrapped_story.dart';
 import 'package:read_stats/ui/pages/wrapped/slides/wrapped_slide_view.dart';
@@ -103,6 +104,7 @@ Future<void> shareWrappedSlide({
           final dir = await getTemporaryDirectory();
           final path = '${dir.path}/$name.png';
           await File(path).writeAsBytes(image);
+          AnalyticsService.instance.shared('wrapped');
           await SharePlus.instance.share(ShareParams(
             files: [XFile(path)],
             text: 'My $year in reading.',

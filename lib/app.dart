@@ -5,6 +5,7 @@ import 'package:read_stats/data/repositories/book_repository.dart';
 import 'package:read_stats/data/repositories/goal_repository.dart';
 import 'package:read_stats/data/repositories/session_repository.dart';
 import 'package:read_stats/data/repositories/tag_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/cover_service.dart';
 import 'package:read_stats/data/services/goal_achievement_service.dart';
 import 'package:read_stats/data/services/import_export_service.dart';
@@ -418,6 +419,7 @@ class _ReadStatsAppState extends State<ReadStatsApp> {
       _books = resolvedBooks;
     });
     _booksLoaded = true;
+    AnalyticsService.instance.setLibrarySize(_books.length);
     _checkMilestones();
     _syncNotificationData();
     _handleNotificationTap();

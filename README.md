@@ -72,7 +72,7 @@ ReadStats is a clean, private reading tracker. Log the books you read and the se
 
 ## Privacy
 
-ReadStats has no accounts, no ads, no analytics, and no servers. Everything you record lives in a local database on your device and leaves it only when *you* export a backup. The app only touches the network to look up books, download covers, and load fonts. Read the full [privacy policy](PRIVACY.md).
+ReadStats has no accounts, no ads, and no servers. Everything you record lives in a local database on your device and leaves it only when *you* export a backup. The app touches the network to look up books, download covers, and load fonts, and — unless you switch it off in Settings → Privacy — to send anonymous usage counts and crash reports (never your books or notes) through Firebase. Read the full [privacy policy](PRIVACY.md).
 
 ## Building from source
 

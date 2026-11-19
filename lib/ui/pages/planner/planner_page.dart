@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:read_stats/data/models/planner_book.dart';
 import 'package:read_stats/data/repositories/planner_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/ui/pages/library/widgets/random_book_picker.dart';
 import 'package:read_stats/ui/pages/planner/widgets/planner_book_card.dart';
 import 'package:read_stats/ui/pages/planner/widgets/planner_book_sheet.dart';
@@ -24,6 +25,7 @@ class _PlannerPageState extends State<PlannerPage> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('planner');
     _repository = PlannerRepository();
     _loadBooks();
   }

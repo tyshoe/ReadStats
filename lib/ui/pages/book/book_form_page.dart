@@ -15,6 +15,7 @@ import 'package:read_stats/data/models/tag.dart';
 import 'package:read_stats/data/repositories/book_repository.dart';
 import 'package:read_stats/data/repositories/series_repository.dart';
 import 'package:read_stats/data/repositories/tag_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/book_search_service.dart';
 import 'package:read_stats/data/services/cover_service.dart';
 import 'package:read_stats/data/utils/money.dart';
@@ -162,6 +163,7 @@ class _BookFormPageState extends State<BookFormPage> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen(widget.isEditing ? 'book_edit' : 'book_add');
     _useStarRating =
         widget.settingsViewModel.defaultRatingStyleNotifier.value == 0;
     _selectedBookType =
@@ -514,6 +516,16 @@ class _BookFormPageState extends State<BookFormPage> {
           await bookRepository.updateCoverPath(newBookId, newPath);
           await _persistCoverOriginal(newBookId);
         }
+      }
+
+      final wasFinished =
+          widget.isEditing && widget.book!['shelf_id'] == Shelf.finished;
+      if (!widget.isEditing) {
+        AnalyticsService.instance
+            .bookAdded(method: 'form', bookTypeId: _selectedBookType + 1);
+      }
+      if (_shelfId == Shelf.finished && !wasFinished) {
+        AnalyticsService.instance.bookFinished(bookTypeId: _selectedBookType + 1);
       }
 
       widget.onSave(bookData);

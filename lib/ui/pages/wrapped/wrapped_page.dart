@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/recap_store.dart';
 import 'package:read_stats/domain/wrapped_story.dart';
 import 'package:read_stats/domain/year_wrapped.dart';
@@ -81,6 +82,8 @@ class _WrappedPageState extends State<WrappedPage>
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('wrapped');
+    AnalyticsService.instance.wrappedOpened();
     final wrapped = YearWrapped.forYear(
       books: widget.books,
       sessions: widget.sessions,

@@ -4,6 +4,7 @@ import 'package:read_stats/data/repositories/book_repository.dart';
 import 'package:read_stats/data/repositories/goal_repository.dart';
 import 'package:read_stats/data/repositories/session_repository.dart';
 import 'package:read_stats/data/repositories/tag_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/import_export_service.dart';
 import 'package:read_stats/data/services/reading_timer_service.dart';
 import 'package:read_stats/ui/pages/library/library_page.dart';
@@ -60,7 +61,12 @@ class _NavigationMenuState extends State<NavigationMenu> {
   void initState() {
     super.initState();
     _activeTabIndex = widget.settingsViewModel.defaultTabNotifier.value;
+    _logTab(_activeTabIndex);
   }
+
+  static const _tabNames = ['library', 'tracking', 'stats', 'profile'];
+
+  void _logTab(int index) => AnalyticsService.instance.screen(_tabNames[index]);
 
   @override
   Widget build(BuildContext context) {
@@ -85,6 +91,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
                   items: _buildBottomBarItems(accentColor),
                   currentIndex: _activeTabIndex,
                   onTap: (index) {
+                    if (index != _activeTabIndex) _logTab(index);
                     setState(() {
                       _activeTabIndex = index;
                     });
@@ -175,19 +182,22 @@ class _NavigationMenuState extends State<NavigationMenu> {
           sessions: widget.sessions,
           settingsViewModel: widget.settingsViewModel,
           goalRepository: widget.goalRepository,
-          onOpenSettings: (ctx) => Navigator.of(ctx).push(
-            MaterialPageRoute(
-              builder: (_) => SettingsPage(
-                toggleTheme: widget.toggleTheme,
-                themeMode: widget.themeMode,
-                importExportService: widget.importExportService,
-                refreshBooks: widget.refreshBooks,
-                refreshSessions: widget.refreshSessions,
-                settingsViewModel: widget.settingsViewModel,
-                timerService: widget.timerService,
+          onOpenSettings: (ctx) {
+            AnalyticsService.instance.screen('settings');
+            Navigator.of(ctx).push(
+              MaterialPageRoute(
+                builder: (_) => SettingsPage(
+                  toggleTheme: widget.toggleTheme,
+                  themeMode: widget.themeMode,
+                  importExportService: widget.importExportService,
+                  refreshBooks: widget.refreshBooks,
+                  refreshSessions: widget.refreshSessions,
+                  settingsViewModel: widget.settingsViewModel,
+                  timerService: widget.timerService,
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
     }
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:read_stats/data/models/tag.dart';
 import 'package:read_stats/data/repositories/tag_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/ui/settings_view_model.dart';
 
 /// Shows the tag selector as a modal bottom sheet, matching the bulk tag
@@ -56,6 +57,7 @@ class _TagSelectorSheetState extends State<TagSelectorSheet> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('tag_editor');
     _selectedTagIds = Set.from(widget.initialSelectedTagIds);
     _loadTags();
 

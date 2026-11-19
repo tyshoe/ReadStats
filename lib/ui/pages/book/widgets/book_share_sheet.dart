@@ -7,6 +7,7 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/gallery_save_service.dart';
 import 'package:read_stats/ui/pages/book/widgets/book_share_card.dart';
 import 'package:read_stats/ui/widgets/share_action.dart';
@@ -62,6 +63,7 @@ class BookShareSheet {
         final directory = await getTemporaryDirectory();
         final imagePath = '${directory.path}/book_share_${book['id']}.png';
         await File(imagePath).writeAsBytes(imageBytes);
+        AnalyticsService.instance.shared('book_card');
         await SharePlus.instance.share(
           ShareParams(
             files: [XFile(imagePath)],

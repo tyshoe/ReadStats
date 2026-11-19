@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/domain/badges.dart';
 import 'package:read_stats/domain/reading_activity.dart';
 import 'package:read_stats/ui/widgets/book_cover.dart';
@@ -50,6 +51,12 @@ class ActivityPage extends StatefulWidget {
 }
 
 class _ActivityPageState extends State<ActivityPage> {
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService.instance.screen('activity');
+  }
+
   _ActivityFilter _filter = _ActivityFilter.all;
 
   @override

@@ -1,5 +1,6 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/book_search_service.dart';
 import 'package:read_stats/ui/pages/book_search/barcode_scanner_page.dart';
 
@@ -73,6 +74,7 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('edition_picker');
     _workKey = widget.workKey;
     _currentIsbn =
         widget.isbn == null ? null : BookSearchService.asIsbn(widget.isbn!);

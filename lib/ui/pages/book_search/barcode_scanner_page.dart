@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/ui/widgets/app_snackbar.dart';
 
 class BarcodeScannerPage extends StatefulWidget {
@@ -12,6 +13,12 @@ class BarcodeScannerPage extends StatefulWidget {
 }
 
 class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService.instance.screen('barcode_scanner');
+  }
+
   final MobileScannerController _controller = MobileScannerController(
     formats: [BarcodeFormat.ean13, BarcodeFormat.ean8],
     facing: CameraFacing.back,

@@ -5,6 +5,7 @@ import 'package:read_stats/data/repositories/book_repository.dart';
 import 'package:read_stats/data/repositories/series_repository.dart';
 import 'package:read_stats/data/repositories/session_repository.dart';
 import 'package:read_stats/data/repositories/tag_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/domain/series_progress.dart';
 import 'package:read_stats/ui/pages/book/book_detail_page.dart';
 import 'package:read_stats/ui/pages/book/book_form_page.dart';
@@ -865,6 +866,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
     final text = '$header ($count $bookWord)\n\n$bullets\n\nShared from ReadStats';
 
+    AnalyticsService.instance.shared('library_list');
     await SharePlus.instance.share(ShareParams(text: text));
   }
 

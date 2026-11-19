@@ -6,6 +6,7 @@ import 'package:read_stats/data/models/session.dart';
 import 'package:read_stats/data/models/shelf.dart';
 import 'package:read_stats/data/repositories/book_repository.dart';
 import 'package:read_stats/data/repositories/session_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/reading_timer_service.dart';
 import 'package:read_stats/ui/pages/sessions/widgets/reading_dates_row.dart';
 import 'package:read_stats/ui/pages/sessions/widgets/session_pages_field.dart';
@@ -60,6 +61,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('post_session');
     _targetShelfId = widget.book['shelf_id'] as int?;
     DateTime? parse(Object? value) =>
         value is String ? DateTime.tryParse(value) : null;
@@ -367,6 +369,13 @@ class _PostSessionPageState extends State<PostSessionPage> {
 
       if (_targetShelfId != null && _targetShelfId != originalShelfId) {
         await widget.bookRepository.updateBookShelf(widget.book['id'], _targetShelfId!);
+      }
+
+      final bookTypeId = widget.book['book_type_id'] as int?;
+      AnalyticsService.instance
+          .sessionLogged(method: 'timer', bookTypeId: bookTypeId);
+      if (isFinalSession && originalShelfId != Shelf.finished) {
+        AnalyticsService.instance.bookFinished(bookTypeId: bookTypeId);
       }
 
       widget.onSaved();

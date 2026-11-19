@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:read_stats/data/repositories/book_repository.dart';
 import 'package:read_stats/data/repositories/session_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/reading_timer_service.dart';
 import 'package:read_stats/ui/pages/sessions/post_session_page.dart';
 import 'package:read_stats/ui/pages/sessions/widgets/countdown_sheet.dart';
@@ -55,6 +56,7 @@ class _FullscreenTimerPageState extends State<FullscreenTimerPage>
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('fullscreen_timer');
     _pulse = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3200),

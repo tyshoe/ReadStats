@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:read_stats/app_config.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/import_export_service.dart';
 import 'package:read_stats/data/services/milestone_service.dart';
 import 'package:read_stats/data/services/rating_service.dart';
@@ -277,6 +278,35 @@ class SettingsPage extends StatelessWidget {
                 onTap: () => _confirmDeleteData(context),
               ),
             ],
+          ),
+
+          // Privacy Section — the one thing that ever leaves the device on its
+          // own: anonymous usage counts and crash reports.
+          ValueListenableBuilder<bool>(
+            valueListenable: AnalyticsService.instance.enabledNotifier,
+            builder: (context, enabled, _) => _buildSettingsSection(
+              context,
+              header: 'Privacy',
+              children: [
+                SwitchListTile(
+                  secondary: _leadingSlot(
+                      context, const Icon(Icons.insights, size: 22)),
+                  title: Text('Share usage statistics',
+                      style: TextStyle(color: colors.onSurface)),
+                  subtitle: Text(
+                    'Anonymous feature counts and crash reports. '
+                    'Never your books or notes.',
+                    style: TextStyle(color: colors.onSurfaceVariant),
+                  ),
+                  value: enabled,
+                  activeThumbColor:
+                      settingsViewModel.accentColorNotifier.value,
+                  onChanged: AnalyticsService.instance.setEnabled,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ],
+            ),
           ),
 
           // Help & Feedback Section — how a user gets help or reaches us.

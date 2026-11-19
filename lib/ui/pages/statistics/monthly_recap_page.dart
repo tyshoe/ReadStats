@@ -1,6 +1,7 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/recap_store.dart';
 import 'package:read_stats/domain/monthly_recap.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/month_activity_strip.dart';
@@ -52,6 +53,8 @@ class _MonthlyRecapPageState extends State<MonthlyRecapPage> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('monthly_recap');
+    AnalyticsService.instance.recapOpened();
     _months = MonthlyRecap.availableMonths(
       books: widget.books,
       sessions: widget.sessions,

@@ -15,6 +15,7 @@ import 'package:read_stats/data/repositories/book_repository.dart';
 import 'package:read_stats/data/repositories/series_repository.dart';
 import 'package:read_stats/data/repositories/session_repository.dart';
 import 'package:read_stats/data/repositories/tag_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/cover_service.dart';
 import 'package:read_stats/data/utils/money.dart';
 import 'package:read_stats/data/utils/series_title.dart';
@@ -139,6 +140,7 @@ class _BookDetailPageState extends State<BookDetailPage> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('book_detail');
     _scroll.addListener(() => _scrolled.value = _scroll.offset > 140);
     DatabaseHelper.booksChanged.addListener(_load);
     DatabaseHelper.sessionsChanged.addListener(_load);
@@ -303,6 +305,10 @@ class _BookDetailPageState extends State<BookDetailPage> {
   Future<void> _moveToShelf(int shelfId) async {
     if (shelfId == _shelfId) return;
     await widget.bookRepository.updateBookShelf(_id, shelfId);
+    if (shelfId == Shelf.finished) {
+      AnalyticsService.instance
+          .bookFinished(bookTypeId: _book['book_type_id'] as int?);
+    }
     setState(() => _book = {..._book, 'shelf_id': shelfId});
     widget.refreshCallback();
     if (shelfId == Shelf.finished && mounted) {

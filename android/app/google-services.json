@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "112424891258",
+    "project_id": "readstats-692e8",
+    "storage_bucket": "readstats-692e8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:112424891258:android:87bd40f9184aa5cacbdcc3",
+        "android_client_info": {
+          "package_name": "com.tyshoe.readstats"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCtCevlZoyv8EnkGcoOgazGJWHGY0nss6w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

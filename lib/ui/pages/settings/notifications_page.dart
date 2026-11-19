@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
 import 'package:read_stats/data/models/notification_pref.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/notification_prefs_store.dart';
 import 'package:read_stats/data/services/notification_service.dart';
 import 'package:read_stats/ui/widgets/app_snackbar.dart';
@@ -25,6 +25,7 @@ class _NotificationsPageState extends State<NotificationsPage>
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('notifications');
     WidgetsBinding.instance.addObserver(this);
     _refreshPermission();
   }

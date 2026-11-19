@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum TimerState { idle, running, paused }
@@ -188,6 +190,7 @@ class ReadingTimerService extends ChangeNotifier {
   }
 
   void start(int bookId) {
+    AnalyticsService.instance.timerStarted();
     _bookId = bookId;
     _accumulatedMs = 0;
     _countdownMs = null;

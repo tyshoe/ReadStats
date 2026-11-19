@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/ui/widgets/app_snackbar.dart';
 
 /// Full-screen camera capture for a book cover. Mirrors the barcode scanner's
@@ -28,6 +28,7 @@ class _CoverCameraPageState extends State<CoverCameraPage>
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('cover_camera');
     WidgetsBinding.instance.addObserver(this);
     _initCameras();
   }

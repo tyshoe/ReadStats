@@ -12,6 +12,14 @@
     <!-- Reading reminders are rescheduled after a reboot. POST_NOTIFICATIONS is
          declared by flutter_local_notifications itself and merged in. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Firebase Analytics would add the advertising ID and Android's ad
+         services APIs; the app has no ads, so all three are stripped. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
+        tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
+        tools:node="remove" />
     <!-- No exact-alarm permission on purpose. Reminders are scheduled inexactly,
          which Android may deliver up to an hour late — fine for a reading nudge,
          and it keeps the app clear of the Play Store declaration that
@@ -59,6 +67,27 @@
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
+
+        <!-- Analytics and crash reports start switched off. AnalyticsService
+             turns them on at launch unless the reader opted out in Settings,
+             so nothing is sent before their choice is known. -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="false" />
+        <!-- Screens are logged by name from Dart; the automatic ones would
+             all read "MainActivity". -->
+        <meta-data
+            android:name="google_analytics_automatic_screen_reporting_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_personalization_signals"
+            android:value="false" />
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

@@ -1,5 +1,6 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/book_search_service.dart';
 import 'package:read_stats/ui/pages/book/book_form_page.dart';
 import 'package:read_stats/ui/pages/book_search/book_scanner_page.dart';
@@ -51,6 +52,7 @@ class _BookSearchSheetState extends State<BookSearchSheet> {
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.screen('book_search');
     _searchController.addListener(() {
       if (_searchController.text.isEmpty) {
         setState(() {

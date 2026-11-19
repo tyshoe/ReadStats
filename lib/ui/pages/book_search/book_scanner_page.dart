@@ -11,6 +11,7 @@ import 'package:read_stats/data/models/tag.dart';
 import 'package:read_stats/data/repositories/book_repository.dart';
 import 'package:read_stats/data/repositories/series_repository.dart';
 import 'package:read_stats/data/repositories/tag_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/book_search_service.dart';
 import 'package:read_stats/data/services/cover_service.dart';
 import 'package:read_stats/ui/pages/book/book_form_page.dart';
@@ -90,6 +91,12 @@ class BookScannerPage extends StatefulWidget {
 }
 
 class _BookScannerPageState extends State<BookScannerPage> {
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService.instance.screen('bulk_scanner');
+  }
+
   final MobileScannerController _controller = MobileScannerController(
     formats: [BarcodeFormat.ean13, BarcodeFormat.ean8],
     facing: CameraFacing.back,
@@ -294,6 +301,8 @@ class _BookScannerPageState extends State<BookScannerPage> {
         // Joins a series the reader already has under any spelling of it.
         await seriesRepo.resolveNames([book]);
         final id = await _bookRepo.addBook(book);
+        AnalyticsService.instance
+            .bookAdded(method: 'scan', bookTypeId: item.bookTypeId);
         for (final tagId in itemTags) {
           await tagRepo.addTagToBook(id, tagId);
         }

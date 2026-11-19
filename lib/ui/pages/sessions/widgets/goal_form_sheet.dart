@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:read_stats/data/models/goal.dart';
 import 'package:read_stats/data/repositories/goal_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/goal_achievement_service.dart';
 import 'package:read_stats/data/services/notification_service.dart';
 import 'package:read_stats/ui/widgets/field_decoration.dart';
@@ -161,6 +162,8 @@ class _GoalFormSheetState extends State<_GoalFormSheet> {
       } else {
         final goal = await widget.goalRepository
             .createGoal(_metric!, _period!, target);
+        AnalyticsService.instance
+            .goalCreated(metric: _metric!.name, period: _period!.name);
         // A goal already met when it's set isn't celebrated; one met later is.
         await GoalAchievementService.adopt(
           goal,
