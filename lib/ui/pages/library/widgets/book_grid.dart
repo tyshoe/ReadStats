@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '/ui/widgets/book_cover.dart';
+import 'package:read_stats/ui/widgets/book_cover.dart';
 
 class BookGridItem extends StatelessWidget {
   final Map<String, dynamic> book;

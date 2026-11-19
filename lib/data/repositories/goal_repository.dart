@@ -1,10 +1,10 @@
-import '../database/database_helper.dart';
-import '../models/goal.dart';
+import 'package:read_stats/data/database/database_helper.dart';
+import 'package:read_stats/data/models/goal.dart';
 
 class GoalRepository {
   final DatabaseHelper _db;
 
-  GoalRepository(this._db);
+  GoalRepository([DatabaseHelper? db]) : _db = db ?? DatabaseHelper();
 
   Future<List<Goal>> getGoals() async {
     final rows = await _db.getGoals();
@@ -164,21 +164,8 @@ class GoalRepository {
 
   // --- period helpers ---
 
-  /// Start (midnight) of the [period] containing [date]. Weeks start on Sunday.
-  ///
-  /// Public so the activity feed splits history into the same periods the
-  /// goal cards measure.
-  static DateTime periodStartOf(GoalPeriod period, DateTime date) {
-    final d = switch (period) {
-      GoalPeriod.weekly => date.subtract(Duration(days: date.weekday % 7)),
-      GoalPeriod.monthly => DateTime(date.year, date.month, 1),
-      GoalPeriod.yearly => DateTime(date.year, 1, 1),
-    };
-    return DateTime(d.year, d.month, d.day);
-  }
-
   String _periodStart(GoalPeriod period, DateTime date) =>
-      _dateToIso(periodStartOf(period, date));
+      _dateToIso(period.startOf(date));
 
   String _periodEnd(GoalPeriod period, DateTime date) {
     final d = switch (period) {

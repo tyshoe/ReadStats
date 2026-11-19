@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '/ui/widgets/field_decoration.dart';
 import 'package:flutter/services.dart';
-import '/data/models/goal.dart';
-import '/data/repositories/goal_repository.dart';
-import '/data/services/goal_achievement_service.dart';
-import '/data/services/notification_service.dart';
+import 'package:read_stats/data/models/goal.dart';
+import 'package:read_stats/data/repositories/goal_repository.dart';
+import 'package:read_stats/data/services/goal_achievement_service.dart';
+import 'package:read_stats/data/services/notification_service.dart';
+import 'package:read_stats/ui/widgets/field_decoration.dart';
 
 Future<void> showGoalFormSheet({
   required BuildContext context,

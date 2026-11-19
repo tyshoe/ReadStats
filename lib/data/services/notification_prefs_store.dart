@@ -1,9 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:read_stats/data/models/notification_pref.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../models/notification_pref.dart';
 
 /// Persists one [NotificationPref] per [NotificationType].
 ///

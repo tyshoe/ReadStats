@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '/data/database/database_helper.dart';
-import '/data/repositories/session_repository.dart';
+import 'package:read_stats/data/database/database_helper.dart';
+import 'package:read_stats/data/repositories/session_repository.dart';
 
 /// Where the reader is in a book: the page they're on, and how much of the
 /// book's length they have read, with a thin bar.

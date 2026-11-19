@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '/data/database/database_helper.dart';
+import 'package:read_stats/data/models/shelf.dart';
 
 /// A book's Started and Finished dates as a session page edits them, and
 /// what the "Move to shelf" choice does to them.
@@ -39,13 +39,13 @@ class ReadingDates {
   void selectShelf(int shelfId, DateTime day) {
     started = _ownStarted;
     finished = _ownFinished;
-    if (shelfId == DatabaseHelper.shelfFinished) {
+    if (shelfId == Shelf.finished) {
       started ??= day;
       finished ??= day;
-    } else if (shelfId == DatabaseHelper.shelfCurrentlyReading) {
+    } else if (shelfId == Shelf.currentlyReading) {
       started ??= day;
       finished = null;
-    } else if (shelfId == DatabaseHelper.shelfUnfinished) {
+    } else if (shelfId == Shelf.unfinished) {
       // Logging a session means the book was started, even if it's being
       // abandoned in the same breath.
       started ??= day;

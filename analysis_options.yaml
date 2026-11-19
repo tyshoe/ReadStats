@@ -1,1 +1,7 @@
 include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # One import style everywhere, so moving a file is a find-and-replace.
+    always_use_package_imports: true
+    directives_ordering: true

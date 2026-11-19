@@ -3,9 +3,8 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-
-import '/data/database/database_helper.dart';
-import '/data/models/monthly_recap.dart';
+import 'package:read_stats/data/models/cover_shape.dart';
+import 'package:read_stats/domain/monthly_recap.dart';
 
 enum RecapCardStyle {
   /// The month's numbers in full: hero stats, the supporting line, and what was
@@ -179,7 +178,7 @@ class RecapShareCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                     child: Image.file(
                       _cover!,
-                      width: coverShape == DatabaseHelper.coverShapeSquare
+                      width: coverShape == CoverShape.square
                           ? _headerCoverHeight
                           : 58,
                       height: _headerCoverHeight,
@@ -509,7 +508,7 @@ class RecapShareCard extends StatelessWidget {
         (contentWidth - _gridSpacing * (columns - 1)) / columns;
 
     double cellHeightAt(int columns) =>
-        widthAt(columns) / DatabaseHelper.coverAspectRatio(null) +
+        widthAt(columns) / CoverShape.aspectRatio(null) +
         _gridRatingGap +
         _gridRatingHeight;
 
@@ -596,7 +595,7 @@ class RecapShareCard extends StatelessWidget {
         // the bottom of a box of portrait height — which is what keeps the
         // ratings across a row of mixed shapes on one line.
         SizedBox(
-          height: width / DatabaseHelper.coverAspectRatio(null),
+          height: width / CoverShape.aspectRatio(null),
           child: Align(
             alignment: Alignment.bottomCenter,
             child: _coverThumb(book, palette, width: width, labelled: true),
@@ -636,7 +635,7 @@ class RecapShareCard extends StatelessWidget {
       children: [
         SizedBox(
           width: width,
-          height: width / DatabaseHelper.coverAspectRatio(null),
+          height: width / CoverShape.aspectRatio(null),
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: palette.bodySecondary.withValues(alpha: 0.12),
@@ -672,7 +671,7 @@ class RecapShareCard extends StatelessWidget {
     required double width,
     bool labelled = false,
   }) {
-    final height = width / DatabaseHelper.coverAspectRatio(book.coverShape);
+    final height = width / CoverShape.aspectRatio(book.coverShape);
     final placeholder = labelled
         ? _titledPlaceholder(book, palette, width: width, height: height)
         : _letteredPlaceholder(book, palette, width: width, height: height);
@@ -809,7 +808,6 @@ class RecapShareCard extends StatelessWidget {
   /// the footer, so a month still being read isn't posted as a closed one.
   String get _eyebrow =>
       recap.isInProgress ? 'READING RECAP · SO FAR' : 'READING RECAP';
-
 
   File? get _cover =>
       (coverPath == null || coverPath!.isEmpty) ? null : File(coverPath!);

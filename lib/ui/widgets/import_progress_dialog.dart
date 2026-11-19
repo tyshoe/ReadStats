@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '/data/services/import_export_service.dart';
+import 'package:read_stats/data/services/import_export_service.dart';
 
 /// What an import is doing and how far along it is, held on screen until it
 /// ends: a line saying what is happening now, and a bar that fills as it

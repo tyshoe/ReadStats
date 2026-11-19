@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '/data/utils/money.dart';
-import '/viewmodels/settings_view_model.dart';
+import 'package:read_stats/data/utils/money.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
 
 /// "USD · $" — a currency as Settings names it.
 String currencyLabel(String code) {

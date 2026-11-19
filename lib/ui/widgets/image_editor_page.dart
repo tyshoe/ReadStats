@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-import '/data/database/database_helper.dart';
+import 'package:read_stats/data/models/cover_shape.dart';
 
 /// Full-screen crop editor. The user pans, pinch-zooms and rotates the image
 /// inside a fixed-[aspectRatio] frame, and the framed region is captured on
@@ -25,7 +25,7 @@ class ImageEditorPage extends StatefulWidget {
   /// When [onCoverShapeChanged] is supplied the user can switch it in-editor.
   final double aspectRatio;
 
-  /// The cover shape the frame starts on — see DatabaseHelper.coverShapeX.
+  /// The cover shape the frame starts on — see CoverShape.
   final int? coverShape;
 
   /// Supplying this puts a Standard/Square switch in the editor and reports
@@ -104,7 +104,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
   void initState() {
     super.initState();
     _aspect = widget.aspectRatio;
-    _shape = widget.coverShape ?? DatabaseHelper.coverShapePortrait;
+    _shape = widget.coverShape ?? CoverShape.portrait;
     // On losing focus, snap the field text back to the (clamped) value.
     _degFocus.addListener(() {
       if (!_degFocus.hasFocus) setState(() {});
@@ -423,7 +423,7 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
     if (shape == _shape || _isSaving) return;
     setState(() {
       _shape = shape;
-      _aspect = DatabaseHelper.coverAspectRatio(shape);
+      _aspect = CoverShape.aspectRatio(shape);
       _matrix = Matrix4.identity();
     });
     widget.onCoverShapeChanged!(shape);
@@ -441,12 +441,12 @@ class _ImageEditorPageState extends State<ImageEditorPage> {
           children: [
             for (final option in [
               (
-                shape: DatabaseHelper.coverShapePortrait,
+                shape: CoverShape.portrait,
                 label: 'Standard',
                 icon: Icons.crop_portrait,
               ),
               (
-                shape: DatabaseHelper.coverShapeSquare,
+                shape: CoverShape.square,
                 label: 'Square',
                 icon: Icons.crop_square,
               ),

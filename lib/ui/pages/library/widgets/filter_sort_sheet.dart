@@ -1,6 +1,6 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
-import '/viewmodels/settings_view_model.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
 
 class SortFilterOptions {
   final String sortOption;

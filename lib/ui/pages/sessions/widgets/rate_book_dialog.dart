@@ -1,11 +1,12 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import '/ui/widgets/field_decoration.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import '/data/repositories/book_repository.dart';
-import '/viewmodels/settings_view_model.dart';
-import '/ui/widgets/book_cover.dart';
+import 'package:read_stats/data/repositories/book_repository.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
+import 'package:read_stats/ui/widgets/book_cover.dart';
+import 'package:read_stats/ui/widgets/field_decoration.dart';
 
 void showRateBookDialog({
   required BuildContext context,

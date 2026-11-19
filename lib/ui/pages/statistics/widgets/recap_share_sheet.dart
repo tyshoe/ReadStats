@@ -7,14 +7,13 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:read_stats/data/services/gallery_save_service.dart';
+import 'package:read_stats/domain/monthly_recap.dart';
+import 'package:read_stats/ui/pages/book/widgets/book_share_card.dart' show CheckerboardBackground;
+import 'package:read_stats/ui/pages/statistics/widgets/recap_share_card.dart';
+import 'package:read_stats/ui/widgets/share_action.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-
-import '/data/models/monthly_recap.dart';
-import '/data/services/gallery_save_service.dart';
-import '/ui/pages/library/widgets/book_share_card.dart' show CheckerboardBackground;
-import '/ui/widgets/share_action.dart';
-import 'recap_share_card.dart';
 
 /// How much of the sheet's width a card takes, and the gap either side of it.
 /// The card's own width decides how wide its cover grid cells are, so the slot

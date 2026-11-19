@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '/data/models/planner_book.dart';
-import '/ui/widgets/book_cover.dart';
+import 'package:read_stats/data/models/book_type.dart';
+import 'package:read_stats/data/models/planner_book.dart';
+import 'package:read_stats/ui/widgets/book_cover.dart';
 
 class PlannerBookCard extends StatelessWidget {
   final PlannerBook book;
@@ -18,11 +19,10 @@ class PlannerBookCard extends StatelessWidget {
     required this.onLongPress,
   });
 
-  static const int _audiobookTypeId = 4;
   static const double _coverWidth = 40;
 
   String? _metadata() {
-    if (book.bookTypeId == _audiobookTypeId && book.durationMinutes > 0) {
+    if (book.bookTypeId == BookType.audiobook && book.durationMinutes > 0) {
       final h = book.durationMinutes ~/ 60;
       final m = book.durationMinutes % 60;
       if (h > 0 && m > 0) return '${h}h ${m}m';

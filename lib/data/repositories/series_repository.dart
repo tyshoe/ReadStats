@@ -1,10 +1,10 @@
-import '../database/database_helper.dart';
-import '../models/book.dart';
+import 'package:read_stats/data/database/database_helper.dart';
+import 'package:read_stats/data/models/book.dart';
 
 class SeriesRepository {
   final DatabaseHelper _db;
 
-  SeriesRepository(this._db);
+  SeriesRepository([DatabaseHelper? db]) : _db = db ?? DatabaseHelper();
 
   /// The id for the series called [name], creating it on first use.
   Future<int> idFor(String name) => _db.seriesIdFor(name);

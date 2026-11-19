@@ -1,9 +1,8 @@
 import 'dart:convert';
 
+import 'package:read_stats/data/models/goal.dart';
+import 'package:read_stats/data/repositories/goal_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../models/goal.dart';
-import '../repositories/goal_repository.dart';
 
 /// A reading goal the reader has just met for its current period.
 class GoalAchievement {

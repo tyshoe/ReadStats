@@ -1,12 +1,12 @@
 import 'dart:math';
 
-import '../database/database_helper.dart';
-import '../models/book.dart';
-import '../models/book_tag.dart';
-import '../models/goal.dart';
-import '../models/session.dart';
-import '../models/tag.dart';
-import '../repositories/goal_repository.dart';
+import 'package:read_stats/data/models/book.dart';
+import 'package:read_stats/data/models/book_tag.dart';
+import 'package:read_stats/data/models/cover_shape.dart';
+import 'package:read_stats/data/models/goal.dart';
+import 'package:read_stats/data/models/session.dart';
+import 'package:read_stats/data/models/shelf.dart';
+import 'package:read_stats/data/models/tag.dart';
 
 /// A sample library for exploring and testing the app without real data:
 /// Settings → Data → Load Demo Data, or the demo option during onboarding.
@@ -397,7 +397,7 @@ class _Generator {
       final added = i < 10
           ? trackStart.subtract(const Duration(days: 2)).add(Duration(hours: 20, minutes: i * 3))
           : _addedBefore(logged.first);
-      _addBook(t, DatabaseHelper.shelfFinished,
+      _addBook(t, Shelf.finished,
           added: added, started: logged.first, finished: logged.last, rated: true);
       cursor = windowEnd.add(Duration(days: 1 + rng.nextInt(2)));
     }
@@ -411,7 +411,7 @@ class _Generator {
       final t = _audioFinished[i];
       final start = trackStart.add(Duration(days: i * spacing + 12));
       final logged = _logAudio(books.length + 1, t.minutes, start, t.minutes);
-      _addBook(t, DatabaseHelper.shelfFinished,
+      _addBook(t, Shelf.finished,
           added: i == 0
               ? trackStart.subtract(const Duration(days: 2)).add(const Duration(hours: 20, minutes: 40))
               : _addedBefore(logged.first),
@@ -436,14 +436,14 @@ class _Generator {
         readDays.addAll([yesterday, today]);
       }
       final logged = _logPrint(books.length + 1, (t.pages * shares[i]).round(), readDays);
-      _addBook(t, DatabaseHelper.shelfCurrentlyReading,
+      _addBook(t, Shelf.currentlyReading,
           added: _addedBefore(logged.first), started: logged.first);
     }
 
     final t = _audioCurrent;
     final logged = _logAudio(books.length + 1, (t.minutes * 0.6).round(),
         today.subtract(const Duration(days: 15)), t.minutes);
-    _addBook(t, DatabaseHelper.shelfCurrentlyReading,
+    _addBook(t, Shelf.currentlyReading,
         added: _addedBefore(logged.first), started: logged.first);
   }
 
@@ -456,7 +456,7 @@ class _Generator {
       final readDays = _readDays(start, start.add(Duration(days: window)),
           weekday: 0.6, weekend: 0.7);
       final logged = _logPrint(books.length + 1, pages, readDays);
-      _addBook(t, DatabaseHelper.shelfUnfinished,
+      _addBook(t, Shelf.unfinished,
           added: _addedBefore(logged.first), started: logged.first);
     }
   }
@@ -465,7 +465,7 @@ class _Generator {
     final planner = <Map<String, dynamic>>[];
     for (var i = 0; i < _wantToRead.length; i++) {
       final added = _at(today.subtract(Duration(days: 8 + rng.nextInt(190))), 21, rng.nextInt(50));
-      _addBook(_wantToRead[i], DatabaseHelper.shelfWantToRead, added: added);
+      _addBook(_wantToRead[i], Shelf.wantToRead, added: added);
       if (i < 3) {
         planner.add({
           'book_id': books.last.id,
@@ -496,7 +496,7 @@ class _Generator {
         targets.add({
           'goal_id': id,
           'target': target,
-          'effective_from': _ymd(GoalRepository.periodStartOf(period, from)),
+          'effective_from': _ymd(period.startOf(from)),
         });
       }
     }
@@ -520,7 +520,7 @@ class _Generator {
 
     // One session short of this week's target, whatever day the demo loads:
     // log a session and the goal celebration plays.
-    final weekStart = GoalRepository.periodStartOf(GoalPeriod.weekly, today);
+    final weekStart = GoalPeriod.weekly.startOf(today);
     final thisWeek = sessions
         .where((s) => !DateTime.parse(s.date).isBefore(weekStart))
         .length;
@@ -711,7 +711,7 @@ class _Generator {
     bool rated = false,
   }) {
     final id = books.length + 1;
-    final finishedIndex = books.where((b) => b.shelfId == DatabaseHelper.shelfFinished).length;
+    final finishedIndex = books.where((b) => b.shelfId == Shelf.finished).length;
 
     double? rating;
     String? review;
@@ -752,8 +752,8 @@ class _Generator {
       coverPath: hasCover ? '$id.jpg' : null,
       openLibraryKey: openLibrary?.$2,
       coverShape: t.isAudio
-          ? DatabaseHelper.coverShapeSquare
-          : DatabaseHelper.coverShapePortrait,
+          ? CoverShape.square
+          : CoverShape.portrait,
       narrator: t.narrator,
       // Resolved to a series id by the loader.
       seriesName: t.series,

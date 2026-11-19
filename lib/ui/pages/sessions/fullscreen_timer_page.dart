@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui' show ImageFilter;
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '/data/services/reading_timer_service.dart';
-import '/data/repositories/session_repository.dart';
-import '/data/repositories/book_repository.dart';
-import '/viewmodels/settings_view_model.dart';
-import 'post_session_page.dart';
-import 'widgets/countdown_sheet.dart';
+import 'package:read_stats/data/repositories/book_repository.dart';
+import 'package:read_stats/data/repositories/session_repository.dart';
+import 'package:read_stats/data/services/reading_timer_service.dart';
+import 'package:read_stats/ui/pages/sessions/post_session_page.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/countdown_sheet.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
 
 /// Immersive version of the inline reading timer. Pops with the finished book
 /// (or null) once the session has been saved or discarded, so the caller can

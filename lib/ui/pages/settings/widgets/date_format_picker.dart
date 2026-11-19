@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '/viewmodels/settings_view_model.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
 
 void showDateFormatPicker(BuildContext context, SettingsViewModel settingsViewModel) {
   final theme = Theme.of(context);

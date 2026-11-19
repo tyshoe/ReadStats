@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '/ui/widgets/book_cover.dart';
-import '/ui/widgets/book_type.dart';
+import 'package:read_stats/ui/widgets/book_cover.dart';
+import 'package:read_stats/ui/widgets/book_type.dart';
 
 /// Shows a bottom sheet for picking a book from a list.
 ///

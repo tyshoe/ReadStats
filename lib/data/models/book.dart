@@ -1,4 +1,5 @@
-import 'package:read_stats/data/database/database_helper.dart';
+import 'package:read_stats/data/models/cover_shape.dart';
+import 'package:read_stats/data/models/shelf.dart';
 import 'package:read_stats/data/models/tag.dart';
 
 class Book {
@@ -19,7 +20,7 @@ class Book {
   int? durationMinutes;
   int shelfId;
   String? coverPath;
-  /// How the cover is framed — see DatabaseHelper.coverShapePortrait/Square.
+  /// How the cover is framed — see CoverShape.portrait/Square.
   int coverShape;
   String? openLibraryKey;
   /// Who reads the audiobook. Null for every other format, and kept rather
@@ -57,9 +58,9 @@ class Book {
     this.isbn,
     this.userReview,
     this.durationMinutes,
-    this.shelfId = DatabaseHelper.shelfWantToRead,
+    this.shelfId = Shelf.wantToRead,
     this.coverPath,
-    this.coverShape = DatabaseHelper.coverShapePortrait,
+    this.coverShape = CoverShape.portrait,
     this.openLibraryKey,
     this.narrator,
     this.seriesId,
@@ -117,10 +118,10 @@ class Book {
       isbn: map['isbn'],
       userReview: map['user_review'],
       durationMinutes: map['duration_minutes'] as int?,
-      shelfId: (map['shelf_id'] as int?) ?? DatabaseHelper.shelfWantToRead,
+      shelfId: (map['shelf_id'] as int?) ?? Shelf.wantToRead,
       coverPath: map['cover_path'] as String?,
       coverShape:
-          (map['cover_shape'] as int?) ?? DatabaseHelper.coverShapePortrait,
+          (map['cover_shape'] as int?) ?? CoverShape.portrait,
       openLibraryKey: map['open_library_key'] as String?,
       narrator: map['narrator'] as String?,
       seriesId: map['series_id'] as int?,

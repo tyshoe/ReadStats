@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'session_progress_bar.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/session_progress_bar.dart';
 
 /// Where an audiobook session started and stopped, as the session form and
 /// the post-timer page edit it.

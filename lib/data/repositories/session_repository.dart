@@ -1,10 +1,10 @@
-import '../models/session.dart';
-import '../database/database_helper.dart';
+import 'package:read_stats/data/database/database_helper.dart';
+import 'package:read_stats/data/models/session.dart';
 
 class SessionRepository {
   final DatabaseHelper _databaseHelper;
 
-  SessionRepository(this._databaseHelper);
+  SessionRepository([DatabaseHelper? db]) : _databaseHelper = db ?? DatabaseHelper();
 
   Future<int> addSession(Session session) async {
     return await _databaseHelper.insertSession(session.toMap());

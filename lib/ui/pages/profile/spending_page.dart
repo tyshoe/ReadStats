@@ -1,12 +1,11 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-import '/data/models/spending_summary.dart';
-import '/data/utils/money.dart';
-import '/ui/widgets/book_cover.dart';
-import '/ui/widgets/book_type.dart';
-import '/viewmodels/settings_view_model.dart';
+import 'package:read_stats/data/utils/money.dart';
+import 'package:read_stats/domain/spending_summary.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
+import 'package:read_stats/ui/widgets/book_cover.dart';
+import 'package:read_stats/ui/widgets/book_type.dart';
 
 /// What the reader's books have cost: the total, how it built up, and where
 /// it went — by year, by format, and into books read or still waiting.

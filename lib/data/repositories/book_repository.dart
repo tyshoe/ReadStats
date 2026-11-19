@@ -1,11 +1,11 @@
-import '/data/models/book.dart';
-import '/data/database/database_helper.dart';
-import '/data/services/cover_service.dart';
+import 'package:read_stats/data/database/database_helper.dart';
+import 'package:read_stats/data/models/book.dart';
+import 'package:read_stats/data/services/cover_service.dart';
 
 class BookRepository {
   final DatabaseHelper _databaseHelper;
 
-  BookRepository(this._databaseHelper);
+  BookRepository([DatabaseHelper? db]) : _databaseHelper = db ?? DatabaseHelper();
 
   Future<int> addBook(Book book) async {
     return await _databaseHelper.insertBook(book.toMap());

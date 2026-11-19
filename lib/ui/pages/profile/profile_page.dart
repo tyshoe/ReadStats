@@ -1,21 +1,24 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
-import '/data/models/goal.dart';
-import '/data/models/preset_avatar.dart';
-import '/data/repositories/goal_repository.dart';
-import '/data/services/avatar_service.dart';
-import '/data/utils/money.dart';
-import '/ui/widgets/image_editor_page.dart';
-import '/viewmodels/settings_view_model.dart';
-import 'achievements_page.dart';
-import 'activity_page.dart';
-import 'badges.dart';
-import 'reading_activity.dart';
-import 'reading_stats.dart';
-import 'seasons.dart';
-import 'spending_page.dart';
+import 'package:read_stats/data/models/goal.dart';
+import 'package:read_stats/data/models/preset_avatar.dart';
+import 'package:read_stats/data/repositories/goal_repository.dart';
+import 'package:read_stats/data/services/avatar_service.dart';
+import 'package:read_stats/data/utils/money.dart';
+import 'package:read_stats/domain/badges.dart';
+import 'package:read_stats/domain/reading_activity.dart';
+import 'package:read_stats/domain/reading_stats.dart';
+import 'package:read_stats/domain/seasons.dart';
+import 'package:read_stats/ui/pages/profile/achievements_page.dart';
+import 'package:read_stats/ui/pages/profile/activity_page.dart';
+import 'package:read_stats/ui/pages/profile/spending_page.dart';
+import 'package:read_stats/ui/pages/profile/widgets/preset_avatar_option.dart';
+import 'package:read_stats/ui/pages/profile/widgets/profile_hero_stat.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
+import 'package:read_stats/ui/widgets/image_editor_page.dart';
 
 /// The reader's identity surface: avatar + name, lifetime headline stats, and
 /// a tiered achievements wall. Deliberately the "headline" to the Statistics
@@ -247,7 +250,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         for (final preset in presetAvatars)
                           Expanded(
-                            child: _PresetAvatarOption(
+                            child: PresetAvatarOption(
                               preset: preset,
                               selected:
                                   current == AvatarService.presetValue(preset.id),
@@ -574,14 +577,14 @@ class _ProfilePageState extends State<ProfilePage> {
           child: IntrinsicHeight(
             child: Row(
               children: [
-                _HeroStat(label: 'Books', value: _compact(_stats.booksFinished)),
+                ProfileHeroStat(label: 'Books', value: _compact(_stats.booksFinished)),
                 _heroDivider(theme),
-                _HeroStat(label: 'Hours', value: _compact(_stats.totalHours)),
+                ProfileHeroStat(label: 'Hours', value: _compact(_stats.totalHours)),
                 _heroDivider(theme),
-                _HeroStat(
+                ProfileHeroStat(
                     label: 'Pages', value: _compact(_stats.totalPagesRead)),
                 _heroDivider(theme),
-                _HeroStat(
+                ProfileHeroStat(
                   label: 'Best streak',
                   value: '${_stats.longestWeekStreak}w',
                 ),
@@ -1097,126 +1100,4 @@ class _ProfilePageState extends State<ProfilePage> {
 
 // ── Preset avatar option (one cell of the picker row) ─────────────────────────
 
-class _PresetAvatarOption extends StatelessWidget {
-  final PresetAvatar preset;
-  final bool selected;
-  final Color accent;
-
-  /// The sheet's own background, painted as the gap between the avatar and the
-  /// accent ring so the ring reads as a separate stroke.
-  final Color sheetColor;
-  final VoidCallback onTap;
-
-  const _PresetAvatarOption({
-    required this.preset,
-    required this.selected,
-    required this.accent,
-    required this.sheetColor,
-    required this.onTap,
-  });
-
-  // 54 + 3 gap + 2 ring = 64 wide, which fits five across a narrow phone.
-  static const double _size = 54;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Column(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: sheetColor,
-                    border: Border.all(
-                      color: selected ? accent : Colors.transparent,
-                      width: 2,
-                    ),
-                  ),
-                  child: SizedBox(
-                    width: _size,
-                    height: _size,
-                    child: SvgPicture.asset(preset.asset),
-                  ),
-                ),
-                if (selected)
-                  Positioned(
-                    right: -3,
-                    bottom: -3,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: accent,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: sheetColor, width: 2),
-                      ),
-                      child: const Icon(
-                        Icons.check,
-                        size: 10,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              preset.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: selected
-                    ? theme.colorScheme.onSurface
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ── Hero stat (big number + label) ────────────────────────────────────────────
-
-class _HeroStat extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _HeroStat({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            value,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

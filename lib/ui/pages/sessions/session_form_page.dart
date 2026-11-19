@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
-import '/ui/widgets/field_decoration.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import '../../widgets/app_snackbar.dart';
-import '../../widgets/book_picker_sheet.dart';
-import '../../widgets/book_selector_tile.dart';
-import 'session_book_options.dart';
-import 'widgets/reading_dates_row.dart';
-import 'widgets/session_pages_field.dart';
-import 'widgets/session_position_field.dart';
 import 'package:intl/intl.dart';
-import '/data/models/session.dart';
-import '/data/repositories/session_repository.dart';
-import '/data/repositories/book_repository.dart';
-import '/data/database/database_helper.dart';
-import '/data/services/rating_service.dart';
-import '/viewmodels/settings_view_model.dart';
+import 'package:read_stats/data/models/book_type.dart';
+import 'package:read_stats/data/models/session.dart';
+import 'package:read_stats/data/models/shelf.dart';
+import 'package:read_stats/data/repositories/book_repository.dart';
+import 'package:read_stats/data/repositories/session_repository.dart';
+import 'package:read_stats/data/services/rating_service.dart';
+import 'package:read_stats/ui/pages/sessions/session_book_options.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/reading_dates_row.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/session_pages_field.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/session_position_field.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
+import 'package:read_stats/ui/widgets/app_snackbar.dart';
+import 'package:read_stats/ui/widgets/book_picker_sheet.dart';
+import 'package:read_stats/ui/widgets/book_selector_tile.dart';
+import 'package:read_stats/ui/widgets/field_decoration.dart';
 
 class SessionFormPage extends StatefulWidget {
   final Map<String, dynamic>? session;
@@ -207,14 +208,14 @@ class _SessionFormPageState extends State<SessionFormPage> {
         (_tracksPages ? _pages.reachesEnd : _position.reachesEnd);
     if (reached &&
         !_finishedByLastPage &&
-        _targetShelfId != DatabaseHelper.shelfFinished) {
+        _targetShelfId != Shelf.finished) {
       _shelfBeforeLastPage = _targetShelfId;
       _finishedByLastPage = true;
-      _selectShelf(DatabaseHelper.shelfFinished);
+      _selectShelf(Shelf.finished);
     } else if (!reached && _finishedByLastPage) {
       _finishedByLastPage = false;
       final before = _shelfBeforeLastPage;
-      if (_targetShelfId == DatabaseHelper.shelfFinished && before != null) {
+      if (_targetShelfId == Shelf.finished && before != null) {
         _selectShelf(before);
         return;
       }
@@ -239,7 +240,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
         _targetShelfId != book['shelf_id']) {
       return;
     }
-    _selectShelf(DatabaseHelper.shelfCurrentlyReading);
+    _selectShelf(Shelf.currentlyReading);
   }
 
   /// Reads the selected book's dates into the fields, dropping any edits that
@@ -313,7 +314,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
   /// Audiobooks have no pages, so the form doesn't offer the field for them.
   /// The save has to ask the same question: the controller keeps whatever was
   /// typed for a previously selected paper book.
-  bool get _tracksPages => _selectedBook?['book_type_id'] != 4;
+  bool get _tracksPages => _selectedBook?['book_type_id'] != BookType.audiobook;
 
   /// Applies the "Move to shelf" choice, for both a new session and an edited
   /// one — the control is on screen either way, so it has to do the same thing
@@ -333,7 +334,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
       _targetShelfId!,
     );
 
-    return _targetShelfId == DatabaseHelper.shelfFinished;
+    return _targetShelfId == Shelf.finished;
   }
 
   /// Writes back only the dates the user touched — an untouched field is left
@@ -415,7 +416,7 @@ class _SessionFormPageState extends State<SessionFormPage> {
         int? finishedBookCount;
         if (isFinalSession) {
           final finished = await widget.bookRepository
-              .getBooks(shelfId: DatabaseHelper.shelfFinished);
+              .getBooks(shelfId: Shelf.finished);
           finishedBookCount = finished.length;
         }
 
@@ -432,7 +433,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
       debugPrint('Error saving session: $e');
     }
   }
-
 
   Widget _buildTimeRow(
     String label,
@@ -888,22 +888,22 @@ class _SessionFormPageState extends State<SessionFormPage> {
                         children: [
                           for (final shelf in [
                             (
-                              id: DatabaseHelper.shelfWantToRead,
+                              id: Shelf.wantToRead,
                               label: 'To Read',
                               icon: Icons.bookmark,
                             ),
                             (
-                              id: DatabaseHelper.shelfCurrentlyReading,
+                              id: Shelf.currentlyReading,
                               label: 'Reading',
                               icon: Icons.menu_book_rounded,
                             ),
                             (
-                              id: DatabaseHelper.shelfFinished,
+                              id: Shelf.finished,
                               label: 'Finished',
                               icon: Icons.check,
                             ),
                             (
-                              id: DatabaseHelper.shelfUnfinished,
+                              id: Shelf.unfinished,
                               label: 'Unfinished',
                               icon: Icons.do_not_disturb_on,
                             ),

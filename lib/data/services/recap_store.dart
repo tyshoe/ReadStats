@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:read_stats/domain/monthly_recap.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../models/monthly_recap.dart';
 
 /// Remembers which monthly recap the reader has already opened.
 ///

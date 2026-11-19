@@ -1,12 +1,12 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '/data/models/goal.dart';
-import '/data/services/goal_achievement_service.dart';
-import '/data/services/milestone_service.dart';
-import 'badges.dart';
-import 'reading_stats.dart';
-import 'seasons.dart';
+import 'package:read_stats/data/models/goal.dart';
+import 'package:read_stats/data/services/goal_achievement_service.dart';
+import 'package:read_stats/data/services/milestone_service.dart';
+import 'package:read_stats/domain/badges.dart';
+import 'package:read_stats/domain/reading_stats.dart';
+import 'package:read_stats/domain/seasons.dart';
 
 /// One screen of the celebration: what was achieved, and where it leaves the
 /// reader.

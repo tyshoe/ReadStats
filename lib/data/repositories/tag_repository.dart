@@ -1,12 +1,12 @@
+import 'package:read_stats/data/database/database_helper.dart';
+import 'package:read_stats/data/models/book_tag.dart';
+import 'package:read_stats/data/models/tag.dart';
 import 'package:sqflite/sqflite.dart';
-import '../database/database_helper.dart';
-import '../models/tag.dart';
-import '../models/book_tag.dart';
 
 class TagRepository {
   final DatabaseHelper _databaseHelper;
 
-  TagRepository(this._databaseHelper);
+  TagRepository([DatabaseHelper? db]) : _databaseHelper = db ?? DatabaseHelper();
 
   Future<int> createTag(Tag tag) async {
     final db = await _databaseHelper.database;

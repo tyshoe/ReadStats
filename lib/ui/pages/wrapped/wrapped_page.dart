@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import '/data/models/wrapped_story.dart';
-import '/data/models/year_wrapped.dart';
-import '/data/services/recap_store.dart';
-import 'slides/wrapped_slide_view.dart';
-import 'wrapped_share.dart';
-import 'wrapped_style.dart';
+import 'package:read_stats/data/services/recap_store.dart';
+import 'package:read_stats/domain/wrapped_story.dart';
+import 'package:read_stats/domain/year_wrapped.dart';
+import 'package:read_stats/ui/pages/wrapped/slides/wrapped_slide_view.dart';
+import 'package:read_stats/ui/pages/wrapped/wrapped_share.dart';
+import 'package:read_stats/ui/pages/wrapped/wrapped_style.dart';
 
 /// ReadStats Wrapped: a year of reading told one full-screen slide at a time.
 ///

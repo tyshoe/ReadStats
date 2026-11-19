@@ -1,31 +1,33 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+
 import 'package:archive/archive_io.dart';
+import 'package:csv/csv.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart' show FileImage, PaintingBinding;
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:csv/csv.dart';
+import 'package:read_stats/data/demo/demo_covers.dart';
+import 'package:read_stats/data/demo/demo_data.dart';
+import 'package:read_stats/data/models/book.dart';
+import 'package:read_stats/data/models/book_tag.dart';
+import 'package:read_stats/data/models/cover_shape.dart';
+import 'package:read_stats/data/models/session.dart';
+import 'package:read_stats/data/models/shelf.dart';
+import 'package:read_stats/data/models/tag.dart';
+import 'package:read_stats/data/repositories/book_repository.dart';
+import 'package:read_stats/data/repositories/goal_repository.dart';
+import 'package:read_stats/data/repositories/planner_repository.dart';
+import 'package:read_stats/data/repositories/series_repository.dart';
+import 'package:read_stats/data/repositories/session_repository.dart';
+import 'package:read_stats/data/repositories/tag_repository.dart';
+import 'package:read_stats/data/services/cover_service.dart';
+import 'package:read_stats/data/utils/date_utils.dart';
+import 'package:read_stats/data/utils/series_title.dart';
 import 'package:share_plus/share_plus.dart';
-import '../models/book.dart';
-import '../models/session.dart';
-import '../models/tag.dart';
-import '../models/book_tag.dart';
-import '../database/database_helper.dart';
-import '../demo/demo_covers.dart';
-import '../demo/demo_data.dart';
-import '../repositories/book_repository.dart';
-import '../repositories/session_repository.dart';
-import '../repositories/tag_repository.dart';
-import '../repositories/goal_repository.dart';
-import '../repositories/planner_repository.dart';
-import '../repositories/series_repository.dart';
-import '../utils/date_utils.dart';
-import '../utils/series_title.dart';
-import 'cover_service.dart';
 
 class ImportExportResult {
   final bool success;
@@ -198,7 +200,7 @@ class ImportExportService {
             url: demo.coverUrls[book.id],
             title: book.title,
             author: book.author,
-            square: book.coverShape == DatabaseHelper.coverShapeSquare,
+            square: book.coverShape == CoverShape.square,
           ));
           // Reloading the demo rewrites the same paths.
           await FileImage(file).evict();
@@ -207,14 +209,14 @@ class ImportExportService {
 
       onProgress
           ?.call(const ImportProgress('Adding books and sessions…', 0.9));
-      await SeriesRepository(DatabaseHelper()).resolveNames(demo.books);
+      await SeriesRepository().resolveNames(demo.books);
       await bookRepository.addBooksBatch(demo.books);
       await sessionRepository.addSessionsBatch(demo.sessions);
       await tagRepository.addBookTagsBatch(demo.bookTags);
       for (final entry in demo.planner) {
-        await PlannerRepository(DatabaseHelper()).addPlannerRow(entry);
+        await PlannerRepository().addPlannerRow(entry);
       }
-      await SeriesRepository(DatabaseHelper())
+      await SeriesRepository()
           .restorePlaceholders(demo.seriesPlaceholders);
 
       return ImportExportResult(
@@ -261,7 +263,7 @@ class ImportExportService {
       addCsv('goal_target_changes_data', _goalTargetsCsvRows(goalTargets));
       addCsv('series_placeholders_data', [
         ['series_name', 'position', 'title'],
-        for (final r in await SeriesRepository(DatabaseHelper())
+        for (final r in await SeriesRepository()
             .allPlaceholderRows())
           [
             r['series_name'].toString(),
@@ -579,7 +581,7 @@ class ImportExportService {
       await _parseAndInsertBookTags(csvRows('book_tags_data'));
       // After books, so series are already there by name. Absent from
       // backups made before placeholders existed.
-      await SeriesRepository(DatabaseHelper()).restorePlaceholders([
+      await SeriesRepository().restorePlaceholders([
         for (final row in csvRows('series_placeholders_data'))
           if (row.length >= 2)
             {
@@ -807,10 +809,10 @@ class ImportExportService {
 
     final status = _bookmoryStatus(b);
     final shelfId = switch (status) {
-      'DONE' => DatabaseHelper.shelfFinished,
-      'READING' => DatabaseHelper.shelfCurrentlyReading,
-      'GIVE_UP' => DatabaseHelper.shelfUnfinished,
-      _ => DatabaseHelper.shelfWantToRead,
+      'DONE' => Shelf.finished,
+      'READING' => Shelf.currentlyReading,
+      'GIVE_UP' => Shelf.unfinished,
+      _ => Shelf.wantToRead,
     };
 
     return Book(
@@ -980,8 +982,8 @@ class ImportExportService {
               ? int.tryParse(row[14].toString())
               : null,
           shelfId: row.length > 15
-              ? int.tryParse(row[15].toString()) ?? DatabaseHelper.shelfWantToRead
-              : DatabaseHelper.shelfWantToRead,
+              ? int.tryParse(row[15].toString()) ?? Shelf.wantToRead
+              : Shelf.wantToRead,
           // Older exports stored absolute paths; keep only the filename so it
           // resolves against this device's covers directory.
           coverPath: row.length > 16 && _nullableString(row[16]) != null
@@ -992,8 +994,8 @@ class ImportExportService {
           // were all cropped 2:3, which is what portrait means.
           coverShape: row.length > 18
               ? int.tryParse(row[18].toString()) ??
-                  DatabaseHelper.coverShapePortrait
-              : DatabaseHelper.coverShapePortrait,
+                  CoverShape.portrait
+              : CoverShape.portrait,
           narrator: row.length > 19 ? _nullableString(row[19]) : null,
           seriesName: row.length > 20 ? _nullableString(row[20]) : null,
           seriesPosition:
@@ -1007,7 +1009,7 @@ class ImportExportService {
         if (kDebugMode) print('Skipping book row: $e');
       }
     }
-    await SeriesRepository(DatabaseHelper()).resolveNames(books);
+    await SeriesRepository().resolveNames(books);
     if (books.isNotEmpty) await bookRepository.addBooksBatch(books);
     return books.length;
   }
@@ -1152,7 +1154,7 @@ class ImportExportService {
       }
     }
 
-    await SeriesRepository(DatabaseHelper()).resolveNames(books);
+    await SeriesRepository().resolveNames(books);
     if (books.isNotEmpty) await bookRepository.addBooksBatch(books);
     return books.length;
   }

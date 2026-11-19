@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '/data/models/tag.dart';
-import '/data/repositories/tag_repository.dart';
+import 'package:read_stats/data/models/tag.dart';
+import 'package:read_stats/data/repositories/tag_repository.dart';
 
 /// How many of the selected books already carry a given tag.
 enum _TagCoverage { all, some, none }

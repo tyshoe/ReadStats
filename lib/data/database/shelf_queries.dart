@@ -34,7 +34,7 @@ extension ShelfQueries on DatabaseHelper {
         where: 'id = ?', whereArgs: [shelfId], limit: 1);
     if (rows.isEmpty || rows.first['is_system'] == 1) return;
 
-    const fallbackId = DatabaseHelper.shelfWantToRead;
+    const fallbackId = Shelf.wantToRead;
 
     await db.update('books', {'shelf_id': fallbackId},
         where: 'shelf_id = ?', whereArgs: [shelfId]);

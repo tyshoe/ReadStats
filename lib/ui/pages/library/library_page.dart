@@ -1,29 +1,29 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
-import '../../widgets/app_snackbar.dart';
+import 'package:read_stats/data/models/shelf.dart';
+import 'package:read_stats/data/repositories/book_repository.dart';
+import 'package:read_stats/data/repositories/series_repository.dart';
+import 'package:read_stats/data/repositories/session_repository.dart';
+import 'package:read_stats/data/repositories/tag_repository.dart';
+import 'package:read_stats/domain/series_progress.dart';
+import 'package:read_stats/ui/pages/book/book_detail_page.dart';
+import 'package:read_stats/ui/pages/book/book_form_page.dart';
+import 'package:read_stats/ui/pages/book_search/book_search_sheet.dart';
 import 'package:read_stats/ui/pages/library/widgets/book_grid.dart';
+import 'package:read_stats/ui/pages/library/widgets/book_row.dart';
+import 'package:read_stats/ui/pages/library/widgets/bulk_tag_sheet.dart';
+import 'package:read_stats/ui/pages/library/widgets/filter_sort_sheet.dart';
 import 'package:read_stats/ui/pages/library/widgets/random_book_picker.dart';
-import '../../../data/repositories/tag_repository.dart';
-import 'widgets/bulk_tag_sheet.dart';
-import 'widgets/bulk_series_sheet.dart';
-import 'widgets/series_row.dart';
-import 'series_page.dart';
-import '/data/utils/series_progress.dart';
-import '/data/repositories/series_repository.dart';
-import 'widgets/series_detect_sheet.dart';
-import 'widgets/next_in_series_sheet.dart';
-import 'book_detail_page.dart';
-import 'widgets/book_row.dart';
-import 'widgets/filter_sort_sheet.dart';
-import 'book_form_page.dart';
-import 'widgets/book_search_sheet.dart';
-import '../sessions/session_form_page.dart';
-import '/data/database/database_helper.dart';
-import '/viewmodels/settings_view_model.dart';
-import '/data/repositories/session_repository.dart';
-import '/data/repositories/book_repository.dart';
-import '../planner/planner_page.dart';
+import 'package:read_stats/ui/pages/planner/planner_page.dart';
+import 'package:read_stats/ui/pages/series/series_page.dart';
+import 'package:read_stats/ui/pages/series/widgets/bulk_series_sheet.dart';
+import 'package:read_stats/ui/pages/series/widgets/next_in_series_sheet.dart';
+import 'package:read_stats/ui/pages/series/widgets/series_detect_sheet.dart';
+import 'package:read_stats/ui/pages/series/widgets/series_row.dart';
+import 'package:read_stats/ui/pages/sessions/session_form_page.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
+import 'package:read_stats/ui/widgets/app_snackbar.dart';
+import 'package:share_plus/share_plus.dart';
 
 class LibraryPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -80,7 +80,7 @@ class _LibraryPageState extends State<LibraryPage> {
   Map<int, List<Map<String, dynamic>>> _placeholders = const {};
 
   Future<void> _loadPlaceholders() async {
-    final map = await SeriesRepository(DatabaseHelper()).allPlaceholders();
+    final map = await SeriesRepository().allPlaceholders();
     if (mounted) setState(() => _placeholders = map);
   }
   double _filterDividerOpacity = 0;
@@ -101,7 +101,7 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   void initState() {
     super.initState();
-    _tagRepository = TagRepository(DatabaseHelper());
+    _tagRepository = TagRepository();
     _loadAvailableTags();
     _loadAllBookTags();
     _loadShelves();
@@ -1085,7 +1085,7 @@ class _LibraryPageState extends State<LibraryPage> {
                           style: theme.textTheme.bodyLarge,
                         ),
                       ),
-                      if (_selectedShelfId == DatabaseHelper.shelfWantToRead) ...[
+                      if (_selectedShelfId == Shelf.wantToRead) ...[
                         const SizedBox(height: 8),
                         InkWell(
                           onTap: _navigateToPlannerPage,

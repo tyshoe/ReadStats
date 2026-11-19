@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import '/ui/widgets/book_cover.dart';
-import '/ui/widgets/book_type.dart';
+import 'package:read_stats/ui/widgets/book_cover.dart';
+import 'package:read_stats/ui/widgets/book_type.dart';
 
 class BookRow extends StatelessWidget {
   final Map<String, dynamic> book;

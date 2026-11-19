@@ -4,17 +4,16 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:read_stats/data/models/goal.dart';
+import 'package:read_stats/data/models/notification_pref.dart';
+import 'package:read_stats/data/models/shelf.dart';
+import 'package:read_stats/data/repositories/goal_repository.dart';
+import 'package:read_stats/data/services/notification_prefs_store.dart';
+import 'package:read_stats/domain/monthly_recap.dart';
+import 'package:read_stats/domain/reading_stats.dart';
+import 'package:read_stats/domain/year_wrapped.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
-
-import '/ui/pages/profile/reading_stats.dart';
-import '../database/database_helper.dart';
-import '../models/goal.dart';
-import '../models/monthly_recap.dart';
-import '../models/year_wrapped.dart';
-import '../models/notification_pref.dart';
-import '../repositories/goal_repository.dart';
-import 'notification_prefs_store.dart';
 
 /// Schedules and cancels the app's local reminders.
 ///
@@ -574,7 +573,7 @@ class NotificationService {
     var staleDays = 0;
     var staleCount = 0;
     for (final book in _books!) {
-      if (_asInt(book['shelf_id']) != DatabaseHelper.shelfCurrentlyReading) {
+      if (_asInt(book['shelf_id']) != Shelf.currentlyReading) {
         continue;
       }
       final last = lastRead[_asInt(book['id'])] ??

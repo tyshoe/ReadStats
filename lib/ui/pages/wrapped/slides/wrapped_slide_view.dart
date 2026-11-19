@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-
-import '/data/models/wrapped_story.dart';
-import '/data/models/year_wrapped.dart';
-import '../wrapped_style.dart';
-import 'book_slides.dart';
-import 'self_slides.dart';
-import 'year_slides.dart';
+import 'package:read_stats/domain/wrapped_story.dart';
+import 'package:read_stats/domain/year_wrapped.dart';
+import 'package:read_stats/ui/pages/wrapped/slides/book_slides.dart';
+import 'package:read_stats/ui/pages/wrapped/slides/self_slides.dart';
+import 'package:read_stats/ui/pages/wrapped/slides/year_slides.dart';
+import 'package:read_stats/ui/pages/wrapped/wrapped_style.dart';
 
 /// Everything a slide needs to draw itself, in the player or in a share image.
 class SlideEnv {

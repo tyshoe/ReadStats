@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '/data/models/planner_book.dart';
-import '/ui/widgets/book_picker_sheet.dart';
+import 'package:read_stats/data/models/planner_book.dart';
+import 'package:read_stats/ui/widgets/book_picker_sheet.dart';
 
 /// Shows a bottom sheet to pick Want to Read books to add to the planner.
 /// [wantToReadBooks] should already be filtered to shelf = Want to Read.

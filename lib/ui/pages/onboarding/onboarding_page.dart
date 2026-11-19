@@ -1,12 +1,12 @@
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:read_stats/app_config.dart';
+import 'package:read_stats/data/services/import_export_service.dart';
+import 'package:read_stats/data/services/milestone_service.dart';
+import 'package:read_stats/data/services/notification_service.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../app_config.dart';
-import '../../../data/services/import_export_service.dart';
-import '../../../data/services/milestone_service.dart';
-import '../../../data/services/notification_service.dart';
-import '../../../viewmodels/settings_view_model.dart';
 
 enum _ImportState { idle, loading, success, error }
 

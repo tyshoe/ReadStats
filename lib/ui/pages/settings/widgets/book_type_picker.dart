@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '/viewmodels/settings_view_model.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
 
 const Map<int, String> bookTypeNames = {
   1: "Paperback",

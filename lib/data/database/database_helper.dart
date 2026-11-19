@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '../models/book.dart';
-import '../models/session.dart';
-import '../models/tag.dart';
-import '../utils/series_title.dart';
+import 'package:read_stats/data/models/book.dart';
+import 'package:read_stats/data/models/session.dart';
+import 'package:read_stats/data/models/shelf.dart';
+import 'package:read_stats/data/models/tag.dart';
+import 'package:read_stats/data/utils/series_title.dart';
+import 'package:sqflite/sqflite.dart';
 
 part 'book_queries.dart';
 part 'goal_queries.dart';
@@ -27,48 +28,12 @@ class DatabaseHelper {
 
   static const int _databaseVersion = 15;
 
-  // System shelf IDs — stable because shelves are seeded in a fixed order
-  // and only exist from v2 onwards (v1 had no shelves).
-  static const int shelfCurrentlyReading = 1;
-
-  static const int shelfWantToRead       = 2;
-
-  static const int shelfFinished         = 3;
-
-  static const int shelfUnfinished       = 4;
-
-  /// Whether a book on [shelfId] can take new reading sessions.
-  ///
-  /// The shelf is the only thing that decides this — deliberately not
-  /// `date_finished`, which stays a plain timestamp for stats and goals. A
-  /// book moved off the Finished shelf is readable again immediately, even
-  /// though it keeps the date of the read it already completed. Unfinished
-  /// (DNF) still accepts sessions: picking one back up is normal.
-  static bool acceptsSessions(int? shelfId) => shelfId != shelfFinished;
-
-  // How a book's cover is framed — a per-book choice, not tied to book type.
-  // Audiobook art is square, but the user can pick either shape for any book.
-  static const int coverShapePortrait = 0;
-
-  static const int coverShapeSquare   = 1;
-
-  /// The shape a new book of [bookTypeId] starts with: square for an
-  /// audiobook (4), as that is how their art is made, portrait otherwise.
-  /// Only a starting point — see above.
-  static int defaultCoverShape(int bookTypeId) =>
-      bookTypeId == 4 ? coverShapeSquare : coverShapePortrait;
-
-  /// Width / height for [shape]. Drives both the crop frame and every place a
-  /// cover is drawn, so what the user framed is what the library shows.
-  static double coverAspectRatio(int? shape) =>
-      shape == coverShapeSquare ? 1 : 2 / 3;
-
   /// Fires after any write that changes what [getBooks] returns, so the
   /// app-level book list can reload itself.
   ///
   /// Book writes reach SQLite by several routes — the repository a page was
-  /// handed, the ad-hoc `BookRepository(DatabaseHelper())` instances some
-  /// widgets build, direct helper calls — and every one of those callers had
+  /// handed, the ad-hoc `BookRepository()` instances some widgets build,
+  /// direct helper calls — and every one of those callers had
   /// to remember to call `refreshBooks` afterwards. The ones that forgot left
   /// the library showing stale rows (a rating and review saved from the rating
   /// dialog, for one, until the app was restarted). Broadcasting from the one

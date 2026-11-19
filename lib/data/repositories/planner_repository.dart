@@ -1,11 +1,12 @@
-import '/data/database/database_helper.dart';
-import '/data/models/planner_book.dart';
-import '/data/services/cover_service.dart';
+import 'package:read_stats/data/database/database_helper.dart';
+import 'package:read_stats/data/models/planner_book.dart';
+import 'package:read_stats/data/models/shelf.dart';
+import 'package:read_stats/data/services/cover_service.dart';
 
 class PlannerRepository {
   final DatabaseHelper _databaseHelper;
 
-  PlannerRepository(this._databaseHelper);
+  PlannerRepository([DatabaseHelper? db]) : _databaseHelper = db ?? DatabaseHelper();
 
   Future<int> addPlannerBook(PlannerBook book) async {
     return await _databaseHelper.insertPlannerBook(book.toMap());
@@ -38,7 +39,7 @@ class PlannerRepository {
   /// library rather than a snapshot captured at navigation time.
   Future<List<Map<String, dynamic>>> getWantToReadBooks() async {
     final maps = await _databaseHelper.getBooks(
-      shelfId: DatabaseHelper.shelfWantToRead,
+      shelfId: Shelf.wantToRead,
     );
     final books = <Map<String, dynamic>>[];
     for (final m in maps) {

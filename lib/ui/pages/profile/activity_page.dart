@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-import '/ui/widgets/book_cover.dart';
-import 'badges.dart';
-import 'reading_activity.dart';
+import 'package:read_stats/domain/badges.dart';
+import 'package:read_stats/domain/reading_activity.dart';
+import 'package:read_stats/ui/widgets/book_cover.dart';
 
 /// The kinds the full feed can be narrowed to.
 enum _ActivityFilter {

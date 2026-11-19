@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../utils/series_title.dart';
+import 'package:read_stats/data/utils/series_title.dart';
 
 /// One published edition of a book, as Open Library records it. A work (the
 /// book as written) has many: each printing, format and translation is its

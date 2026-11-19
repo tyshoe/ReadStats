@@ -4,13 +4,12 @@ import 'dart:typed_data';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:read_stats/data/services/gallery_save_service.dart';
+import 'package:read_stats/domain/wrapped_story.dart';
+import 'package:read_stats/ui/pages/wrapped/slides/wrapped_slide_view.dart';
+import 'package:read_stats/ui/widgets/share_action.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
-
-import '/data/models/wrapped_story.dart';
-import '/data/services/gallery_save_service.dart';
-import '/ui/widgets/share_action.dart';
-import 'slides/wrapped_slide_view.dart';
 
 /// The share image's layout size. Captured at 3×, that is 1080×1920 — a full
 /// story frame on Instagram, and a clean 9:16 everywhere else.

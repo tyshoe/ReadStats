@@ -114,7 +114,7 @@ extension BookQueries on DatabaseHelper {
       whereArgs: [book['id']],
     );
     // Finished books don't belong in the reading planner.
-    if (book['shelf_id'] == DatabaseHelper.shelfFinished) {
+    if (book['shelf_id'] == Shelf.finished) {
       await db.delete('planner_books',
           where: 'book_id = ?', whereArgs: [book['id']]);
     }
@@ -131,7 +131,7 @@ extension BookQueries on DatabaseHelper {
       whereArgs: [id],
     );
     // Finished books don't belong in the reading planner.
-    if (updates['shelf_id'] == DatabaseHelper.shelfFinished) {
+    if (updates['shelf_id'] == Shelf.finished) {
       await db.delete('planner_books', where: 'book_id = ?', whereArgs: [id]);
     }
     DatabaseHelper.booksChanged.notify();
@@ -238,7 +238,7 @@ extension BookQueries on DatabaseHelper {
       whereArgs: [bookId],
     );
     // Finished books don't belong in the reading planner.
-    if (shelfId == DatabaseHelper.shelfFinished) {
+    if (shelfId == Shelf.finished) {
       await db
           .delete('planner_books', where: 'book_id = ?', whereArgs: [bookId]);
     }

@@ -2,10 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '/data/models/reader_personality.dart';
-import '/data/models/wrapped_story.dart';
-import '/data/models/year_wrapped.dart';
-import '/ui/widgets/book_cover.dart';
+import 'package:read_stats/domain/reader_personality.dart';
+import 'package:read_stats/domain/wrapped_story.dart';
+import 'package:read_stats/domain/year_wrapped.dart';
+import 'package:read_stats/ui/widgets/book_cover.dart';
 
 /// Wrapped's own look: deep, saturated gradients with white type, the same in
 /// light and dark mode. It is an event rather than a screen of the app, and a

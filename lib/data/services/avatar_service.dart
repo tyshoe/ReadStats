@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '/data/models/preset_avatar.dart';
+import 'package:read_stats/data/models/preset_avatar.dart';
 
 /// Stores the user's profile avatar. Mirrors [CoverService]'s approach: only a
 /// filename is persisted (never an absolute path), because the iOS sandbox UUID

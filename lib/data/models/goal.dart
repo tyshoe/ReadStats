@@ -59,6 +59,18 @@ enum GoalPeriod {
         GoalPeriod.yearly => 'Yearly',
       };
 
+  /// Start (midnight) of this period containing [date]. Weeks start on Sunday.
+  /// Shared by the goal queries and the activity feed, so both split history
+  /// into the same periods.
+  DateTime startOf(DateTime date) {
+    final d = switch (this) {
+      GoalPeriod.weekly => date.subtract(Duration(days: date.weekday % 7)),
+      GoalPeriod.monthly => DateTime(date.year, date.month, 1),
+      GoalPeriod.yearly => DateTime(date.year, 1, 1),
+    };
+    return DateTime(d.year, d.month, d.day);
+  }
+
   static GoalPeriod fromDb(String value) => switch (value) {
         'weekly' => GoalPeriod.weekly,
         'monthly' => GoalPeriod.monthly,

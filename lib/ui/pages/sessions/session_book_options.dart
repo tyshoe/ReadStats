@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
-
-import '/data/database/database_helper.dart';
-import '/ui/widgets/book_picker_sheet.dart';
+import 'package:read_stats/data/models/shelf.dart';
+import 'package:read_stats/ui/widgets/book_picker_sheet.dart';
 
 // Currently Reading first, then To Read, Unfinished, and — though it never
 // reaches the list — Finished last.
 const Map<int, int> _shelfOrder = {
-  DatabaseHelper.shelfCurrentlyReading: 0,
-  DatabaseHelper.shelfWantToRead: 1,
-  DatabaseHelper.shelfUnfinished: 2,
-  DatabaseHelper.shelfFinished: 3,
+  Shelf.currentlyReading: 0,
+  Shelf.wantToRead: 1,
+  Shelf.unfinished: 2,
+  Shelf.finished: 3,
 };
 
 /// The books on offer when logging a session, in the order every session
@@ -23,7 +22,7 @@ List<Map<String, dynamic>> sessionBookOptions(
   List<Map<String, dynamic>> books,
 ) {
   final options = books
-      .where((b) => DatabaseHelper.acceptsSessions(b['shelf_id'] as int?))
+      .where((b) => Shelf.acceptsSessions(b['shelf_id'] as int?))
       .toList();
   options.sort((a, b) {
     final shelfA = _shelfOrder[a['shelf_id'] as int? ?? 0] ?? 99;
@@ -47,9 +46,9 @@ BookGroup? sessionBookGroup(Map<String, dynamic> book) {
   final name = book['shelf_name'] as String?;
   if (name == null) return null;
   final icon = switch (book['shelf_id'] as int?) {
-    DatabaseHelper.shelfCurrentlyReading => Icons.menu_book_rounded,
-    DatabaseHelper.shelfWantToRead => Icons.bookmark,
-    DatabaseHelper.shelfUnfinished => Icons.do_not_disturb_on,
+    Shelf.currentlyReading => Icons.menu_book_rounded,
+    Shelf.wantToRead => Icons.bookmark,
+    Shelf.unfinished => Icons.do_not_disturb_on,
     _ => Icons.label,
   };
   return (label: name, icon: icon);

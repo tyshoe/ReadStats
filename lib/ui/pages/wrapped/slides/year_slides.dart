@@ -2,10 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-import '/data/models/year_wrapped.dart';
-import '../wrapped_style.dart';
-import 'wrapped_slide_view.dart';
+import 'package:read_stats/domain/year_wrapped.dart';
+import 'package:read_stats/ui/pages/wrapped/slides/wrapped_slide_view.dart';
+import 'package:read_stats/ui/pages/wrapped/wrapped_style.dart';
 
 // ── Intro ────────────────────────────────────────────────────────────────────
 

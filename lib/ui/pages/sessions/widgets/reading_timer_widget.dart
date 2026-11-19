@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import '/data/services/reading_timer_service.dart';
-import '/data/repositories/session_repository.dart';
-import '/data/repositories/book_repository.dart';
-import '/viewmodels/settings_view_model.dart';
-import '/ui/pages/library/widgets/next_in_series_sheet.dart';
-import '../post_session_page.dart';
-import '../fullscreen_timer_page.dart';
-import '/ui/widgets/book_picker_sheet.dart';
-import '../session_book_options.dart';
-import '/ui/widgets/book_cover.dart';
-import '/ui/widgets/book_page_progress.dart';
-import '/ui/widgets/book_selector_tile.dart';
+import 'package:read_stats/data/models/book_type.dart';
+import 'package:read_stats/data/repositories/book_repository.dart';
+import 'package:read_stats/data/repositories/session_repository.dart';
+import 'package:read_stats/data/services/reading_timer_service.dart';
+import 'package:read_stats/ui/pages/series/widgets/next_in_series_sheet.dart';
+import 'package:read_stats/ui/pages/sessions/fullscreen_timer_page.dart';
+import 'package:read_stats/ui/pages/sessions/post_session_page.dart';
+import 'package:read_stats/ui/pages/sessions/session_book_options.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
+import 'package:read_stats/ui/widgets/book_cover.dart';
+import 'package:read_stats/ui/widgets/book_page_progress.dart';
+import 'package:read_stats/ui/widgets/book_picker_sheet.dart';
+import 'package:read_stats/ui/widgets/book_selector_tile.dart';
 
 class ReadingTimerWidget extends StatefulWidget {
   final ReadingTimerService timerService;
@@ -224,7 +225,7 @@ class _ReadingTimerWidgetState extends State<ReadingTimerWidget> {
           // Where the reader is in the book: by page, or for an audiobook,
           // which has none, by time. Dimmed like the session form's "read
           // before", so the button under it is the card's one full accent.
-          if (_selectedBook != null && _selectedBook!['book_type_id'] == 4)
+          if (_selectedBook != null && _selectedBook!['book_type_id'] == BookType.audiobook)
             BookAudioProgress(
               bookId: _selectedBook!['id'] as int,
               bookMinutes: _selectedBook!['duration_minutes'] as int?,

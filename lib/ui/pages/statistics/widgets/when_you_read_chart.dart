@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '/data/models/notification_pref.dart' show kAllWeekdays;
-import '/data/utils/reading_clock.dart';
+import 'package:read_stats/data/models/notification_pref.dart' show kAllWeekdays;
+import 'package:read_stats/data/utils/reading_clock.dart';
 
 /// When in the week and when in the day reading happens, in one picture: a
 /// track per weekday running through the reading day, shaded where the

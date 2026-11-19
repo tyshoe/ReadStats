@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import '/data/database/database_helper.dart';
+import 'package:read_stats/data/models/cover_shape.dart';
 
 /// A book's cover, drawn in the shape the user framed it in.
 ///
@@ -11,7 +11,7 @@ import '/data/database/database_helper.dart';
 class BookCover extends StatelessWidget {
   final String path;
 
-  /// See DatabaseHelper.coverShapePortrait / coverShapeSquare.
+  /// See CoverShape.portrait / coverShapeSquare.
   final int? shape;
 
   /// The cover is laid out to this width; height follows from the shape.
@@ -34,7 +34,7 @@ class BookCover extends StatelessWidget {
       child: Image.file(
         File(path),
         width: width,
-        height: width / DatabaseHelper.coverAspectRatio(shape),
+        height: width / CoverShape.aspectRatio(shape),
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) => const SizedBox.shrink(),
       ),
@@ -73,7 +73,7 @@ class BookCoverFill extends StatelessWidget {
       errorBuilder: (_, _, _) => fallback ?? const SizedBox.shrink(),
     );
 
-    if (shape != DatabaseHelper.coverShapeSquare) return image;
+    if (shape != CoverShape.square) return image;
 
     return Stack(
       fit: StackFit.expand,

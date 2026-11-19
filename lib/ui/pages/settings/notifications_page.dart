@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '/data/models/notification_pref.dart';
-import '/data/services/notification_prefs_store.dart';
-import '/data/services/notification_service.dart';
-import '../../widgets/app_snackbar.dart';
+import 'package:read_stats/data/models/notification_pref.dart';
+import 'package:read_stats/data/services/notification_prefs_store.dart';
+import 'package:read_stats/data/services/notification_service.dart';
+import 'package:read_stats/ui/widgets/app_snackbar.dart';
 
 /// Lists every reminder the app can send, each with its own switch and
 /// schedule. Reminders are entirely local — nothing here reaches a server.

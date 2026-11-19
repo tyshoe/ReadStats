@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-
-import 'badges.dart';
-import 'goal_medals.dart';
-import 'reading_stats.dart';
-import 'seasons.dart';
-import 'seasons_page.dart';
+import 'package:read_stats/domain/badges.dart';
+import 'package:read_stats/domain/reading_stats.dart';
+import 'package:read_stats/domain/seasons.dart';
+import 'package:read_stats/ui/pages/profile/seasons_page.dart';
+import 'package:read_stats/ui/pages/profile/widgets/goal_medals.dart';
 
 /// Opens a medal's ladder, measured the way that medal is: a seasonal one
 /// against its own [season], captioned with it, and a lifetime one against

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-
-import 'goal_medals.dart';
-import 'reading_stats.dart';
-import 'seasons.dart';
+import 'package:read_stats/domain/reading_stats.dart';
+import 'package:read_stats/domain/seasons.dart';
+import 'package:read_stats/ui/pages/profile/widgets/goal_medals.dart';
 
 /// One season's medals as the Achievements wall draws them, four across.
 /// Tapping one opens its ladder, captioned with the season — and, for a

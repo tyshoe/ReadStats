@@ -1,8 +1,9 @@
 import 'dart:math';
 import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
-import '/ui/widgets/book_cover.dart';
 import 'package:flutter/services.dart';
+import 'package:read_stats/ui/widgets/book_cover.dart';
 
 /// Case-opening style picker: a horizontal strip of covers scrolls past a fixed
 /// center ticker, decelerating onto a random book. Pops the chosen book back to

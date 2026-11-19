@@ -1,20 +1,22 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'session_form_page.dart';
-import '/ui/pages/library/widgets/next_in_series_sheet.dart';
-import '/viewmodels/settings_view_model.dart';
-import '/data/repositories/session_repository.dart';
-import '/data/repositories/book_repository.dart';
-import '/data/repositories/goal_repository.dart';
-import '/data/services/reading_timer_service.dart';
-import '/data/database/database_helper.dart';
-import '/ui/widgets/book_cover.dart';
-import '/ui/widgets/month_picker_popup.dart';
-import 'widgets/session_calendar.dart';
-import 'widgets/goals_tab.dart';
-import 'widgets/reading_timer_widget.dart';
-import 'session_book_options.dart';
+import 'package:read_stats/data/models/cover_shape.dart';
+import 'package:read_stats/data/models/shelf.dart';
+import 'package:read_stats/data/repositories/book_repository.dart';
+import 'package:read_stats/data/repositories/goal_repository.dart';
+import 'package:read_stats/data/repositories/session_repository.dart';
+import 'package:read_stats/data/services/reading_timer_service.dart';
+import 'package:read_stats/ui/pages/series/widgets/next_in_series_sheet.dart';
+import 'package:read_stats/ui/pages/sessions/session_book_options.dart';
+import 'package:read_stats/ui/pages/sessions/session_form_page.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/goals_tab.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/reading_timer_widget.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/session_calendar.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
+import 'package:read_stats/ui/widgets/book_cover.dart';
+import 'package:read_stats/ui/widgets/month_picker_popup.dart';
 
 class SessionsPage extends StatefulWidget {
   final List<Map<String, dynamic>> books;
@@ -110,7 +112,6 @@ class _SessionsPageState extends State<SessionsPage>
 
     return '${hours}h\u00A0${remainingMinutes}m';
   }
-
 
   String _formatDate(String isoDate) {
     final date = DateTime.parse(isoDate);
@@ -231,8 +232,8 @@ class _SessionsPageState extends State<SessionsPage>
       final book = _bookMap[session['book_id']];
       if (book == null) continue;
       final shelfId = book['shelf_id'] as int?;
-      if (shelfId == DatabaseHelper.shelfFinished ||
-          shelfId == DatabaseHelper.shelfUnfinished) {
+      if (shelfId == Shelf.finished ||
+          shelfId == Shelf.unfinished) {
         continue;
       }
       return book;
@@ -254,7 +255,6 @@ class _SessionsPageState extends State<SessionsPage>
       _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + delta);
     });
   }
-
 
   Future<void> _pickMonth() async {
     final now = DateTime.now();
@@ -444,11 +444,11 @@ class _SessionsPageState extends State<SessionsPage>
               if (coverPath != null) ...[
                 // Square covers (audiobooks) keep their shape, centred in the
                 // row; portrait covers fill the row's height as before.
-                if (book?['cover_shape'] == DatabaseHelper.coverShapeSquare)
+                if (book?['cover_shape'] == CoverShape.square)
                   Center(
                     child: BookCover(
                       path: coverPath,
-                      shape: DatabaseHelper.coverShapeSquare,
+                      shape: CoverShape.square,
                       width: 42,
                       borderRadius: 4,
                     ),

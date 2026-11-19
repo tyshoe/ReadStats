@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '/data/models/goal.dart';
-import '/data/repositories/goal_repository.dart';
-import '/data/services/notification_service.dart';
-import '/viewmodels/settings_view_model.dart';
-import 'goal_form_sheet.dart';
-import 'goal_history_sheet.dart';
+import 'package:read_stats/data/models/goal.dart';
+import 'package:read_stats/data/repositories/goal_repository.dart';
+import 'package:read_stats/data/services/notification_service.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/goal_form_sheet.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/goal_history_sheet.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
 
 class GoalsTab extends StatefulWidget {
   final GoalRepository goalRepository;

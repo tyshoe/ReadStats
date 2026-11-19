@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import '/ui/widgets/field_decoration.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import '/data/database/database_helper.dart';
-import '/data/models/session.dart';
-import '/data/repositories/session_repository.dart';
-import '/data/repositories/book_repository.dart';
-import '/data/services/reading_timer_service.dart';
-import '/viewmodels/settings_view_model.dart';
-import '/ui/widgets/book_cover.dart';
-import 'widgets/reading_dates_row.dart';
-import 'widgets/session_pages_field.dart';
-import 'widgets/session_position_field.dart';
+import 'package:read_stats/data/models/book_type.dart';
+import 'package:read_stats/data/models/session.dart';
+import 'package:read_stats/data/models/shelf.dart';
+import 'package:read_stats/data/repositories/book_repository.dart';
+import 'package:read_stats/data/repositories/session_repository.dart';
+import 'package:read_stats/data/services/reading_timer_service.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/reading_dates_row.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/session_pages_field.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/session_position_field.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
+import 'package:read_stats/ui/widgets/book_cover.dart';
+import 'package:read_stats/ui/widgets/field_decoration.dart';
 
 class PostSessionPage extends StatefulWidget {
   final Map<String, dynamic> book;
@@ -83,7 +84,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
   /// session's length stays the timer's: the times record where the reader
   /// is in the book, which at another speed isn't how long they listened.
   Future<void> _suggestStartPosition() async {
-    if (widget.book['book_type_id'] != 4) return;
+    if (widget.book['book_type_id'] != BookType.audiobook) return;
     final at = widget.timerService.startedAt ?? DateTime.now();
     final bookId = widget.book['id'] as int;
     final around = await widget.sessionRepository.getMinutesAround(bookId, at);
@@ -106,7 +107,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
   /// before, to square the session that finishes the book with the book's
   /// length. A book read to its end starts over from the beginning.
   Future<void> _suggestStartPage() async {
-    if (widget.book['book_type_id'] == 4) return;
+    if (widget.book['book_type_id'] == BookType.audiobook) return;
     final bookId = widget.book['id'] as int;
     final at = widget.timerService.startedAt ?? DateTime.now();
     const suggest = true;
@@ -133,19 +134,19 @@ class _PostSessionPageState extends State<PostSessionPage> {
   /// audiobook — offers the Finished shelf, and takes the offer back if what
   /// was typed is corrected.
   void _onPagesChanged() {
-    final reached = widget.book['book_type_id'] == 4
+    final reached = widget.book['book_type_id'] == BookType.audiobook
         ? _position.reachesEnd
         : _pages.reachesEnd;
     if (reached &&
         !_finishedByLastPage &&
-        _targetShelfId != DatabaseHelper.shelfFinished) {
+        _targetShelfId != Shelf.finished) {
       _shelfBeforeLastPage = _targetShelfId;
       _finishedByLastPage = true;
-      _selectShelf(DatabaseHelper.shelfFinished);
+      _selectShelf(Shelf.finished);
     } else if (!reached && _finishedByLastPage) {
       _finishedByLastPage = false;
       final before = _shelfBeforeLastPage;
-      if (_targetShelfId == DatabaseHelper.shelfFinished && before != null) {
+      if (_targetShelfId == Shelf.finished && before != null) {
         _selectShelf(before);
         return;
       }
@@ -166,7 +167,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
         _targetShelfId != widget.book['shelf_id']) {
       return;
     }
-    _selectShelf(DatabaseHelper.shelfCurrentlyReading);
+    _selectShelf(Shelf.currentlyReading);
   }
 
   /// The shelf fills the date fields with the session's day — a book read in
@@ -324,7 +325,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
   }
 
   Future<void> _save() async {
-    if (widget.book['book_type_id'] == 4 && _position.isBackwards) return;
+    if (widget.book['book_type_id'] == BookType.audiobook && _position.isBackwards) return;
     setState(() => _isSaving = true);
     try {
       // Read the fields before stopping — they hold the timer's own figure
@@ -336,7 +337,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
       // covers a session saved with no timer behind it.
       final sessionDate = widget.timerService.startedAt ?? DateTime.now();
       widget.timerService.stop();
-      final isAudiobook = widget.book['book_type_id'] == 4;
+      final isAudiobook = widget.book['book_type_id'] == BookType.audiobook;
 
       final session = Session(
         bookId: widget.book['id'],
@@ -355,7 +356,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
       await widget.sessionRepository.addSession(session);
 
       final originalShelfId = widget.book['shelf_id'] as int?;
-      final isFinalSession = _targetShelfId == DatabaseHelper.shelfFinished;
+      final isFinalSession = _targetShelfId == Shelf.finished;
 
       // Only the dates the user saw change are written — the shelf filled
       // them in on screen, so nothing is set behind the reader's back.
@@ -379,7 +380,7 @@ class _PostSessionPageState extends State<PostSessionPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = widget.settingsViewModel.accentColorNotifier.value;
-    final isAudiobook = widget.book['book_type_id'] == 4;
+    final isAudiobook = widget.book['book_type_id'] == BookType.audiobook;
     final elapsed = widget.timerService.elapsed;
 
     return PopScope(
@@ -594,10 +595,10 @@ class _PostSessionPageState extends State<PostSessionPage> {
                         child: Row(
                           children: [
                             for (final shelf in [
-                              (id: DatabaseHelper.shelfWantToRead, label: 'To Read', icon: Icons.bookmark),
-                              (id: DatabaseHelper.shelfCurrentlyReading, label: 'Reading', icon: Icons.menu_book_rounded),
-                              (id: DatabaseHelper.shelfFinished, label: 'Finished', icon: Icons.check),
-                              (id: DatabaseHelper.shelfUnfinished, label: 'Unfinished', icon: Icons.do_not_disturb_on),
+                              (id: Shelf.wantToRead, label: 'To Read', icon: Icons.bookmark),
+                              (id: Shelf.currentlyReading, label: 'Reading', icon: Icons.menu_book_rounded),
+                              (id: Shelf.finished, label: 'Finished', icon: Icons.check),
+                              (id: Shelf.unfinished, label: 'Unfinished', icon: Icons.do_not_disturb_on),
                             ])
                               Expanded(
                                 child: GestureDetector(

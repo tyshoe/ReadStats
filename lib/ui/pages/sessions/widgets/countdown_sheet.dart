@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '/data/services/reading_timer_service.dart';
+import 'package:read_stats/data/services/reading_timer_service.dart';
 
 /// A countdown as chosen in the sheet: how long it runs, and what it does when
 /// it gets there. A [duration] of [Duration.zero] clears an existing countdown.

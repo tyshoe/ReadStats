@@ -1,9 +1,10 @@
 import 'dart:convert';
+
+import 'package:read_stats/data/services/goal_achievement_service.dart';
+import 'package:read_stats/domain/badges.dart';
+import 'package:read_stats/domain/reading_stats.dart';
+import 'package:read_stats/domain/seasons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'goal_achievement_service.dart';
-import '/ui/pages/profile/badges.dart';
-import '/ui/pages/profile/reading_stats.dart';
-import '/ui/pages/profile/seasons.dart';
 
 /// A badge tier the reader has just crossed for the first time.
 class MilestoneUnlock {

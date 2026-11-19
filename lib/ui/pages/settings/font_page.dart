@@ -1,11 +1,12 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import '../../../viewmodels/settings_view_model.dart';
-import '../library/widgets/book_row.dart';
+import 'package:read_stats/ui/pages/library/widgets/book_row.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
 
 class FontSelectionPage extends StatefulWidget {
   final SettingsViewModel settingsViewModel;

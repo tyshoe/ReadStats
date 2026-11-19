@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/material.dart';
+import 'package:read_stats/ui/settings_view_model.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
-import '/viewmodels/settings_view_model.dart';
 
 /// Interactive preview of the app's bottom tab bar, shown in Settings.
 ///
 /// It renders the real [StylishBottomBar] using the user's current style and
-/// accent (kept in sync with `main.dart`). The segmented control changes the
+/// accent (kept in sync with `navigation_menu.dart`). The segmented control changes the
 /// bar's *style*; tapping a tab in the bar sets the *startup tab*. Both
 /// navigation settings are configured live, in place, rather than through two
 /// separate text pickers — the user sees exactly what they're choosing.

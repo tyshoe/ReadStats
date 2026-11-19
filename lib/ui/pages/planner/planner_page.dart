@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import '/data/models/planner_book.dart';
-import '/data/repositories/planner_repository.dart';
-import '/data/database/database_helper.dart';
-import '/ui/pages/library/widgets/random_book_picker.dart';
-import '/ui/widgets/app_snackbar.dart';
-import 'widgets/planner_book_card.dart';
-import 'widgets/planner_book_sheet.dart';
+import 'package:read_stats/data/models/planner_book.dart';
+import 'package:read_stats/data/repositories/planner_repository.dart';
+import 'package:read_stats/ui/pages/library/widgets/random_book_picker.dart';
+import 'package:read_stats/ui/pages/planner/widgets/planner_book_card.dart';
+import 'package:read_stats/ui/pages/planner/widgets/planner_book_sheet.dart';
+import 'package:read_stats/ui/widgets/app_snackbar.dart';
 
 class PlannerPage extends StatefulWidget {
   const PlannerPage({super.key});
@@ -25,7 +24,7 @@ class _PlannerPageState extends State<PlannerPage> {
   @override
   void initState() {
     super.initState();
-    _repository = PlannerRepository(DatabaseHelper());
+    _repository = PlannerRepository();
     _loadBooks();
   }
 

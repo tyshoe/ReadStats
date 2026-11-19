@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'book_cover.dart';
-import 'book_type.dart';
+import 'package:read_stats/ui/widgets/book_cover.dart';
+import 'package:read_stats/ui/widgets/book_type.dart';
 
 /// The row that stands for "the book this session is about".
 ///
@@ -105,6 +105,5 @@ class BookSelectorTile extends StatelessWidget {
       ),
     );
   }
-
 
 }

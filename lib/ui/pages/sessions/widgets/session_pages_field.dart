@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'session_progress_bar.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/session_progress_bar.dart';
 
 /// The pages a session covered, as the session form and the post-timer page
 /// edit them.
@@ -41,7 +41,6 @@ class SessionPages {
 
   /// Whether no session for the book comes after this one.
   bool isLastSession = true;
-
 
   /// True once [from] holds something the reader typed, which a later
   /// [suggestStart] must not overwrite.

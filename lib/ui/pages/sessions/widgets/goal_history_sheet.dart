@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '/data/models/goal.dart';
+import 'package:read_stats/data/models/goal.dart';
 
 class GoalHistoryChart extends StatefulWidget {
   final List<PeriodProgress> periods;
