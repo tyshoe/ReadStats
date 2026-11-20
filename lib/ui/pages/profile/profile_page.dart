@@ -16,6 +16,7 @@ import 'package:read_stats/domain/seasons.dart';
 import 'package:read_stats/ui/pages/profile/achievements_page.dart';
 import 'package:read_stats/ui/pages/profile/activity_page.dart';
 import 'package:read_stats/ui/pages/profile/spending_page.dart';
+import 'package:read_stats/ui/pages/profile/widgets/achievements_card.dart';
 import 'package:read_stats/ui/pages/profile/widgets/preset_avatar_option.dart';
 import 'package:read_stats/ui/pages/profile/widgets/profile_hero_stat.dart';
 import 'package:read_stats/ui/settings_view_model.dart';
@@ -424,7 +425,15 @@ class _ProfilePageState extends State<ProfilePage> {
           _buildHeroStats(theme),
           _buildSpending(theme, accent),
           _buildGoals(theme, accent),
-          _buildAchievements(theme, accent),
+          AchievementsCard(
+            books: widget.books,
+            sessions: widget.sessions,
+            stats: _stats,
+            activity: _activity,
+            accent: accent,
+            onOpen: () => _openAchievements(accent),
+            onMedalTap: _showMedal,
+          ),
           _buildActivity(theme, accent),
         ],
       ),
@@ -889,201 +898,6 @@ class _ProfilePageState extends State<ProfilePage> {
     ));
   }
 
-  static const _recentMedalCount = 3;
-
-  /// The medals most recently earned, lifetime and seasonal together, and
-  /// the one nearest to being earned next. Both walls are a tap away, on the
-  /// Achievements screen.
-  Widget _buildAchievements(ThemeData theme, Color accent) {
-    final muted = theme.colorScheme.onSurfaceVariant;
-    final season = Season.of(DateTime.now());
-    final inSeason = seasonStats(season, widget.books, widget.sessions);
-
-    final recent = _activity
-        .where((e) => e.kind == ActivityKind.badge)
-        .take(_recentMedalCount)
-        .toList();
-
-    // Every medal with a rung still to reach, nearest first, as the share of
-    // the way to that rung. Ones not started yet aren't "next".
-    final upcoming = <(double, ReadingGoal, GoalTier, ReadingStats, Season?)>[
-      for (final (goals, stats, of) in [
-        (kSeasonGoals, inSeason, season as Season?),
-        (kGoals, _stats, null as Season?),
-      ])
-        for (final goal in goals)
-          if (goal.nextTier(stats) case final next?)
-            if (goal.measure(stats) > 0)
-              (goal.measure(stats) / next.threshold, goal, next, stats, of),
-    ]..sort((a, b) => b.$1.compareTo(a.$1));
-    // With nothing earned yet the card is all "next"; otherwise one is enough.
-    final next = upcoming.take(recent.isEmpty ? _recentMedalCount : 1);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: () => _openAchievements(accent),
-            behavior: HitTestBehavior.opaque,
-            child: Row(
-              children: [
-                Text(
-                  'Achievements',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  'See all',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: accent,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Card(
-            margin: EdgeInsets.zero,
-            clipBehavior: Clip.antiAlias,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InkWell(
-                  onTap: () => _openAchievements(accent),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
-                    child: Row(
-                      children: [
-                        Icon(season.icon, size: 16, color: season.color),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            '${season.name} · '
-                            '${earnedSeasonMilestones(inSeason)} of '
-                            '$totalSeasonMilestones'
-                            '   Lifetime · ${earnedMilestones(_stats)} of '
-                            '$totalMilestones',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: muted),
-                          ),
-                        ),
-                        Icon(Icons.chevron_right, size: 18, color: muted),
-                      ],
-                    ),
-                  ),
-                ),
-                if (recent.isEmpty && next.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Text(
-                      'Finish a book or log a session to earn your first '
-                      'medal.',
-                      style:
-                          theme.textTheme.bodySmall?.copyWith(color: muted),
-                    ),
-                  ),
-                for (final e in recent)
-                  ActivityTile(
-                    entry: e,
-                    accent: accent,
-                    onTap: () => _showMedal(e.badge!, e.season),
-                  ),
-                for (final (share, goal, tier, stats, of) in next)
-                  _buildNextMedal(theme, accent, share, goal, tier, stats, of),
-                const SizedBox(height: 4),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// A medal not yet earned and how far along it is: "Next: Half Dozen",
-  /// "Fall 2026 · 5 of 6 books", and a bar.
-  Widget _buildNextMedal(
-    ThemeData theme,
-    Color accent,
-    double share,
-    ReadingGoal goal,
-    GoalTier tier,
-    ReadingStats stats,
-    Season? season,
-  ) {
-    final muted = theme.colorScheme.onSurfaceVariant;
-    return InkWell(
-      onTap: () => _showMedal(goal, season),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          children: [
-            // Matches the medal rows above it, but unearned: no tier colour.
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(goal.icon, size: 18, color: muted),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text.rich(
-                    TextSpan(
-                      style: theme.textTheme.bodyMedium,
-                      children: [
-                        const TextSpan(text: 'Next: '),
-                        TextSpan(
-                          text: tier.title,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${season?.name ?? 'Lifetime'} · '
-                    '${goal.formatShortValue(goal.measure(stats))} of '
-                    '${goal.formatValue(tier.threshold)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(color: muted),
-                  ),
-                  const SizedBox(height: 6),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
-                      value: share.clamp(0, 1).toDouble(),
-                      minHeight: 4,
-                      backgroundColor:
-                          theme.colorScheme.surfaceContainerHighest,
-                      valueColor: AlwaysStoppedAnimation(accent),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   String _readingSinceLabel() {
     final since = _stats.readingSince;
     if (since == null) return 'Start your reading journey';
@@ -1099,7 +913,3 @@ class _ProfilePageState extends State<ProfilePage> {
 
   String _compact(int n) => NumberFormat.compact().format(n);
 }
-
-// ── Preset avatar option (one cell of the picker row) ─────────────────────────
-
-// ── Hero stat (big number + label) ────────────────────────────────────────────

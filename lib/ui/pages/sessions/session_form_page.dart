@@ -13,6 +13,8 @@ import 'package:read_stats/ui/pages/sessions/session_book_options.dart';
 import 'package:read_stats/ui/pages/sessions/widgets/reading_dates_row.dart';
 import 'package:read_stats/ui/pages/sessions/widgets/session_pages_field.dart';
 import 'package:read_stats/ui/pages/sessions/widgets/session_position_field.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/session_shelf_picker.dart';
+import 'package:read_stats/ui/pages/sessions/widgets/time_range_calculator.dart';
 import 'package:read_stats/ui/settings_view_model.dart';
 import 'package:read_stats/ui/widgets/app_snackbar.dart';
 import 'package:read_stats/ui/widgets/book_picker_sheet.dart';
@@ -443,95 +445,6 @@ class _SessionFormPageState extends State<SessionFormPage> {
     }
   }
 
-  Widget _buildTimeRow(
-    String label,
-    TextEditingController hoursCtrl,
-    TextEditingController minutesCtrl,
-    ThemeData theme,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: hoursCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onChanged: (_) {
-                  setState(() {});
-                  _updateDurationFromTimeRange();
-                },
-                onTapOutside: (_) =>
-                    FocusManager.instance.primaryFocus?.unfocus(),
-                decoration: InputDecoration(
-                  labelText: 'Hours',
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainer,
-                  border: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: minutesCtrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                onChanged: (v) {
-                  final val = int.tryParse(v);
-                  if (val != null && val > 59) minutesCtrl.text = '59';
-                  setState(() {});
-                  _updateDurationFromTimeRange();
-                },
-                onTapOutside: (_) =>
-                    FocusManager.instance.primaryFocus?.unfocus(),
-                decoration: InputDecoration(
-                  labelText: 'Minutes',
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainer,
-                  border: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   /// How long the session was. On its own line for a paper book; for an
   /// audiobook the times work it out, and these are for a bare duration.
   Widget _buildDurationRow(ThemeData theme) {
@@ -799,81 +712,19 @@ class _SessionFormPageState extends State<SessionFormPage> {
                       ),
                     ] else ...[
                     const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: theme.colorScheme.outlineVariant.withAlpha(
-                            120,
-                          ),
-                        ),
-                      ),
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          InkWell(
-                            onTap: () => setState(
-                              () => _showTimeRange = !_showTimeRange,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Row(
-                              children: [
-                                Text(
-                                  'calculate duration — not saved',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                AnimatedRotation(
-                                  turns: _showTimeRange ? 0.5 : 0,
-                                  duration: const Duration(milliseconds: 200),
-                                  child: Icon(
-                                    Icons.expand_more,
-                                    size: 16,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          AnimatedSize(
-                            duration: const Duration(milliseconds: 200),
-                            curve: Curves.easeInOut,
-                            child: _showTimeRange
-                                ? Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 8),
-                                      _buildTimeRow(
-                                        'Start Time',
-                                        _startHoursController,
-                                        _startMinutesController,
-                                        theme,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      _buildTimeRow(
-                                        'End Time',
-                                        _endHoursController,
-                                        _endMinutesController,
-                                        theme,
-                                      ),
-                                      if (_timeRangeError != null) ...[
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          _timeRangeError!,
-                                          style: theme.textTheme.labelSmall?.copyWith(
-                                            color: theme.colorScheme.error,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                        ],
-                      ),
+                    TimeRangeCalculator(
+                      expanded: _showTimeRange,
+                      onToggle: () =>
+                          setState(() => _showTimeRange = !_showTimeRange),
+                      startHours: _startHoursController,
+                      startMinutes: _startMinutesController,
+                      endHours: _endHoursController,
+                      endMinutes: _endMinutesController,
+                      error: _timeRangeError,
+                      onChanged: () {
+                        setState(() {});
+                        _updateDurationFromTimeRange();
+                      },
                     ),
                     ],
 
@@ -888,82 +739,9 @@ class _SessionFormPageState extends State<SessionFormPage> {
                     const SizedBox(height: 24),
                     Text('Move to shelf', style: textTheme.bodyMedium),
                     const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          for (final shelf in [
-                            (
-                              id: Shelf.wantToRead,
-                              label: 'To Read',
-                              icon: Icons.bookmark,
-                            ),
-                            (
-                              id: Shelf.currentlyReading,
-                              label: 'Reading',
-                              icon: Icons.menu_book_rounded,
-                            ),
-                            (
-                              id: Shelf.finished,
-                              label: 'Finished',
-                              icon: Icons.check,
-                            ),
-                            (
-                              id: Shelf.unfinished,
-                              label: 'Unfinished',
-                              icon: Icons.do_not_disturb_on,
-                            ),
-                          ])
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => _selectShelf(shelf.id),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 10,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _targetShelfId == shelf.id
-                                        ? theme.colorScheme.primary
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        shelf.icon,
-                                        size: 18,
-                                        color: _targetShelfId == shelf.id
-                                            ? theme.colorScheme.onPrimary
-                                            : theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        shelf.label,
-                                        textAlign: TextAlign.center,
-                                        style: theme.textTheme.labelSmall
-                                            ?.copyWith(
-                                              color: _targetShelfId == shelf.id
-                                                  ? theme.colorScheme.onPrimary
-                                                  : theme
-                                                        .colorScheme
-                                                        .onSurfaceVariant,
-                                              fontWeight:
-                                                  _targetShelfId == shelf.id
-                                                  ? FontWeight.w600
-                                                  : FontWeight.normal,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+                    SessionShelfPicker(
+                      selectedShelfId: _targetShelfId,
+                      onSelected: _selectShelf,
                     ),
 
                     // The book's dates, not the session's — the shelf above

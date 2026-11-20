@@ -6,6 +6,7 @@ import 'package:read_stats/data/repositories/series_repository.dart';
 import 'package:read_stats/data/repositories/session_repository.dart';
 import 'package:read_stats/data/repositories/tag_repository.dart';
 import 'package:read_stats/data/services/analytics_service.dart';
+import 'package:read_stats/domain/library_filter.dart';
 import 'package:read_stats/domain/series_progress.dart';
 import 'package:read_stats/ui/pages/book/book_detail_page.dart';
 import 'package:read_stats/ui/pages/book/book_form_page.dart';
@@ -14,7 +15,12 @@ import 'package:read_stats/ui/pages/library/widgets/book_grid.dart';
 import 'package:read_stats/ui/pages/library/widgets/book_row.dart';
 import 'package:read_stats/ui/pages/library/widgets/bulk_tag_sheet.dart';
 import 'package:read_stats/ui/pages/library/widgets/filter_sort_sheet.dart';
+import 'package:read_stats/ui/pages/library/widgets/library_empty_states.dart';
+import 'package:read_stats/ui/pages/library/widgets/library_menu.dart';
+import 'package:read_stats/ui/pages/library/widgets/planner_banner.dart';
 import 'package:read_stats/ui/pages/library/widgets/random_book_picker.dart';
+import 'package:read_stats/ui/pages/library/widgets/selection_actions.dart';
+import 'package:read_stats/ui/pages/library/widgets/shelf_chips.dart';
 import 'package:read_stats/ui/pages/planner/planner_page.dart';
 import 'package:read_stats/ui/pages/series/series_page.dart';
 import 'package:read_stats/ui/pages/series/widgets/bulk_series_sheet.dart';
@@ -122,17 +128,7 @@ class _LibraryPageState extends State<LibraryPage> {
     _seriesOnly = widget.settingsViewModel.librarySeriesOnlyNotifier.value;
     _coverFilter = widget.settingsViewModel.libraryCoverFilterNotifier.value;
 
-    _filteredBooks = _sortAndFilterBooks(
-      List<Map<String, dynamic>>.from(widget.books),
-      _selectedSortOption,
-      _isAscending,
-      _selectedBookTypes,
-      _isFavorite,
-      _selectedShelfId,
-      _selectedFinishedYears,
-      _selectedTags,
-      _selectedTagFilterMode,
-    );
+    _filteredBooks = _sortAndFilterBooks();
     _searchController.addListener(_searchBooks);
   }
 
@@ -288,16 +284,7 @@ class _LibraryPageState extends State<LibraryPage> {
       } else {
         _pinnedBookIds.add(bookId);
       }
-      _filteredBooks = _sortAndFilterBooks(
-          List<Map<String, dynamic>>.from(widget.books),
-          _selectedSortOption,
-          _isAscending,
-          _selectedBookTypes,
-          _isFavorite,
-          _selectedShelfId,
-          _selectedFinishedYears,
-          _selectedTags,
-          _selectedTagFilterMode);
+      _filteredBooks = _sortAndFilterBooks();
     });
     widget.settingsViewModel.setPinnedBookIds(_pinnedBookIds.toList());
   }
@@ -311,16 +298,7 @@ class _LibraryPageState extends State<LibraryPage> {
           _pinnedBookIds.add(id);
         }
       }
-      _filteredBooks = _sortAndFilterBooks(
-          List<Map<String, dynamic>>.from(widget.books),
-          _selectedSortOption,
-          _isAscending,
-          _selectedBookTypes,
-          _isFavorite,
-          _selectedShelfId,
-          _selectedFinishedYears,
-          _selectedTags,
-          _selectedTagFilterMode);
+      _filteredBooks = _sortAndFilterBooks();
     });
     widget.settingsViewModel.setPinnedBookIds(_pinnedBookIds.toList());
     _clearSelection();
@@ -380,16 +358,7 @@ class _LibraryPageState extends State<LibraryPage> {
       _isSearching = !_isSearching;
       if (!_isSearching) {
         _searchController.clear();
-        _filteredBooks = _sortAndFilterBooks(
-            List<Map<String, dynamic>>.from(widget.books),
-            _selectedSortOption,
-            _isAscending,
-            _selectedBookTypes,
-            _isFavorite,
-            _selectedShelfId,
-            _selectedFinishedYears,
-            _selectedTags,
-            _selectedTagFilterMode);
+        _filteredBooks = _sortAndFilterBooks();
       }
     });
   }
@@ -397,17 +366,10 @@ class _LibraryPageState extends State<LibraryPage> {
   void _searchBooks() {
     setState(() {
       final query = _searchController.text.toLowerCase();
-      final baseFiltered = _filterBooks(
-        List<Map<String, dynamic>>.from(widget.books),
-        _selectedBookTypes,
-        _isFavorite,
-        _selectedShelfId,
-        _selectedFinishedYears,
-        _selectedTags,
-        _selectedTagFilterMode,
-      );
+      final baseFiltered = _filter.apply(widget.books, _bookTagsCache);
       _filteredBooks = query.isEmpty
-          ? _sortBooks(baseFiltered, _selectedSortOption, _isAscending)
+          ? LibraryFilter.sort(
+              baseFiltered, _selectedSortOption, _isAscending, _pinnedBookIds)
           : baseFiltered.where((book) {
               final title = (book['title'] as String? ?? '').toLowerCase();
               final author = (book['author'] as String? ?? '').toLowerCase();
@@ -539,178 +501,31 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  List<Map<String, dynamic>> _sortAndFilterBooks(
-      List<Map<String, dynamic>> books,
-      String selectedSortOption,
-      bool isAscending,
-      List<String> selectedBookTypes,
-      bool isFavorite,
-      int? selectedShelfId,
-      List<String> finishedYears,
-      List<String> tags,
-      String tagFilterMode) {
-    List<Map<String, dynamic>> filteredBooks =
-    _filterBooks(books, selectedBookTypes, isFavorite, selectedShelfId, finishedYears, tags, tagFilterMode);
+  LibraryFilter get _filter => LibraryFilter(
+        bookTypes: _selectedBookTypes,
+        favoritesOnly: _isFavorite,
+        reviewedOnly: _isReviewed,
+        shelfId: _selectedShelfId,
+        seriesOnly: _seriesOnly,
+        coverFilter: _coverFilter,
+        finishedYears: _selectedFinishedYears,
+        tags: _selectedTags,
+        tagMode: _selectedTagFilterMode,
+      );
 
-    return _sortBooks(filteredBooks, selectedSortOption, isAscending);
-  }
+  /// The library with the current filters and sort applied.
+  List<Map<String, dynamic>> _sortAndFilterBooks() => LibraryFilter.sort(
+        _filter.apply(widget.books, _bookTagsCache),
+        _selectedSortOption,
+        _isAscending,
+        _pinnedBookIds,
+      );
 
-  List<Map<String, dynamic>> _filterBooks(
-      List<Map<String, dynamic>> books,
-      List<String> selectedBookTypes,
-      bool isFavorite,
-      int? selectedShelfId,
-      List<String> finishedYears,
-      List<String> selectedTags,
-      String tagFilterMode,
-      ) {
-    final selectedTypeIds = selectedBookTypes
-        .map((type) {
-      return bookTypeNames.entries
-          .firstWhere(
-            (entry) => entry.value == type,
-        orElse: () => const MapEntry(-1, ''),
-      )
-          .key;
-    })
-        .where((id) => id != -1)
-        .toList();
-
-    return books.where((book) {
-      final typeMatch = selectedTypeIds.isEmpty ||
-          (book['book_type_id'] != null && selectedTypeIds.contains(book['book_type_id']));
-
-      final favoriteMatch =
-          !isFavorite || (book['is_favorite'] != null && book['is_favorite'] == 1);
-
-      final reviewedMatch = !_isReviewed ||
-          (book['user_review'] != null &&
-              (book['user_review'] as String).trim().isNotEmpty);
-
-      final shelfMatch = selectedShelfId == null ||
-          (book['shelf_id'] as int?) == selectedShelfId;
-
-      final seriesMatch = !_seriesOnly || book['series_id'] != null;
-
-      final hasCover =
-          (book['cover_path'] as String?)?.isNotEmpty ?? false;
-      final coverMatch = switch (_coverFilter) {
-        'with' => hasCover,
-        'without' => !hasCover,
-        _ => true,
-      };
-
-      bool yearMatch = finishedYears.isEmpty;
-      if (!yearMatch && book['date_finished'] != null) {
-        try {
-          final date = DateTime.parse(book['date_finished'].toString());
-          yearMatch = finishedYears.contains(date.year.toString());
-        } catch (_) {
-          yearMatch = false;
-        }
-      }
-
-      bool tagMatch = selectedTags.isEmpty;
-      if (!tagMatch) {
-        final bookTags = _extractBookTags(book);
-
-        switch (tagFilterMode) {
-          case 'any':
-            tagMatch = selectedTags.any((tag) => bookTags.contains(tag));
-            break;
-          case 'all':
-            tagMatch = selectedTags.every((tag) => bookTags.contains(tag));
-            break;
-          case 'exclude':
-            tagMatch = !selectedTags.any((tag) => bookTags.contains(tag));
-            break;
-          default:
-            tagMatch = selectedTags.any((tag) => bookTags.contains(tag));
-        }
-      }
-
-      return typeMatch &&
-          favoriteMatch &&
-          reviewedMatch &&
-          shelfMatch &&
-          seriesMatch &&
-          coverMatch &&
-          yearMatch &&
-          tagMatch;
-    }).toList();
-  }
-
-  List<String> _extractBookTags(Map<String, dynamic> book) {
-    final bookId = book['id'] as int;
-    return _bookTagsCache[bookId] ?? [];
-  }
-
-  static const Map<int, String> bookTypeNames = {
-    1: "Paperback",
-    2: "Hardback",
-    3: "eBook",
-    4: "Audiobook",
-  };
-
-  List<Map<String, dynamic>> _sortBooks(
-      List<Map<String, dynamic>> books,
-      String selectedSortOption,
-      bool isAscending,
-      ) {
-    books = List.from(books);
-
-    final pinned = books.where((b) => _pinnedBookIds.contains(b['id'])).toList();
-    final unpinned = books.where((b) => !_pinnedBookIds.contains(b['id'])).toList();
-
-    unpinned.sort((a, b) {
-      int comparison = 0;
-
-      if (selectedSortOption == 'Title') {
-        comparison = (a['title'] ?? '').compareTo(b['title'] ?? '');
-      } else if (selectedSortOption == 'Author') {
-        comparison = (a['author'] ?? '').compareTo(b['author'] ?? '');
-      } else if (selectedSortOption == 'Rating') {
-        double ratingA = (a['rating'] ?? 0.0).toDouble();
-        double ratingB = (b['rating'] ?? 0.0).toDouble();
-        comparison = ratingA.compareTo(ratingB);
-      } else if (selectedSortOption == 'Pages') {
-        int pagesA = (a['page_count'] ?? 0).toInt();
-        int pagesB = (b['page_count'] ?? 0).toInt();
-        comparison = pagesA.compareTo(pagesB);
-      } else if (selectedSortOption == 'Date started') {
-        DateTime dateStartedA = a['date_started'] != null
-            ? DateTime.tryParse(a['date_started']) ?? DateTime(0)
-            : DateTime(0);
-        DateTime dateStartedB = b['date_started'] != null
-            ? DateTime.tryParse(b['date_started']) ?? DateTime(0)
-            : DateTime(0);
-        comparison = dateStartedA.compareTo(dateStartedB);
-      } else if (selectedSortOption == 'Date finished') {
-        DateTime dateFinishedA = a['date_finished'] != null
-            ? DateTime.tryParse(a['date_finished']) ?? DateTime(0)
-            : DateTime(0);
-        DateTime dateFinishedB = b['date_finished'] != null
-            ? DateTime.tryParse(b['date_finished']) ?? DateTime(0)
-            : DateTime(0);
-        comparison = dateFinishedA.compareTo(dateFinishedB);
-      } else if (selectedSortOption == 'Date added') {
-        DateTime dateAddedA = a['date_added'] != null
-            ? DateTime.tryParse(a['date_added']) ?? DateTime(0)
-            : DateTime(0);
-        DateTime dateAddedB = b['date_added'] != null
-            ? DateTime.tryParse(b['date_added']) ?? DateTime(0)
-            : DateTime(0);
-        comparison = dateAddedA.compareTo(dateAddedB);
-      }
-
-      return isAscending ? comparison : -comparison;
-    });
-
-    return [...pinned, ...unpinned];
-  }
+  List<String> _extractBookTags(Map<String, dynamic> book) =>
+      _bookTagsCache[book['id'] as int] ?? [];
 
   void _showSortFilterModal() {
-    final availableYears = _getAvailableYears(widget.books);
+    final availableYears = LibraryFilter.finishedYearsOf(widget.books);
 
     final currentOptions = SortFilterOptions(
         sortOption: _selectedSortOption,
@@ -757,24 +572,6 @@ class _LibraryPageState extends State<LibraryPage> {
         availableYears: availableYears,
         settingsViewModel: widget.settingsViewModel,
         availableTags: _availableTags);
-  }
-
-  List<String> _getAvailableYears(List<Map<String, dynamic>> books) {
-    final years = <String>{};
-    for (final book in books) {
-      final dateFinished = book['date_finished'];
-      if (dateFinished != null) {
-        try {
-          final date = DateTime.parse(dateFinished);
-          years.add(date.year.toString());
-        } catch (e) {
-          if (kDebugMode) {
-            print('Error getting available years: $e');
-          }
-        }
-      }
-    }
-    return years.toList()..sort((a, b) => b.compareTo(a));
   }
 
   Future<void> _loadAvailableTags() async {
@@ -873,29 +670,7 @@ class _LibraryPageState extends State<LibraryPage> {
   Future<void> _deleteSelectedBooks() async {
     final count = _selectedBookIds.length;
     final bookWord = count == 1 ? 'book' : 'books';
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Delete $count $bookWord?'),
-        content: const Text('This will also delete all sessions for these books. This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              'Delete',
-              style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
+    if (!await confirmDeleteBooks(context, count) || !mounted) return;
 
     await widget.bookRepository.deleteBooksBatch(_selectedBookIds.toList());
 
@@ -962,76 +737,20 @@ class _LibraryPageState extends State<LibraryPage> {
             ),
             onPressed: _showSortFilterModal,
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) {
-              if (value == 'random') {
-                _showRandomBook();
-              } else if (value == 'share_text') {
-                _shareLibraryAsText();
-              } else if (value == 'find_series') {
-                _findSeriesInTitles();
-              } else if (value == 'view_rows' ||
-                  value == 'view_grid') {
-                _toggleView(value.replaceFirst('view_', ''));
-              }
+          LibraryMenu(
+            view: _libraryBookView,
+            onSelected: (action) => switch (action) {
+              LibraryMenuAction.random => _showRandomBook(),
+              LibraryMenuAction.shareText => _shareLibraryAsText(),
+              LibraryMenuAction.findSeries => _findSeriesInTitles(),
+              LibraryMenuAction.viewRows => _toggleView('rows'),
+              LibraryMenuAction.viewGrid => _toggleView('grid'),
             },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(
-                value: 'random',
-                child: Text('Random Book'),
-              ),
-              const PopupMenuItem<String>(
-                value: 'share_text',
-                child: Text('Share as text'),
-              ),
-              const PopupMenuItem<String>(
-                value: 'find_series',
-                child: Text('Find series in titles'),
-              ),
-              const PopupMenuDivider(),
-              PopupMenuItem<String>(
-                value: 'view_rows',
-                child: ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.view_agenda_outlined, size: 20),
-                  title: const Text('Rows'),
-                  trailing: _libraryBookView == 'rows'
-                      ? Icon(Icons.check, size: 18, color: theme.colorScheme.primary)
-                      : null,
-                ),
-              ),
-              PopupMenuItem<String>(
-                value: 'view_grid',
-                child: ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.grid_view, size: 20),
-                  title: const Text('Grid'),
-                  trailing: _libraryBookView == 'grid'
-                      ? Icon(Icons.check, size: 18, color: theme.colorScheme.primary)
-                      : null,
-                ),
-              ),
-            ],
           ),
         ],
       ),
       body: widget.books.isEmpty
-                    ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset('assets/images/carl.png', width: 100, height: 100),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Carl is hungry, add a book to your library',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                    ],
-                  ),
-                )
+                    ? const EmptyLibrary()
                     : NotificationListener<ScrollNotification>(
                   onNotification: _onBodyScroll,
                   child: Padding(
@@ -1040,44 +759,16 @@ class _LibraryPageState extends State<LibraryPage> {
                     children: [
                       // Shelf filter chips
                       const SizedBox(height: 4),
-                      SizedBox(
-                        height: 32,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: [
-                            // One chip per shelf, built from the DB
-                            ..._shelves.map((shelf) {
-                              final id = shelf['id'] as int;
-                              final name = shelf['name'] as String;
-                              final isSelected = _selectedShelfId == id;
-                              return Padding(
-                                key: isSelected ? _selectedShelfChipKey : null,
-                                padding: const EdgeInsets.only(right: 6),
-                                child: FilterChip(
-                                  label: Text(name),
-                                  selected: isSelected,
-                                  onSelected: (_) {
-                                    setState(() {
-                                      _selectedShelfId = isSelected ? null : id;
-                                    });
-                                    _searchBooks();
-                                    widget.settingsViewModel.setLibraryShelfFilter(_selectedShelfId);
-                                    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedChip());
-                                  },
-                                  showCheckmark: false,
-                                  labelStyle: theme.textTheme.bodySmall,
-                                  labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                                  selectedColor: theme.colorScheme.primaryContainer,
-                                  elevation: 0,
-                                  pressElevation: 0,
-                                  side: BorderSide.none,
-                                shape: const StadiumBorder(),
-                                ),
-                              );
-                            }),
-                          ],
-                        ),
+                      ShelfChips(
+                        shelves: _shelves,
+                        selectedShelfId: _selectedShelfId,
+                        selectedKey: _selectedShelfChipKey,
+                        onSelected: (id) {
+                          setState(() => _selectedShelfId = id);
+                          _searchBooks();
+                          widget.settingsViewModel.setLibraryShelfFilter(_selectedShelfId);
+                          WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedChip());
+                        },
                       ),
                       const SizedBox(height: 4),
                       Align(
@@ -1089,53 +780,7 @@ class _LibraryPageState extends State<LibraryPage> {
                       ),
                       if (_selectedShelfId == Shelf.wantToRead) ...[
                         const SizedBox(height: 8),
-                        InkWell(
-                          onTap: _navigateToPlannerPage,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Ink(
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.secondaryContainer,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.menu_book_rounded,
-                                    color: theme.colorScheme.onSecondaryContainer,
-                                    size: 28,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Reading Planner',
-                                          style: theme.textTheme.titleMedium?.copyWith(
-                                            color: theme.colorScheme.onSecondaryContainer,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Text(
-                                          'Plan and prioritize your reading order',
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: theme.colorScheme.onSecondaryContainer,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    color: theme.colorScheme.onSecondaryContainer,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+                        PlannerBanner(onTap: _navigateToPlannerPage),
                         const SizedBox(height: 8),
                       ],
                       // Break out of the body's 8px horizontal padding so the
@@ -1155,45 +800,17 @@ class _LibraryPageState extends State<LibraryPage> {
                       ),
                       Expanded(
                         child: _filteredBooks.isEmpty
-                            ? Center(
-                                child: Builder(builder: (context) {
-                                  final bool isShelfEmpty = _selectedShelfId != null &&
-                                      !_isSearching &&
-                                      !_isFavorite &&
-                                      !_isReviewed &&
-                                      !_seriesOnly &&
-                                      _coverFilter == 'all' &&
-                                      _selectedBookTypes.isEmpty &&
-                                      _selectedFinishedYears.isEmpty &&
-                                      _selectedTags.isEmpty;
-                                  final IconData emptyIcon = _isSearching
-                                      ? Icons.search_off_rounded
-                                      : isShelfEmpty
-                                          ? Icons.library_books_outlined
-                                          : Icons.filter_list_off_rounded;
-                                  final String emptyMessage = _isSearching
-                                      ? 'No books match your search.'
-                                      : isShelfEmpty
-                                          ? 'No books on this shelf yet.'
-                                          : 'No books match the active filters.';
-                                  return Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        emptyIcon,
-                                        size: 48,
-                                        color: theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        emptyMessage,
-                                        style: theme.textTheme.bodyLarge?.copyWith(
-                                          color: theme.colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                }),
+                            ? NoMatchingBooks(
+                                searching: _isSearching,
+                                shelfEmpty: _selectedShelfId != null &&
+                                    !_isSearching &&
+                                    !_isFavorite &&
+                                    !_isReviewed &&
+                                    !_seriesOnly &&
+                                    _coverFilter == 'all' &&
+                                    _selectedBookTypes.isEmpty &&
+                                    _selectedFinishedYears.isEmpty &&
+                                    _selectedTags.isEmpty,
                               )
                             : Builder(builder: (context) {
                           final items = _libraryItems();
@@ -1320,51 +937,13 @@ class _LibraryPageState extends State<LibraryPage> {
                 ),
       floatingActionButton: _selectionMode
 
-          ? Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton(
-            heroTag: 'delete',
-            backgroundColor: Theme.of(context).colorScheme.error,
-            onPressed: _deleteSelectedBooks,
-            child: Icon(
-              Icons.delete,
-              color: Theme.of(context).colorScheme.onPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          FloatingActionButton(
-            heroTag: 'pin',
-            backgroundColor: accentColor,
-            onPressed: _pinSelectedBooks,
-            child: Icon(
-              Icons.push_pin,
-              color: Theme.of(context).colorScheme.onPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          FloatingActionButton(
-            heroTag: 'series',
-            backgroundColor: accentColor,
-            onPressed: _addSelectedToSeries,
-            tooltip: 'Add to series',
-            child: Icon(
-              Icons.collections_bookmark,
-              color: Theme.of(context).colorScheme.onPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          FloatingActionButton(
-            heroTag: 'tag',
-            backgroundColor: accentColor,
-            onPressed: _tagSelectedBooks,
-            child: Icon(
-              Icons.sell,
-              color: Theme.of(context).colorScheme.onPrimary,
-            ),
-          ),
-        ],
-      )
+          ? SelectionActions(
+              accentColor: accentColor,
+              onDelete: _deleteSelectedBooks,
+              onPin: _pinSelectedBooks,
+              onAddToSeries: _addSelectedToSeries,
+              onTag: _tagSelectedBooks,
+            )
           : FloatingActionButton(
         heroTag: 'add',
         backgroundColor: accentColor,

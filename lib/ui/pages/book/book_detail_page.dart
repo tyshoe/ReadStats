@@ -17,16 +17,20 @@ import 'package:read_stats/data/repositories/session_repository.dart';
 import 'package:read_stats/data/repositories/tag_repository.dart';
 import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/cover_service.dart';
-import 'package:read_stats/data/utils/money.dart';
-import 'package:read_stats/data/utils/series_title.dart';
 import 'package:read_stats/domain/series_progress.dart';
 import 'package:read_stats/ui/pages/book/book_form_page.dart';
+import 'package:read_stats/ui/pages/book/widgets/book_details_section.dart';
+import 'package:read_stats/ui/pages/book/widgets/book_reading_card.dart';
+import 'package:read_stats/ui/pages/book/widgets/book_review_section.dart';
+import 'package:read_stats/ui/pages/book/widgets/book_series_section.dart';
 import 'package:read_stats/ui/pages/book/widgets/book_sessions_content.dart';
+import 'package:read_stats/ui/pages/book/widgets/book_sessions_section.dart';
 import 'package:read_stats/ui/pages/book/widgets/book_share_sheet.dart';
+import 'package:read_stats/ui/pages/book/widgets/book_tags_row.dart';
+import 'package:read_stats/ui/pages/book/widgets/detail_section.dart';
 import 'package:read_stats/ui/pages/library/widgets/bulk_tag_sheet.dart';
 import 'package:read_stats/ui/pages/series/series_page.dart';
 import 'package:read_stats/ui/pages/series/widgets/next_in_series_sheet.dart';
-import 'package:read_stats/ui/pages/series/widgets/series_strip.dart';
 import 'package:read_stats/ui/pages/sessions/session_form_page.dart';
 import 'package:read_stats/ui/pages/sessions/widgets/rate_book_dialog.dart';
 import 'package:read_stats/ui/settings_view_model.dart';
@@ -110,7 +114,6 @@ class BookDetailPage extends StatefulWidget {
 }
 
 class _BookDetailPageState extends State<BookDetailPage> {
-  static const _recentSessions = 3;
   static const _coverWidth = 112.0;
 
   late Map<String, dynamic> _book = Map.of(widget.book);
@@ -121,7 +124,6 @@ class _BookDetailPageState extends State<BookDetailPage> {
   List<Map<String, dynamic>> _shelves = const [];
   SeriesProgress? _series;
   int _currentPage = 0;
-  bool _reviewExpanded = false;
 
   final _scroll = ScrollController();
   final _scrolled = ValueNotifier(false);
@@ -265,8 +267,8 @@ class _BookDetailPageState extends State<BookDetailPage> {
   );
 
   String _dateRange() {
-    final start = _parse(_book['date_started']);
-    final finish = _parse(_book['date_finished']);
+    final start = DetailFormat.parse(_book['date_started']);
+    final finish = DetailFormat.parse(_book['date_finished']);
     final f = _dateFormat;
     if (start != null && finish != null) {
       return '${f.format(start)} - ${f.format(finish)}';
@@ -422,7 +424,7 @@ class _BookDetailPageState extends State<BookDetailPage> {
               16,
               24 + MediaQuery.paddingOf(context).bottom,
             ),
-            sliver: SliverList.list(children: _sections(theme)),
+            sliver: SliverList.list(children: _sections()),
           ),
         ],
       ),
@@ -683,7 +685,7 @@ class _BookDetailPageState extends State<BookDetailPage> {
                 ],
               ),
               const SizedBox(height: 14),
-              _tagsRow(theme, onArt),
+              BookTagsRow(tags: _tags, onArt: onArt, onTap: _editTags),
               const SizedBox(height: 14),
               _actions(theme),
             ],
@@ -710,10 +712,10 @@ class _BookDetailPageState extends State<BookDetailPage> {
   String? _length() {
     if (_isAudio) {
       final mins = (_book['duration_minutes'] as int?) ?? 0;
-      return mins > 0 ? _formatTime(mins) : null;
+      return mins > 0 ? DetailFormat.time(mins) : null;
     }
     final pages = (_book['page_count'] as int?) ?? 0;
-    return pages > 0 ? '${_n(pages)} ${pages == 1 ? 'page' : 'pages'}' : null;
+    return pages > 0 ? '${DetailFormat.number(pages)} ${pages == 1 ? 'page' : 'pages'}' : null;
   }
 
   Widget _ratingRow(ThemeData theme, Color strong) {
@@ -889,25 +891,56 @@ class _BookDetailPageState extends State<BookDetailPage> {
 
   // ── Sections ───────────────────────────────────────────────────────────
 
-  List<Widget> _sections(ThemeData theme) {
+  List<Widget> _sections() {
     final reading = _shelfId == Shelf.currentlyReading;
     final wantToRead = _shelfId == Shelf.wantToRead;
-    final hasReview =
-        (_book['user_review'] as String?)?.trim().isNotEmpty ?? false;
-    final review = hasReview || (!wantToRead) ? _reviewSection(theme) : null;
+    final review = (_book['user_review'] as String?) ?? '';
+    final reviewSection = review.trim().isNotEmpty || !wantToRead
+        ? BookReviewSection(
+            key: const ValueKey('review'),
+            review: review,
+            onEdit: _rate,
+          )
+        : null;
+
+    final readingCard = BookReadingCard(
+      book: _book,
+      stats: _stats,
+      currentPage: _currentPage,
+      dateFormat: _dateFormat,
+    );
+    final series = _series;
+    final seriesSection = series != null && _book['series_name'] != null
+        ? BookSeriesSection(
+            book: _book,
+            series: series,
+            onOpenSeries: _openSeries,
+            onOpenBook: _openBook,
+          )
+        : null;
 
     final sections = <Widget?>[
-      _readingCard(theme),
+      if (!readingCard.isEmpty) readingCard,
       // A finished book leads with what they thought of it; one still being
       // read, with the sessions.
-      if (!reading) review,
+      if (!reading) reviewSection,
       // Once a book's done, what comes next in its series matters more than
       // how the sessions went.
-      if (!reading) _seriesSection(theme),
-      _sessionsSection(theme),
-      if (reading) review,
-      if (reading) _seriesSection(theme),
-      _detailsSection(theme),
+      if (!reading) seriesSection,
+      if (_sessions.isNotEmpty)
+        BookSessionsSection(
+          sessions: _sessions,
+          onTapSession: _editSession,
+          onShowAll: _allSessions,
+        ),
+      if (reading) reviewSection,
+      if (reading) seriesSection,
+      BookDetailsSection(
+        book: _book,
+        settingsViewModel: widget.settingsViewModel,
+        length: _length(),
+        onEdit: () => widget.navigateToEditBookPage(_book),
+      ),
     ];
     final shown = sections.nonNulls.toList();
     return [
@@ -918,810 +951,6 @@ class _BookDetailPageState extends State<BookDetailPage> {
     ];
   }
 
-  Widget _heading(
-    ThemeData theme,
-    String title, {
-    String? trailing,
-    VoidCallback? onTrailing,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 6),
-      child: Row(
-        children: [
-          Text(
-            title,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const Spacer(),
-          if (trailing != null)
-            InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: onTrailing,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      trailing,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      size: 18,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _card(
-    ThemeData theme,
-    Widget child, {
-    EdgeInsets padding = const EdgeInsets.all(14),
-    VoidCallback? onTap,
-  }) {
-    return Material(
-      color: theme.colorScheme.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(padding: padding, child: child),
-      ),
-    );
-  }
-
-  /// One card for the read itself: progress while reading (or when it was
-  /// read, once done), then every number that has a value, three to a row.
-  Widget? _readingCard(ThemeData theme) {
-    final cs = theme.colorScheme;
-    final reading = _shelfId == Shelf.currentlyReading;
-    final muted = theme.textTheme.bodySmall?.copyWith(
-      color: cs.onSurfaceVariant,
-    );
-
-    final top = reading ? _progress(theme) : _dates(theme);
-    final cells = _statCells();
-    if (top == null && cells.isEmpty) return null;
-
-    return _card(
-      theme,
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ?top,
-          if (top != null && cells.isNotEmpty)
-            Divider(
-              height: 24,
-              color: cs.outlineVariant.withValues(alpha: 0.5),
-            ),
-          for (var r = 0; r < cells.length; r += 3) ...[
-            if (r > 0) const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (var i = r; i < r + 3; i++)
-                  Expanded(
-                    child: i < cells.length
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                cells[i].$1,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              Text(cells[i].$2, style: muted),
-                            ],
-                          )
-                        : const SizedBox(),
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Big percentage, the bar, and where they are in it.
-  Widget? _progress(ThemeData theme) {
-    final cs = theme.colorScheme;
-    final total = _isAudio
-        ? (_book['duration_minutes'] as int?) ?? 0
-        : (_book['page_count'] as int?) ?? 0;
-    if (total <= 0) return null;
-    final done = _isAudio
-        ? (_stats['total_time'] as num?)?.toInt() ?? 0
-        : (_stats['total_pages'] as num?)?.toInt() ?? 0;
-    final fraction = (done / total).clamp(0.0, 1.0);
-
-    String? left;
-    if (_isAudio) {
-      if (done < total) left = '${_formatTime(total - done)} left';
-    } else {
-      final ppm = (_stats['pages_per_minute'] as num?)?.toDouble() ?? 0;
-      if (ppm > 0 && done < total) {
-        left = '${_formatTime(((total - done) / ppm).round())} left';
-      }
-    }
-
-    final where = _isAudio
-        ? '${_formatTime(done)} of ${_formatTime(total)}'
-        : _currentPage > 0
-        ? 'Page ${_n(_currentPage)} of ${_n(total)}'
-        : '${_n(done)} of ${_n(total)} pages';
-    final start = _parse(_book['date_started']);
-    final since = start == null
-        ? null
-        : 'Day ${_daysBetween(start, DateTime.now()) + 1} · since ${DateFormat.MMMd().format(start)}';
-    final muted = theme.textTheme.bodySmall?.copyWith(
-      color: cs.onSurfaceVariant,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              '${(fraction * 100).round()}%',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: cs.primary,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                where,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-            ),
-            if (left != null)
-              Text(
-                left,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            value: fraction,
-            minHeight: 8,
-            backgroundColor: cs.surfaceContainerHighest,
-          ),
-        ),
-        if (since != null) ...[
-          const SizedBox(height: 6),
-          Text(since, style: muted),
-        ],
-      ],
-    );
-  }
-
-  /// "Oct 27 – Nov 5, 2026" with "9 days" at the end.
-  Widget? _dates(ThemeData theme) {
-    final cs = theme.colorScheme;
-    final start = _parse(_book['date_started']);
-    final finish = _parse(_book['date_finished']);
-    final f = _dateFormat;
-    final String text;
-    String? span;
-    if (start != null && finish != null) {
-      text = '${f.format(start)} – ${f.format(finish)}';
-      final d = _daysBetween(start, finish).clamp(1, 1 << 31);
-      span = '$d ${d == 1 ? 'day' : 'days'}';
-    } else if (start != null) {
-      text = 'Started ${f.format(start)}';
-    } else if (finish != null) {
-      text = 'Finished ${f.format(finish)}';
-    } else {
-      return null;
-    }
-    return Row(
-      children: [
-        Icon(Icons.event, size: 18, color: cs.onSurfaceVariant),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        if (span != null)
-          Text(
-            span,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-      ],
-    );
-  }
-
-  /// Every reading number that has a value.
-  List<(String, String)> _statCells() {
-    final sessions = (_stats['session_count'] as int?) ?? 0;
-    if (sessions == 0) return const [];
-    final minutes = (_stats['total_time'] as num?)?.toInt() ?? 0;
-    final pages = (_stats['total_pages'] as num?)?.toInt() ?? 0;
-    final ppm = (_stats['pages_per_minute'] as num?)?.toDouble() ?? 0;
-    final wpm = (_stats['words_per_minute'] as num?)?.toDouble() ?? 0;
-    final reading = _shelfId == Shelf.currentlyReading;
-    return [
-      if (minutes > 0)
-        (_formatTime(minutes), _isAudio ? 'listened' : 'read time'),
-      ('$sessions', sessions == 1 ? 'session' : 'sessions'),
-      if (minutes > 0)
-        (_formatTime((minutes / sessions).round()), 'avg session'),
-      // Progress already says how many pages while reading.
-      if (!_isAudio && pages > 0 && !reading) (_n(pages), 'pages read'),
-      if (!_isAudio && ppm > 0) ('${(ppm * 60).round()}', 'pages/hr'),
-      if (wpm > 0) ('${wpm.round()}', 'words/min'),
-    ];
-  }
-
-  Widget _reviewSection(ThemeData theme) {
-    final cs = theme.colorScheme;
-    final review = (_book['user_review'] as String?)?.trim() ?? '';
-
-    if (review.isEmpty) {
-      return _card(
-        theme,
-        onTap: _rate,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        Row(
-          children: [
-            Icon(FluentIcons.compose_16_filled, size: 20, color: cs.primary),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Write a review',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
-          ],
-        ),
-      );
-    }
-
-    final style = theme.textTheme.bodyMedium?.copyWith(
-      height: 1.5,
-      color: cs.onSurface,
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _heading(theme, 'Your review', trailing: 'Edit', onTrailing: _rate),
-        _card(
-          theme,
-          onTap: () => setState(() => _reviewExpanded = !_reviewExpanded),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final overflows = (TextPainter(
-                text: TextSpan(text: review, style: style),
-                maxLines: 4,
-                textDirection: Directionality.of(context),
-              )..layout(maxWidth: constraints.maxWidth)).didExceedMaxLines;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 200),
-                    alignment: Alignment.topCenter,
-                    child: Text(
-                      review,
-                      style: style,
-                      maxLines: _reviewExpanded ? null : 4,
-                      overflow: _reviewExpanded
-                          ? TextOverflow.visible
-                          : TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (overflows) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      _reviewExpanded ? 'Show less' : 'Read more',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: cs.primary,
-                      ),
-                    ),
-                  ],
-                ],
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget? _sessionsSection(ThemeData theme) {
-    if (_sessions.isEmpty) return null;
-    final cs = theme.colorScheme;
-    final shown = _sessions.take(_recentSessions).toList();
-    final more = _sessions.length > _recentSessions;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _heading(
-          theme,
-          more ? 'Recent sessions' : 'Sessions',
-          trailing: more ? 'All ${_sessions.length}' : null,
-          onTrailing: more ? _allSessions : null,
-        ),
-        Material(
-          color: cs.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(16),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              for (var i = 0; i < shown.length; i++) ...[
-                if (i > 0)
-                  Divider(
-                    height: 1,
-                    indent: 64,
-                    color: cs.outlineVariant.withValues(alpha: 0.5),
-                  ),
-                _sessionRow(theme, shown[i]),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _sessionRow(ThemeData theme, Map<String, dynamic> s) {
-    final cs = theme.colorScheme;
-    final date = _parse(s['date']);
-    final minutes = (s['duration_minutes'] as int?) ?? 0;
-    final pages = (s['pages_read'] as int?) ?? 0;
-    final notes = (s['notes'] as String?)?.trim() ?? '';
-    final detail = [
-      if (pages > 0) '$pages pp',
-      if (pages > 0 && minutes > 0) '${(pages * 60 / minutes).round()}/hr',
-    ].join(' · ');
-    final muted = theme.textTheme.bodySmall?.copyWith(
-      color: cs.onSurfaceVariant,
-    );
-
-    return InkWell(
-      onTap: () => _editSession(s),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-        child: Row(
-          children: [
-            // Day of the month over its month, like a calendar tile.
-            SizedBox(
-              width: 36,
-              child: Column(
-                children: [
-                  Text(
-                    date == null ? '–' : DateFormat('d').format(date),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      height: 1.1,
-                    ),
-                  ),
-                  Text(
-                    date == null
-                        ? ''
-                        : DateFormat('MMM').format(date).toUpperCase(),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    date == null ? '' : DateFormat('EEEE').format(date),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  if (notes.isNotEmpty)
-                    Text(
-                      notes,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: muted,
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (minutes > 0)
-                  Text(
-                    _formatTime(minutes),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                if (detail.isNotEmpty) Text(detail, style: muted),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// The series this book belongs to: how far through it the reader is, every
-  /// number as a cover (tap one to open it), and what's up next.
-  Widget? _seriesSection(ThemeData theme) {
-    final series = _series;
-    final name = _book['series_name'] as String?;
-    if (series == null || name == null) return null;
-    final cs = theme.colorScheme;
-    final position = (_book['series_position'] as num?)?.toDouble();
-    final total = series.total;
-    final done = series.isComplete;
-    final finishedColor = seriesFinishedColor(cs);
-    final muted = theme.textTheme.bodySmall?.copyWith(
-      color: cs.onSurfaceVariant,
-    );
-
-    // Up next, unless it's this book.
-    final next = series.nextUp;
-    final showNext =
-        next != null && !(next.book != null && next.book!['id'] == _id);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _heading(theme, 'Series', trailing: 'View', onTrailing: _openSeries),
-        _card(
-          theme,
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Expanded(
-                    child: Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    done ? 'Complete' : '${series.read} of $total read',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: done ? finishedColor : cs.onSurfaceVariant,
-                      fontWeight: done ? FontWeight.w700 : null,
-                    ),
-                  ),
-                ],
-              ),
-              if (position != null)
-                Text(
-                  'This is book ${SeriesTitle.formatPosition(position)}',
-                  style: muted,
-                ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: total == 0 ? 0 : series.read / total,
-                  minHeight: 4,
-                  color: finishedColor,
-                  backgroundColor: cs.surfaceContainerHighest,
-                ),
-              ),
-              const SizedBox(height: 14),
-              SeriesStrip(
-                progress: series,
-                highlight: position,
-                onTap: (slot) => slot.book == null
-                    ? _openSeries()
-                    : _openBook(context, slot.book!),
-              ),
-              if (showNext) ...[
-                Divider(
-                  height: 24,
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
-                ),
-                _upNextRow(theme, next),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// "Up next · Book 3 — Title", opening that book; a number missing from
-  /// the library opens the series, where it can be found.
-  Widget _upNextRow(ThemeData theme, SeriesSlot next) {
-    final cs = theme.colorScheme;
-    final book = next.book;
-    final cover = book?['cover_path'] as String?;
-    final reading = next.state == SeriesSlotState.reading;
-    final title =
-        book?['title'] as String? ?? next.plannedTitle ?? 'Not in your library';
-    final label = reading
-        ? 'Reading now'
-        : book == null
-        ? 'Missing'
-        : 'Up next';
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
-      onTap: () => book == null ? _openSeries() : _openBook(context, book),
-      child: Row(
-        children: [
-          if (cover != null && cover.isNotEmpty)
-            BookCover(
-              path: cover,
-              shape: book?['cover_shape'] as int?,
-              width: 36,
-              borderRadius: 4,
-            )
-          else
-            Container(
-              width: 36,
-              height: 54,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: cs.outlineVariant),
-              ),
-              child: Icon(
-                book == null ? Icons.search : Icons.menu_book,
-                size: 16,
-                color: cs.onSurfaceVariant,
-              ),
-            ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$label · ${SeriesProgress.label(next.position)}'
-                      .toUpperCase(),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.primary,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: book == null ? cs.onSurfaceVariant : null,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
-        ],
-      ),
-    );
-  }
-
-  /// The facts about the copy, two to a row.
-  Widget _detailsSection(ThemeData theme) {
-    final cs = theme.colorScheme;
-    final f = _dateFormat;
-    final (_, type) = bookTypeDetails(_book['book_type_id'] as int?);
-    final words = (_book['word_count'] as int?) ?? 0;
-    final added = _parse(_book['date_added']);
-    final narrator = _isAudio
-        ? (_book['narrator'] as String? ?? '').trim()
-        : '';
-    final isbn = (_book['isbn'] as String? ?? '').trim();
-
-    String? paid;
-    if (widget.settingsViewModel.spendingEnabledNotifier.value) {
-      final price = (_book['price_paid'] as num?)?.toDouble();
-      if (price != null) {
-        final bought = _parse(_book['date_purchased']);
-        paid = [
-          Money.format(price, widget.settingsViewModel.currencyNotifier.value),
-          if (bought != null) DateFormat.yMMMd().format(bought),
-        ].join(' · ');
-      }
-    }
-
-    final cells = <(String, String)>[
-      ('Format', type),
-      if (_length() case final l?) (_isAudio ? 'Length' : 'Pages', l),
-      if (!_isAudio && words > 0) ('Words', _n(words)),
-      if (narrator.isNotEmpty) ('Narrator', narrator),
-      if (isbn.isNotEmpty) ('ISBN', isbn),
-      if (added != null) ('Added', f.format(added)),
-      if (paid != null) ('Paid', paid),
-    ];
-    final label = theme.textTheme.bodySmall?.copyWith(
-      color: cs.onSurfaceVariant,
-    );
-    final value = theme.textTheme.bodyMedium?.copyWith(
-      fontWeight: FontWeight.w600,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _heading(
-          theme,
-          'Details',
-          trailing: 'Edit',
-          onTrailing: () => widget.navigateToEditBookPage(_book),
-        ),
-        _card(
-          theme,
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var r = 0; r < cells.length; r += 2) ...[
-                if (r > 0) const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (var i = r; i < r + 2; i++)
-                      Expanded(
-                        child: i < cells.length
-                            ? Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(cells[i].$1, style: label),
-                                  const SizedBox(height: 1),
-                                  Text(
-                                    cells[i].$2,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: value,
-                                  ),
-                                ],
-                              )
-                            : const SizedBox(),
-                      ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// The book's tags under the cover, each opening the tag editor.
-  Widget _tagsRow(ThemeData theme, bool onArt) {
-    final muted = onArt
-        ? Colors.white.withValues(alpha: 0.75)
-        : theme.colorScheme.onSurfaceVariant;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 6, right: 10),
-          child: Icon(Icons.sell, size: 16, color: muted),
-        ),
-        Expanded(
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final tag in _tags)
-                _tagChip(theme, tag.name, onArt: onArt, filled: true),
-              _tagChip(
-                theme,
-                _tags.isEmpty ? 'Add tags' : 'Add',
-                onArt: onArt,
-                icon: Icons.add,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _tagChip(
-    ThemeData theme,
-    String label, {
-    required bool onArt,
-    bool filled = false,
-    IconData? icon,
-  }) {
-    final cs = theme.colorScheme;
-    // The outlined "Add" chip goes white over the art, where theme outlines
-    // vanish.
-    final fg = filled
-        ? cs.onSecondaryContainer
-        : onArt
-        ? Colors.white.withValues(alpha: 0.85)
-        : cs.onSurfaceVariant;
-    final outline = onArt
-        ? Colors.white.withValues(alpha: 0.45)
-        : cs.outlineVariant;
-    return Material(
-      color: filled ? cs.secondaryContainer : Colors.transparent,
-      shape: StadiumBorder(
-        side: filled ? BorderSide.none : BorderSide(color: outline),
-      ),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: _editTags,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: 14, color: fg),
-                const SizedBox(width: 4),
-              ],
-              Text(
-                label,
-                style: theme.textTheme.labelMedium?.copyWith(color: fg),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ── Helpers ────────────────────────────────────────────────────────────
-
   static IconData _shelfIcon(int? shelfId) => switch (shelfId) {
     Shelf.currentlyReading => Icons.auto_stories,
     Shelf.wantToRead => Icons.bookmark,
@@ -1729,22 +958,4 @@ class _BookDetailPageState extends State<BookDetailPage> {
     Shelf.unfinished => Icons.do_not_disturb_on,
     _ => Icons.shelves,
   };
-
-  static DateTime? _parse(Object? v) =>
-      v is String ? DateTime.tryParse(v) : null;
-
-  static int _daysBetween(DateTime a, DateTime b) => DateTime.utc(
-    b.year,
-    b.month,
-    b.day,
-  ).difference(DateTime.utc(a.year, a.month, a.day)).inDays;
-
-  static String _n(int n) => NumberFormat.decimalPattern().format(n);
-
-  static String _formatTime(int minutes) {
-    final h = minutes ~/ 60, m = minutes % 60;
-    if (h == 0) return '${m}m';
-    if (m == 0) return '${_n(h)}h';
-    return '${_n(h)}h ${m}m';
-  }
 }
