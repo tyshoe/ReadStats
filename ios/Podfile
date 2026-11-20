@@ -6,6 +6,10 @@ platform :ios, '15.0'
 # FIREBASE_ANALYTICS_WITHOUT_ADID environment variable (set in CI).
 $FirebaseAnalyticsWithoutAdIdSupport = true
 
+# Temporary: FirebaseAnalytics and FirebaseCrashlytics 12.19.3 aren't on
+# CocoaPods yet (only Firebase/FirebaseCore are). Remove once they are.
+$FirebaseSDKVersion = '12.19.0'
+
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
