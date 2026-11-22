@@ -25,18 +25,29 @@ class CommunityStatsService {
   static const _url =
       'https://raw.githubusercontent.com/tyshoe/ReadStats/stats/community_stats.json';
   static const _cacheKey = 'communityStats';
-  static const _fetchedKey = 'communityStatsFetchedAt';
+  static const _etagKey = 'communityStatsEtag';
 
-  /// The file changes once a day; checking more often only adds requests.
-  static const _maxAge = Duration(hours: 6);
+  /// GitHub serves the file from a cache that refreshes every 5 minutes, so
+  /// checking more often than that can't find anything new.
+  static const _minInterval = Duration(minutes: 5);
 
   final ValueNotifier<CommunityStats?> stats = ValueNotifier(null);
 
   bool _refreshing = false;
+  DateTime? _checkedAt;
 
-  /// Shows the cached totals, then downloads fresh ones if they're stale.
+  /// Shows the cached totals, then asks GitHub whether the file has changed.
+  ///
+  /// The check sends the cached copy's ETag, so an unchanged file costs a
+  /// tiny "304 Not Modified" reply; a new one replaces the cache straight
+  /// away, so the card matches the published file within minutes.
   Future<void> refresh() async {
     if (_refreshing) return;
+    final checkedAt = _checkedAt;
+    if (checkedAt != null &&
+        DateTime.now().difference(checkedAt) < _minInterval) {
+      return;
+    }
     _refreshing = true;
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -45,25 +56,27 @@ class CommunityStatsService {
         stats.value = _parse(cached);
       }
 
-      // A cached file that no longer parses (say, from before a format
-      // change) doesn't count as fresh: fetch again rather than wait it out.
-      final fetchedAt = prefs.getInt(_fetchedKey);
-      if (stats.value != null &&
-          fetchedAt != null &&
-          DateTime.now().difference(
-                  DateTime.fromMillisecondsSinceEpoch(fetchedAt)) <
-              _maxAge) {
-        return;
-      }
-
-      final response =
-          await http.get(Uri.parse(_url)).timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) return;
+      // Only revalidate a cached copy that parses: one that doesn't (say,
+      // from before a format change) is downloaded again in full.
+      final etag = stats.value == null ? null : prefs.getString(_etagKey);
+      final response = await http
+          .get(
+            Uri.parse(_url),
+            headers: {'If-None-Match': ?etag},
+          )
+          .timeout(const Duration(seconds: 10));
+      _checkedAt = DateTime.now();
+      if (response.statusCode != 200) return; // 304: still current.
       final fresh = _parse(response.body);
       if (fresh == null) return;
       stats.value = fresh;
       await prefs.setString(_cacheKey, response.body);
-      await prefs.setInt(_fetchedKey, DateTime.now().millisecondsSinceEpoch);
+      final newEtag = response.headers['etag'];
+      if (newEtag != null) {
+        await prefs.setString(_etagKey, newEtag);
+      } else {
+        await prefs.remove(_etagKey);
+      }
     } catch (e) {
       // Offline or blocked: keep whatever is showing.
       if (kDebugMode) debugPrint('Community stats unavailable: $e');
