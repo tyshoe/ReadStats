@@ -45,8 +45,11 @@ class CommunityStatsService {
         stats.value = _parse(cached);
       }
 
+      // A cached file that no longer parses (say, from before a format
+      // change) doesn't count as fresh: fetch again rather than wait it out.
       final fetchedAt = prefs.getInt(_fetchedKey);
-      if (fetchedAt != null &&
+      if (stats.value != null &&
+          fetchedAt != null &&
           DateTime.now().difference(
                   DateTime.fromMillisecondsSinceEpoch(fetchedAt)) <
               _maxAge) {
