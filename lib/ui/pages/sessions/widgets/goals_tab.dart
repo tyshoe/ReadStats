@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:read_stats/data/models/goal.dart';
 import 'package:read_stats/data/repositories/goal_repository.dart';
+import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/notification_service.dart';
 import 'package:read_stats/ui/pages/sessions/widgets/goal_form_sheet.dart';
 import 'package:read_stats/ui/pages/sessions/widgets/goal_history_sheet.dart';
@@ -91,6 +92,8 @@ class GoalsTabState extends State<GoalsTab> {
     );
     if (confirmed == true) {
       await widget.goalRepository.deleteGoal(goal.id!);
+      AnalyticsService.instance
+          .setHasGoal((await widget.goalRepository.getGoals()).isNotEmpty);
       // Deleting the last goal has to clear the check-in reminder, which has
       // nothing left to report.
       await NotificationService.instance.rescheduleAll();

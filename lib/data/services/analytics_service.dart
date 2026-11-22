@@ -28,17 +28,23 @@ class AnalyticsService {
   static final AnalyticsService instance = AnalyticsService._();
 
   static const _prefKey = 'shareUsageStats';
+  static const _demoKey = 'libraryIsDemo';
 
   /// The reader's choice. On unless they turned it off.
   final ValueNotifier<bool> enabledNotifier = ValueNotifier(true);
 
   bool _ready = false;
 
+  /// Whether the library is the generated demo one, kept across launches so
+  /// `demo_library` can be sent even if sharing was off when it was loaded.
+  bool _demoLibrary = false;
+
   bool get _sending => _ready && enabledNotifier.value && !kDebugMode;
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     enabledNotifier.value = prefs.getBool(_prefKey) ?? true;
+    _demoLibrary = prefs.getBool(_demoKey) ?? false;
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
@@ -127,12 +133,18 @@ class AnalyticsService {
 
   void timerStarted() => _log('timer_started');
 
-  void goalCreated({required String metric, required String period}) =>
-      _log('goal_created', {'metric': metric, 'period': period});
+  void goalCreated({required String metric, required String period}) {
+    _log('goal_created', {'metric': metric, 'period': period});
+    setHasGoal(true);
+  }
 
-  /// [source]: `backup`, `goodreads`, `bookmory` or `demo`.
-  void dataImported(String source) =>
-      _log('data_imported', {'source': source});
+  /// [source]: `backup`, `goodreads`, `bookmory` or `demo`. Also decides
+  /// `demo_library`: a demo load makes the library the demo one, any other
+  /// import brings in real books.
+  void dataImported(String source) {
+    _log('data_imported', {'source': source});
+    unawaited(setDemoLibrary(source == 'demo'));
+  }
 
   void backupExported() => _log('backup_exported');
 
@@ -145,20 +157,81 @@ class AnalyticsService {
 
   void onboardingFinished() => _log('onboarding_finished');
 
-  /// Library size in steps of 25 ("1-24", "25-49", … "975-999", "1000+"),
-  /// so the dashboard can split users by it without an exact count.
-  void setLibrarySize(int books) {
+  // ── User properties ───────────────────────────────────────────────────────
+
+  void _setProperty(String name, String value) {
     if (!_sending) return;
-    final low = books ~/ 25 * 25;
-    final bucket = switch (books) {
-      0 => '0',
-      >= 1000 => '1000+',
-      _ => '${low == 0 ? 1 : low}-${low + 24}',
-    };
     unawaited(
       FirebaseAnalytics.instance
-          .setUserProperty(name: 'library_size', value: bucket)
+          .setUserProperty(name: name, value: value)
           .catchError((_) {}),
     );
   }
+
+  /// Describes the library each time the books load:
+  /// - `library_size` in steps of 25 ("1-24", "25-49", … "975-999",
+  ///   "1000+"), so the dashboard can split users by it without an exact count;
+  /// - `main_format`: `physical`, `ebook` or `audiobook` when more than half
+  ///   the books are that format, else `mixed` (`none` when empty);
+  /// - `demo_library`: `true` while it's the generated demo library.
+  void setLibrary(List<Map<String, dynamic>> books) {
+    if (!_sending) return;
+    final count = books.length;
+    final low = count ~/ 25 * 25;
+    _setProperty('library_size', switch (count) {
+      0 => '0',
+      >= 1000 => '1000+',
+      _ => '${low == 0 ? 1 : low}-${low + 24}',
+    });
+
+    var physical = 0, ebook = 0, audiobook = 0;
+    for (final book in books) {
+      switch (book['book_type_id']) {
+        case BookType.paperback || BookType.hardback:
+          physical++;
+        case BookType.ebook:
+          ebook++;
+        case BookType.audiobook:
+          audiobook++;
+      }
+    }
+    _setProperty('main_format', switch (count) {
+      0 => 'none',
+      _ when physical * 2 > count => 'physical',
+      _ when ebook * 2 > count => 'ebook',
+      _ when audiobook * 2 > count => 'audiobook',
+      _ => 'mixed',
+    });
+
+    _setProperty('demo_library', '$_demoLibrary');
+  }
+
+  /// Remembered whether or not sharing is on, so the property is right once
+  /// it is.
+  Future<void> setDemoLibrary(bool demo) async {
+    _demoLibrary = demo;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_demoKey, demo);
+    _setProperty('demo_library', '$demo');
+  }
+
+  void setHasGoal(bool hasGoal) => _setProperty('has_goal', '$hasGoal');
+
+  /// Sessions logged, in widening ranges ("1-9", "10-24", … "500-999",
+  /// "1000+"): the gap between a first week and a habit matters more than
+  /// one between 600 and 700.
+  void setSessionCount(int sessions) => _setProperty(
+        'session_count',
+        switch (sessions) {
+          0 => '0',
+          < 10 => '1-9',
+          < 25 => '10-24',
+          < 50 => '25-49',
+          < 100 => '50-99',
+          < 250 => '100-249',
+          < 500 => '250-499',
+          < 1000 => '500-999',
+          _ => '1000+',
+        },
+      );
 }

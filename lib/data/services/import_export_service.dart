@@ -153,6 +153,7 @@ class ImportExportService {
       await bookRepository.deleteAllBooks();
       await tagRepository.deleteAllTags();
       await goalRepository.deleteAllGoals();
+      await AnalyticsService.instance.setDemoLibrary(false);
       return const ImportExportResult(success: true, message: 'All data deleted.');
     } catch (e) {
       if (kDebugMode) print('Delete error: $e');
