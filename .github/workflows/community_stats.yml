@@ -1,0 +1,51 @@
+# Refreshes the totals on the Settings support card: sums the per-install
+# library counts in Firestore and force-pushes community_stats.json as the only
+# commit on the `stats` branch, which the app downloads. A failed query
+# publishes nothing, so the app keeps the previous day's numbers.
+#
+# Needs the repository secret FIREBASE_SERVICE_ACCOUNT_KEY; see
+# .github/scripts/community_stats.py.
+name: Community stats
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: community-stats
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install the Firestore client
+        run: pip install google-cloud-firestore google-auth
+
+      - name: Sum the library counts
+        env:
+          FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/stats"
+          python .github/scripts/community_stats.py > "$RUNNER_TEMP/stats/community_stats.json"
+          cat "$RUNNER_TEMP/stats/community_stats.json"
+
+      - name: Publish to the stats branch
+        working-directory: ${{ runner.temp }}/stats
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git init -q -b stats
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add community_stats.json
+          git commit -q -m 'Update community stats'
+          git push -f "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git" stats

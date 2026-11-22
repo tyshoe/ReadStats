@@ -1,0 +1,38 @@
+// Firestore security rules. Paste into Firebase console → Firestore Database →
+// Rules → Publish (or `firebase deploy --only firestore:rules`).
+//
+// The only data is installs/{uid}: one document per install that shares usage
+// statistics, written by LibrarySnapshotService. Apps can create, replace or
+// delete their own document and nothing else; nobody can read from an app.
+// The daily GitHub job reads with a service account, which bypasses rules.
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /installs/{uid} {
+      allow delete: if request.auth != null && request.auth.uid == uid;
+
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['books', 'finished', 'updated', 'expires'])
+        && request.resource.data.keys().hasAll(['books', 'finished', 'updated', 'expires'])
+        && request.resource.data.books is int
+        && request.resource.data.books > 0
+        && request.resource.data.books <= 20000
+        && request.resource.data.finished is int
+        && request.resource.data.finished >= 0
+        && request.resource.data.finished <= request.resource.data.books
+        // Server time only, so no install can pass for active.
+        && request.resource.data.updated == request.time
+        // About 90 days out (client clock, so a day's leeway): the daily job
+        // deletes installs past `expires`, so ones that stopped sending go.
+        && request.resource.data.expires is timestamp
+        && request.resource.data.expires > request.time + duration.value(89, 'd')
+        && request.resource.data.expires < request.time + duration.value(91, 'd');
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -41,6 +41,12 @@ class AnalyticsService {
 
   bool get _sending => _ready && enabledNotifier.value && !kDebugMode;
 
+  /// Whether Firebase initialised, for other services that use it.
+  bool get firebaseReady => _ready;
+
+  /// Whether the library is the generated demo one.
+  bool get demoLibrary => _demoLibrary;
+
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     enabledNotifier.value = prefs.getBool(_prefKey) ?? true;
@@ -145,6 +151,10 @@ class AnalyticsService {
     _log('data_imported', {'source': source});
     unawaited(setDemoLibrary(source == 'demo'));
   }
+
+  /// A support-card link was opened. [target]: `tip` or `rate`.
+  void supportTapped(String target) =>
+      _log('support_tapped', {'target': target});
 
   void backupExported() => _log('backup_exported');
 

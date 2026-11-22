@@ -9,6 +9,7 @@ import 'package:read_stats/data/repositories/session_repository.dart';
 import 'package:read_stats/data/repositories/tag_repository.dart';
 import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/import_export_service.dart';
+import 'package:read_stats/data/services/library_snapshot_service.dart';
 import 'package:read_stats/data/services/notification_prefs_store.dart';
 import 'package:read_stats/data/services/notification_service.dart';
 import 'package:read_stats/data/services/rating_service.dart';
@@ -25,6 +26,7 @@ void main() async {
   await AppConfig.init();
   // First, so crashes during the rest of startup are reported too.
   await AnalyticsService.instance.init();
+  LibrarySnapshotService.instance.init();
   await RatingService.instance.registerAppStart();
 
   final dbHelper = DatabaseHelper();

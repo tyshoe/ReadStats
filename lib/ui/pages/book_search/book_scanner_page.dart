@@ -303,6 +303,9 @@ class _BookScannerPageState extends State<BookScannerPage> {
         final id = await _bookRepo.addBook(book);
         AnalyticsService.instance
             .bookAdded(method: 'scan', bookTypeId: item.bookTypeId);
+        if (book.shelfId == Shelf.finished) {
+          AnalyticsService.instance.bookFinished(bookTypeId: item.bookTypeId);
+        }
         for (final tagId in itemTags) {
           await tagRepo.addTagToBook(id, tagId);
         }

@@ -6,7 +6,6 @@ import 'package:read_stats/app_config.dart';
 import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/import_export_service.dart';
 import 'package:read_stats/data/services/milestone_service.dart';
-import 'package:read_stats/data/services/rating_service.dart';
 import 'package:read_stats/data/services/reading_timer_service.dart';
 import 'package:read_stats/ui/pages/onboarding/onboarding_page.dart';
 import 'package:read_stats/ui/pages/settings/font_page.dart';
@@ -17,6 +16,7 @@ import 'package:read_stats/ui/pages/settings/widgets/currency_picker.dart';
 import 'package:read_stats/ui/pages/settings/widgets/date_format_picker.dart';
 import 'package:read_stats/ui/pages/settings/widgets/nav_preview.dart';
 import 'package:read_stats/ui/pages/settings/widgets/rating_style_picker.dart';
+import 'package:read_stats/ui/pages/settings/widgets/support_card.dart';
 import 'package:read_stats/ui/pages/settings/widgets/theme_mode_picker.dart';
 import 'package:read_stats/ui/settings_view_model.dart';
 import 'package:read_stats/ui/widgets/app_snackbar.dart';
@@ -59,6 +59,13 @@ class SettingsPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
+          // Support section — first, so the one place the app asks for
+          // anything is easy to find without being a pop-up.
+          ValueListenableBuilder<Color>(
+            valueListenable: settingsViewModel.accentColorNotifier,
+            builder: (context, accent, _) => SupportCard(accent: accent),
+          ),
+
           // Appearance Section — global app chrome: theme, accent, typeface.
           _buildSettingsSection(
             context,
@@ -339,27 +346,12 @@ class SettingsPage extends StatelessWidget {
             ],
           ),
 
-          // About Section — supporting the app, then project and legal
-          // references (not contact, which is Help & Feedback's).
+          // About Section — project and legal references (support lives in
+          // the card at the top; contact is Help & Feedback's).
           _buildSettingsSection(
             context,
             header: 'About',
             children: [
-              _buildLinkTile(
-                context,
-                icon: const Icon(Icons.star, size: 22),
-                title: 'Rate ReadStats',
-                onTap: () => RatingService.instance.openStoreListing(),
-              ),
-              _buildLinkTile(
-                context,
-                icon: const Icon(Icons.coffee, size: 22),
-                title: 'Buy Me a Coffee',
-                onTap: () => _launchUrl(
-                  AppConfig.supportUrl,
-                  mode: LaunchMode.externalApplication,
-                ),
-              ),
               _buildLinkTile(
                 context,
                 icon: const FaIcon(FontAwesomeIcons.github, size: 20),

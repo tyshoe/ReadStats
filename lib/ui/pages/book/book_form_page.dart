@@ -479,7 +479,9 @@ class _BookFormPageState extends State<BookFormPage> {
 
       final wasFinished =
           widget.isEditing && widget.book!['shelf_id'] == Shelf.finished;
-      if (!widget.isEditing) {
+      // A new book, including a duplicate (which opens prefilled, so
+      // isEditing, but without an id).
+      if (widget.book?['id'] == null) {
         AnalyticsService.instance
             .bookAdded(method: 'form', bookTypeId: _selectedBookType + 1);
       }

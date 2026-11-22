@@ -9,6 +9,7 @@ import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/cover_service.dart';
 import 'package:read_stats/data/services/goal_achievement_service.dart';
 import 'package:read_stats/data/services/import_export_service.dart';
+import 'package:read_stats/data/services/library_snapshot_service.dart';
 import 'package:read_stats/data/services/milestone_service.dart';
 import 'package:read_stats/data/services/notification_service.dart';
 import 'package:read_stats/data/services/reading_timer_service.dart';
@@ -420,6 +421,7 @@ class _ReadStatsAppState extends State<ReadStatsApp> {
     });
     _booksLoaded = true;
     AnalyticsService.instance.setLibrary(_books);
+    LibrarySnapshotService.instance.update(_books);
     // Goals have no change stream of their own, but restores and demo loads
     // reload the books too; the goal sheet and Goals tab report the rest.
     widget.goalRepository.getGoals().then(
