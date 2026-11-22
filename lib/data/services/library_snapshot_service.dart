@@ -5,14 +5,14 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:read_stats/data/models/shelf.dart';
 import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/firebase_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Keeps this install's entry in the community totals on the Settings support
 /// card: one Firestore document, `installs/{anonymous uid}`, holding only
-/// `books` (library size), `finished` (books on the Finished shelf),
+/// `books` (library size), `minutes` (time across all logged sessions, the
+/// same total the Stats page shows),
 /// `updated` (set by the server) and `expires` (90 days on, after which the
 /// daily GitHub job deletes it).
 ///
@@ -22,7 +22,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// their own once their document goes stale.
 ///
 /// What it sends follows the "Share usage statistics" switch:
-/// - on, with real books: the two counts, when they change (after a short
+/// - on, with real books: the two numbers, when they change (after a short
 ///   pause, so a bulk edit is one write) and at least weekly so the entry
 ///   stays fresh;
 /// - off, an empty library, or the demo library: the document is deleted —
@@ -37,15 +37,17 @@ class LibrarySnapshotService {
   LibrarySnapshotService._();
   static final LibrarySnapshotService instance = LibrarySnapshotService._();
 
-  /// What was last written: "books/finished", or "0/0" for no document.
+  /// What was last written: "books/minutes", or "0/0" for no document.
   static const _sentKey = 'snapshotSent';
   static const _sentAtKey = 'snapshotSentAt';
 
   static const _debounce = Duration(seconds: 30);
   static const _heartbeat = Duration(days: 7);
 
-  ({int books, int finished}) _library = (books: 0, finished: 0);
-  bool _loaded = false;
+  int _books = 0;
+  int _minutes = 0;
+  bool _booksLoaded = false;
+  bool _sessionsLoaded = false;
   Timer? _timer;
   bool _flushing = false;
   bool _appCheckActive = false;
@@ -56,17 +58,26 @@ class LibrarySnapshotService {
   }
 
   /// Called with the library each time the books load.
-  void update(List<Map<String, dynamic>> books) {
-    _library = (
-      books: books.length,
-      finished: books.where((b) => b['shelf_id'] == Shelf.finished).length,
-    );
-    _loaded = true;
+  void updateBooks(List<Map<String, dynamic>> books) {
+    _books = books.length;
+    _booksLoaded = true;
+    _schedule();
+  }
+
+  /// Called with every session each time the sessions load.
+  void updateSessions(List<Map<String, dynamic>> sessions) {
+    var minutes = 0;
+    for (final session in sessions) {
+      final value = session['duration_minutes'];
+      if (value is num) minutes += value.toInt();
+    }
+    _minutes = minutes;
+    _sessionsLoaded = true;
     _schedule();
   }
 
   void _schedule() {
-    if (!_loaded) return;
+    if (!_booksLoaded || !_sessionsLoaded) return;
     _timer?.cancel();
     _timer = Timer(_debounce, _flush);
   }
@@ -78,9 +89,11 @@ class LibrarySnapshotService {
     try {
       final share = analytics.enabledNotifier.value &&
           !analytics.demoLibrary &&
-          _library.books > 0;
-      final want = share ? _library : (books: 0, finished: 0);
-      final wantKey = '${want.books}/${want.finished}';
+          _books > 0;
+      final want = share
+          ? (books: _books, minutes: _minutes)
+          : (books: 0, minutes: 0);
+      final wantKey = '${want.books}/${want.minutes}';
 
       final prefs = await SharedPreferences.getInstance();
       final sent = prefs.getString(_sentKey) ?? '0/0';
@@ -105,7 +118,7 @@ class LibrarySnapshotService {
   }
 
   /// Writes [counts] to this install's document, or deletes it when null.
-  Future<bool> _commit(({int books, int finished})? counts) async {
+  Future<bool> _commit(({int books, int minutes})? counts) async {
     // First, so the anonymous sign-in is attested too, not just the write.
     final appCheck = await _appCheckToken();
     final auth = FirebaseAuth.instance;
@@ -122,7 +135,7 @@ class LibrarySnapshotService {
               'name': name,
               'fields': {
                 'books': {'integerValue': '${counts.books}'},
-                'finished': {'integerValue': '${counts.finished}'},
+                'minutes': {'integerValue': '${counts.minutes}'},
                 // The daily GitHub job deletes the document after this, so an
                 // install that stops sending doesn't linger.
                 'expires': {

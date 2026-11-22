@@ -421,7 +421,7 @@ class _ReadStatsAppState extends State<ReadStatsApp> {
     });
     _booksLoaded = true;
     AnalyticsService.instance.setLibrary(_books);
-    LibrarySnapshotService.instance.update(_books);
+    LibrarySnapshotService.instance.updateBooks(_books);
     // Goals have no change stream of their own, but restores and demo loads
     // reload the books too; the goal sheet and Goals tab report the rest.
     widget.goalRepository.getGoals().then(
@@ -446,6 +446,7 @@ class _ReadStatsAppState extends State<ReadStatsApp> {
     });
     _sessionsLoaded = true;
     AnalyticsService.instance.setSessionCount(_sessions.length);
+    LibrarySnapshotService.instance.updateSessions(_sessions);
     _checkMilestones();
     _syncNotificationData();
     _handleNotificationTap();

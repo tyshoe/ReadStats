@@ -65,27 +65,12 @@ class _SupportCardState extends State<SupportCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: accent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.favorite, color: onAccent, size: 22),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: ValueListenableBuilder<CommunityStats?>(
-                          valueListenable: CommunityStatsService.instance.stats,
-                          builder: (context, stats, _) =>
-                              _Message(stats: stats, accent: accent),
-                        ),
-                      ),
-                    ],
+                  ValueListenableBuilder<CommunityStats?>(
+                    valueListenable: CommunityStatsService.instance.stats,
+                    builder: (context, stats, _) =>
+                        stats == null || stats.readers == 0
+                            ? _Pitch(accent: accent, onAccent: onAccent)
+                            : _StatTiles(stats: stats),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -136,46 +121,113 @@ class _SupportCardState extends State<SupportCard> {
   }
 }
 
-/// The card's sentence: the community totals with their numbers picked out,
-/// or — before any have been published — why the app is free.
-class _Message extends StatelessWidget {
-  final CommunityStats? stats;
-  final Color accent;
 
-  const _Message({required this.stats, required this.accent});
+/// Before any totals have been published: why the app is free.
+class _Pitch extends StatelessWidget {
+  final Color accent;
+  final Color onAccent;
+
+  const _Pitch({required this.accent, required this.onAccent});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          child: Icon(Icons.favorite, color: onAccent, size: 22),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(
+            'ReadStats is free, with no ads and no account. If it has helped '
+            'your reading, you can help it back.',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The community totals as three tiles: readers, books, hours read.
+class _StatTiles extends StatelessWidget {
+  final CommunityStats stats;
+
+  const _StatTiles({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _StatTile(
+          icon: Icons.people,
+          value: stats.readers,
+          label: stats.readers == 1 ? 'reader' : 'readers',
+        ),
+        const SizedBox(width: 8),
+        _StatTile(
+          icon: Icons.menu_book,
+          value: stats.booksTracked,
+          label: stats.booksTracked == 1 ? 'book' : 'books',
+        ),
+        const SizedBox(width: 8),
+        _StatTile(
+          icon: Icons.schedule,
+          value: stats.hoursRead,
+          label: stats.hoursRead == 1 ? 'hour read' : 'hours read',
+        ),
+      ],
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final int value;
+  final String label;
+
+  const _StatTile({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final base = theme.textTheme.bodyLarge;
-    final stats = this.stats;
-
-    if (stats == null || stats.readers == 0) {
-      return Text(
-        'ReadStats is free, with no ads and no account. If it has helped '
-        'your reading, you can help it back.',
-        style: base,
-      );
-    }
-
-    final format = NumberFormat.decimalPattern();
-    TextSpan number(int value) => TextSpan(
-          text: format.format(value),
-          style: TextStyle(color: accent, fontWeight: FontWeight.bold),
-        );
-
-    return Text.rich(
-      TextSpan(
-        style: base,
-        children: [
-          number(stats.readers),
-          TextSpan(text: stats.readers == 1 ? ' reader is' : ' readers are'),
-          const TextSpan(text: ' tracking '),
-          number(stats.booksTracked),
-          const TextSpan(text: ' books with ReadStats, '),
-          number(stats.booksFinished),
-          const TextSpan(text: ' finished. Thanks for being one of them.'),
-        ],
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            // Grey like every other Settings icon.
+            Icon(icon, size: 22, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(height: 6),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                NumberFormat.decimalPattern().format(value),
+                style: theme.textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -4,13 +4,13 @@ Run daily by .github/workflows/community_stats.yml, which publishes the output
 on the `stats` branch for CommunityStatsService to download.
 
 Each install that shares usage statistics keeps one Firestore document,
-installs/{uid} = {books, finished, updated, expires} (see
+installs/{uid} = {books, minutes, updated, expires} (see
 LibrarySnapshotService). Installs whose document was updated in the last
 ACTIVE_DAYS count:
 
   readers         how many such installs there are
   books_tracked   the sum of their library sizes
-  books_finished  the sum of their Finished-shelf counts
+  hours_read      the sum of their reading-session minutes, in whole hours
 
 These are exact sums of current libraries, computed by Firestore itself.
 
@@ -77,7 +77,7 @@ def main() -> None:
     query = aggregation.AggregationQuery(active)
     query.count(alias="readers")
     query.sum("books", alias="books")
-    query.sum("finished", alias="finished")
+    query.sum("minutes", alias="minutes")
 
     totals = {r.alias: int(r.value or 0) for batch in query.get() for r in batch}
 
@@ -86,7 +86,7 @@ def main() -> None:
             {
                 "readers": totals.get("readers", 0),
                 "books_tracked": totals.get("books", 0),
-                "books_finished": totals.get("finished", 0),
+                "hours_read": totals.get("minutes", 0) // 60,
                 "updated": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
             },
             indent=2,

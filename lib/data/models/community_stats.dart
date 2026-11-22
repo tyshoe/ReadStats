@@ -8,13 +8,13 @@ class CommunityStats {
   /// Books in those libraries right now.
   final int booksTracked;
 
-  /// Of those, books on the Finished shelf.
-  final int booksFinished;
+  /// Whole hours across those installs' logged reading sessions.
+  final int hoursRead;
 
   const CommunityStats({
     required this.readers,
     required this.booksTracked,
-    required this.booksFinished,
+    required this.hoursRead,
   });
 
   /// Null unless every count is present and non-negative, so a broken or
@@ -28,14 +28,14 @@ class CommunityStats {
 
     final readers = count('readers');
     final booksTracked = count('books_tracked');
-    final booksFinished = count('books_finished');
-    if (readers == null || booksTracked == null || booksFinished == null) {
+    final hoursRead = count('hours_read');
+    if (readers == null || booksTracked == null || hoursRead == null) {
       return null;
     }
     return CommunityStats(
       readers: readers,
       booksTracked: booksTracked,
-      booksFinished: booksFinished,
+      hoursRead: hoursRead,
     );
   }
 }

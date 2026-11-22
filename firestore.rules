@@ -14,14 +14,15 @@ service cloud.firestore {
 
       allow create, update: if request.auth != null
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['books', 'finished', 'updated', 'expires'])
-        && request.resource.data.keys().hasAll(['books', 'finished', 'updated', 'expires'])
+        && request.resource.data.keys().hasOnly(['books', 'minutes', 'updated', 'expires'])
+        && request.resource.data.keys().hasAll(['books', 'minutes', 'updated', 'expires'])
         && request.resource.data.books is int
         && request.resource.data.books > 0
         && request.resource.data.books <= 20000
-        && request.resource.data.finished is int
-        && request.resource.data.finished >= 0
-        && request.resource.data.finished <= request.resource.data.books
+        // Minutes read across all sessions: at most ten years of nonstop reading.
+        && request.resource.data.minutes is int
+        && request.resource.data.minutes >= 0
+        && request.resource.data.minutes <= 5256000
         // Server time only, so no install can pass for active.
         && request.resource.data.updated == request.time
         // About 90 days out (client clock, so a day's leeway): the daily job
