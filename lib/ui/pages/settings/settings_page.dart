@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:read_stats/app_config.dart';
@@ -375,16 +376,33 @@ class SettingsPage extends StatelessWidget {
             ],
           ),
 
-          // Quiet version footer, like most apps — informational, not an action.
+          // Quiet version footer, like most apps. The copy button is for bug
+          // reports, so the exact build travels with them.
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-            child: Center(
-              child: Text(
-                'ReadStats · v${AppConfig.version}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colors.onSurfaceVariant,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'ReadStats · v${AppConfig.version} (${AppConfig.buildNumber})',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
-              ),
+                IconButton(
+                  icon: const Icon(Icons.copy, size: 16),
+                  color: colors.onSurfaceVariant,
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Copy version',
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(
+                      text: 'ReadStats ${AppConfig.version} '
+                          '(${AppConfig.buildNumber})',
+                    ));
+                    AppSnackbar.show('Version copied');
+                  },
+                ),
+              ],
             ),
           ),
         ],

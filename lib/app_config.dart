@@ -3,6 +3,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 class AppConfig {
   static late String version;
 
+  /// The store build (the `+26` in pubspec's `version`). Shown beside
+  /// [version] so a bug report pins down the exact upload.
+  static late String buildNumber;
+
   /// Donation page. Must stay a pure donation with nothing given in return —
   /// tying perks or features to it would reclassify the link as purchasing
   /// digital content, which App Store guideline 3.1.1 bars outside the US
@@ -13,5 +17,6 @@ class AppConfig {
   static Future<void> init() async {
     final packageInfo = await PackageInfo.fromPlatform();
     version = packageInfo.version;
+    buildNumber = packageInfo.buildNumber;
   }
 }
