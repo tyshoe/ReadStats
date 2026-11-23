@@ -46,14 +46,35 @@ class DriveBackupDestination implements BackupDestination {
   /// files in that account's Drive. Throws [GoogleSignInException] (code
   /// `canceled`) if they back out.
   static Future<DriveBackupDestination> connect(SharedPreferences prefs) async {
-    final token = await _authorize(prompt: true, email: null);
-    if (token == null) {
-      throw const BackupException('Google Drive access wasn’t granted.');
+    final destination = DriveBackupDestination._('', prefs);
+    Future<Map<String, dynamic>> about() async {
+      final token = await _authorize(prompt: true, email: null);
+      if (token == null) {
+        throw const BackupException('Google Drive access wasn’t granted.');
+      }
+      destination._token = token;
+      return destination._getJson(
+          _api('about', {'fields': 'user(emailAddress)'}));
     }
-    final destination = DriveBackupDestination._('', prefs).._token = token;
-    final about = await destination._getJson(
-        _api('about', {'fields': 'user(emailAddress)'}));
-    final email = (about['user'] as Map?)?['emailAddress'] as String?;
+
+    Map<String, dynamic> json;
+    try {
+      try {
+        json = await about();
+      } on _HttpFailure catch (e) {
+        if (e.status != 401) rethrow;
+        // A sign-in left over from before, whose access was revoked: iOS
+        // hands back its dead token instead of asking. Drop it and ask.
+        await _signOut();
+        json = await about();
+      }
+    } on GoogleSignInException {
+      rethrow;
+    } catch (e) {
+      throw destination.describe(e);
+    }
+    final token = destination._token!;
+    final email = (json['user'] as Map?)?['emailAddress'] as String?;
     if (email == null) {
       throw const BackupException('Couldn’t read your Google account.');
     }
@@ -188,14 +209,7 @@ class DriveBackupDestination implements BackupDestination {
       // matters.
       if (kDebugMode) debugPrint('Drive disconnect: $e');
     }
-    try {
-      // iOS keeps the signed-in account after its token is revoked, and the
-      // next connect would silently reuse it instead of offering the account
-      // picker.
-      await GoogleSignIn.instance.disconnect();
-    } catch (e) {
-      if (kDebugMode) debugPrint('Google sign-out: $e');
-    }
+    await _signOut();
     await _prefs.remove(_emailKey);
     await _prefs.remove(_folderKey);
   }
@@ -227,6 +241,23 @@ class DriveBackupDestination implements BackupDestination {
   }
 
   // ─── Drive plumbing ───────────────────────────────────────────────────────
+
+  /// Forgets the signed-in Google account, so the next connect offers the
+  /// account picker. iOS keeps the account after its token is revoked, and
+  /// its `disconnect` fails (skipping its own sign-out) when the token was
+  /// already revoked — so sign out separately.
+  static Future<void> _signOut() async {
+    try {
+      await GoogleSignIn.instance.disconnect();
+    } catch (e) {
+      if (kDebugMode) debugPrint('Google disconnect: $e');
+    }
+    try {
+      await GoogleSignIn.instance.signOut();
+    } catch (e) {
+      if (kDebugMode) debugPrint('Google sign-out: $e');
+    }
+  }
 
   static Future<String?> _authorize(
       {required bool prompt, required String? email}) async {
