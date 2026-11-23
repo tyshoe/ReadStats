@@ -348,15 +348,20 @@ class AutoBackupService {
 
   // ─── Backing up ───────────────────────────────────────────────────────────
 
-  /// Backs up now, even if nothing changed. Throws [BackupException] with a
-  /// message to show if it fails.
-  ///
-  /// A [manual] backup is saved as its own file and never replaced;
-  /// otherwise this is today's daily backup, made early (the first one after
-  /// choosing a destination).
-  Future<void> backUpNow({bool manual = true}) async {
+  /// Back up now: saved as its own file, never replaced, even if nothing
+  /// changed. Throws [BackupException] with a message to show if it fails.
+  Future<void> backUpNow() async {
     await _loaded;
-    await _run(automatic: false, daily: !manual);
+    await _run(manual: true);
+  }
+
+  /// Today's daily backup, made now — the first one after choosing a
+  /// destination. Unlike [backUpNow], skips an empty or demo library: a new
+  /// phone being set up must never replace the backups already there with
+  /// nothing. Returns whether a backup was saved.
+  Future<bool> backUpIfWorthIt() async {
+    await _loaded;
+    return _run(manual: false);
   }
 
   Future<void> _backUpIfDue() async {
@@ -368,24 +373,25 @@ class AutoBackupService {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getString(_lastCheckKey) == _today()) return;
     try {
-      await _run(automatic: true, daily: true);
+      await _run(manual: false);
     } catch (_) {
       // Recorded in [status] for the backup page; tried again next time.
     }
   }
 
   /// One backup at a time: a second request joins the one running.
-  Future<bool> _run({required bool automatic, required bool daily}) {
-    return _running ??= _backUp(automatic: automatic, daily: daily)
+  Future<bool> _run({required bool manual}) {
+    return _running ??= _backUp(manual: manual)
         .whenComplete(() => _running = null);
   }
 
   /// Returns whether a backup was saved (false when there was nothing new).
   ///
-  /// [automatic]: started by the app, not the reader — skipped when nothing
-  /// changed, and quiet when offline. [daily]: today's one-per-day file rather
-  /// than a manual one.
-  Future<bool> _backUp({required bool automatic, required bool daily}) async {
+  /// A [manual] backup (Back up now) is always made, as its own file. Any
+  /// other is today's one-per-day file, skipped when the library is empty,
+  /// the demo one, or unchanged, and quiet when offline.
+  Future<bool> _backUp({required bool manual}) async {
+    final automatic = !manual;
     final io = _io!;
     final destination = _destination!;
     final prefs = await SharedPreferences.getInstance();
@@ -410,20 +416,20 @@ class AutoBackupService {
       try {
         final now = DateTime.now();
         final day = _today();
-        final existing = daily
+        final existing = !manual
             ? (await destination.list())
                 .where((f) => !f.manual && f.day == day)
                 .firstOrNull
             : null;
         await destination.save(
           file,
-          name: daily
+          name: !manual
               ? 'ReadStats Backup $day.zip'
               : 'ReadStats Backup $day ${DateFormat('HH-mm').format(now)}.zip',
           replace: existing,
           meta: BackupMeta(
             day: day,
-            manual: !daily,
+            manual: manual,
             books: contents.books,
             sessions: contents.sessions,
             covers: packed.covers,
@@ -438,7 +444,7 @@ class AutoBackupService {
       await prefs.setString(_lastBackupKey, now.toIso8601String());
       // A manual backup leaves today's daily one still to come, so changes
       // made after it are backed up today too.
-      if (daily) await prefs.setString(_lastCheckKey, _today());
+      if (!manual) await prefs.setString(_lastCheckKey, _today());
       await prefs.setString(_fingerprintKey, fingerprint);
       status.value = status.value.copyWith(
         lastBackup: () => now,

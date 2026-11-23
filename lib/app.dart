@@ -305,6 +305,11 @@ class _ReadStatsAppState extends State<ReadStatsApp> {
   /// changes the numbers — is caught without each screen having to remember.
   Future<void> _checkMilestones() async {
     if (!_booksLoaded || !_sessionsLoaded) return;
+    // Nothing is earned during onboarding — only imported, and a restore
+    // lands books and sessions separately, so a check between them would
+    // celebrate the whole library. The first check after it (onDone reloads
+    // the books) adopts whatever was brought in.
+    if (!_hasSeenOnboarding) return;
     // Books and sessions land separately, so a check often starts while the
     // other list is still arriving. Queue rather than drop, or the stats the
     // in-flight check snapshotted would be the last word until something else

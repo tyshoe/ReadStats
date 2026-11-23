@@ -76,7 +76,7 @@ class _AutoBackupPageState extends State<AutoBackupPage> {
       if (!await choose()) return;
       if (!mounted) return;
       setState(() => _backups = null);
-      await _backUpNow(manual: false);
+      if (await _service.backUpIfWorthIt()) AppSnackbar.show('Backed up');
     } on GoogleSignInException catch (e) {
       if (e.code != GoogleSignInExceptionCode.canceled) {
         AppSnackbar.show(
@@ -100,9 +100,9 @@ class _AutoBackupPageState extends State<AutoBackupPage> {
 
   Future<void> _reconnect() => _choose(_service.reconnect);
 
-  Future<void> _backUpNow({bool manual = true}) async {
+  Future<void> _backUpNow() async {
     try {
-      await _service.backUpNow(manual: manual);
+      await _service.backUpNow();
       AppSnackbar.show('Backed up');
     } on BackupException catch (e) {
       AppSnackbar.show(e.message, isError: true);

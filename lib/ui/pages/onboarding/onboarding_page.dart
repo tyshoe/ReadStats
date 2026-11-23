@@ -1,7 +1,12 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:read_stats/app_config.dart';
 import 'package:read_stats/data/services/analytics_service.dart';
+import 'package:read_stats/data/services/auto_backup_service.dart';
 import 'package:read_stats/data/services/import_export_service.dart';
 import 'package:read_stats/data/services/milestone_service.dart';
 import 'package:read_stats/data/services/notification_service.dart';
@@ -61,9 +66,26 @@ class _OnboardingPageState extends State<OnboardingPage> {
     ),
   ];
 
-  // Info slides, then the first-run import step, then the support page last —
-  // the ask comes only after the tour has shown what the app actually does.
-  int get _totalPages => _infoPages.length + (widget.hasBooks ? 0 : 1) + 1;
+  /// Whether to offer automatic backup — not when it's already set up (a
+  /// tour replayed from Settings). Decided once, so the page count holds
+  /// still while the reader sets it up on that very page.
+  late final bool _offerBackup =
+      !AutoBackupService.instance.status.value.connected;
+
+  /// Whether to offer importing, decided once for the same reason: [hasBooks]
+  /// turns true the moment an import here lands, and dropping the page then
+  /// would shift the reader onto the next one.
+  late final bool _offerImport = !widget.hasBooks;
+
+  // Info slides, the first-run import step, the backup step, then the support
+  // page last — the ask comes only after the tour has shown what the app
+  // actually does. Backup follows import so there is a library to protect.
+  int get _importPage => _offerImport ? _infoPages.length : -1;
+  int get _backupPage => !_offerBackup
+      ? -1
+      : _infoPages.length + (_offerImport ? 1 : 0);
+  int get _totalPages =>
+      _infoPages.length + (_offerImport ? 1 : 0) + (_offerBackup ? 1 : 0) + 1;
 
   bool get _isLastPage => _currentPage == _totalPages - 1;
 
@@ -109,12 +131,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   if (i < _infoPages.length) {
                     return _PageContent(data: _infoPages[i]);
                   }
-                  if (!widget.hasBooks && i == _infoPages.length) {
+                  if (i == _importPage) {
                     return _ImportContent(
                       importExportService: widget.importExportService,
                       onImportSuccess: () => setState(() => _hasImported = true),
                     );
                   }
+                  if (i == _backupPage) return const _BackupContent();
                   return _SupportContent(onSupport: _openSupport);
                 },
               ),
@@ -260,6 +283,12 @@ class _ImportContentState extends State<_ImportContent> {
     });
     if (!mounted) return;
     _progress.remove(key);
+    // Backing out of a picker or sign-in isn't a failure: the tile is just as
+    // it was.
+    if (!result.success && result.message == 'Cancelled.') {
+      setState(() => _states[key] = _ImportState.idle);
+      return;
+    }
     final importedZero = result.success && result.message.startsWith('Imported 0');
     setState(() {
       _states[key] = importedZero
@@ -270,6 +299,144 @@ class _ImportContentState extends State<_ImportContent> {
       _messages[key] = importedZero ? 'No books found. Try a different file.' : result.message;
     });
     if (result.success && !importedZero) widget.onImportSuccess();
+  }
+
+  /// Where a ReadStats backup can come from — after a reinstall or on a new
+  /// phone, most likely the automatic backups in Drive or a folder.
+  void _showRestoreSheet() {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final service = AutoBackupService.instance;
+
+    Widget source(
+      BuildContext sheet, {
+      required IconData icon,
+      required String title,
+      required String hint,
+      required Future<ImportExportResult> Function(ImportProgressCallback) run,
+    }) =>
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          leading: Icon(icon, color: colors.onSurfaceVariant),
+          title: Text(title, style: TextStyle(color: colors.onSurface)),
+          subtitle:
+              Text(hint, style: TextStyle(color: colors.onSurfaceVariant)),
+          trailing: Icon(Icons.chevron_right, color: colors.onSurfaceVariant),
+          onTap: () {
+            Navigator.pop(sheet);
+            _runImport('books', run);
+          },
+        );
+
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colors.onSurfaceVariant.withAlpha(80),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Restore a backup', style: theme.textTheme.titleLarge),
+                  Text(
+                    'Where did ReadStats save it?',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: colors.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 4),
+            source(
+              sheet,
+              icon: Icons.add_to_drive,
+              title: 'Google Drive',
+              hint: 'Your automatic backups',
+              run: (report) => _restoreFromAutoBackup(
+                  () => service.useDrive().then((_) => true), report),
+            ),
+            source(
+              sheet,
+              icon: Icons.folder,
+              title: Platform.isIOS ? 'A folder in Files' : 'A folder',
+              hint: 'Pick the folder your backups are in',
+              run: (report) =>
+                  _restoreFromAutoBackup(service.useFolder, report),
+            ),
+            source(
+              sheet,
+              icon: Icons.insert_drive_file,
+              title: 'A file',
+              hint: 'A backup you exported (.zip)',
+              // Also takes a legacy books-only CSV export.
+              run: (report) =>
+                  widget.importExportService.importBackup(onProgress: report),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Points automatic backup at Drive or a folder via [choose], then restores
+  /// the newest backup there. The destination stays chosen, so backups carry
+  /// on from where the old install left off.
+  Future<ImportExportResult> _restoreFromAutoBackup(
+    Future<bool> Function() choose,
+    ImportProgressCallback report,
+  ) async {
+    final service = AutoBackupService.instance;
+    try {
+      if (!await choose()) {
+        return const ImportExportResult(success: false, message: 'Cancelled.');
+      }
+      report(const ImportProgress('Looking for backups…'));
+      final backups = await service.listBackups();
+      if (backups.isEmpty) {
+        return const ImportExportResult(
+          success: false,
+          message: 'No backups there yet. New ones will be saved there daily.',
+        );
+      }
+      // A whole library at once isn't something to celebrate medal by medal.
+      MilestoneService.beginBulkChange();
+      try {
+        return await service.restore(backups.first, onProgress: report);
+      } finally {
+        MilestoneService.endBulkChange();
+      }
+    } on GoogleSignInException catch (e) {
+      return ImportExportResult(
+        success: false,
+        message: e.code == GoogleSignInExceptionCode.canceled
+            ? 'Cancelled.'
+            : 'Couldn’t connect: ${e.description ?? e.code.name}',
+      );
+    } on BackupException catch (e) {
+      return ImportExportResult(success: false, message: e.message);
+    }
   }
 
   @override
@@ -357,18 +524,12 @@ class _ImportContentState extends State<_ImportContent> {
                 fit: BoxFit.cover,
               ),
             ),
-            title: 'Import from ReadStats',
-            subtitle: null,
+            title: 'Restore a ReadStats Backup',
+            subtitle: 'From Google Drive, a folder or a file',
             state: _states['books']!,
             message: _messages['books'],
             progress: _progress['books'],
-            // Accepts a full backup zip (books, sessions, tags, covers) or a
-            // legacy books-only CSV export.
-            onTap: () => _runImport(
-              'books',
-              (report) => widget.importExportService
-                  .importBackup(onProgress: report),
-            ),
+            onTap: _showRestoreSheet,
           ),
           const SizedBox(height: 16),
           _ImportTile(
@@ -439,7 +600,9 @@ class _ImportTile extends StatelessWidget {
 
   /// What the running import is doing, shown in place of the subtitle.
   final ImportProgress? progress;
-  final VoidCallback onTap;
+
+  /// Null while another tile's choice rules this one out — it greys out.
+  final VoidCallback? onTap;
 
   const _ImportTile({
     required this.leading,
@@ -493,7 +656,189 @@ class _ImportTile extends StatelessWidget {
                         FluentIcons.chevron_right_24_filled,
                         color: colorScheme.onSurfaceVariant,
                       ),
+        enabled: onTap != null || state != _ImportState.idle,
         onTap: isLoading || state == _ImportState.success ? null : onTap,
+      ),
+    );
+  }
+}
+
+// ─── Backup page ──────────────────────────────────────────────────────────────
+
+/// Offers automatic backup, to Google Drive or a folder, the same way the
+/// import step offers its sources. Skipping is just Continue; the hint says
+/// where to find it later.
+class _BackupContent extends StatefulWidget {
+  const _BackupContent();
+
+  @override
+  State<_BackupContent> createState() => _BackupContentState();
+}
+
+class _BackupContentState extends State<_BackupContent> {
+  final Map<BackupDestinationKind, _ImportState> _states = {
+    BackupDestinationKind.drive: _ImportState.idle,
+    BackupDestinationKind.folder: _ImportState.idle,
+  };
+  final Map<BackupDestinationKind, String> _messages = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Restoring from Drive or a folder on the import step already chose it.
+    final status = AutoBackupService.instance.status.value;
+    final kind = status.kind;
+    if (kind != null) {
+      _states[kind] = _ImportState.success;
+      _messages[kind] = _doneMessage(kind, status.label ?? '');
+    }
+  }
+
+  static String _doneMessage(BackupDestinationKind kind, String label) =>
+      kind == BackupDestinationKind.drive
+          ? 'Backing up daily to $label'
+          : 'Backing up daily to “$label”';
+
+  /// One destination at a time: once one is chosen, or while one is being
+  /// chosen, the other is out.
+  bool get _settled => _states.values
+      .any((s) => s == _ImportState.loading || s == _ImportState.success);
+
+  Future<void> _choose(BackupDestinationKind kind) async {
+    final service = AutoBackupService.instance;
+    setState(() {
+      _states[kind] = _ImportState.loading;
+      _messages.remove(kind);
+    });
+    try {
+      final chosen = switch (kind) {
+        BackupDestinationKind.drive =>
+          await service.useDrive().then((_) => true),
+        BackupDestinationKind.folder => await service.useFolder(),
+      };
+      if (!mounted) return;
+      if (!chosen) {
+        setState(() => _states[kind] = _ImportState.idle);
+        return;
+      }
+      // In the background: the tour shouldn't wait on packing covers. Skips
+      // an empty library, so a new phone never replaces the backups already
+      // there with nothing.
+      unawaited(service.backUpIfWorthIt().catchError((_) => false));
+      setState(() {
+        _states[kind] = _ImportState.success;
+        _messages[kind] =
+            _doneMessage(kind, service.status.value.label ?? '');
+      });
+    } on GoogleSignInException catch (e) {
+      if (!mounted) return;
+      final canceled = e.code == GoogleSignInExceptionCode.canceled;
+      setState(() {
+        _states[kind] = canceled ? _ImportState.idle : _ImportState.error;
+        if (!canceled) {
+          _messages[kind] =
+              'Couldn’t connect: ${e.description ?? e.code.name}';
+        }
+      });
+    } on BackupException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _states[kind] = _ImportState.error;
+        _messages[kind] = e.message;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final ios = Platform.isIOS;
+
+    Widget badge(IconData icon) => Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 20, color: colorScheme.onPrimaryContainer),
+        );
+
+    VoidCallback? tap(BackupDestinationKind kind) =>
+        _settled && _states[kind] == _ImportState.idle
+            ? null
+            : () => _choose(kind);
+
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Keep Your Library Safe',
+                style: textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'ReadStats can back up your library once a day, so it isn’t '
+                'lost if you lose or change your phone.',
+                style: textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 28),
+              _ImportTile(
+                leading: badge(Icons.add_to_drive),
+                title: 'Back up to Google Drive',
+                subtitle: 'Safe even if you lose your phone',
+                state: _states[BackupDestinationKind.drive]!,
+                message: _messages[BackupDestinationKind.drive],
+                onTap: tap(BackupDestinationKind.drive),
+              ),
+              const SizedBox(height: 16),
+              _ImportTile(
+                leading: badge(Icons.folder),
+                title: 'Back up to a folder',
+                subtitle: ios
+                    ? 'In Files or iCloud Drive, no account needed'
+                    : 'On this device, no account needed',
+                state: _states[BackupDestinationKind.folder]!,
+                message: _messages[BackupDestinationKind.folder],
+                onTap: tap(BackupDestinationKind.folder),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    FluentIcons.info_16_regular,
+                    size: 14,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'You can set this up any time in Settings → Data',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
       ),
     );
   }
