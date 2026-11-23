@@ -44,6 +44,10 @@ class MilestoneService {
   /// adopts the finished state.
   ///
   /// Goal celebrations ([GoalAchievementService]) are held off the same way.
+  /// Whether a restore, import or wipe is under way — the library is half
+  /// written until it ends, so nothing should be read from it as a whole.
+  static bool get bulkInProgress => _bulkInProgress;
+
   static void beginBulkChange() {
     _bulkInProgress = true;
     GoalAchievementService.beginBulkChange();

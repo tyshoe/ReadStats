@@ -4,10 +4,12 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:read_stats/app_config.dart';
 import 'package:read_stats/data/services/analytics_service.dart';
+import 'package:read_stats/data/services/auto_backup_service.dart';
 import 'package:read_stats/data/services/import_export_service.dart';
 import 'package:read_stats/data/services/milestone_service.dart';
 import 'package:read_stats/data/services/reading_timer_service.dart';
 import 'package:read_stats/ui/pages/onboarding/onboarding_page.dart';
+import 'package:read_stats/ui/pages/settings/auto_backup_page.dart';
 import 'package:read_stats/ui/pages/settings/font_page.dart';
 import 'package:read_stats/ui/pages/settings/notifications_page.dart';
 import 'package:read_stats/ui/pages/settings/widgets/accent_color_picker.dart';
@@ -244,6 +246,43 @@ class SettingsPage extends StatelessWidget {
             context,
             header: 'Data',
             children: [
+              _buildValueTile(
+                context,
+                icon: Icons.backup,
+                title: 'Automatic Backup',
+                value: ValueListenableBuilder<AutoBackupStatus>(
+                  valueListenable: AutoBackupService.instance.status,
+                  builder: (context, status, _) => Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _valueLabel(
+                        context,
+                        switch (status) {
+                          AutoBackupStatus(connected: false) => 'Off',
+                          AutoBackupStatus(error: String()) =>
+                            'Needs attention',
+                          AutoBackupStatus(auto: false) => 'Paused',
+                          AutoBackupStatus(kind: BackupDestinationKind.drive) =>
+                            'Google Drive',
+                          _ => 'Folder',
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.chevron_right,
+                          size: 20, color: colors.onSurfaceVariant),
+                    ],
+                  ),
+                ),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AutoBackupPage(onRestored: () {
+                      refreshBooks();
+                      refreshSessions();
+                    }),
+                  ),
+                ),
+              ),
               _buildActionTile(
                 context,
                 icon: Icons.file_upload,

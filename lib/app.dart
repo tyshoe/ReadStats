@@ -6,6 +6,7 @@ import 'package:read_stats/data/repositories/goal_repository.dart';
 import 'package:read_stats/data/repositories/session_repository.dart';
 import 'package:read_stats/data/repositories/tag_repository.dart';
 import 'package:read_stats/data/services/analytics_service.dart';
+import 'package:read_stats/data/services/auto_backup_service.dart';
 import 'package:read_stats/data/services/cover_service.dart';
 import 'package:read_stats/data/services/goal_achievement_service.dart';
 import 'package:read_stats/data/services/import_export_service.dart';
@@ -118,6 +119,8 @@ class _ReadStatsAppState extends State<ReadStatsApp> {
     _initializeSettingsViewModel();
     _loadBooks();
     _loadSessions();
+    // The daily automatic backup, when set up.
+    AutoBackupService.instance.start(widget.importExportService);
     // Safety net: reload whenever anything writes to the books/sessions tables,
     // so a screen that saves without calling refreshBooks/refreshSessions still
     // can't leave the app showing stale data. The explicit refresh callbacks

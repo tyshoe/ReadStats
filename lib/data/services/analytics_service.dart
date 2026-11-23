@@ -144,9 +144,9 @@ class AnalyticsService {
     setHasGoal(true);
   }
 
-  /// [source]: `backup`, `goodreads`, `bookmory` or `demo`. Also decides
-  /// `demo_library`: a demo load makes the library the demo one, any other
-  /// import brings in real books.
+  /// [source]: `backup`, `drive`, `folder`, `goodreads`, `bookmory` or `demo`.
+  /// Also decides `demo_library`: a demo load makes the library the demo one,
+  /// any other import brings in real books.
   void dataImported(String source) {
     _log('data_imported', {'source': source});
     unawaited(setDemoLibrary(source == 'demo'));
@@ -157,6 +157,23 @@ class AnalyticsService {
       _log('support_tapped', {'target': target});
 
   void backupExported() => _log('backup_exported');
+
+  /// Automatic backup was pointed somewhere. [destination]: `drive` or
+  /// `folder`.
+  void backupDestinationSet(String destination) =>
+      _log('backup_destination_set', {'destination': destination});
+
+  /// Automatic backup was stopped. [destination]: `drive` or `folder`.
+  void backupDestinationRemoved(String destination) =>
+      _log('backup_destination_removed', {'destination': destination});
+
+  /// An automatic-backup file was saved. [automatic]: the daily one rather
+  /// than Back up now.
+  void autoBackupSaved(String destination, {required bool automatic}) =>
+      _log('auto_backup_saved', {
+        'destination': destination,
+        'trigger': automatic ? 'auto' : 'manual',
+      });
 
   void wrappedOpened() => _log('wrapped_opened');
 

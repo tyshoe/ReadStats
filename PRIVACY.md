@@ -13,6 +13,7 @@ By using ReadStats, you agree to the practices described in this policy.
 
 - ReadStats does **not** require an account and does **not** ask you for personal information.
 - All of your reading data (books, sessions, statistics, tags, ratings, and any cover images you add) is stored **locally on your device**.
+- If you turn on **Automatic Backup** (Settings → Data), a backup of your library is saved to **your own Google Drive** or to **a folder you choose**. See [Automatic Backup](#automatic-backup).
 - We do **not** operate any servers and do **not** receive, store, or sell your reading data.
 - If you leave **Share usage statistics** on, the Application sends **anonymous usage counts and crash reports** to Google Firebase so we can see which features are used and fix crashes, plus **two library totals** (how many books, and total minutes read) that add up to the community totals shown in Settings. These never include your book titles, authors, notes, tags, or any other text you enter. You can turn this off at any time under **Settings → Privacy**. See [Usage Statistics and Crash Reports](#usage-statistics-and-crash-reports).
 - The Application does make requests to a small number of **third-party services** to look up book information, download book covers, and load fonts. When it does, those services necessarily receive technical information such as your device's IP address. See [Third-Party Services](#third-party-services) below.
@@ -65,10 +66,28 @@ ReadStats connects to the following third-party services. We do not control thes
 |---|---|---|
 | **Open Library** (operated by the [Internet Archive](https://archive.org/about/terms.php)) | Search for books, look up books by ISBN, and download book cover images | Your search terms, ISBNs you scan or enter, and the cover images requested — plus standard request data such as your IP address |
 | **Google Fonts** (operated by [Google](https://policies.google.com/privacy)) | Download and cache the fonts used to display the app | Standard request data such as your IP address |
+| **Google Drive** (operated by [Google](https://policies.google.com/privacy)) | Only if you choose Google Drive for **Automatic Backup**: save backups of your library to your own Google Drive and restore them | Your full backup (books, sessions, tags, goals, notes, reviews and cover images), saved to a "ReadStats Backups" folder in your Drive, plus your Google account email to show which account is connected |
 | **GitHub** (operated by [GitHub](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement)) | Download the app-wide totals (readers, books tracked, hours read) shown at the top of Settings | Nothing about you or your library — only standard request data such as your IP address |
 | **Firebase Analytics, Crashlytics, Firestore, Authentication & App Check** (operated by [Google](https://firebase.google.com/support/privacy)) | Anonymous usage counts, library counts and crash reports (only while **Share usage statistics** is on). Authentication creates the anonymous ID; App Check confirms requests come from the genuine app | The events and crash details described in [Usage Statistics and Crash Reports](#usage-statistics-and-crash-reports), plus standard request data such as your IP address |
 
+Google Drive is contacted only while Automatic Backup is set to Google Drive: once a day when your library has changed, when you tap Back up now, and when you restore.
+
 Open Library and Google Fonts requests happen only when the relevant feature is used (for example, searching for a book, scanning a barcode, choosing a cover, or loading a font). The GitHub request happens when Settings is opened (at most once every few minutes). The totals it downloads are added up from the anonymous library counts above, so readers who turn sharing off are not counted in them. The information sent is limited to what is needed to fulfill the request. We do not send your personal reading library, sessions, or statistics to these services.
+
+---
+
+## Automatic Backup
+
+Automatic Backup is off until you choose where backups go under **Settings → Data → Automatic Backup**: **Google Drive**, or **a folder** you pick on your device (on iPhone, a folder in Files, which can be in iCloud Drive). Once set up:
+
+- Once a day, when your library has changed since the last backup, the Application saves a backup file (the same file **Export Backup** makes) there. One backup is kept per day for the last 7 days. Tapping **Back up now** saves a separate backup; the last 5 of those are kept. Older backups are removed (for Google Drive, moved to your Drive's trash).
+- The Service Provider never receives your backups and cannot access them.
+
+You can turn off automatic backups, or change where they go, at any time on the same screen. Backups already saved stay where they are, for you to keep or delete.
+
+**Google Drive.** The backups go straight from your device to a **ReadStats Backups** folder in **your own Google Drive**. The Application asks only for Google's `drive.file` permission, which lets it see and change **only the files it created**; it cannot see anything else in your Drive. Your Google account email is stored on your device to show which account is connected and is not sent to us. Changing where backups go withdraws the Application's access to your Drive. Google stores the backups under [Google's Privacy Policy](https://policies.google.com/privacy).
+
+**A folder.** The backups are written to the folder you picked, and the Application can reach only that folder. They stay on your device unless the folder is one another service syncs (such as iCloud Drive, Dropbox or OneDrive), in which case that service handles them under its own privacy policy.
 
 ---
 

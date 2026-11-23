@@ -62,6 +62,22 @@
 	<false/>
 	<key>FirebaseAutomaticScreenReportingEnabled</key>
 	<false/>
+	<!-- Google Sign-In for Drive backup: the iOS OAuth client from the
+	     readstats-692e8 Google Cloud project, plus its reversed ID as the
+	     URL scheme Google redirects back to after consent. -->
+	<key>GIDClientID</key>
+	<string>112424891258-tk2k90crhkrffdhsickfi2ncidoll602.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.112424891258-tk2k90crhkrffdhsickfi2ncidoll602</string>
+			</array>
+		</dict>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

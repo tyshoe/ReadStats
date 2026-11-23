@@ -251,32 +251,7 @@ class ImportExportService {
     try {
       onProgress?.call(const ImportProgress('Preparing backup…'));
       final clock = Stopwatch()..start();
-      final books = await bookRepository.getBooks();
-      final sessions = await sessionRepository.getSessions();
-      final tags = await tagRepository.getAllTags();
-      final bookTags = await tagRepository.getAllBookTagsForExport();
-      final (goals, goalTargets) = await goalRepository.getBackupRows();
-
-      final csvs = <String, String>{};
-      void addCsv(String name, List<List<String>> rows) =>
-          csvs['$name.csv'] = const ListToCsvConverter().convert(rows);
-
-      addCsv('books_data', _booksCsvRows(books));
-      addCsv('sessions_data', _sessionsCsvRows(sessions));
-      addCsv('tags_data', _tagsCsvRows(tags));
-      addCsv('book_tags_data', _bookTagsCsvRows(bookTags));
-      addCsv('goals_data', _goalsCsvRows(goals));
-      addCsv('goal_target_changes_data', _goalTargetsCsvRows(goalTargets));
-      addCsv('series_placeholders_data', [
-        ['series_name', 'position', 'title'],
-        for (final r in await SeriesRepository()
-            .allPlaceholderRows())
-          [
-            r['series_name'].toString(),
-            r['position'].toString(),
-            (r['title'] as String?) ?? '',
-          ],
-      ]);
+      final contents = await backupCsvs();
 
       // Earlier backups stay behind in the temp folder otherwise, each the
       // size of the whole library's covers.
@@ -291,41 +266,90 @@ class ImportExportService {
       }
 
       final stamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final zipPath = p.join(tempDir.path, 'readstats_backup_$stamp.zip');
-      final coversDir = await CoverService.coversDirectory();
-      final port = ReceivePort();
-      port.listen((message) {
-        final [done as int, total as int] = message as List;
-        if (total == 0) return;
-        onProgress?.call(ImportProgress(
-            'Packing covers · $done of $total', done / total));
-      });
-      final int coverCount;
-      try {
-        coverCount =
-            await _packBackup(zipPath, csvs, coversDir.path, port.sendPort);
-      } finally {
-        port.close();
-      }
+      final (:path, :covers) = await packBackupZip(
+        contents.csvs,
+        fileName: 'readstats_backup_$stamp.zip',
+        onProgress: onProgress,
+      );
       if (kDebugMode) {
-        print('Export: packed $coverCount covers, '
-            '${File(zipPath).lengthSync() ~/ 1024} KB, in '
+        print('Export: packed $covers covers, '
+            '${File(path).lengthSync() ~/ 1024} KB, in '
             '${clock.elapsedMilliseconds} ms');
       }
 
       // Over to the share sheet: nothing more to show from here.
       onProgress?.call(const ImportProgress('Backup ready', 1));
-      await SharePlus.instance.share(ShareParams(files: [XFile(zipPath)]));
+      await SharePlus.instance.share(ShareParams(files: [XFile(path)]));
 
       AnalyticsService.instance.backupExported();
       return ImportExportResult(
         success: true,
-        message:
-            'Backup exported: ${books.length} books, $coverCount covers.',
+        message: 'Backup exported: ${contents.books} books, $covers covers.',
       );
     } catch (e) {
       if (kDebugMode) print('Export error: $e');
       return ImportExportResult(success: false, message: 'Export failed: $e');
+    }
+  }
+
+  /// Every table a backup holds, as CSV text by filename, with how many
+  /// books and sessions went in — the part of a backup that is cheap to
+  /// build, so the Drive backup can tell from it whether anything changed
+  /// before packing the covers.
+  Future<({Map<String, String> csvs, int books, int sessions})>
+      backupCsvs() async {
+    final books = await bookRepository.getBooks();
+    final sessions = await sessionRepository.getSessions();
+    final tags = await tagRepository.getAllTags();
+    final bookTags = await tagRepository.getAllBookTagsForExport();
+    final (goals, goalTargets) = await goalRepository.getBackupRows();
+
+    final csvs = <String, String>{};
+    void addCsv(String name, List<List<String>> rows) =>
+        csvs['$name.csv'] = const ListToCsvConverter().convert(rows);
+
+    addCsv('books_data', _booksCsvRows(books));
+    addCsv('sessions_data', _sessionsCsvRows(sessions));
+    addCsv('tags_data', _tagsCsvRows(tags));
+    addCsv('book_tags_data', _bookTagsCsvRows(bookTags));
+    addCsv('goals_data', _goalsCsvRows(goals));
+    addCsv('goal_target_changes_data', _goalTargetsCsvRows(goalTargets));
+    addCsv('series_placeholders_data', [
+      ['series_name', 'position', 'title'],
+      for (final r in await SeriesRepository().allPlaceholderRows())
+        [
+          r['series_name'].toString(),
+          r['position'].toString(),
+          (r['title'] as String?) ?? '',
+        ],
+    ]);
+    return (csvs: csvs, books: books.length, sessions: sessions.length);
+  }
+
+  /// Packs [csvs] and every cover into [fileName] in the temp folder, with
+  /// the packing reported to [onProgress]. Returns the zip's path and how
+  /// many covers went in.
+  Future<({String path, int covers})> packBackupZip(
+    Map<String, String> csvs, {
+    required String fileName,
+    ImportProgressCallback? onProgress,
+  }) async {
+    final tempDir = await getTemporaryDirectory();
+    final zipPath = p.join(tempDir.path, fileName);
+    final coversDir = await CoverService.coversDirectory();
+    final port = ReceivePort();
+    port.listen((message) {
+      final [done as int, total as int] = message as List;
+      if (total == 0) return;
+      onProgress?.call(
+          ImportProgress('Packing covers · $done of $total', done / total));
+    });
+    try {
+      final covers =
+          await _packBackup(zipPath, csvs, coversDir.path, port.sendPort);
+      return (path: zipPath, covers: covers);
+    } finally {
+      port.close();
     }
   }
 
@@ -523,7 +547,24 @@ class ImportExportService {
         onProgress?.call(const ImportProgress('Importing…'));
         return _importLegacyCsv(await File(path).readAsString());
       }
+      return await restoreBackupFile(path, onProgress: onProgress);
+    } catch (e) {
+      if (kDebugMode) print('Import error (backup): $e');
+      return ImportExportResult(success: false, message: 'Restore failed: $e');
+    } finally {
+      _clearPickedFiles();
+    }
+  }
 
+  /// Restore the backup zip at [path] — one [exportBackup] made, or one
+  /// downloaded from Google Drive. [source] is what analytics hears it came
+  /// from.
+  Future<ImportExportResult> restoreBackupFile(
+    String path, {
+    ImportProgressCallback? onProgress,
+    String source = 'backup',
+  }) async {
+    try {
       onProgress?.call(const ImportProgress('Reading backup…'));
       final clock = Stopwatch()..start();
 
@@ -601,7 +642,7 @@ class ImportExportService {
       if (kDebugMode) {
         print('Restore: done in ${clock.elapsedMilliseconds} ms');
       }
-      AnalyticsService.instance.dataImported('backup');
+      AnalyticsService.instance.dataImported(source);
       return ImportExportResult(
         success: true,
         message: 'Restored $booksCount books, $sessionsCount sessions, '
@@ -610,8 +651,6 @@ class ImportExportService {
     } catch (e) {
       if (kDebugMode) print('Import error (backup): $e');
       return ImportExportResult(success: false, message: 'Restore failed: $e');
-    } finally {
-      _clearPickedFiles();
     }
   }
 
