@@ -265,18 +265,31 @@ class DriveBackupDestination implements BackupDestination {
     // Straight to the platform, to name the account: the app-level client
     // can only do that for an account signed in this launch, and signing in
     // silently on Android may still show an account sheet.
-    final tokens =
-        await GoogleSignInPlatform.instance.clientAuthorizationTokensForScopes(
-      ClientAuthorizationTokensForScopesParameters(
-        request: AuthorizationRequestDetails(
-          scopes: const [_scope],
-          userId: null,
-          email: email,
-          promptIfUnauthorized: prompt,
+    try {
+      final tokens = await GoogleSignInPlatform.instance
+          .clientAuthorizationTokensForScopes(
+        ClientAuthorizationTokensForScopesParameters(
+          request: AuthorizationRequestDetails(
+            scopes: const [_scope],
+            userId: null,
+            email: email,
+            promptIfUnauthorized: prompt,
+          ),
         ),
-      ),
-    );
-    return tokens?.accessToken;
+      );
+      return tokens?.accessToken;
+    } on GoogleSignInException catch (e) {
+      // Backing out of Android's permission screen arrives as an unknown
+      // error carrying status 16 (CANCELED), not as a cancel.
+      if (e.code == GoogleSignInExceptionCode.unknownError &&
+          (e.description?.contains('16:') ?? false)) {
+        throw GoogleSignInException(
+            code: GoogleSignInExceptionCode.canceled,
+            description: e.description,
+            details: e.details);
+      }
+      rethrow;
+    }
   }
 
   /// The backups folder's ID: the one saved, else the one carrying this
