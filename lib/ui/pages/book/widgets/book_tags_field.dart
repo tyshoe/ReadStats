@@ -38,7 +38,7 @@ class BookTagsField extends StatelessWidget {
                 Icon(
                   Icons.sell,
                   size: 18,
-                  color: theme.colorScheme.onSurface.withAlpha(153),
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 8),
                 Text(

@@ -496,7 +496,9 @@ class _BookDetailPageState extends State<BookDetailPage> {
                 value: value,
                 child: Row(
                   children: [
-                    Icon(icon, size: 20, color: color),
+                    // The menu inherits the bar's icon colour, which is white
+                    // over the cover art, so set it for the menu's surface.
+                    Icon(icon, size: 20, color: color ?? cs.onSurfaceVariant),
                     const SizedBox(width: 12),
                     Text(label, style: TextStyle(color: color)),
                   ],

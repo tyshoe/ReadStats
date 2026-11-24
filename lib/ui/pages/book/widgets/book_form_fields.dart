@@ -19,6 +19,7 @@ class FormatDropdown extends StatelessWidget {
     return DropdownButtonFormField<int>(
       initialValue: value,
       style: theme.textTheme.bodyLarge,
+      iconEnabledColor: theme.colorScheme.onSurfaceVariant,
       decoration: filledFieldDecoration(theme).copyWith(labelText: 'Format'),
       items: const [
         DropdownMenuItem(value: 0, child: Text('Paperback')),
@@ -52,6 +53,7 @@ class ShelfDropdown extends StatelessWidget {
     return DropdownButtonFormField<int>(
       initialValue: value,
       style: theme.textTheme.bodyLarge,
+      iconEnabledColor: theme.colorScheme.onSurfaceVariant,
       decoration: filledFieldDecoration(theme).copyWith(labelText: 'Shelf'),
       items: [
         for (final shelf in shelves)

@@ -87,7 +87,7 @@ class BookGridItem extends StatelessWidget {
                               child: Icon(
                                 Icons.push_pin,
                                 size: 16,
-                                color: theme.iconTheme.color?.withValues(alpha: 0.6),
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
                           if (book['is_favorite'] == 1)

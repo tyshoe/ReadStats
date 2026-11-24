@@ -224,7 +224,7 @@ class _PlannerPageState extends State<PlannerPage> {
             ? FloatingActionButton(
                 onPressed: _deleteSelected,
                 backgroundColor: theme.colorScheme.error,
-                child: Icon(Icons.delete, color: theme.colorScheme.onPrimary),
+                child: Icon(Icons.delete, color: theme.colorScheme.onError),
               )
             : FloatingActionButton(
                 onPressed: _addBook,

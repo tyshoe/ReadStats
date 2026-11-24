@@ -81,7 +81,7 @@ class BookRow extends StatelessWidget {
                             padding: const EdgeInsets.only(left: 8),
                             child: Icon(Icons.push_pin,
                                 size: 16,
-                                color: theme.iconTheme.color?.withValues(alpha: 0.6)),
+                                color: theme.colorScheme.onSurfaceVariant),
                           ),
                         if (book['is_favorite'] == 1)
                           const Padding(

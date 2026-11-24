@@ -366,7 +366,10 @@ class _SessionsPageState extends State<SessionsPage>
   Widget _buildStatCard(String label, String value) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: Colors.grey)),
+        Text(
+          label,
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
         Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       ],
     );
@@ -631,7 +634,7 @@ class _SessionsPageState extends State<SessionsPage>
                 const SizedBox(height: 8),
                 _buildStats(start, end),
                 const SizedBox(height: 8),
-                Divider(color: Colors.grey[600], height: 1),
+                const Divider(height: 1),
                 const SizedBox(height: 8),
                 if (sessionCards.isEmpty)
                   Center(

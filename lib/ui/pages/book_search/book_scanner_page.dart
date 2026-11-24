@@ -869,7 +869,11 @@ class _ReviewSheetState extends State<_ReviewSheet> {
 
   Widget _thumbFallback(ThemeData theme) => Container(
     color: theme.colorScheme.surfaceContainerHighest,
-    child: const Icon(Icons.menu_book, size: 16),
+    child: Icon(
+      Icons.menu_book,
+      size: 16,
+      color: theme.colorScheme.onSurfaceVariant,
+    ),
   );
 
 }

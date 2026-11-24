@@ -60,8 +60,11 @@ class IsbnField extends StatelessWidget {
                     );
                     if (result != null) onScanned(result);
                   },
-                  child: const Center(
-                    child: Icon(FluentIcons.barcode_scanner_24_regular),
+                  child: Center(
+                    child: Icon(
+                      FluentIcons.barcode_scanner_24_regular,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),

@@ -34,14 +34,14 @@ class RatingFavoriteRow extends StatelessWidget {
         if (useStars) Text('Rating', style: theme.textTheme.bodyMedium),
         Row(
           children: [
-            Expanded(child: useStars ? _stars() : _numberField(theme)),
+            Expanded(child: useStars ? _stars(theme) : _numberField(theme)),
             const SizedBox(width: 16),
             IconButton(
               icon: Icon(
                 isFavorite ? Icons.favorite : Icons.favorite_border,
                 color: isFavorite
                     ? Colors.red
-                    : theme.colorScheme.onSurface.withAlpha(153),
+                    : theme.colorScheme.onSurfaceVariant,
                 size: 32,
               ),
               onPressed: onFavoriteToggled,
@@ -52,7 +52,7 @@ class RatingFavoriteRow extends StatelessWidget {
     );
   }
 
-  Widget _stars() {
+  Widget _stars(ThemeData theme) {
     return RatingBar.builder(
       initialRating: rating ?? 0,
       minRating: 0,
@@ -61,6 +61,7 @@ class RatingFavoriteRow extends StatelessWidget {
       itemCount: 5,
       itemSize: 32,
       itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+      unratedColor: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
       itemBuilder: (context, _) =>
           const Icon(Icons.star_rounded, color: Color(0xFFFBCB04)),
       glow: false,

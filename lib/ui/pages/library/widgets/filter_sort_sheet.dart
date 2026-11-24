@@ -198,6 +198,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
           Expanded(
             child: DropdownButtonFormField<String>(
               initialValue: currentOptions.sortOption,
+              iconEnabledColor: theme.colorScheme.onSurfaceVariant,
               decoration: InputDecoration(
                 filled: true,
                 fillColor: fieldColor,
@@ -381,7 +382,7 @@ class _SortFilterViewState extends State<_SortFilterView> {
         size: 18,
         color: selected
             ? (selectedIconColor ?? theme.colorScheme.onPrimaryContainer)
-            : theme.colorScheme.onSurface.withAlpha(153),
+            : theme.colorScheme.onSurfaceVariant,
       ),
       labelStyle: theme.textTheme.bodySmall?.copyWith(
         color: selected

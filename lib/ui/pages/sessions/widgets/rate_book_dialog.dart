@@ -137,6 +137,8 @@ void showRateBookDialog({
                                   itemCount: 5,
                                   itemSize: 32,
                                   itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                  unratedColor: theme.colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.4),
                                   itemBuilder: (context, _) => const Icon(
                                     Icons.star_rounded,
                                     color: Color(0xFFFBCB04),
