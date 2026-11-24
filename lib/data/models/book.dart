@@ -22,7 +22,15 @@ class Book {
   String? coverPath;
   /// How the cover is framed — see CoverShape.portrait/Square.
   int coverShape;
+  /// The Open Library work ("/works/OL…W") — the book in all its editions.
   String? openLibraryKey;
+  /// The Open Library edition the reader owns ("/books/OL…M"), when one was
+  /// picked or found by its ISBN.
+  String? openLibraryEditionKey;
+  /// That edition's publisher and year, where Open Library records them —
+  /// either can be missing even when the edition is known.
+  String? editionPublisher;
+  int? editionYear;
   /// Who reads the audiobook. Null for every other format, and kept rather
   /// than cleared if the format changes, so a mistapped format loses nothing.
   String? narrator;
@@ -62,6 +70,9 @@ class Book {
     this.coverPath,
     this.coverShape = CoverShape.portrait,
     this.openLibraryKey,
+    this.openLibraryEditionKey,
+    this.editionPublisher,
+    this.editionYear,
     this.narrator,
     this.seriesId,
     this.seriesPosition,
@@ -93,6 +104,9 @@ class Book {
       'cover_path': coverPath,
       'cover_shape': coverShape,
       'open_library_key': openLibraryKey,
+      'open_library_edition_key': openLibraryEditionKey,
+      'edition_publisher': editionPublisher,
+      'edition_year': editionYear,
       'narrator': narrator,
       'series_id': seriesId,
       'series_position': seriesPosition,
@@ -123,6 +137,9 @@ class Book {
       coverShape:
           (map['cover_shape'] as int?) ?? CoverShape.portrait,
       openLibraryKey: map['open_library_key'] as String?,
+      openLibraryEditionKey: map['open_library_edition_key'] as String?,
+      editionPublisher: map['edition_publisher'] as String?,
+      editionYear: map['edition_year'] as int?,
       narrator: map['narrator'] as String?,
       seriesId: map['series_id'] as int?,
       seriesPosition: (map['series_position'] as num?)?.toDouble(),

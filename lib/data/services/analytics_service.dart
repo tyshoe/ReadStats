@@ -158,6 +158,9 @@ class AnalyticsService {
 
   void backupExported() => _log('backup_exported');
 
+  /// A book's "View on Open Library" link was opened.
+  void openLibraryOpened() => _log('open_library_opened');
+
   /// Automatic backup was pointed somewhere. [destination]: `drive` or
   /// `folder`.
   void backupDestinationSet(String destination) =>

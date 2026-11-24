@@ -143,7 +143,10 @@ class BookEdition {
     return isbns.firstWhere((i) => i.length == 13, orElse: () => isbns.first);
   }
 
-  bool hasIsbn(String isbn) => isbns.contains(isbn);
+  /// Whether [isbn] is one of this edition's, however it's written —
+  /// "978-0-439-02352-8" matches "9780439023528".
+  bool hasIsbn(String isbn) =>
+      isbns.contains(BookSearchService.asIsbn(isbn) ?? isbn.trim());
 
   /// Small cover for lists.
   String? get thumbnailUrl =>

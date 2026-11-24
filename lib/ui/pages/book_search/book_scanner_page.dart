@@ -277,6 +277,11 @@ class _BookScannerPageState extends State<BookScannerPage> {
           ..remove('cover_path'); // cover saved below
         book = Book.fromMap(data);
       } else {
+        final edition = r.edition;
+        final scanned =
+            edition != null && edition.hasIsbn(item.isbnValue.trim())
+            ? edition
+            : null;
         book = Book(
           title: item.title.trim().isEmpty ? r.title : item.title.trim(),
           author: item.author.trim().isEmpty ? r.author : item.author.trim(),
@@ -289,6 +294,10 @@ class _BookScannerPageState extends State<BookScannerPage> {
           shelfId: item.shelfId,
           isbn: item.isbnValue.trim().isEmpty ? null : item.isbnValue.trim(),
           openLibraryKey: r.workKey,
+          // The scanned edition, unless the ISBN was changed in review.
+          openLibraryEditionKey: scanned?.key,
+          editionPublisher: scanned?.publisher,
+          editionYear: scanned?.year,
           coverShape: CoverShape.defaultFor(item.bookTypeId),
           durationMinutes:
               item.bookTypeId == BookType.audiobook ? r.edition?.durationMinutes : null,
@@ -553,6 +562,12 @@ class _ReviewSheetState extends State<_ReviewSheet> {
             // Only once the edit screen has set one; until then the form
             // works it out from the format.
             'cover_shape': item.editedData?['cover_shape'],
+            // The edition an earlier edit picked, so a second edit keeps it
+            // rather than going back to the scanned one.
+            'open_library_edition_key':
+                item.editedData?['open_library_edition_key'],
+            'edition_publisher': item.editedData?['edition_publisher'],
+            'edition_year': item.editedData?['edition_year'],
           },
           onSubmitData: (data, cover, tagIds) {
             item.editedData = data;

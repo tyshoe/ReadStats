@@ -139,8 +139,14 @@ class _BookFormPageState extends State<BookFormPage> {
   /// The Open Library work this book is, which is what lists its editions.
   String? _workKey;
 
-  /// The edition picked, or found by its ISBN, in this visit to the form.
+  /// The edition the book is: picked, found by its ISBN, or saved before
+  /// (then known only by its key and ISBN). Its key is saved with the book;
+  /// typing another ISBN clears it, since that's another edition.
   BookEdition? _edition;
+
+  /// The edition before the first pick in this visit, which undoing the
+  /// ISBN goes back to along with it.
+  BookEdition? _editionBeforePick;
 
   // What Open Library last put in the series fields, so a later lookup may
   // replace it but never what the reader typed; and a count so a slow
@@ -203,11 +209,19 @@ class _BookFormPageState extends State<BookFormPage> {
         _cover.shape = shape;
         _cover.shapeChosen = true;
       }
+      // The edition an earlier edit chose, else the lookup's — but only
+      // while the ISBN is still that edition's, or the two would disagree.
+      _edition = _keptEdition(d) ?? _edition;
+      if (_edition?.isbns.isNotEmpty == true &&
+          !_edition!.hasIsbn(_isbnController.text.trim())) {
+        _edition = null;
+      }
     }
 
     if (widget.isEditing) {
       _titleController.text = widget.book!['title'];
       _authorController.text = widget.book!['author'];
+      _edition = _keptEdition(widget.book!);
       final editWordCount = widget.book!['word_count'] as int?;
       final editPageCount = widget.book!['page_count'] as int?;
       if (editWordCount != null && editWordCount > 0) {
@@ -298,6 +312,22 @@ class _BookFormPageState extends State<BookFormPage> {
     _seriesFocus.dispose();
     _cover.dispose();
     super.dispose();
+  }
+
+  /// The edition saved in book data [d], from what was kept of it — enough
+  /// for the Edition row's summary. Null when none was.
+  static BookEdition? _keptEdition(Map<String, dynamic> d) {
+    final key = d['open_library_edition_key'] as String?;
+    if (key == null || key.isEmpty) return null;
+    final isbn = (d['isbn'] as String? ?? '').trim();
+    final year = d['edition_year'] as int?;
+    return BookEdition(
+      key: key,
+      title: '',
+      publisher: d['edition_publisher'] as String?,
+      publishDate: year?.toString(),
+      isbns: [if (isbn.isNotEmpty) isbn],
+    );
   }
 
   static String _formatSeriesPosition(dynamic value) {
@@ -410,6 +440,11 @@ class _BookFormPageState extends State<BookFormPage> {
           : null,
       "cover_shape": _cover.shape,
       "open_library_key": _workKey,
+      // The edition is kept whenever it's known; its publisher and year only
+      // where Open Library has them.
+      "open_library_edition_key": _edition?.key,
+      "edition_publisher": _edition?.publisher,
+      "edition_year": _edition?.year,
     };
 
     // A cover picked from search or a URL may still be downloading — wait for
@@ -718,20 +753,26 @@ class _BookFormPageState extends State<BookFormPage> {
 
   /// Makes the book the edition the reader picked: its cover, ISBN and page
   /// count, which then all describe the same copy. What the edition doesn't
-  /// record is left as it is. The title is the edition's, without a
+  /// record is left as it is — except the ISBN, which is cleared rather than
+  /// left naming another edition. The title is the edition's, without a
   /// Goodreads-style "(Series #1)" the series fields already hold; the
   /// author is the work's (see [BookSearchService.authorFor]), arriving a
   /// moment later. Each field it changes says so, and a replaced one can be
   /// put back.
   void _applyEdition(BookEdition edition, String? workKey) {
     setState(() {
+      // The first pick since the ISBN was the reader's: remember what to go
+      // back to.
+      if (_fills.of(_isbnController) == null) _editionBeforePick = _edition;
       _edition = edition;
       _workKey = workKey ?? _workKey;
       if (edition.title.isNotEmpty) {
         final title = SeriesTitle.parse(edition.title)?.title ?? edition.title;
         _put('Title', _titleController, title, true);
       }
-      if (edition.isbn != null) _put('ISBN', _isbnController, edition.isbn!, true);
+      // Always, even to empty: the ISBN names an edition, so another's left
+      // in the field would be saved beside this one.
+      _put('ISBN', _isbnController, edition.isbn ?? '', true);
       if (edition.pageCount != null) {
         _put('Pages', _pageCountController, '${edition.pageCount}', true);
       }
@@ -765,7 +806,13 @@ class _BookFormPageState extends State<BookFormPage> {
       _pageCountController.text = result.pageCount.toString();
     }
     _fillSeries(result.edition, result.workKey);
-    setState(() {});
+    setState(() {
+      // The scanned ISBN is this edition, unless the reader has typed on.
+      final found = result.edition;
+      if (found != null && found.hasIsbn(_isbnController.text.trim())) {
+        _edition = found;
+      }
+    });
     final cover = result.coverUrl ?? result.thumbnailUrl;
     if (_cover.file == null && !_cover.loading && cover != null) {
       await _cover.loadFromUrl(cover);
@@ -944,9 +991,11 @@ class _BookFormPageState extends State<BookFormPage> {
                         _lookupByIsbn(isbn);
                       },
                     ),
-                    // Undoing the ISBN goes back to no edition in particular,
-                    // as typing another one does.
-                    _note(_isbnController, onUndo: () => _edition = null),
+                    // Undoing the ISBN goes back to the edition it was.
+                    _note(
+                      _isbnController,
+                      onUndo: () => _edition = _editionBeforePick,
+                    ),
 
                     const Divider(height: 32),
 

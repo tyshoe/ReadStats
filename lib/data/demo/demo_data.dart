@@ -53,8 +53,12 @@ import 'package:read_stats/data/models/tag.dart';
 /// * Series placeholders: d'Artagnan #3 with a title and Anne #5 without,
 ///   so the Series page shows planned books in the strip and the list.
 /// * Real covers (downloaded from Open Library on load, drawn ones as the
-///   offline fallback) and Open Library work keys; a few books left bare for
-///   the no-cover paths. A new title needs an entry in `_openLibrary`.
+///   offline fallback) with Open Library work and edition keys, behind the
+///   detail page's "View on Open Library" link (two with a work but no
+///   edition, for its fallback), and each edition's publisher and year for
+///   the Details card and the form's Edition row (one without a year); a few
+///   books left bare for the no-cover (and no-link) paths. A new title needs
+///   an entry in `_openLibrary`.
 /// * A same-day bulk add (the activity feed's "Added N books").
 /// * Goals of each period, with target changes, created in the past — plus a
 ///   weekly sessions goal one session short this week, so logging any session
@@ -236,54 +240,323 @@ const _wantToRead = [
       series: 'Anne of Green Gables', position: 4),
 ];
 
-/// Open Library cover id and work key for each title, looked up once so every
-/// load shows the same edition. Covers are downloaded when the demo loads —
-/// the same source the app's own cover search uses — never bundled.
-const _openLibrary = <String, (int, String)>{
-  'Twenty Years After': (14634038, '/works/OL36462W'),
-  'Anne of Green Gables': (14641084, '/works/OL77746W'),
-  'Anne of Avonlea': (14638062, '/works/OL77744W'),
-  'Anne of the Island': (14639028, '/works/OL77748W'),
-  "Anne's House of Dreams": (14640440, '/works/OL77764W'),
-  'The Sign of the Four (Sherlock Holmes #2)': (9247987, '/works/OL262438W'),
-  'Pride and Prejudice': (14665299, '/works/OL66554W'),
-  'The Time Machine': (9008368, '/works/OL52267W'),
-  'Dracula': (12216503, '/works/OL85892W'),
-  'The Hound of the Baskervilles': (8063264, '/works/OL262454W'),
-  'Frankenstein': (12356249, '/works/OL450063W'),
-  'Great Expectations': (14972723, '/works/OL8721462W'),
-  'Meditations': (211529, '/works/OL1317211W'),
-  'Jane Eyre': (8235363, '/works/OL1095427W'),
-  'Treasure Island': (13859660, '/works/OL24034W'),
-  'The War of the Worlds': (36314, '/works/OL52114W'),
-  'Middlemarch': (252882, '/works/OL20867W'),
-  'The Moonstone': (8237041, '/works/OL176092W'),
-  'The Picture of Dorian Gray': (12244074, '/works/OL8193416W'),
-  'Walden': (11248037, '/works/OL55649W'),
-  'Twenty Thousand Leagues Under the Seas': (10817535, '/works/OL24304873W'),
-  'Crime and Punishment': (15183762, '/works/OL45018229W'),
-  'The Turn of the Screw': (181493, '/works/OL276386W'),
-  'A Study in Scarlet': (13405534, '/works/OL262496W'),
-  'Little Women': (8775559, '/works/OL29983W'),
-  'The Great Gatsby': (10590366, '/works/OL468431W'),
-  'The Woman in White': (4684227, '/works/OL176045W'),
-  'Persuasion': (15259107, '/works/OL66544W'),
-  'Adventures of Huckleberry Finn': (8157718, '/works/OL53908W'),
-  'Around the World in Eighty Days': (11531296, '/works/OL24776232W'),
-  'Strange Case of Dr Jekyll and Mr Hyde': (295773, '/works/OL24156W'),
-  'The Call of the Wild': (12393037, '/works/OL14942956W'),
-  'Narrative of the Life of Frederick Douglass': (14785220, '/works/OL69178W'),
-  'The Brothers Karamazov': (11263774, '/works/OL24600223W'),
-  'Emma': (9278312, '/works/OL66513W'),
-  'The Three Musketeers': (15079464, '/works/OL38438001W'),
-  'The Count of Monte Cristo': (8851690, '/works/OL20201553W'),
-  'Don Quixote': (13846974, '/works/OL26799707W'),
-  'Wuthering Heights': (12818862, '/works/OL21177W'),
-  'The Odyssey': (12474938, '/works/OL26446888W'),
-  'The Souls of Black Folk': (6564090, '/works/OL28577W'),
-  'The Mysterious Affair at Styles': (13699667, '/works/OL472715W'),
-  'The Art of War': (4849549, '/works/OL244537W'),
-  'Anna Karenina': (2560652, '/works/OL267096W'),
+/// For each title: Open Library cover id, work key, the edition that cover
+/// belongs to, and that edition's publisher and year — looked up once so
+/// every load shows the same edition. Covers are downloaded when the demo
+/// loads — the same source the app's own cover search uses — never bundled.
+/// Two have no edition (Anne of Green Gables' cover is the work's own; The
+/// Odyssey's edition is filed under another work), so the link falls back to
+/// the work there; A Study in Scarlet's edition has a publisher but no year
+/// ("xxxx" on Open Library), as some do.
+const _openLibrary = <String, (int, String, String?, String?, int?)>{
+  'Twenty Years After': (
+    14634038,
+    '/works/OL36462W',
+    '/books/OL51733435M',
+    'Standard Ebooks',
+    2022,
+  ),
+  'Anne of Green Gables': (
+    14641084,
+    '/works/OL77746W',
+    null,
+    null,
+    null,
+  ),
+  'Anne of Avonlea': (
+    14638062,
+    '/works/OL77744W',
+    '/books/OL33059944M',
+    'I. Pitman',
+    1909,
+  ),
+  'Anne of the Island': (
+    14639028,
+    '/works/OL77748W',
+    '/books/OL40272709M',
+    'Grosset & Dunlap',
+    1915,
+  ),
+  "Anne's House of Dreams": (
+    14640440,
+    '/works/OL77764W',
+    '/books/OL23267044M',
+    'A.L. Burt Company',
+    1917,
+  ),
+  'The Sign of the Four (Sherlock Holmes #2)': (
+    9247987,
+    '/works/OL262438W',
+    '/books/OL13492734M',
+    'Spencer Blackett',
+    1890,
+  ),
+  'Pride and Prejudice': (
+    14665299,
+    '/works/OL66554W',
+    '/books/OL51113754M',
+    'Page Publications',
+    2024,
+  ),
+  'The Time Machine': (
+    9008368,
+    '/works/OL52267W',
+    '/books/OL27552922M',
+    'Signet',
+    2014,
+  ),
+  'Dracula': (
+    12216503,
+    '/works/OL85892W',
+    '/books/OL35373336M',
+    'Dorlion Yayinevi',
+    2021,
+  ),
+  'The Hound of the Baskervilles': (
+    8063264,
+    '/works/OL262454W',
+    '/books/OL22882960M',
+    'George Newnes',
+    1902,
+  ),
+  'Frankenstein': (
+    12356249,
+    '/works/OL450063W',
+    '/books/OL35649409M',
+    'Antik Kitap',
+    2016,
+  ),
+  'Great Expectations': (
+    14972723,
+    '/works/OL8721462W',
+    '/books/OL47014709M',
+    'Bancroft',
+    1968,
+  ),
+  'Meditations': (
+    211529,
+    '/works/OL1317211W',
+    '/books/OL9863622M',
+    'Modern Library',
+    2004,
+  ),
+  'Jane Eyre': (
+    8235363,
+    '/works/OL1095427W',
+    '/books/OL6969829M',
+    'Harper & brothers',
+    1848,
+  ),
+  'Treasure Island': (
+    13859660,
+    '/works/OL24034W',
+    '/books/OL40812029M',
+    'CreateSpace Independent Publishing Platform',
+    2018,
+  ),
+  'The War of the Worlds': (
+    36314,
+    '/works/OL52114W',
+    '/books/OL9236546M',
+    'HarperFestival',
+    2005,
+  ),
+  'Middlemarch': (
+    252882,
+    '/works/OL20867W',
+    '/books/OL7455461M',
+    'W. W. Norton',
+    1999,
+  ),
+  'The Moonstone': (
+    8237041,
+    '/works/OL176092W',
+    '/books/OL11424127M',
+    'Globe Fearon',
+    1967,
+  ),
+  'The Picture of Dorian Gray': (
+    12244074,
+    '/works/OL8193416W',
+    '/books/OL35401839M',
+    'Urzeni Yayıncılık',
+    2019,
+  ),
+  'Walden': (
+    11248037,
+    '/works/OL55649W',
+    '/books/OL32611725M',
+    'Independently Published',
+    2019,
+  ),
+  'Twenty Thousand Leagues Under the Seas': (
+    10817535,
+    '/works/OL24304873W',
+    '/books/OL32150056M',
+    'Project Gutenberg Literary Archive Foundation',
+    2001,
+  ),
+  'Crime and Punishment': (
+    15183762,
+    '/works/OL45018229W',
+    '/books/OL61415033M',
+    'Random House',
+    1956,
+  ),
+  'The Turn of the Screw': (
+    181493,
+    '/works/OL276386W',
+    '/books/OL9492220M',
+    "Bedford/St. Martin's",
+    2003,
+  ),
+  'A Study in Scarlet': (
+    13405534,
+    '/works/OL262496W',
+    '/books/OL47068254M',
+    'Ward, Lock & Co. Limited',
+    null,
+  ),
+  'Little Women': (
+    8775559,
+    '/works/OL29983W',
+    '/books/OL27300715M',
+    'Gibbs Smith',
+    2019,
+  ),
+  'The Great Gatsby': (
+    10590366,
+    '/works/OL468431W',
+    '/books/OL22570129M',
+    'Oxford University Press',
+    2008,
+  ),
+  'The Woman in White': (
+    4684227,
+    '/works/OL176045W',
+    '/books/OL7881235M',
+    'Longman',
+    2000,
+  ),
+  'Persuasion': (
+    15259107,
+    '/works/OL66544W',
+    '/books/OL62601828M',
+    'RBA / Cranford Collection',
+    2022,
+  ),
+  'Adventures of Huckleberry Finn': (
+    8157718,
+    '/works/OL53908W',
+    '/books/OL7062714M',
+    'Charles L. Webster',
+    1886,
+  ),
+  'Around the World in Eighty Days': (
+    11531296,
+    '/works/OL24776232W',
+    '/books/OL32902621M',
+    'Createspace Independent Publishing Platform',
+    2016,
+  ),
+  'Strange Case of Dr Jekyll and Mr Hyde': (
+    295773,
+    '/works/OL24156W',
+    '/books/OL3682767M',
+    'Signet Classic',
+    2003,
+  ),
+  'The Call of the Wild': (
+    12393037,
+    '/works/OL14942956W',
+    '/books/OL35698302M',
+    'Independently published',
+    2019,
+  ),
+  'Narrative of the Life of Frederick Douglass': (
+    14785220,
+    '/works/OL69178W',
+    '/books/OL40176516M',
+    'Warbler Press',
+    2022,
+  ),
+  'The Brothers Karamazov': (
+    11263774,
+    '/works/OL24600223W',
+    '/books/OL32629839M',
+    'CreateSpace Independent Publishing Platform',
+    2016,
+  ),
+  'Emma': (
+    9278312,
+    '/works/OL66513W',
+    '/books/OL13573615M',
+    'Macmillan',
+    1896,
+  ),
+  'The Three Musketeers': (
+    15079464,
+    '/works/OL38438001W',
+    '/books/OL52300895M',
+    'London : Daily Express',
+    1933,
+  ),
+  'The Count of Monte Cristo': (
+    8851690,
+    '/works/OL20201553W',
+    '/books/OL27388816M',
+    'Seven Seas',
+    2017,
+  ),
+  'Don Quixote': (
+    13846974,
+    '/works/OL26799707W',
+    '/books/OL37482502M',
+    'The Editorium, LLC',
+    2020,
+  ),
+  'Wuthering Heights': (
+    12818862,
+    '/works/OL21177W',
+    '/books/OL38586477M',
+    'Nelson Doubleday',
+    1850,
+  ),
+  'The Odyssey': (
+    12474938,
+    '/works/OL26446888W',
+    null,
+    null,
+    null,
+  ),
+  'The Souls of Black Folk': (
+    6564090,
+    '/works/OL28577W',
+    '/books/OL5753868M',
+    'New American Library',
+    1969,
+  ),
+  'The Mysterious Affair at Styles': (
+    13699667,
+    '/works/OL472715W',
+    '/books/OL46918364M',
+    'Bantam Books',
+    1965,
+  ),
+  'The Art of War': (
+    4849549,
+    '/works/OL244537W',
+    '/books/OL8784104M',
+    'Sweetwater Press',
+    2007,
+  ),
+  'Anna Karenina': (
+    2560652,
+    '/works/OL267096W',
+    '/books/OL10601812M',
+    'Books on Tape, Inc.',
+    1984,
+  ),
 };
 
 const _reviews = [
@@ -751,6 +1024,9 @@ class _Generator {
       shelfId: shelf,
       coverPath: hasCover ? '$id.jpg' : null,
       openLibraryKey: openLibrary?.$2,
+      openLibraryEditionKey: openLibrary?.$3,
+      editionPublisher: openLibrary?.$4,
+      editionYear: openLibrary?.$5,
       coverShape: t.isAudio
           ? CoverShape.square
           : CoverShape.portrait,

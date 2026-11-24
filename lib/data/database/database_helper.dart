@@ -26,7 +26,7 @@ class DatabaseHelper {
 
   static Database? _database;
 
-  static const int _databaseVersion = 15;
+  static const int _databaseVersion = 17;
 
   /// Fires after any write that changes what [getBooks] returns, so the
   /// app-level book list can reload itself.
@@ -131,6 +131,9 @@ class DatabaseHelper {
         series_position REAL,
         price_paid REAL,
         date_purchased DATETIME,
+        open_library_edition_key TEXT,
+        edition_publisher TEXT,
+        edition_year INTEGER,
         FOREIGN KEY(book_type_id) REFERENCES book_types(id),
         FOREIGN KEY(shelf_id) REFERENCES shelves(id)
       )
@@ -464,6 +467,32 @@ class DatabaseHelper {
       final cols = await db.rawQuery('PRAGMA table_info(books)');
       if (!cols.any((c) => c['name'] == 'date_purchased')) {
         await db.execute('ALTER TABLE books ADD COLUMN date_purchased DATETIME');
+      }
+    }
+
+    if (oldVersion < 16) {
+      // The Open Library edition the reader owns ("/books/OL…M"), beside the
+      // work it belongs to in open_library_key. Empty for books from before:
+      // their edition was never kept.
+      final cols = await db.rawQuery('PRAGMA table_info(books)');
+      if (!cols.any((c) => c['name'] == 'open_library_edition_key')) {
+        await db.execute(
+          'ALTER TABLE books ADD COLUMN open_library_edition_key TEXT',
+        );
+      }
+    }
+
+    if (oldVersion < 17) {
+      // Who published the reader's edition and when, as Open Library has
+      // them, so the edition reads as "Scholastic · 2008" without going
+      // online. Each may be empty: Open Library doesn't always know.
+      final cols = await db.rawQuery('PRAGMA table_info(books)');
+      final names = {for (final c in cols) c['name']};
+      if (!names.contains('edition_publisher')) {
+        await db.execute('ALTER TABLE books ADD COLUMN edition_publisher TEXT');
+      }
+      if (!names.contains('edition_year')) {
+        await db.execute('ALTER TABLE books ADD COLUMN edition_year INTEGER');
       }
     }
   }

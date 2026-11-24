@@ -361,7 +361,8 @@ class ImportExportService {
         'date_started', 'date_finished', 'isbn', 'user_review',
         'duration_minutes', 'shelf_id', 'cover_path', 'open_library_key',
         'cover_shape', 'narrator', 'series_name', 'series_position',
-        'price_paid', 'date_purchased',
+        'price_paid', 'date_purchased', 'open_library_edition_key',
+        'edition_publisher', 'edition_year',
       ],
       ...books.map((b) => [
         b.id.toString(),
@@ -393,6 +394,9 @@ class ImportExportService {
         b.seriesPosition?.toString() ?? '',
         b.pricePaid?.toString() ?? '',
         b.datePurchased ?? '',
+        b.openLibraryEditionKey ?? '',
+        b.editionPublisher ?? '',
+        b.editionYear?.toString() ?? '',
       ]),
     ];
   }
@@ -830,6 +834,12 @@ class ImportExportService {
           pricePaid:
               row.length > 22 ? double.tryParse(row[22].toString()) : null,
           datePurchased: row.length > 23 ? _nullableString(row[23]) : null,
+          // Absent from backups made before editions were kept.
+          openLibraryEditionKey:
+              row.length > 24 ? _nullableString(row[24]) : null,
+          editionPublisher: row.length > 25 ? _nullableString(row[25]) : null,
+          editionYear:
+              row.length > 26 ? int.tryParse(row[26].toString()) : null,
         ));
       } catch (e) {
         if (kDebugMode) print('Skipping book row: $e');
