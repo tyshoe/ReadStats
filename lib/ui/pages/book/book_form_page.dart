@@ -23,6 +23,7 @@ import 'package:read_stats/ui/pages/book/widgets/book_form_fields.dart';
 import 'package:read_stats/ui/pages/book/widgets/book_tags_field.dart';
 import 'package:read_stats/ui/pages/book/widgets/duplicate_book_dialog.dart';
 import 'package:read_stats/ui/pages/book/widgets/edition_row.dart';
+import 'package:read_stats/ui/pages/book/widgets/field_fill_notes.dart';
 import 'package:read_stats/ui/pages/book/widgets/form_date_field.dart';
 import 'package:read_stats/ui/pages/book/widgets/isbn_field.dart';
 import 'package:read_stats/ui/pages/book/widgets/price_paid_fields.dart';
@@ -124,6 +125,16 @@ class _BookFormPageState extends State<BookFormPage> {
     isSaving: () => _isSaving,
   )..addListener(_onCoverChanged);
   bool _isSaving = false;
+
+  /// What picking an edition added or replaced, for the notes under fields.
+  final _fills = FieldFills();
+
+  /// The format an edition replaced (form indexes), while it's still the
+  /// edition's: the dropdown's note and Undo.
+  ({int before, int filled})? _formatFill;
+
+  // Counts author lookups, so only the latest edition's answer lands.
+  int _authorRequest = 0;
 
   /// The Open Library work this book is, which is what lists its editions.
   String? _workKey;
@@ -546,8 +557,12 @@ class _BookFormPageState extends State<BookFormPage> {
     _seriesController.clear();
     _seriesPositionController.clear();
     _seriesRequest++;
+    _authorRequest++;
     _filledSeriesName = null;
     _filledSeriesPosition = null;
+    _fills.clear();
+    _formatFill = null;
+    _cover.replacedFrom = null;
     setState(() {
       _datePurchased = null;
       _rating = 0;
@@ -582,7 +597,12 @@ class _BookFormPageState extends State<BookFormPage> {
   /// the way the reader already has that series so it joins theirs rather
   /// than starting a second one. Never replaces what the reader typed — only
   /// what an earlier lookup filled in, as when another edition is picked.
-  Future<void> _fillSeries(BookEdition? edition, String? workKey) async {
+  /// With [track], the fields note what changed (see [_put]).
+  Future<void> _fillSeries(
+    BookEdition? edition,
+    String? workKey, {
+    bool track = false,
+  }) async {
     final request = ++_seriesRequest;
     final found =
         await BookSearchService.seriesFor(edition: edition, workKey: workKey);
@@ -608,11 +628,11 @@ class _BookFormPageState extends State<BookFormPage> {
 
     setState(() {
       if (!ownName) {
-        _seriesController.text = name;
+        _put('Series', _seriesController, name, track);
         _filledSeriesName = name;
       }
       if (!ownPosition) {
-        _seriesPositionController.text = position;
+        _put('Number', _seriesPositionController, position, track);
         _filledSeriesPosition = position;
       }
     });
@@ -620,15 +640,66 @@ class _BookFormPageState extends State<BookFormPage> {
 
   /// Fills in an audiobook's length and narrator from its edition, where
   /// Open Library has them. The fields only show for an audiobook.
-  void _fillAudio(BookEdition? edition) {
+  void _fillAudio(BookEdition? edition, {bool track = false}) {
     final minutes = edition?.durationMinutes;
     if (minutes != null) {
-      _durationHoursController.text = (minutes ~/ 60).toString();
-      _durationMinutesController.text = (minutes % 60).toString();
+      final values = ['${minutes ~/ 60}', '${minutes % 60}'];
+      if (track) {
+        _fills.fill(
+          'Length',
+          [_durationHoursController, _durationMinutesController],
+          values,
+          show: (v) => [
+            if (v[0].trim().isNotEmpty) '${v[0].trim()} h',
+            if (v[1].trim().isNotEmpty) '${v[1].trim()} min',
+          ].join(' '),
+        );
+      } else {
+        _durationHoursController.text = values[0];
+        _durationMinutesController.text = values[1];
+      }
     }
     final narrator = edition?.narrator;
-    if (narrator != null) _narratorController.text = narrator;
+    if (narrator != null) _put('Narrator', _narratorController, narrator, track);
   }
+
+  /// Sets a field from Open Library. With [track] — an edition the reader
+  /// picked — the field notes whether it was added or replaced, and a
+  /// replaced value can be put back.
+  void _put(String label, TextEditingController c, String value, bool track) {
+    if (track) {
+      _fills.fill(label, [c], [value]);
+    } else {
+      c.text = value;
+    }
+  }
+
+  /// Fills in the author of the picked edition's work, once Open Library
+  /// says who it is. A later pick supersedes an answer still on its way.
+  Future<void> _fillAuthor(String? workKey) async {
+    final request = ++_authorRequest;
+    final author = await BookSearchService.authorFor(workKey);
+    if (author == null || !mounted || request != _authorRequest) return;
+    setState(() => _put('Author', _authorController, author, true));
+  }
+
+  /// Sets the format to an edition's (a form index), remembering the
+  /// reader's own from before the first edition so Undo can put it back.
+  void _fillFormat(int index) {
+    final fill = _formatFill;
+    final before = fill != null && fill.filled == _selectedBookType
+        ? fill.before
+        : _selectedBookType;
+    _selectedBookType = index;
+    _formatFill = before == index ? null : (before: before, filled: index);
+  }
+
+  /// The note under a field an edition changed.
+  Widget _note(TextEditingController c, {VoidCallback? onUndo}) => FillNote(
+    fills: _fills,
+    controller: c,
+    onUndo: () => setState(() => onUndo?.call()),
+  );
 
   Future<void> _chooseEdition() async {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -647,29 +718,33 @@ class _BookFormPageState extends State<BookFormPage> {
 
   /// Makes the book the edition the reader picked: its cover, ISBN and page
   /// count, which then all describe the same copy. What the edition doesn't
-  /// record is left as it is. A new book also takes the edition's title and
-  /// format; one already in the library keeps its own, which the reader may
-  /// have set and which sessions were logged against.
+  /// record is left as it is. The title is the edition's, without a
+  /// Goodreads-style "(Series #1)" the series fields already hold; the
+  /// author is the work's (see [BookSearchService.authorFor]), arriving a
+  /// moment later. Each field it changes says so, and a replaced one can be
+  /// put back.
   void _applyEdition(BookEdition edition, String? workKey) {
     setState(() {
       _edition = edition;
       _workKey = workKey ?? _workKey;
-      if (edition.isbn != null) _isbnController.text = edition.isbn!;
+      if (edition.title.isNotEmpty) {
+        final title = SeriesTitle.parse(edition.title)?.title ?? edition.title;
+        _put('Title', _titleController, title, true);
+      }
+      if (edition.isbn != null) _put('ISBN', _isbnController, edition.isbn!, true);
       if (edition.pageCount != null) {
-        _pageCountController.text = edition.pageCount.toString();
+        _put('Pages', _pageCountController, '${edition.pageCount}', true);
       }
-      _fillAudio(edition);
-      _fillSeries(edition, _workKey);
-      if (!widget.isEditing) {
-        if (edition.title.isNotEmpty) _titleController.text = edition.title;
-        final type = edition.bookTypeId;
-        if (type != null) _selectedBookType = type - 1;
-        _shapeFollowsFormat();
-      }
+      _fillAudio(edition, track: true);
+      _fillSeries(edition, _workKey, track: true);
+      _fillAuthor(_workKey);
+      final type = edition.bookTypeId;
+      if (type != null) _fillFormat(type - 1);
+      if (!widget.isEditing) _shapeFollowsFormat();
     });
     final cover = edition.coverUrl;
     if (cover != null) {
-      _cover.loadFromUrl(cover);
+      _cover.loadFromUrl(cover, undoable: true);
     } else if (_cover.file != null || _cover.loading) {
       AppSnackbar.show(
         'That edition has no cover on Open Library, so the cover is unchanged',
@@ -767,6 +842,12 @@ class _BookFormPageState extends State<BookFormPage> {
                       onEdit: () => _cover.edit(context),
                       onRemove: _cover.remove,
                     ),
+                    if (_cover.replacedFrom != null)
+                      ChangeNote(
+                        added: false,
+                        label: 'Cover',
+                        onUndo: _cover.undoReplace,
+                      ),
                     const SizedBox(height: 8),
                     EditionRow(edition: _edition, onTap: _chooseEdition),
                     const SizedBox(height: 16),
@@ -779,6 +860,7 @@ class _BookFormPageState extends State<BookFormPage> {
                           setState(() => _titleTitleCaseEnabled = v),
                       onChanged: () => setState(() {}),
                     ),
+                    _note(_titleController),
                     const SizedBox(height: 16),
                     TitleCaseField(
                       controller: _authorController,
@@ -790,6 +872,7 @@ class _BookFormPageState extends State<BookFormPage> {
                       onChanged: () => setState(() {}),
                       suggestions: BookRepository().getAuthorSuggestions,
                     ),
+                    _note(_authorController),
                     const SizedBox(height: 16),
                     SeriesFields(
                       nameController: _seriesController,
@@ -798,6 +881,8 @@ class _BookFormPageState extends State<BookFormPage> {
                       names: _seriesNames,
                       onNameChanged: () => setState(() {}),
                     ),
+                    _note(_seriesController),
+                    _note(_seriesPositionController),
 
                     const Divider(height: 32),
 
@@ -806,9 +891,21 @@ class _BookFormPageState extends State<BookFormPage> {
                       value: _selectedBookType,
                       onChanged: (v) => setState(() {
                         _selectedBookType = v;
+                        _formatFill = null; // The reader's own choice now.
                         _shapeFollowsFormat();
                       }),
                     ),
+                    if (_formatFill case final fill?)
+                      ChangeNote(
+                        added: false,
+                        label: 'Format',
+                        was: BookEdition.bookTypeLabels[fill.before],
+                        onUndo: () => setState(() {
+                          _selectedBookType = fill.before;
+                          _formatFill = null;
+                          _shapeFollowsFormat();
+                        }),
+                      ),
                     const SizedBox(height: 16),
 
                     // Pages and Words — hidden for audiobooks
@@ -817,6 +914,7 @@ class _BookFormPageState extends State<BookFormPage> {
                         pageController: _pageCountController,
                         wordController: _wordCountController,
                         onChanged: () => setState(() {}),
+                        pageNote: _note(_pageCountController),
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -828,6 +926,8 @@ class _BookFormPageState extends State<BookFormPage> {
                         hoursController: _durationHoursController,
                         minutesController: _durationMinutesController,
                         onChanged: () => setState(() {}),
+                        narratorNote: _note(_narratorController),
+                        lengthNote: _note(_durationHoursController),
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -844,6 +944,9 @@ class _BookFormPageState extends State<BookFormPage> {
                         _lookupByIsbn(isbn);
                       },
                     ),
+                    // Undoing the ISBN goes back to no edition in particular,
+                    // as typing another one does.
+                    _note(_isbnController, onUndo: () => _edition = null),
 
                     const Divider(height: 32),
 
@@ -857,27 +960,17 @@ class _BookFormPageState extends State<BookFormPage> {
                       const SizedBox(height: 16),
                     ],
 
-                    // Date Selection
-                    Row(
-                      children: [
-                        Expanded(
-                          child: FormDateField(
-                            label: 'Start Date',
-                            date: _dateStarted,
-                            onTap: () => _selectDate(context, true),
-                            onClear: () => setState(() => _dateStarted = null),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: FormDateField(
-                            label: 'Finish Date',
-                            date: _dateFinished,
-                            onTap: () => _selectDate(context, false),
-                            onClear: () => setState(() => _dateFinished = null),
-                          ),
-                        ),
-                      ],
+                    ReadingDateFields(
+                      started: _dateStarted,
+                      finished: _dateFinished,
+                      onPick: (start) => _selectDate(context, start),
+                      onClear: (start) => setState(() {
+                        if (start) {
+                          _dateStarted = null;
+                        } else {
+                          _dateFinished = null;
+                        }
+                      }),
                     ),
 
                     const SizedBox(height: 16),

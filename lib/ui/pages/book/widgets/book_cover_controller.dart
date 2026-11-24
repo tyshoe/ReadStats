@@ -54,6 +54,11 @@ class BookCoverController extends ChangeNotifier {
   /// existing cover in place.
   bool removed = false;
 
+  /// The cover a picked edition's replaced, so it can be put back; null once
+  /// the reader changes the cover any other way. Kept from the first
+  /// replacement, so a second edition still goes back to the reader's own.
+  ({File? file, File? original, bool changed, bool removed})? replacedFrom;
+
   /// A cover is being picked from the camera or photo library.
   bool picking = false;
 
@@ -92,7 +97,10 @@ class BookCoverController extends ChangeNotifier {
   /// whether it arrived. Until then the form keeps showing the cover it had,
   /// under a spinner; if the download fails that cover stays, and the reader
   /// is told. So the cover on screen is always the one a save would store.
-  Future<bool> loadFromUrl(String url) {
+  ///
+  /// With [undoable] (an edition's cover), the cover it replaces is kept in
+  /// [replacedFrom].
+  Future<bool> loadFromUrl(String url, {bool undoable = false}) {
     final request = ++_request;
     final load = () async {
       final downloaded = await CoverService.downloadFromUrl(url);
@@ -101,6 +109,16 @@ class BookCoverController extends ChangeNotifier {
       loading = false;
       _load = null;
       if (downloaded != null) {
+        if (!undoable) {
+          replacedFrom = null;
+        } else if (replacedFrom == null && file != null) {
+          replacedFrom = (
+            file: file,
+            original: _original,
+            changed: changed,
+            removed: removed,
+          );
+        }
         file = downloaded;
         _original = null;
         changed = true;
@@ -119,9 +137,23 @@ class BookCoverController extends ChangeNotifier {
     return load;
   }
 
+  /// Puts back the cover an edition replaced.
+  void undoReplace() {
+    final before = replacedFrom;
+    if (before == null) return;
+    replacedFrom = null;
+    file = before.file;
+    _original = before.original;
+    changed = before.changed;
+    removed = before.removed;
+    _cancelLoad();
+    notifyListeners();
+  }
+
   /// The reader took the cover off. Nothing is deleted until the form saves,
   /// so it can be put back: the message offers Undo.
   void remove() {
+    replacedFrom = null;
     final before = (
       file: file,
       original: _original,
@@ -185,7 +217,7 @@ class BookCoverController extends ChangeNotifier {
     }
     source ??= file;
     if (source == null || !context.mounted) return;
-    await _crop(context, source);
+    await _crop(context, source, recrop: true);
   }
 
   /// Persist (or clear) the pre-crop original that backs a saved cover.
@@ -229,7 +261,11 @@ class BookCoverController extends ChangeNotifier {
 
   /// Runs [source] through the crop editor and, if the reader keeps the
   /// result, makes it the cover, with [source] as its original.
-  Future<void> _crop(BuildContext context, File source) async {
+  Future<void> _crop(
+    BuildContext context,
+    File source, {
+    bool recrop = false,
+  }) async {
     final shapeBefore = shape;
     final edited = await Navigator.of(context).push<File>(
       MaterialPageRoute(
@@ -252,6 +288,9 @@ class BookCoverController extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    // Re-cropping the edition's cover keeps the way back to the old one;
+    // a photo of the reader's own replaces it for good.
+    if (!recrop) replacedFrom = null;
     file = edited;
     _original = source;
     shapeChosen = true;

@@ -652,6 +652,34 @@ class BookSearchService {
   /// the [edition]'s own series line first, then the work's series record
   /// (which gives a number), then a "series:" subject (which doesn't). Null
   /// when none says, or on any failure — a nicety, never an error.
+  /// The author of the work [workKey] — "Suzanne Collins" — or several,
+  /// comma-separated. From the work rather than an edition, whose author
+  /// list can lead with a translator or spell the name another way. Null if
+  /// Open Library doesn't say, or can't be reached.
+  static Future<String?> authorFor(String? workKey) async {
+    final id =
+        workKey == null ? null : RegExp(r'OL\d+W').firstMatch(workKey)?.group(0);
+    if (id == null) return null;
+    try {
+      final work = await _getJson('$_worksBase/$id.json');
+      final listed = work?['authors'];
+      final names = <String>[];
+      for (final entry in listed is List ? listed : const []) {
+        final author = entry is Map ? entry['author'] : null;
+        final key = author is Map ? author['key'] : null;
+        if (key is! String || !RegExp(r'^/authors/OL\d+A$').hasMatch(key)) {
+          continue;
+        }
+        final record = await _getJson('https://openlibrary.org$key.json');
+        final name = BookEdition._text(record?['name']);
+        if (name != null && !names.contains(name)) names.add(name);
+      }
+      return names.isEmpty ? null : names.join(', ');
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<({String name, double? position})?> seriesFor({
     BookEdition? edition,
     String? workKey,

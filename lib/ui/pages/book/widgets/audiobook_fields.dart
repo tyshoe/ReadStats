@@ -9,12 +9,19 @@ class AudiobookFields extends StatelessWidget {
   final TextEditingController minutesController;
   final VoidCallback onChanged;
 
+  /// Shown right under the narrator and under the length — what an edition
+  /// changed there.
+  final Widget? narratorNote;
+  final Widget? lengthNote;
+
   const AudiobookFields({
     super.key,
     required this.narratorController,
     required this.hoursController,
     required this.minutesController,
     required this.onChanged,
+    this.narratorNote,
+    this.lengthNote,
   });
 
   @override
@@ -34,6 +41,7 @@ class AudiobookFields extends StatelessWidget {
             hintText: 'Enter narrator(s)',
           ),
         ),
+        ?narratorNote,
         const SizedBox(height: 16),
         Row(
           children: [
@@ -72,6 +80,7 @@ class AudiobookFields extends StatelessWidget {
             ),
           ],
         ),
+        ?lengthNote,
       ],
     );
   }

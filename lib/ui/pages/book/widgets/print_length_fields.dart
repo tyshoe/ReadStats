@@ -8,11 +8,15 @@ class PrintLengthFields extends StatelessWidget {
   final TextEditingController wordController;
   final VoidCallback onChanged;
 
+  /// Shown right under the page count — what an edition changed there.
+  final Widget? pageNote;
+
   const PrintLengthFields({
     super.key,
     required this.pageController,
     required this.wordController,
     required this.onChanged,
+    this.pageNote,
   });
 
   @override
@@ -32,6 +36,7 @@ class PrintLengthFields extends StatelessWidget {
             FocusManager.instance.primaryFocus?.unfocus();
           },
         ),
+        ?pageNote,
         const SizedBox(height: 16),
         TextField(
           controller: wordController,
