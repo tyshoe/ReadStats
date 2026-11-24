@@ -291,6 +291,49 @@ class BookEdition {
     return null;
   }
 
+  /// Where editions in a language come in a list: English first, then the
+  /// languages most readers of a mostly Western app read in — Western
+  /// European, then the rest of Europe, then the widest-read elsewhere. Any
+  /// other language comes after these, and no language at all comes last
+  /// (on Open Library that's as often a translation as English).
+  static int languageRank(String? code) {
+    if (code == null) return _languageOrder.length + 1;
+    return _languageOrder[code] ?? _languageOrder.length;
+  }
+
+  static const _languageOrder = {
+    'eng': 0,
+    'spa': 1,
+    'fre': 2, 'fra': 2,
+    'ger': 3, 'deu': 3,
+    'por': 4,
+    'ita': 5,
+    'dut': 6, 'nld': 6,
+    'pol': 7,
+    'swe': 8,
+    'nor': 9,
+    'dan': 10,
+    'fin': 11,
+    'rus': 12,
+    'ukr': 13,
+    'cze': 14, 'ces': 14,
+    'hun': 15,
+    'rum': 16, 'ron': 16,
+    'gre': 17, 'ell': 17,
+    'tur': 18,
+    'cat': 19,
+    'chi': 20, 'zho': 20,
+    'jpn': 21,
+    'kor': 22,
+    'ara': 23,
+    'hin': 24,
+    'heb': 25,
+    'ind': 26,
+    'vie': 27,
+    'tha': 28,
+    'lat': 29,
+  };
+
   static const _languageNames = {
     'eng': 'English',
     'fre': 'French',

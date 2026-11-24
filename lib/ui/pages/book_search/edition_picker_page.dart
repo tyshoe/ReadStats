@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
+import 'package:read_stats/data/models/book_type.dart';
 import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/book_search_service.dart';
 import 'package:read_stats/ui/pages/book_search/barcode_scanner_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// The edition the reader picked, and the work it belongs to. A null
 /// [edition] is the reader passing on the question: the book as the search
@@ -63,7 +67,15 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
 
   bool _withCover = true;
   int? _format;
-  String? _language;
+
+  /// The language the reader last chose, English until they choose; null is
+  /// any language. Remembered, so a reader of another language picks it once.
+  String? _language = 'eng';
+  static const _languageKey = 'editionLanguage';
+
+  // The edition the book has now, looked up by its ISBN so it can head the
+  // list even when it's thousands deep among the pages.
+  _Listed? _currentEdition;
 
   // An ISBN typed or scanned into the filter is looked up directly, since
   // the edition may be thousands deep in the list.
@@ -76,11 +88,35 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
     super.initState();
     AnalyticsService.instance.screen('edition_picker');
     _workKey = widget.workKey;
-    _currentIsbn =
-        widget.isbn == null ? null : BookSearchService.asIsbn(widget.isbn!);
+    _currentIsbn = widget.isbn == null
+        ? null
+        : BookSearchService.asIsbn(widget.isbn!);
     _starting = _workKey == null && _currentIsbn != null;
     _scrollController.addListener(_onScroll);
+    _loadLanguage();
     _start();
+  }
+
+  Future<void> _loadLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted || !prefs.containsKey(_languageKey)) return;
+    final code = prefs.getString(_languageKey) ?? '';
+    _setFilter(() => _language = code.isEmpty ? null : code);
+  }
+
+  /// '' is any language.
+  Future<void> _chooseLanguage(String code) async {
+    _setFilter(() => _language = code.isEmpty ? null : code);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_languageKey, code);
+  }
+
+  /// The language filter in effect: the chosen one, unless no edition loaded
+  /// so far is in it — a book never published in English still lists.
+  String? get _activeLanguage {
+    final language = _language;
+    if (language == null) return null;
+    return _editions.any((e) => e.language == language) ? language : null;
   }
 
   @override
@@ -103,13 +139,28 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
       try {
         final found = await BookSearchService.editionByIsbn(_currentIsbn!);
         _workKey = found?.workKey;
+        _currentEdition = found;
       } on BookSearchException catch (e) {
         _error = e.message;
       }
       if (!mounted) return;
       setState(() => _starting = false);
+    } else if (_currentIsbn != null && _currentEdition == null) {
+      unawaited(_lookUpCurrent());
     }
     await _loadMore();
+  }
+
+  /// Finds the book's current edition alongside the first page. Offline, the
+  /// list still marks it if it loads.
+  Future<void> _lookUpCurrent() async {
+    try {
+      final found = await BookSearchService.editionByIsbn(_currentIsbn!);
+      if (!mounted || found == null) return;
+      setState(() => _currentEdition = found);
+    } on BookSearchException {
+      // Not worth a message: it only moves a row to the top.
+    }
   }
 
   void _onScroll() {
@@ -131,7 +182,7 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
       final page = await BookSearchService.editions(workKey, offset: _offset);
       if (!mounted) return;
       setState(() {
-        _editions.addAll(page.editions);
+        _editions.addAll(_ordered(page.editions));
         _total = page.total;
         _offset += page.fetched;
         _hasMore = page.fetched > 0 && _offset < page.total;
@@ -145,6 +196,33 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
         _loadingMore = false;
       });
     }
+  }
+
+  /// One page of editions in the order worth reading them: by language (see
+  /// [BookEdition.languageRank]), then paperback, hardback, audiobook, eBook,
+  /// then any other format; otherwise as Open Library sent them.
+  ///
+  /// Each page is ordered as it arrives and goes on the end, so loading more
+  /// never moves what is already on screen.
+  static List<BookEdition> _ordered(List<BookEdition> page) {
+    const formatRank = {
+      BookType.paperback: 0,
+      BookType.hardback: 1,
+      BookType.audiobook: 2,
+      BookType.ebook: 3,
+    };
+    final indexed = page.indexed.toList()
+      ..sort((a, b) {
+        final ea = a.$2, eb = b.$2;
+        final byLanguage = BookEdition.languageRank(ea.language)
+            .compareTo(BookEdition.languageRank(eb.language));
+        if (byLanguage != 0) return byLanguage;
+        final byFormat = (formatRank[ea.bookTypeId] ?? 4)
+            .compareTo(formatRank[eb.bookTypeId] ?? 4);
+        if (byFormat != 0) return byFormat;
+        return a.$1.compareTo(b.$1); // List.sort isn't stable.
+      });
+    return [for (final (_, edition) in indexed) edition];
   }
 
   /// Loads another page when what matches doesn't fill the screen, since a
@@ -221,19 +299,45 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
     final isbn = _isbnQuery;
     if (isbn != null) return _editions.where((e) => e.hasIsbn(isbn)).toList();
 
+    final passes = _filterTest();
+    return _editions.where(passes).toList();
+  }
+
+  /// Whether an edition gets through the chips and the typed filter.
+  bool Function(BookEdition) _filterTest() {
     final text = _filterController.text.trim().toLowerCase();
     final digits = text.replaceAll(RegExp(r'[\s-]'), '');
-    return _editions.where((e) {
+    final language = _activeLanguage;
+    return (e) {
       if (_withCover && e.coverId == null) return false;
       if (_format != null && e.bookTypeId != _format) return false;
-      if (_language != null && e.language != _language) return false;
+      if (language != null && e.language != language) return false;
       if (text.isEmpty) return true;
       return e.title.toLowerCase().contains(text) ||
           (e.publisher ?? '').toLowerCase().contains(text) ||
           (e.publishDate ?? '').toLowerCase().contains(text) ||
           (digits.isNotEmpty &&
               e.isbns.any((i) => i.toLowerCase().contains(digits)));
-    }).toList();
+    };
+  }
+
+  /// The book's current edition, to head the list: the loaded one if it is,
+  /// else the one looked up — as long as the filters let it through.
+  _Listed? _currentRow(List<BookEdition> matches) {
+    final isbn = _currentIsbn;
+    if (isbn == null || _isbnQuery != null) return null;
+    final loaded = matches.where((e) => e.hasIsbn(isbn)).firstOrNull;
+    if (loaded != null) return (edition: loaded, workKey: _workKey);
+    final found = _currentEdition;
+    if (found == null || !_filterTest()(found.edition)) return null;
+    // An ISBN that belongs to another work isn't one of these editions.
+    if (_workKey != null &&
+        found.workKey != null &&
+        found.workKey != _workKey) {
+      return null;
+    }
+    if (_editions.any((e) => e.key == found.edition.key)) return null;
+    return found;
   }
 
   @override
@@ -290,11 +394,25 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
     final languages = counts.keys.toList()
       ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
 
-    Widget chip(String label, bool selected, VoidCallback onTap) {
+    Widget chip(
+      String label,
+      bool selected,
+      VoidCallback onTap, {
+      bool menu = false,
+    }) {
       return Padding(
         padding: const EdgeInsets.only(right: 10),
         child: FilterChip(
-          label: Text(label),
+          label: menu
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(label),
+                    const SizedBox(width: 2),
+                    const Icon(Icons.arrow_drop_down, size: 18),
+                  ],
+                )
+              : Text(label),
           selected: selected,
           showCheckmark: false,
           labelStyle: theme.textTheme.bodySmall,
@@ -311,6 +429,7 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
     }
 
     const languageLabel = BookEdition.languageNameOf;
+    final language = _activeLanguage;
 
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 4),
@@ -320,26 +439,12 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           children: [
-            chip(
-              'With cover',
-              _withCover,
-              () => _setFilter(() => _withCover = !_withCover),
-            ),
-            for (var type = 1; type <= 4; type++)
-              chip(
-                BookEdition.bookTypeLabels[type - 1],
-                _format == type,
-                () => _setFilter(
-                  () => _format = _format == type ? null : type,
-                ),
-              ),
+            // First, where it's seen: the other chips run off the screen.
             if (languages.length > 1)
               PopupMenuButton<String>(
                 tooltip: 'Language',
                 // '' is every language: a null value would read as dismissal.
-                onSelected: (code) => _setFilter(
-                  () => _language = code.isEmpty ? null : code,
-                ),
+                onSelected: _chooseLanguage,
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: '', child: Text('Any language')),
                   for (final code in languages)
@@ -351,13 +456,23 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
                 // The chip is only the menu's face; the menu takes the tap.
                 child: IgnorePointer(
                   child: chip(
-                    _language == null
-                        ? 'Language'
-                        : languageLabel(_language!),
-                    _language != null,
+                    language == null ? 'Any language' : languageLabel(language),
+                    language != null,
                     () {},
+                    menu: true,
                   ),
                 ),
+              ),
+            chip(
+              'With cover',
+              _withCover,
+              () => _setFilter(() => _withCover = !_withCover),
+            ),
+            for (var type = 1; type <= 4; type++)
+              chip(
+                BookEdition.bookTypeLabels[type - 1],
+                _format == type,
+                () => _setFilter(() => _format = _format == type ? null : type),
               ),
           ],
         ),
@@ -424,10 +539,15 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
     final secondary = theme.textTheme.bodySmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
     );
+    final current = _currentRow(matches);
     final rows = <_Listed>[
       ?pinned,
-      for (final edition in matches) (edition: edition, workKey: _workKey),
+      ?current,
+      for (final edition in matches)
+        if (edition.key != current?.edition.key)
+          (edition: edition, workKey: _workKey),
     ];
+    final shown = rows.length - (pinned == null ? 0 : 1);
     // Stays put under the filters, which narrow editions and it isn't one.
     // An ISBN names an edition outright, so it steps aside for that.
     final general = _isbnQuery == null ? widget.general : null;
@@ -441,9 +561,9 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
             child: Text(
               _hasMore
-                  ? '${_count(matches.length)} shown · ${_count(_offset)} of '
+                  ? '${_count(shown)} shown · ${_count(_offset)} of '
                       '${_count(_total)} editions loaded'
-                  : '${_count(matches.length)} of ${_count(_total)} editions',
+                  : '${_count(shown)} of ${_count(_total)} editions',
               style: secondary,
             ),
           ),
@@ -463,10 +583,10 @@ class _EditionPickerPageState extends State<EditionPickerPage> {
                   return _buildFooter(theme, secondary, rows.isEmpty);
                 }
                 final row = rows[index];
-                final current = _currentIsbn;
+                final isbn = _currentIsbn;
                 return _EditionTile(
                   edition: row.edition,
-                  isCurrent: current != null && row.edition.hasIsbn(current),
+                  isCurrent: isbn != null && row.edition.hasIsbn(isbn),
                   onTap: () => Navigator.of(context).pop<EditionChoice>(row),
                 );
               },
