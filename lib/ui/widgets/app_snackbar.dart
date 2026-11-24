@@ -39,6 +39,9 @@ class AppSnackbar {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
         duration: Duration(seconds: hasAction ? 5 : 2),
+        // Flutter keeps a bar with an action up until it's tapped unless
+        // told otherwise; an undo offer should time out like any message.
+        persist: false,
       ),
     );
   }

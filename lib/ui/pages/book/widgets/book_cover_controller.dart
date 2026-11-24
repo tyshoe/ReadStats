@@ -119,14 +119,35 @@ class BookCoverController extends ChangeNotifier {
     return load;
   }
 
-  /// The reader took the cover off.
+  /// The reader took the cover off. Nothing is deleted until the form saves,
+  /// so it can be put back: the message offers Undo.
   void remove() {
+    final before = (
+      file: file,
+      original: _original,
+      changed: changed,
+      removed: removed,
+    );
     file = null;
     _original = null;
     changed = true;
     removed = true;
     _cancelLoad();
     notifyListeners();
+    if (before.file == null) return; // Only a download was stopped.
+    AppSnackbar.show(
+      'Cover removed',
+      actionLabel: 'Undo',
+      onAction: () {
+        // Gone from the form, or another cover chosen since: leave it.
+        if (_disposed || file != null || loading) return;
+        file = before.file;
+        _original = before.original;
+        changed = before.changed;
+        removed = before.removed;
+        notifyListeners();
+      },
+    );
   }
 
   /// Asks where the cover should come from, then fetches it from there.

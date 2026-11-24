@@ -43,7 +43,9 @@ Future<CoverSource?> showCoverSourceSheet(BuildContext context) {
 }
 
 /// The book form's cover well: the cover over a blur of itself, with crop
-/// and remove buttons, or an "Add cover image" prompt.
+/// and remove buttons and a Change button under it, or an "Add cover image"
+/// prompt. Change (or tapping the cover itself) opens the source chooser, so
+/// a cover is replaced in one step rather than removed and added again.
 class BookCoverPicker extends StatelessWidget {
   final File? coverFile;
   final int coverShape;
@@ -76,7 +78,12 @@ class BookCoverPicker extends StatelessWidget {
     final bool hasCover = cover != null;
     // Enough room for the cover plus the surrounding blurred margin. Follows
     // the cover's height so a square one doesn't sit in a portrait-sized well.
-    final double areaH = hasCover || loading ? coverH + 70 : 90.0;
+    // Plus a row for the Change button under a cover.
+    final double areaH = hasCover
+        ? coverH + 118
+        : loading
+        ? coverH + 70
+        : 90.0;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -107,13 +114,16 @@ class BookCoverPicker extends StatelessWidget {
                 child: Container(color: Colors.black.withValues(alpha: 0.35)),
               ),
 
-            // Ripple layer — above backgrounds so the ink is visible
-            Positioned.fill(
-              child: Material(
-                type: MaterialType.transparency,
-                child: InkWell(onTap: onTap),
+            // Ripple layer — above backgrounds so the ink is visible. Only for
+            // the empty well: with a cover, the blurred margin is too easy to
+            // hit while scrolling, so the cover and Change take the tap.
+            if (!hasCover)
+              Positioned.fill(
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(onTap: onTap),
+                ),
               ),
-            ),
 
             // Cover image
             Column(
@@ -122,13 +132,23 @@ class BookCoverPicker extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: cover != null
-                      ? Image.file(
-                          cover,
-                          width: coverW,
-                          height: coverH,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              _coverPlaceholder(theme, coverW, coverH),
+                      ? Stack(
+                          children: [
+                            Image.file(
+                              cover,
+                              width: coverW,
+                              height: coverH,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) =>
+                                  _coverPlaceholder(theme, coverW, coverH),
+                            ),
+                            Positioned.fill(
+                              child: Material(
+                                type: MaterialType.transparency,
+                                child: InkWell(onTap: onTap),
+                              ),
+                            ),
+                          ],
                         )
                       : loading
                       ? CoverLoadingPlaceholder(
@@ -138,6 +158,19 @@ class BookCoverPicker extends StatelessWidget {
                         )
                       : _emptyPlaceholder(theme),
                 ),
+                if (hasCover) ...[
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: onTap,
+                    icon: const Icon(Icons.add_photo_alternate, size: 18),
+                    label: const Text('Change'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.black.withValues(alpha: 0.45),
+                      foregroundColor: Colors.white,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
               ],
             ),
 
@@ -171,19 +204,19 @@ class BookCoverPicker extends StatelessWidget {
                 ),
               ),
 
-            // Remove button — top-right corner
+            // Remove button — top-right corner. Neutral, not a red bin:
+            // nothing is deleted until the form saves, and it can be undone.
             if (hasCover || loading)
               Positioned(
                 top: 8,
                 right: 8,
                 child: IconButton(
                   onPressed: onRemove,
-                  icon: const Icon(Icons.delete, size: 22),
+                  tooltip: 'Remove cover',
+                  icon: const Icon(Icons.close, size: 22),
                   color: Colors.white,
                   style: IconButton.styleFrom(
-                    backgroundColor: theme.colorScheme.error.withValues(
-                      alpha: 0.85,
-                    ),
+                    backgroundColor: Colors.black.withValues(alpha: 0.45),
                     minimumSize: const Size(44, 44),
                     padding: EdgeInsets.zero,
                   ),
