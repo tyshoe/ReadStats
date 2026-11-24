@@ -224,8 +224,10 @@ class _BookShareCardState extends State<BookShareCard> {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 12),
-              _buildRatingRow(fg),
-              const SizedBox(height: 8),
+              if (_rated) ...[
+                _buildRatingRow(fg),
+                const SizedBox(height: 8),
+              ],
               _buildSubLine(fg, showWords: showWords),
             ],
           ),
@@ -263,8 +265,10 @@ class _BookShareCardState extends State<BookShareCard> {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 12),
-              _buildRatingRow(fg),
-              const SizedBox(height: 8),
+              if (_rated) ...[
+                _buildRatingRow(fg),
+                const SizedBox(height: 8),
+              ],
               _buildSubLine(fg, showWords: showWords),
             ],
           ),
@@ -272,6 +276,9 @@ class _BookShareCardState extends State<BookShareCard> {
       ],
     );
   }
+
+  /// An unrated book comes through as 0: no stars or "0.0" on the card then.
+  bool get _rated => widget.rating > 0;
 
   Widget _buildRatingRow(Color fg, {bool stacked = false}) {
     if (stacked) {
@@ -466,8 +473,10 @@ class _BookShareCardState extends State<BookShareCard> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    _buildRatingRow(Colors.white),
-                    const SizedBox(height: 6),
+                    if (_rated) ...[
+                      _buildRatingRow(Colors.white),
+                      const SizedBox(height: 6),
+                    ],
                     _buildDominantStatsRow(),
                     const SizedBox(height: 8),
                     _buildFooter(Colors.white.withValues(alpha: 0.55), forceLight: true),
@@ -600,8 +609,10 @@ class _BookShareCardState extends State<BookShareCard> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                _buildRatingRow(effectiveFg, stacked: true),
+                if (_rated) ...[
+                  const SizedBox(width: 12),
+                  _buildRatingRow(effectiveFg, stacked: true),
+                ],
               ],
             ),
           ),
