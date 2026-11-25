@@ -26,6 +26,7 @@ import 'package:read_stats/data/repositories/session_repository.dart';
 import 'package:read_stats/data/repositories/tag_repository.dart';
 import 'package:read_stats/data/services/analytics_service.dart';
 import 'package:read_stats/data/services/cover_service.dart';
+import 'package:read_stats/data/services/recap_store.dart';
 import 'package:read_stats/data/utils/date_utils.dart';
 import 'package:read_stats/data/utils/series_title.dart';
 import 'package:share_plus/share_plus.dart';
@@ -153,6 +154,8 @@ class ImportExportService {
       await bookRepository.deleteAllBooks();
       await tagRepository.deleteAllTags();
       await goalRepository.deleteAllGoals();
+      // By book id, so they would point at whatever books come next.
+      await RecapStore.instance.replaceBookOfYearPicks(const {});
       await AnalyticsService.instance.setDemoLibrary(false);
       return const ImportExportResult(success: true, message: 'All data deleted.');
     } catch (e) {
@@ -322,6 +325,11 @@ class ImportExportService {
           r['position'].toString(),
           (r['title'] as String?) ?? '',
         ],
+    ]);
+    addCsv('wrapped_picks_data', [
+      ['year', 'book_id'],
+      for (final e in RecapStore.instance.bookOfYearPicks.entries)
+        [e.key.toString(), e.value.toString()],
     ]);
     return (csvs: csvs, books: books.length, sessions: sessions.length);
   }
@@ -642,6 +650,16 @@ class ImportExportService {
               'title': row.length > 2 ? row[2].toString() : null,
             },
       ]);
+      // Book ids survive a restore, so the picks point at the same books.
+      // Replaced even when the backup has none: whatever was chosen before
+      // pointed at the books just replaced.
+      await RecapStore.instance.replaceBookOfYearPicks({
+        for (final row in csvRows('wrapped_picks_data'))
+          if (row.length >= 2)
+            if ((int.tryParse(row[0].toString()), int.tryParse(row[1].toString()))
+                case (final int year, final int id))
+              year: id,
+      });
 
       if (kDebugMode) {
         print('Restore: done in ${clock.elapsedMilliseconds} ms');

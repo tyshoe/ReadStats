@@ -17,10 +17,13 @@ import 'package:share_plus/share_plus.dart';
 const Size kWrappedShareSize = Size(360, 640);
 const double _kSharePixelRatio = 3;
 
+/// How far the ReadStats mark sits above the image's foot: about 16% of it.
+const double _kBrandLift = 104;
+
 /// Renders [slide] as a finished 9:16 image and offers to save or share it.
 ///
 /// The slide is drawn by the same widget the player uses, with its entrance
-/// complete, its backdrop still, and the ReadStats mark along the foot — so
+/// complete, its backdrop still, and the ReadStats mark beneath it — so
 /// what is posted is exactly what the reader just saw.
 Future<void> shareWrappedSlide({
   required BuildContext context,
@@ -59,7 +62,10 @@ Future<void> shareWrappedSlide({
             story: story,
             entrance: kAlwaysCompleteAnimation,
             ambient: const AlwaysStoppedAnimation(0.15),
-            insets: const EdgeInsets.fromLTRB(0, 36, 0, 26),
+            // The mark sits on the bottom inset, which keeps it out of the
+            // strip feeds crop off a 9:16 image (about 15% at each end) and
+            // clear of Stories' reply bar.
+            insets: const EdgeInsets.fromLTRB(0, 36, 0, _kBrandLift),
             shareMode: true,
           ),
         ),

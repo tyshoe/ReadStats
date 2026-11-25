@@ -127,8 +127,19 @@ class ReaderPersonality {
 
     if (w.booksFinished >= 3) {
       final audio = w.formatCounts[WrappedFormat.audio] ?? 0;
-      consider(PersonalityTrait.audiobookDevotee, audio / w.booksFinished, 0.5,
-          '$audio of your ${w.booksFinished} books were audiobooks.');
+      // The formats slide just before has already given the share, so the
+      // proof here is the listening itself when there is time logged to it.
+      final listened = w.booksRead
+          .where((b) => b.format == WrappedFormat.audio)
+          .fold(0, (sum, b) => sum + b.minutes);
+      consider(
+          PersonalityTrait.audiobookDevotee,
+          audio / w.booksFinished,
+          0.5,
+          listened >= 60
+              ? '${YearWrapped.formatMinutes(listened)} of listening across '
+                  '${YearWrapped.plural(audio, 'audiobook')}.'
+              : '$audio of your ${w.booksFinished} books were audiobooks.');
     }
 
     if (w.weeksSpanned >= 8) {

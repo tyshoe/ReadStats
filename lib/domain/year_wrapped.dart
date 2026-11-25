@@ -18,7 +18,7 @@ enum WrappedMeasure { minutes, pages, sessions, books }
 
 /// Why a book was named book of the year. Shown on the slide, so the choice is
 /// never a mystery and never pretends to more than the data says.
-enum BookOfYearReason { favorite, topRated, mostTime, onlyBook }
+enum BookOfYearReason { chosen, favorite, topRated, mostTime, onlyBook }
 
 /// A book as Wrapped sees it: the row, plus what happened to it this year.
 class WrappedBook {
@@ -161,6 +161,16 @@ class YearWrapped {
   final int speedPages;
   final int speedMinutes;
 
+  /// Authors finished for the first time this year — nothing of theirs was
+  /// finished in an earlier year. Null when no earlier year has a finished
+  /// book, since for a first year every author would be "new".
+  final int? newAuthors;
+
+  /// The book the reader named their book of the year themselves, if they
+  /// did. Ignored when it is no longer among [finished] — deleted, or moved
+  /// to another year — so the automatic pick takes over again.
+  final int? chosenBookId;
+
   const YearWrapped({
     required this.year,
     required this.isInProgress,
@@ -189,6 +199,8 @@ class YearWrapped {
     required this.timedSessions,
     required this.speedPages,
     required this.speedMinutes,
+    required this.newAuthors,
+    this.chosenBookId,
   });
 
   // ── availability ───────────────────────────────────────────────────────────
@@ -363,12 +375,21 @@ class YearWrapped {
 
   /// The one book the year is remembered by, and why it was picked.
   ///
-  /// In order: a book marked favourite (highest rated among them), the highest
-  /// rated book, the one the most time went into, and finally a lone finished
-  /// book. With several finished books and no rating, favourite or timed
-  /// session to tell them apart there is no honest pick, so there is none.
+  /// The reader's own choice wins. Otherwise, in order: a book marked
+  /// favourite (highest rated among them), the highest rated book, the one the
+  /// most time went into, and finally a lone finished book. With several
+  /// finished books and no rating, favourite or timed session to tell them
+  /// apart there is no honest pick, so there is none until the reader makes
+  /// one.
   (WrappedBook, BookOfYearReason)? get bookOfTheYear {
     if (finished.isEmpty) return null;
+
+    final chosen = chosenBookId;
+    if (chosen != null) {
+      for (final b in finished) {
+        if (b.id == chosen) return (b, BookOfYearReason.chosen);
+      }
+    }
 
     int byRatingThenTime(WrappedBook a, WrappedBook b) {
       final r = b.rating.compareTo(a.rating);
@@ -514,6 +535,7 @@ class YearWrapped {
     required List<Map<String, dynamic>> sessions,
     required int year,
     DateTime? now,
+    int? chosenBookId,
   }) {
     final today = now ?? DateTime.now();
 
@@ -587,8 +609,11 @@ class YearWrapped {
       sessionsByDay[day] = (sessionsByDay[day] ?? 0) + 1;
       weeks.add(ReadingStats.weekOrdinal(at));
 
-      weekdayMinutes[at.weekday] = (weekdayMinutes[at.weekday] ?? 0) + minutes;
-      weekdaySessions[at.weekday] = (weekdaySessions[at.weekday] ?? 0) + 1;
+      // The small hours belong to the night before, as on the Statistics
+      // page's weekday chart.
+      final weekday = readingWeekday(at);
+      weekdayMinutes[weekday] = (weekdayMinutes[weekday] ?? 0) + minutes;
+      weekdaySessions[weekday] = (weekdaySessions[weekday] ?? 0) + 1;
       if (hasRealClockTime(at)) {
         clocked++;
         final part = daypartOf(at.hour);
@@ -643,6 +668,27 @@ class YearWrapped {
       booksByMonth[done.month - 1] += 1;
     }
     finished.sort((a, b) => a.finishedAt!.compareTo(b.finishedAt!));
+
+    // Authors are matched loosely — case and surrounding spaces aside — so
+    // "Mark Twain" and "mark twain " are one person.
+    String authorKey(String a) => a.trim().toLowerCase();
+    final earlierAuthors = <String>{};
+    var hasEarlierFinish = false;
+    for (final row in books) {
+      final done = _asDate(row['date_finished']);
+      if (done == null || done.year >= year) continue;
+      if (_asInt(row['shelf_id']) == Shelf.unfinished) continue;
+      hasEarlierFinish = true;
+      final key = authorKey(row['author']?.toString() ?? '');
+      if (key.isNotEmpty) earlierAuthors.add(key);
+    }
+    final newAuthors = hasEarlierFinish
+        ? finished
+            .map((b) => authorKey(b.author))
+            .where((k) => k.isNotEmpty && !earlierAuthors.contains(k))
+            .toSet()
+            .length
+        : null;
 
     final booksRead = <WrappedBook>[
       ...finished.where((b) => b.sessionCount > 0),
@@ -731,6 +777,8 @@ class YearWrapped {
       timedSessions: timed,
       speedPages: speedPages,
       speedMinutes: speedMinutes,
+      newAuthors: newAuthors,
+      chosenBookId: chosenBookId,
     );
   }
 

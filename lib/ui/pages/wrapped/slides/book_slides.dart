@@ -26,8 +26,7 @@ class BigBooksSlide extends StatelessWidget {
     final leadIsLength = longest != null && shortest != null;
     final hero = leadIsLength ? longest : mostTime!;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SlideBody(
       children: [
         SlideEyebrow('The big ones', entrance: a),
         const SizedBox(height: 14),
@@ -40,7 +39,7 @@ class BigBooksSlide extends StatelessWidget {
             style: WrappedType.headline(context, size: 34),
           ),
         ),
-        const Spacer(),
+        const SlideGap(40),
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
@@ -95,7 +94,7 @@ class BigBooksSlide extends StatelessWidget {
             ),
           ],
         ),
-        const Spacer(),
+        const SlideGap(36),
         if (leadIsLength)
           Reveal(
             animation: a,
@@ -241,12 +240,12 @@ class BookOfYearSlide extends StatelessWidget {
     final also = w.alsoLoved;
     final highShare = w.highRatedShare;
 
+    // The stars just above already show the rating, so the reason doesn't
+    // repeat it.
     final reasonText = switch (reason) {
-      BookOfYearReason.favorite => book.isRated
-          ? 'A favorite, rated ${book.rating.toStringAsFixed(1)}★'
-          : 'Marked as a favorite',
-      BookOfYearReason.topRated =>
-        'Your highest rated — ${book.rating.toStringAsFixed(1)}★',
+      BookOfYearReason.chosen => 'Your pick for ${w.year}',
+      BookOfYearReason.favorite => 'Marked as a favorite',
+      BookOfYearReason.topRated => 'Your top-rated book of ${w.year}',
       BookOfYearReason.mostTime =>
         'The one you spent the most time with — '
             '${YearWrapped.formatMinutes(book.minutes)}',
@@ -258,13 +257,22 @@ class BookOfYearSlide extends StatelessWidget {
       curve: const Interval(0.05, 0.6, curve: Curves.easeOutBack),
     );
 
-    return Column(
+    return SlideBody(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: SlideEyebrow('Book of the year', entrance: a),
+        Row(
+          children: [
+            Expanded(child: SlideEyebrow('Book of the year', entrance: a)),
+            if (env.onChooseBook case final onChoose?)
+              Reveal(
+                animation: a,
+                start: 0.6,
+                end: 1,
+                child: _ChangePickChip(onTap: onChoose),
+              ),
+          ],
         ),
-        const Spacer(),
+        const SlideGap(12),
         Stack(
           alignment: Alignment.center,
           children: [
@@ -323,7 +331,7 @@ class BookOfYearSlide extends StatelessWidget {
                     .copyWith(fontWeight: FontWeight.w600)),
           ),
         ),
-        const Spacer(),
+        if (also.isNotEmpty || highShare != null) const SlideGap(40),
         if (also.isNotEmpty)
           Reveal(
             animation: a,
@@ -334,8 +342,11 @@ class BookOfYearSlide extends StatelessWidget {
                 Text('ALSO LOVED',
                     style: WrappedType.eyebrow(context).copyWith(fontSize: 10)),
                 const SizedBox(height: 10),
+                // Bottom-aligned, so a square audiobook cover beside taller
+                // ones still has its rating on the same line.
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     for (final b in also)
                       Padding(
@@ -388,8 +399,7 @@ class _ShelfSlide extends StatelessWidget {
     final books = w.finished.reversed.take(_maxCovers).toList();
     final extra = w.booksFinished - books.length;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SlideBody(
       children: [
         SlideEyebrow('Your ${w.year} shelf', entrance: a),
         const SizedBox(height: 14),
@@ -400,7 +410,7 @@ class _ShelfSlide extends StatelessWidget {
           child: Text('${w.booksFinished} books\nmade the shelf.',
               style: WrappedType.headline(context, size: 34)),
         ),
-        const Spacer(),
+        const SlideGap(36),
         LayoutBuilder(builder: (context, constraints) {
           const columns = 4;
           const gap = 10.0;
@@ -421,10 +431,65 @@ class _ShelfSlide extends StatelessWidget {
             ],
           );
         }),
-        const Spacer(),
-        if (extra > 0)
+        if (extra > 0) ...[
+          const SlideGap(20),
           Text('and $extra more', style: WrappedType.body(context)),
+        ],
+        // Nothing to tell these apart by, so the reader is asked instead.
+        if (env.onChooseBook case final onChoose?) ...[
+          const SlideGap(28),
+          Reveal(
+            animation: a,
+            start: 0.6,
+            end: 1,
+            child: Center(
+              child: FilledButton.icon(
+                onPressed: onChoose,
+                icon: const Icon(Icons.emoji_events, size: 18),
+                label: const Text('Pick your book of the year'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+/// The small "Change" pill beside the book of the year's eyebrow.
+class _ChangePickChip extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _ChangePickChip({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.14),
+      shape: const StadiumBorder(),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const StadiumBorder(),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.swap_horiz, size: 16, color: Colors.white),
+              const SizedBox(width: 4),
+              Text('Change',
+                  style: WrappedType.caption(context, alpha: 0.95)
+                      .copyWith(fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -447,8 +512,7 @@ class PeopleSlide extends StatelessWidget {
     final (String name, List<WrappedBook> books) = author ?? narrator!;
     final isAuthor = author != null;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SlideBody(
       children: [
         SlideEyebrow(isAuthor ? 'Your author' : 'Your narrator', entrance: a),
         const SizedBox(height: 14),
@@ -474,9 +538,9 @@ class PeopleSlide extends StatelessWidget {
               style: WrappedType.hero(context, size: 48, color: palette.accent)
                   .copyWith(height: 1.0)),
         ),
-        const Spacer(),
+        const SlideGap(36),
         Center(child: _CoverFan(books: books, env: env, palette: palette)),
-        const Spacer(),
+        const SlideGap(36),
         Reveal(
           animation: a,
           start: 0.55,
@@ -615,8 +679,7 @@ class FormatsSlide extends StatelessWidget {
       Colors.white.withValues(alpha: 0.4),
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SlideBody(
       children: [
         SlideEyebrow('How you read', entrance: a),
         const SizedBox(height: 14),
@@ -626,7 +689,7 @@ class FormatsSlide extends StatelessWidget {
           end: 0.4,
           child: Text(headline, style: WrappedType.headline(context, size: 36)),
         ),
-        const Spacer(),
+        const SlideGap(40),
         if (!tied) ...[
           Reveal(
             animation: a,
@@ -720,7 +783,6 @@ class FormatsSlide extends StatelessWidget {
               ),
             ),
           ),
-        const Spacer(),
       ],
     );
   }

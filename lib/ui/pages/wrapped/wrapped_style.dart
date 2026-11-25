@@ -34,6 +34,10 @@ class WrappedPalette {
   static const rhythm = WrappedPalette(
       [Color(0xFF220520), Color(0xFF7A1257), Color(0xFFE0457B)],
       Color(0xFFFFB86B));
+  /// Dusk: the hours of the day.
+  static const timing = WrappedPalette(
+      [Color(0xFF0A0620), Color(0xFF3B1E6E), Color(0xFFF06A4D)],
+      Color(0xFFFFC46B));
   static const bigBooks = WrappedPalette(
       [Color(0xFF240808), Color(0xFF7C1D1D), Color(0xFFE2553C)],
       Color(0xFFFFD166));
@@ -87,6 +91,7 @@ class WrappedPalette {
         WrappedSlide.numbers => numbers,
         WrappedSlide.shape => shape,
         WrappedSlide.rhythm => rhythm,
+        WrappedSlide.timing => timing,
         WrappedSlide.bigBooks => bigBooks,
         WrappedSlide.bookOfYear => bookOfYear,
         WrappedSlide.people => people,
@@ -417,24 +422,20 @@ class WrappedCover extends StatelessWidget {
 
 /// Small ReadStats mark for share images: present, never shouting.
 class WrappedBrand extends StatelessWidget {
-  final int year;
+  final MainAxisAlignment alignment;
 
-  const WrappedBrand({super.key, required this.year});
+  const WrappedBrand({super.key, this.alignment = MainAxisAlignment.center});
 
   @override
   Widget build(BuildContext context) {
-    final style = WrappedType.caption(context, alpha: 0.85)
-        .copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.3);
     return Row(
+      mainAxisAlignment: alignment,
       children: [
         Image.asset('assets/icon/readstats_white.png', width: 18, height: 18),
         const SizedBox(width: 6),
-        Text('ReadStats', style: style),
-        const Spacer(),
-        Text('$year Wrapped',
-            style: style.copyWith(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontWeight: FontWeight.w600)),
+        Text('ReadStats',
+            style: WrappedType.caption(context, alpha: 0.85)
+                .copyWith(fontWeight: FontWeight.w700, letterSpacing: 0.3)),
       ],
     );
   }

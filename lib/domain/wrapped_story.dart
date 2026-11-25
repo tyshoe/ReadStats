@@ -9,6 +9,7 @@ enum WrappedSlide {
   numbers,
   shape,
   rhythm,
+  timing,
   bigBooks,
   bookOfYear,
   people,
@@ -36,6 +37,7 @@ enum WrappedSlide {
         WrappedSlide.numbers => 'Numbers',
         WrappedSlide.shape => 'Your year',
         WrappedSlide.rhythm => 'Rhythm',
+        WrappedSlide.timing => 'When you read',
         WrappedSlide.bigBooks => 'Big books',
         WrappedSlide.bookOfYear => 'Top book',
         WrappedSlide.people => 'Authors',
@@ -64,6 +66,17 @@ class WrappedFact {
   });
 }
 
+/// How this year compares with the one before, for the numbers slide.
+class WrappedComparison {
+  /// "42% more reading time than 2024."
+  final String text;
+
+  /// Whether this year came out ahead, for the arrow beside the line.
+  final bool up;
+
+  const WrappedComparison(this.text, {required this.up});
+}
+
 /// Decides which slides a year has earned, and gathers its discoveries.
 ///
 /// Every condition lives here rather than in the widgets, so a slide is never
@@ -73,16 +86,27 @@ class WrappedStory {
   final List<WrappedSlide> slides;
   final List<WrappedFact> facts;
 
-  const WrappedStory._(this.wrapped, this.slides, this.facts);
+  /// Against the previous year. Null when that year has nothing to compare.
+  final WrappedComparison? vsLastYear;
 
-  factory WrappedStory.of(YearWrapped w) {
-    final facts = _discoveries(w);
+  const WrappedStory._(this.wrapped, this.slides, this.facts, this.vsLastYear);
+
+  /// [previous] is the year before [w], for the comparison on the numbers
+  /// slide.
+  factory WrappedStory.of(YearWrapped w, {YearWrapped? previous}) {
+    // Ten sessions with a real start time before the hours mean anything —
+    // the same bar the time-of-day personalities use.
+    final hasTiming = w.clockedSessions >= 10;
+    // The timing slide names the reader's day of the week itself, so the
+    // discoveries don't repeat it.
+    final facts = _discoveries(w, skipWeekday: hasTiming);
     final slides = <WrappedSlide>[
       WrappedSlide.intro,
-      if (_nonZeroTotals(w) >= 2) WrappedSlide.numbers,
+      if (_numbersRows(w) >= 2) WrappedSlide.numbers,
       // A year needs a few months in it before it has a shape to show.
       if (w.peakMonth != null && w.activeMonths >= 3) WrappedSlide.shape,
       if (w.activeDays >= 5) WrappedSlide.rhythm,
+      if (hasTiming) WrappedSlide.timing,
       if (w.shortestBook != null ||
           (w.mostTimeBook != null && w.booksRead.length >= 2))
         WrappedSlide.bigBooks,
@@ -94,7 +118,57 @@ class WrappedStory {
       if (facts.isNotEmpty) WrappedSlide.discoveries,
       WrappedSlide.finale,
     ];
-    return WrappedStory._(w, List.unmodifiable(slides), facts);
+    return WrappedStory._(
+        w, List.unmodifiable(slides), facts, _compare(w, previous));
+  }
+
+  /// One line against last year, in the year's own unit: time when both
+  /// years have it, else pages, else books finished. A year still running
+  /// is only compared once it has pulled ahead — "less than last year" in
+  /// December is a verdict on a year that isn't over.
+  static WrappedComparison? _compare(YearWrapped w, YearWrapped? prev) {
+    // A previous year needs a few months of reading to be a fair yardstick:
+    // against a first year begun in December, any year looks like "11×".
+    if (prev == null || prev.isEmpty || prev.activeMonths < 3) return null;
+    final soFar = w.isInProgress ? 'Already ' : '';
+    final than = 'than ${prev.year}.';
+
+    if (w.booksFinished > 0 &&
+        prev.booksFinished > 0 &&
+        (w.minutes == 0 || prev.minutes == 0) &&
+        (w.pages == 0 || prev.pages == 0)) {
+      final diff = w.booksFinished - prev.booksFinished;
+      if (diff == 0) {
+        return WrappedComparison(
+            'As many books as ${prev.year} — ${prev.booksFinished}.',
+            up: true);
+      }
+      if (diff < 0 && w.isInProgress) return null;
+      final n = YearWrapped.plural(diff.abs(), 'book');
+      return WrappedComparison(
+          '$soFar$n ${diff > 0 ? 'more' : 'fewer'} $than',
+          up: diff > 0);
+    }
+
+    final (int cur, int old, String unit) = w.minutes > 0 && prev.minutes > 0
+        ? (w.minutes, prev.minutes, 'reading time')
+        : (w.pages, prev.pages, 'pages');
+    if (cur == 0 || old == 0) return null;
+
+    final ratio = cur / old;
+    if (ratio < 1 && w.isInProgress) return null;
+    if ((ratio - 1).abs() < 0.05) {
+      return WrappedComparison('Right in step with ${prev.year}.', up: true);
+    }
+    if (ratio >= 2) {
+      return WrappedComparison(
+          '$soFar${ratio.toStringAsFixed(1)}× your ${prev.year} $unit.',
+          up: true);
+    }
+    final pct = ((ratio - 1).abs() * 100).round();
+    return ratio > 1
+        ? WrappedComparison('$soFar$pct% more $unit $than', up: true)
+        : WrappedComparison('$pct% less $unit $than', up: false);
   }
 
   /// Minutes and pages are amounts worth comparing day to day or month to
@@ -102,8 +176,9 @@ class WrappedStory {
   static bool _isAmount(WrappedMeasure m) =>
       m == WrappedMeasure.minutes || m == WrappedMeasure.pages;
 
-  static int _nonZeroTotals(YearWrapped w) => [
-        w.booksFinished,
+  /// The figures the numbers slide has to show. Books finished aren't among
+  /// them: the intro has just led with that number.
+  static int _numbersRows(YearWrapped w) => [
         w.minutes,
         w.displayPages,
         w.sessions,
@@ -111,7 +186,8 @@ class WrappedStory {
 
   /// Up to three facts, in order of how surprising they tend to be. Each one
   /// has its own bar to clear; one that doesn't is simply not offered.
-  static List<WrappedFact> _discoveries(YearWrapped w) {
+  static List<WrappedFact> _discoveries(YearWrapped w,
+      {bool skipWeekday = false}) {
     final facts = <WrappedFact>[];
     final measure = w.primaryMeasure;
 
@@ -133,6 +209,16 @@ class WrappedStory {
         detail: title == null || title.isEmpty
             ? DateFormat('MMMM d').format(longest.date)
             : 'with $title',
+      ));
+    }
+
+    // Two or more, so it reads as a widening of taste rather than one book.
+    final fresh = w.newAuthors;
+    if (fresh != null && fresh >= 2) {
+      facts.add(WrappedFact(
+        value: YearWrapped.formatNumber(fresh),
+        label: 'Authors new to you',
+        detail: 'You’d never finished one of their books before ${w.year}.',
       ));
     }
 
@@ -162,7 +248,7 @@ class WrappedStory {
     }
 
     // A weekday that took a clear lion's share: a seventh of the week is 14%.
-    if (w.sessions >= 10) {
+    if (!skipWeekday && w.sessions >= 10) {
       final source = w.minutes > 0 ? w.weekdayMinutes : w.weekdaySessions;
       final total = source.values.fold(0, (a, b) => a + b);
       final peak = peakBucket(source, kAllWeekdaysMondayFirst);

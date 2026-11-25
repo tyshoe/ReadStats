@@ -17,7 +17,7 @@ class SlideEnv {
   final Animation<double> ambient;
 
   /// True when the slide is being drawn into a 9:16 image: no controls, no
-  /// hints, and the ReadStats mark along the bottom.
+  /// hints, and the ReadStats mark beneath the content.
   final bool shareMode;
 
   /// Room the player's own chrome takes at the top and bottom.
@@ -30,6 +30,9 @@ class SlideEnv {
   final List<int> otherYears;
   final ValueChanged<int>? onOpenYear;
 
+  /// Opens the picker for naming the book of the year. Null in a share image.
+  final VoidCallback? onChooseBook;
+
   const SlideEnv({
     required this.story,
     required this.entrance,
@@ -41,10 +44,17 @@ class SlideEnv {
     this.onJump,
     this.otherYears = const [],
     this.onOpenYear,
+    this.onChooseBook,
   });
 
   YearWrapped get w => story.wrapped;
 }
+
+/// The height slides are laid out at in a share image, before being scaled
+/// into the room above the ReadStats mark. It is what the content had when
+/// the mark sat at the image's very foot, so every slide keeps the layout it
+/// was made to fit and simply shrinks a little, rather than overflowing.
+const double kShareDesignHeight = 542;
 
 /// One slide: its backdrop, its content, and — in a share image — the brand.
 class WrappedSlideView extends StatelessWidget {
@@ -56,6 +66,7 @@ class WrappedSlideView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = WrappedPalette.of(slide, env.w);
+    final content = _content(palette);
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -65,10 +76,14 @@ class WrappedSlideView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: _content(palette)),
-              if (env.shareMode) ...[
+              Expanded(
+                child: env.shareMode ? _ShareFit(child: content) : content,
+              ),
+              // Centred and lifted clear of the image's foot — see the share
+              // insets. The finale's poster carries the mark itself.
+              if (env.shareMode && slide != WrappedSlide.finale) ...[
                 const SizedBox(height: 18),
-                WrappedBrand(year: env.w.year),
+                const WrappedBrand(),
               ],
             ],
           ),
@@ -82,6 +97,7 @@ class WrappedSlideView extends StatelessWidget {
         WrappedSlide.numbers => NumbersSlide(env: env, palette: palette),
         WrappedSlide.shape => ShapeSlide(env: env, palette: palette),
         WrappedSlide.rhythm => RhythmSlide(env: env, palette: palette),
+        WrappedSlide.timing => TimingSlide(env: env, palette: palette),
         WrappedSlide.bigBooks => BigBooksSlide(env: env, palette: palette),
         WrappedSlide.bookOfYear => BookOfYearSlide(env: env, palette: palette),
         WrappedSlide.people => PeopleSlide(env: env, palette: palette),
@@ -92,6 +108,69 @@ class WrappedSlideView extends StatelessWidget {
           DiscoveriesSlide(env: env, palette: palette),
         WrappedSlide.finale => FinaleSlide(env: env, palette: palette),
       };
+}
+
+/// Lays [child] out at [kShareDesignHeight] (and the width that keeps the
+/// room's shape), then scales it to fill the room it is given. Never grows
+/// it: a room taller than the design height lays out as normal.
+class _ShareFit extends StatelessWidget {
+  final Widget child;
+
+  const _ShareFit({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, box) {
+      final scale = box.maxHeight >= kShareDesignHeight
+          ? 1.0
+          : box.maxHeight / kShareDesignHeight;
+      return FittedBox(
+        fit: BoxFit.contain,
+        child: SizedBox(
+          width: box.maxWidth / scale,
+          height: box.maxHeight / scale,
+          child: child,
+        ),
+      );
+    });
+  }
+}
+
+/// A slide's content held together as one block and centred in the height
+/// there is. Spacers between the parts would pin the headline to the top
+/// and the last line to the bottom, and stretch a tall phone into gaps;
+/// [SlideGap]s keep each part its set distance from the next instead.
+class SlideBody extends StatelessWidget {
+  final List<Widget> children;
+  final CrossAxisAlignment crossAxisAlignment;
+
+  const SlideBody({
+    super.key,
+    required this.children,
+    this.crossAxisAlignment = CrossAxisAlignment.start,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: crossAxisAlignment,
+      children: children,
+    );
+  }
+}
+
+/// A gap between parts of a [SlideBody]: [size] where there is room, and
+/// less where there isn't — a short screen or a share image — rather than
+/// overflowing.
+class SlideGap extends StatelessWidget {
+  final double size;
+
+  const SlideGap(this.size, {super.key});
+
+  @override
+  Widget build(BuildContext context) =>
+      Flexible(child: SizedBox(height: size));
 }
 
 /// A slide's small-caps label, at the head of the slide.

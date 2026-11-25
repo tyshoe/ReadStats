@@ -7,6 +7,7 @@ import 'package:read_stats/domain/year_wrapped.dart';
 import 'package:read_stats/ui/pages/wrapped/slides/wrapped_slide_view.dart';
 import 'package:read_stats/ui/pages/wrapped/wrapped_share.dart';
 import 'package:read_stats/ui/pages/wrapped/wrapped_style.dart';
+import 'package:read_stats/ui/widgets/book_picker_sheet.dart';
 
 /// ReadStats Wrapped: a year of reading told one full-screen slide at a time.
 ///
@@ -63,17 +64,35 @@ class _WrappedPageState extends State<WrappedPage>
     with TickerProviderStateMixin {
   static const _entranceDuration = Duration(milliseconds: 1600);
 
-  late final WrappedStory _story;
+  /// Rebuilt when the reader names a different book of the year. The slides
+  /// stay the same either way, so the page around them doesn't change.
+  late WrappedStory _story;
+  late final YearWrapped _previous;
   late final List<int> _otherYears;
   late final PageController _pager;
   late final AnimationController _ambient;
   late final List<AnimationController> _entrances;
+
+  /// Fills the current slide's progress bar. Unlike the entrances it plays
+  /// on every visit, so a revisited slide's bar still fills.
+  late final AnimationController _fill;
+
+  /// [_fill] after a short hold, eased in, so a new bar starts slowly
+  /// instead of leaping off.
+  late final CurvedAnimation _fillCurve;
 
   /// Slides whose entrance has played. Coming back to one shows it settled
   /// rather than making the reader sit through it twice.
   final Set<int> _played = {};
 
   int _index = 0;
+
+  /// The slide a tap is animating toward, until it arrives.
+  int? _heading;
+
+  /// The slide whose bar is filling. Runs ahead of [_index] on a tap, which
+  /// only changes once the page is halfway across.
+  int _barIndex = 0;
   bool _reduceMotion = false;
 
   List<WrappedSlide> get _slides => _story.slides;
@@ -84,12 +103,12 @@ class _WrappedPageState extends State<WrappedPage>
     super.initState();
     AnalyticsService.instance.screen('wrapped');
     AnalyticsService.instance.wrappedOpened();
-    final wrapped = YearWrapped.forYear(
+    _previous = YearWrapped.forYear(
       books: widget.books,
       sessions: widget.sessions,
-      year: widget.year,
+      year: widget.year - 1,
     );
-    _story = WrappedStory.of(wrapped);
+    _story = _buildStoryData();
     _otherYears = YearWrapped.availableYears(
       books: widget.books,
       sessions: widget.sessions,
@@ -104,6 +123,19 @@ class _WrappedPageState extends State<WrappedPage>
       for (final _ in _slides)
         AnimationController(vsync: this, duration: _entranceDuration),
     ];
+    // A short hold before the bar starts, then the same fill time as the
+    // entrance.
+    const fillDelay = Duration(milliseconds: 200);
+    final fillTotal = _entranceDuration + fillDelay;
+    _fill = AnimationController(vsync: this, duration: fillTotal);
+    _fillCurve = CurvedAnimation(
+      parent: _fill,
+      curve: Interval(
+        fillDelay.inMilliseconds / fillTotal.inMilliseconds,
+        1,
+        curve: Curves.easeIn,
+      ),
+    );
     RecapStore.instance.markWrappedSeen(widget.year);
   }
 
@@ -118,13 +150,18 @@ class _WrappedPageState extends State<WrappedPage>
     } else if (!_ambient.isAnimating) {
       _ambient.repeat();
     }
-    if (!_played.contains(_index)) _play(_index);
+    if (!_played.contains(_index)) {
+      _play(_index);
+      _startFill(_index);
+    }
   }
 
   @override
   void dispose() {
     _pager.dispose();
     _ambient.dispose();
+    _fillCurve.dispose();
+    _fill.dispose();
     for (final c in _entrances) {
       c.dispose();
     }
@@ -140,27 +177,49 @@ class _WrappedPageState extends State<WrappedPage>
     }
   }
 
+  void _startFill(int index) {
+    _barIndex = index;
+    if (_reduceMotion) {
+      _fill.value = 1;
+    } else {
+      _fill.forward(from: 0);
+    }
+  }
+
   void _onPageChanged(int index) {
-    setState(() => _index = index);
+    setState(() {
+      _index = index;
+      // A tap already moved the bars; slides it passes on the way don't.
+      if (_heading == null && index != _barIndex) _startFill(index);
+    });
     HapticFeedback.selectionClick();
     if (!_played.contains(index)) _play(index);
   }
 
-  void _go(int index) {
+  Future<void> _go(int index) async {
     if (index < 0 || index >= _slides.length) return;
-    _pager.animateToPage(
+    // The bars move on the tap itself, not when the page is halfway over.
+    setState(() {
+      _heading = index;
+      _startFill(index);
+    });
+    await _pager.animateToPage(
       index,
       duration: Duration(milliseconds: _reduceMotion ? 1 : 380),
       curve: Curves.easeOutCubic,
     );
+    if (_heading == index) _heading = null;
   }
 
   void _onTapUp(TapUpDetails details) {
+    // Count from where a slide in progress is heading, so a quick second
+    // tap moves on again instead of repeating the first.
+    final from = _heading ?? _index;
     final width = MediaQuery.sizeOf(context).width;
     if (details.localPosition.dx < width * 0.28) {
-      _go(_index - 1);
+      _go(from - 1);
     } else {
-      _go(_index + 1);
+      _go(from + 1);
     }
   }
 
@@ -171,9 +230,52 @@ class _WrappedPageState extends State<WrappedPage>
     for (final c in _entrances) {
       c.value = 0;
     }
+    setState(() => _startFill(0));
     _pager.jumpToPage(0);
     // jumpToPage reports no change when already on the first slide.
     if (_index == 0) _play(0);
+  }
+
+  WrappedStory _buildStoryData() => WrappedStory.of(
+        YearWrapped.forYear(
+          books: widget.books,
+          sessions: widget.sessions,
+          year: widget.year,
+          chosenBookId: RecapStore.instance.bookOfYearPick(widget.year),
+        ),
+        previous: _previous,
+      );
+
+  /// Lets the reader name the book of the year themselves, from the books
+  /// they finished that year — best rated first, so the likely picks are at
+  /// hand.
+  Future<void> _chooseBook() async {
+    final w = _story.wrapped;
+    final current = w.bookOfTheYear?.$1.id;
+    final rows = {for (final b in widget.books) b['id']: b};
+    final finished = w.finished.toList()
+      ..sort((a, b) {
+        final r = b.rating.compareTo(a.rating);
+        return r != 0 ? r : b.finishedAt!.compareTo(a.finishedAt!);
+      });
+    final candidates = [
+      for (final b in finished)
+        if (b.id != current && rows[b.id] != null) rows[b.id]!,
+    ];
+
+    final picked = await showBookPickerSheet(
+      context: context,
+      books: candidates,
+      title: 'Your book of ${widget.year}',
+      emptyMessage: 'No other books finished in ${widget.year}',
+    );
+    if (picked == null || !mounted) return;
+
+    final id = picked['id'] as int;
+    await RecapStore.instance.setBookOfYearPick(widget.year, id);
+    AnalyticsService.instance.wrappedBookChosen();
+    if (!mounted) return;
+    setState(() => _story = _buildStoryData());
   }
 
   void _openYear(int year) {
@@ -239,6 +341,7 @@ class _WrappedPageState extends State<WrappedPage>
                   onJump: _jump,
                   otherYears: _otherYears,
                   onOpenYear: _openYear,
+                  onChooseBook: _chooseBook,
                 ),
               );
             },
@@ -272,10 +375,10 @@ class _WrappedPageState extends State<WrappedPage>
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 2),
                     child: _ProgressSegment(
-                      fill: i < _index
+                      fill: i < _barIndex
                           ? const AlwaysStoppedAnimation(1)
-                          : i == _index
-                              ? _entrances[i]
+                          : i == _barIndex
+                              ? _fillCurve
                               : const AlwaysStoppedAnimation(0),
                     ),
                   ),
@@ -362,6 +465,8 @@ class _WrappedPageState extends State<WrappedPage>
   }
 }
 
+/// One slide's bar in the progress strip: full once passed, empty ahead, and
+/// filling with [fill] while current.
 class _ProgressSegment extends StatelessWidget {
   final Animation<double> fill;
 

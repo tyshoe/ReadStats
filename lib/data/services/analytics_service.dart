@@ -180,6 +180,9 @@ class AnalyticsService {
 
   void wrappedOpened() => _log('wrapped_opened');
 
+  /// The reader named their own book of the year in Wrapped.
+  void wrappedBookChosen() => _log('wrapped_book_chosen');
+
   void recapOpened() => _log('recap_opened');
 
   /// [content]: `book_card`, `recap`, `wrapped` or `library_list`.

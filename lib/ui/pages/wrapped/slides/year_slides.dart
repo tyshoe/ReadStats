@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:read_stats/data/utils/reading_clock.dart';
+import 'package:read_stats/domain/wrapped_story.dart';
 import 'package:read_stats/domain/year_wrapped.dart';
 import 'package:read_stats/ui/pages/wrapped/slides/wrapped_slide_view.dart';
 import 'package:read_stats/ui/pages/wrapped/wrapped_style.dart';
@@ -44,11 +46,10 @@ class IntroSlide extends StatelessWidget {
             ? 'One book, start to finish. Let’s look back.'
             : 'Here’s how it all added up.';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final body = SlideBody(
       children: [
         SlideEyebrow('ReadStats Wrapped', entrance: a),
-        const Spacer(flex: 2),
+        const SlideGap(24),
         Reveal(
           animation: a,
           start: 0.05,
@@ -78,7 +79,7 @@ class IntroSlide extends StatelessWidget {
             style: WrappedType.headline(context, size: 34),
           ),
         ),
-        const Spacer(flex: 3),
+        const SlideGap(64),
         Reveal(
           animation: a,
           start: 0.35,
@@ -109,7 +110,14 @@ class IntroSlide extends StatelessWidget {
           end: 0.95,
           child: Text(opener, style: WrappedType.body(context)),
         ),
-        const Spacer(flex: 2),
+      ],
+    );
+
+    // The hint stays at the foot, under the centred story.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: body),
         if (!env.shareMode)
           Reveal(
             animation: a,
@@ -158,12 +166,7 @@ class NumbersSlide extends StatelessWidget {
           YearWrapped.formatNumber,
           w.sessions == 1 ? 'reading session' : 'reading sessions'
         ),
-      if (w.booksFinished > 0)
-        (
-          w.booksFinished,
-          YearWrapped.formatNumber,
-          w.booksFinished == 1 ? 'book finished' : 'books finished'
-        ),
+      // Books finished is left to the intro, which has just led with it.
     ];
 
     final rated = w.ratedBooks.length;
@@ -176,8 +179,7 @@ class NumbersSlide extends StatelessWidget {
           'every time you sat down.';
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SlideBody(
       children: [
         SlideEyebrow('${w.year} at a glance', entrance: a),
         const SizedBox(height: 14),
@@ -193,7 +195,7 @@ class NumbersSlide extends StatelessWidget {
                       : 'You kept\nshowing up.',
               style: WrappedType.headline(context)),
         ),
-        const Spacer(),
+        const SlideGap(36),
         for (var i = 0; i < rows.length; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
@@ -244,14 +246,36 @@ class NumbersSlide extends StatelessWidget {
               ],
             ),
           ),
-        const Spacer(),
-        if (footnote != null)
+        if (env.story.vsLastYear case final vs?)
+          Padding(
+            padding: EdgeInsets.only(top: rated >= 2 ? 14 : 0),
+            child: Reveal(
+              animation: a,
+              start: 0.65,
+              end: 1,
+              child: Row(
+                children: [
+                  Icon(vs.up ? Icons.trending_up : Icons.trending_down,
+                      size: 22, color: palette.accent),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(vs.text,
+                        style: WrappedType.body(context, alpha: 0.95)
+                            .copyWith(fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (footnote != null) ...[
+          const SlideGap(28),
           Reveal(
             animation: a,
             start: 0.7,
             end: 1,
             child: Text(footnote, style: WrappedType.body(context, alpha: 0.9)),
           ),
+        ],
       ],
     );
   }
@@ -275,6 +299,9 @@ class ShapeSlide extends StatelessWidget {
     final quiet = w.quietestMonth;
     final peakValue = values[peak - 1];
     final lastMonth = w.isInProgress ? DateTime.now().month : 12;
+    // Months before reading began are drawn as faintly as months still to
+    // come: the reader wasn't here yet, which is not the same as a gap.
+    final firstMonth = w.firstActiveMonth ?? 1;
 
     final unit = switch (measure) {
       WrappedMeasure.minutes => 'Reading time',
@@ -292,8 +319,7 @@ class ShapeSlide extends StatelessWidget {
               '${w.formatMeasure(measure, q)}.';
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SlideBody(
       children: [
         SlideEyebrow('Your reading journey', entrance: a),
         const SizedBox(height: 14),
@@ -315,7 +341,7 @@ class ShapeSlide extends StatelessWidget {
             style: WrappedType.body(context),
           ),
         ),
-        const Spacer(),
+        const SlideGap(40),
         Reveal(
           animation: a,
           start: 0.15,
@@ -338,7 +364,7 @@ class ShapeSlide extends StatelessWidget {
                     fraction: peakValue == 0 ? 0 : values[m - 1] / peakValue,
                     isPeak: m == peak,
                     isQuiet: m == quiet,
-                    isFuture: m > lastMonth,
+                    isOutside: m > lastMonth || m < firstMonth,
                     label: DateFormat('MMMMM').format(DateTime(w.year, m)),
                     accent: palette.accent,
                   ),
@@ -346,14 +372,15 @@ class ShapeSlide extends StatelessWidget {
             ],
           ),
         ),
-        const Spacer(),
-        if (quietLine != null)
+        if (quietLine != null) ...[
+          const SlideGap(28),
           Reveal(
             animation: a,
             start: 0.65,
             end: 1,
             child: Text(quietLine, style: WrappedType.body(context, alpha: 0.9)),
           ),
+        ],
       ],
     );
   }
@@ -365,7 +392,9 @@ class _MonthBar extends StatelessWidget {
   final double fraction;
   final bool isPeak;
   final bool isQuiet;
-  final bool isFuture;
+
+  /// Before the year's reading began, or still to come.
+  final bool isOutside;
   final String label;
   final Color accent;
 
@@ -375,7 +404,7 @@ class _MonthBar extends StatelessWidget {
     required this.fraction,
     required this.isPeak,
     required this.isQuiet,
-    required this.isFuture,
+    required this.isOutside,
     required this.label,
     required this.accent,
   });
@@ -389,7 +418,7 @@ class _MonthBar extends StatelessWidget {
     );
     final color = isPeak
         ? accent
-        : isFuture
+        : isOutside
             ? Colors.white.withValues(alpha: 0.08)
             : Colors.white.withValues(alpha: isQuiet ? 0.22 : 0.42);
 
@@ -427,7 +456,8 @@ class _MonthBar extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             label,
-            style: WrappedType.caption(context, alpha: isPeak ? 1 : 0.55)
+            style: WrappedType.caption(context,
+                    alpha: isPeak ? 1 : (isOutside ? 0.3 : 0.55))
                 .copyWith(
                     fontWeight: isPeak ? FontWeight.w800 : FontWeight.w600,
                     fontSize: 11),
@@ -466,8 +496,7 @@ class RhythmSlide extends StatelessWidget {
         : '${(share * 100).round()}% of ${w.year}'
             '${w.isInProgress ? ' so far' : ''}.';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SlideBody(
       children: [
         SlideEyebrow('Your rhythm', entrance: a),
         const SizedBox(height: 14),
@@ -505,9 +534,9 @@ class RhythmSlide extends StatelessWidget {
           end: 0.55,
           child: Text(shareLine, style: WrappedType.body(context)),
         ),
-        const Spacer(),
+        const SlideGap(36),
         _YearDots(env: env, accent: palette.accent),
-        const Spacer(),
+        const SlideGap(32),
         Reveal(
           animation: a,
           start: 0.65,
@@ -532,6 +561,125 @@ class RhythmSlide extends StatelessWidget {
                   ),
                 ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── When you read ────────────────────────────────────────────────────────────
+
+/// The hours and the days: which part of the day held the most reading, and
+/// which day of the week. No percentages — the shape says it, and the night
+/// owl and early bird personalities give the figure when it is a strong one.
+class TimingSlide extends StatelessWidget {
+  final SlideEnv env;
+  final WrappedPalette palette;
+
+  const TimingSlide({super.key, required this.env, required this.palette});
+
+  // Indexed like kDaypartLabels.
+  static const _partsPlural = [
+    'Mornings',
+    'Afternoons',
+    'Evenings',
+    'Late nights',
+  ];
+  static const _partHours = [
+    '5am and noon',
+    'noon and 5pm',
+    '5pm and 10pm',
+    '10pm and 5am',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final w = env.w;
+    final a = env.entrance;
+
+    // Weighted by minutes where the reader times sessions, else by count —
+    // the same rule the personalities follow.
+    final parts = w.daypartMinutes.values.any((v) => v > 0)
+        ? w.daypartMinutes
+        : w.daypartSessions;
+    final partValues = [for (final i in kDaypartOrder) parts[i] ?? 0];
+    final partMax = partValues.reduce(math.max);
+    final peakPart = partValues.indexOf(partMax);
+
+    final days = w.minutes > 0 ? w.weekdayMinutes : w.weekdaySessions;
+    final dayValues = [
+      for (final d in kAllWeekdaysMondayFirst) days[d] ?? 0,
+    ];
+    final dayMax = dayValues.reduce(math.max);
+    final peakDay = kAllWeekdaysMondayFirst[dayValues.indexOf(dayMax)];
+
+    Widget bars(List<int> values, int max, int peak, List<String> labels,
+            {required int firstIndex}) =>
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (var i = 0; i < values.length; i++)
+              Expanded(
+                child: _MonthBar(
+                  animation: a,
+                  index: firstIndex + i,
+                  fraction: max == 0 ? 0 : values[i] / max,
+                  isPeak: i == peak,
+                  isQuiet: false,
+                  isOutside: false,
+                  label: labels[i],
+                  accent: palette.accent,
+                ),
+              ),
+          ],
+        );
+
+    return SlideBody(
+      children: [
+        SlideEyebrow('When you read', entrance: a),
+        const SizedBox(height: 14),
+        Reveal(
+          animation: a,
+          start: 0.02,
+          end: 0.4,
+          child: Text('${_partsPlural[peakPart]}\nwere your time.',
+              style: WrappedType.headline(context, size: 36)),
+        ),
+        const SizedBox(height: 10),
+        Reveal(
+          animation: a,
+          start: 0.1,
+          end: 0.5,
+          child: Text(
+            'More of your reading began between ${_partHours[peakPart]} '
+            'than at any other time of day.',
+            style: WrappedType.body(context),
+          ),
+        ),
+        const SlideGap(36),
+        SizedBox(
+          height: 160,
+          child: bars(partValues, partMax, peakPart, kDaypartLabels,
+              firstIndex: 0),
+        ),
+        const SlideGap(40),
+        Reveal(
+          animation: a,
+          start: 0.5,
+          end: 0.85,
+          child: Text('${kWeekdayFull[peakDay]}s were your day.',
+              style: WrappedType.title(context, size: 22)),
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: 96,
+          child: bars(
+            dayValues,
+            dayMax,
+            dayValues.indexOf(dayMax),
+            [for (final d in kAllWeekdaysMondayFirst) kWeekdayShort[d]!],
+            firstIndex: 4,
           ),
         ),
       ],
@@ -574,6 +722,11 @@ class _YearDots extends StatelessWidget {
     final w = env.w;
     final today = DateTime.now();
     final todayKey = DateTime(today.year, today.month, today.day);
+    // Days before the first session fade like days still to come, so the
+    // grid tells the same story as the "% of days since…" line above it.
+    final firstDay = w.readingDays.isEmpty
+        ? DateTime(w.year)
+        : w.readingDays.reduce((a, b) => a.isBefore(b) ? a : b);
     final labelStyle = WrappedType.caption(context, alpha: 0.5)
         .copyWith(fontSize: 10, fontWeight: FontWeight.w700);
 
@@ -604,7 +757,7 @@ class _YearDots extends StatelessWidget {
                       SizedBox(
                         width: cell,
                         child: Center(
-                          child: _dot(w, m, d, dot, todayKey),
+                          child: _dot(w, m, d, dot, firstDay, todayKey),
                         ),
                       ),
                   ],
@@ -616,12 +769,13 @@ class _YearDots extends StatelessWidget {
     });
   }
 
-  Widget _dot(YearWrapped w, int month, int day, double size, DateTime today) {
+  Widget _dot(YearWrapped w, int month, int day, double size, DateTime first,
+      DateTime today) {
     final date = DateTime(w.year, month, day);
     // DateTime rolls Feb 30 into March; such days don't exist here.
     if (date.month != month) return const SizedBox.shrink();
     final lit = w.readingDays.contains(date);
-    final future = date.isAfter(today);
+    final outside = date.isAfter(today) || date.isBefore(first);
     return Container(
       width: size,
       height: size,
@@ -629,7 +783,7 @@ class _YearDots extends StatelessWidget {
         shape: BoxShape.circle,
         color: lit
             ? accent
-            : Colors.white.withValues(alpha: future ? 0.05 : 0.14),
+            : Colors.white.withValues(alpha: outside ? 0.05 : 0.14),
       ),
     );
   }

@@ -26,7 +26,12 @@ import 'package:read_stats/data/models/tag.dart';
 ///   a two-person cast, so the narrator field has names to suggest.
 /// * ~26 months of sessions on two tracks — print in the evenings and at
 ///   weekends, audio on weekday mornings — with notes on some, and two breaks
-///   so the longest streak isn't simply "all of it".
+///   so the longest streak isn't simply "all of it". The times of day give
+///   Wrapped's "When you read" slide its evenings and its day of the week.
+/// * A lighter first year before the tracks: four print books from February
+///   to the autumn of the year they begin, so last year's Wrapped has a year
+///   before it to compare with ("% more reading time than…") and authors it
+///   hadn't finished before ("Authors new to you").
 /// * Start and stop pages on print sessions from the last year, so a new
 ///   session opens on the page the last one stopped at; older print sessions
 ///   keep a bare page count, as sessions from before page numbers do.
@@ -205,6 +210,14 @@ const _audioFinished = [
       minutes: 230, narrator: 'Daniel Okafor'),
 ];
 
+/// A lighter first year, read before the main tracks begin, oldest first.
+const _firstYear = [
+  _Title('The Scarlet Letter', 'Nathaniel Hawthorne', 272, _paperback, ['Classic', 'Romance']),
+  _Title('Heart of Darkness', 'Joseph Conrad', 96, _paperback, ['Classic', 'Adventure']),
+  _Title('The Secret Garden', 'Frances Hodgson Burnett', 331, _paperback, ['Classic']),
+  _Title('The Wind in the Willows', 'Kenneth Grahame', 256, _ebook, ['Classic', 'Adventure']),
+];
+
 const _printCurrent = [
   _Title('The Brothers Karamazov', 'Fyodor Dostoevsky', 796, _paperback, ['Classic']),
   _Title('Emma', 'Jane Austen', 474, _ebook, ['Romance', 'Classic']),
@@ -250,6 +263,34 @@ const _wantToRead = [
 /// the work there; A Study in Scarlet's edition has a publisher but no year
 /// ("xxxx" on Open Library), as some do.
 const _openLibrary = <String, (int, String, String?, String?, int?)>{
+  'The Scarlet Letter': (
+    5654516,
+    '/works/OL455305W',
+    '/books/OL7173915M',
+    'J.R. Osgood',
+    1878,
+  ),
+  'Heart of Darkness': (
+    12307847,
+    '/works/OL38663W',
+    '/books/OL35601698M',
+    'Engin Yayınevi',
+    2012,
+  ),
+  'The Secret Garden': (
+    12622062,
+    '/works/OL69612W',
+    '/books/OL37044748M',
+    'Standard Ebooks',
+    2016,
+  ),
+  'The Wind in the Willows': (
+    13335427,
+    '/works/OL28570037W',
+    '/books/OL40046991M',
+    "Grandma's Treasures",
+    2015,
+  ),
   'Twenty Years After': (
     14634038,
     '/works/OL36462W',
@@ -626,6 +667,8 @@ class _Generator {
     _buildCurrent();
     _buildSetAside();
     final planner = _buildWantToRead();
+    // Last, so every book and random draw above comes out as it always has.
+    _buildFirstYear();
 
     sessions.sort((a, b) => a.date.compareTo(b.date));
     final (goals, targets) = _buildGoals();
@@ -689,6 +732,34 @@ class _Generator {
           added: i == 0
               ? trackStart.subtract(const Duration(days: 2)).add(const Duration(hours: 20, minutes: 40))
               : _addedBefore(logged.first),
+          started: logged.first,
+          finished: logged.last,
+          rated: true);
+    }
+  }
+
+  /// A few print books, unhurried, from February of the year the tracks
+  /// begin until six weeks before they do — so the year before last year
+  /// has months of reading to compare with, and last year has authors that
+  /// are new next to it. Skipped when the tracks begin too early in the year
+  /// for there to be room, which is when that year has months enough already.
+  void _buildFirstYear() {
+    final start = DateTime(trackStart.year, 2, 3);
+    final end = trackStart.subtract(const Duration(days: 42));
+    final span = end.difference(start).inDays;
+    if (span < 120) return;
+
+    final slot = span ~/ _firstYear.length;
+    for (var i = 0; i < _firstYear.length; i++) {
+      final t = _firstYear[i];
+      // Each book in the first two-thirds of its slot, leaving quiet weeks.
+      final from = start.add(Duration(days: i * slot));
+      final readDays = _readDays(from, from.add(Duration(days: slot * 2 ~/ 3)),
+          weekday: 0.4, weekend: 0.6);
+      final logged = _logPrint(books.length + 1, t.pages, readDays);
+      _addBook(t, Shelf.finished,
+          added: _at(logged.first.subtract(Duration(days: 2 + rng.nextInt(20))),
+              21, rng.nextInt(55)),
           started: logged.first,
           finished: logged.last,
           rated: true);

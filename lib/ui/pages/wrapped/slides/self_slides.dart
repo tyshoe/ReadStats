@@ -21,13 +21,14 @@ class PersonalitySlide extends StatelessWidget {
       curve: const Interval(0.1, 0.6, curve: Curves.elasticOut),
     );
 
-    return Column(
+    return SlideBody(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
           width: double.infinity,
           child: SlideEyebrow('Your reader personality', entrance: a),
         ),
-        const Spacer(flex: 2),
+        const SlideGap(40),
         AnimatedBuilder(
           animation: pop,
           builder: (context, child) => Transform.scale(
@@ -55,7 +56,7 @@ class PersonalitySlide extends StatelessWidget {
                 size: 72, color: palette.accent),
           ),
         ),
-        const Spacer(),
+        const SlideGap(40),
         Reveal(
           animation: a,
           start: 0.3,
@@ -84,7 +85,7 @@ class PersonalitySlide extends StatelessWidget {
               textAlign: TextAlign.center,
               style: WrappedType.body(context, alpha: 0.88)),
         ),
-        const Spacer(),
+        const SlideGap(32),
         Reveal(
           animation: a,
           start: 0.6,
@@ -101,7 +102,6 @@ class PersonalitySlide extends StatelessWidget {
                 style: WrappedType.title(context, size: 16)),
           ),
         ),
-        const Spacer(flex: 2),
       ],
     );
   }
@@ -120,8 +120,7 @@ class DiscoveriesSlide extends StatelessWidget {
     final facts = env.story.facts;
     final a = env.entrance;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SlideBody(
       children: [
         SlideEyebrow('Unexpected discoveries', entrance: a),
         const SizedBox(height: 14),
@@ -135,7 +134,7 @@ class DiscoveriesSlide extends StatelessWidget {
                   : 'Things you\nmight have missed.',
               style: WrappedType.headline(context, size: 32)),
         ),
-        const Spacer(),
+        const SlideGap(36),
         for (var i = 0; i < facts.length; i++) ...[
           if (i > 0)
             Padding(
@@ -151,7 +150,6 @@ class DiscoveriesSlide extends StatelessWidget {
             child: _FactRow(fact: facts[i], accent: palette.accent),
           ),
         ],
-        const Spacer(),
       ],
     );
   }
@@ -204,7 +202,11 @@ class FinaleSlide extends StatelessWidget {
       start: 0,
       end: 0.5,
       lift: 40,
-      child: WrappedPoster(story: env.story, palette: palette),
+      child: WrappedPoster(
+        story: env.story,
+        palette: palette,
+        branded: env.shareMode,
+      ),
     );
 
     if (env.shareMode) return Center(child: poster);
@@ -327,7 +329,17 @@ class WrappedPoster extends StatelessWidget {
   final WrappedStory story;
   final WrappedPalette palette;
 
-  const WrappedPoster({super.key, required this.story, required this.palette});
+  /// Adds the ReadStats mark along the card's foot, as the book share cards
+  /// do. On for the share image, where the card sits mid-frame and the mark
+  /// goes wherever the card goes.
+  final bool branded;
+
+  const WrappedPoster({
+    super.key,
+    required this.story,
+    required this.palette,
+    this.branded = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -444,6 +456,11 @@ class WrappedPoster extends StatelessWidget {
                 ),
               ],
             ),
+          ],
+          if (branded) ...[
+            const SizedBox(height: 4),
+            Divider(height: 28, color: Colors.white.withValues(alpha: 0.15)),
+            const WrappedBrand(alignment: MainAxisAlignment.end),
           ],
         ],
       ),
