@@ -141,7 +141,7 @@ class _BarChartWidgetState extends State<BarChartWidget> {
               ),
             ),
           SizedBox(
-            height: 200,
+            height: 180,
             child: (widget.cumulative
                     ? (widget.dailyData?.isEmpty ?? true)
                     : keys.isEmpty)
@@ -172,6 +172,15 @@ class _BarChartWidgetState extends State<BarChartWidget> {
                     builder: (context, constraints) {
                       final chartWidth = max(constraints.maxWidth, keys.length * 28.0);
                       final barWidth = (chartWidth / keys.length * 0.80).clamp(12.0, 36.0);
+                      // Headroom for the value label over the tallest bar,
+                      // in pixels rather than a share of the scale: the
+                      // label is one line however tall the bars are, and a
+                      // proportional margin left a band of empty card under
+                      // the totals.
+                      const labelRoom = 20.0;
+                      const titlesRoom = 22.0 + 12.0; // month labels + padding
+                      final plotHeight = constraints.maxHeight - titlesRoom;
+                      final maxY = maxVal * plotHeight / (plotHeight - labelRoom);
                       return SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: SizedBox(
@@ -184,7 +193,7 @@ class _BarChartWidgetState extends State<BarChartWidget> {
                               curve: Curves.easeOutCubic,
                               BarChartData(
                                 alignment: BarChartAlignment.spaceAround,
-                                maxY: (maxVal * 1.4).toDouble(),
+                                maxY: maxY,
                                 barTouchData: BarTouchData(
                                   enabled: true,
                                   touchCallback: (event, response) {

@@ -6,11 +6,15 @@ class RatingSummaryWidget extends StatelessWidget {
   final int selectedYear;
   final String? title;
 
+  /// Called with 1–5 when a bar with books in it is tapped.
+  final ValueChanged<int>? onStarTap;
+
   const RatingSummaryWidget({
     super.key,
     required this.ratingData,
     required this.selectedYear,
     this.title,
+    this.onStarTap,
   });
 
   @override
@@ -86,7 +90,7 @@ class RatingSummaryWidget extends StatelessWidget {
                       final percent = maxCount > 0 ? count / maxCount : 0.0;
                       final pct = totalRatings > 0 ? (count / totalRatings * 100).round() : 0;
 
-                      return Padding(
+                      final row = Padding(
                         padding: const EdgeInsets.symmetric(vertical: 3),
                         child: Row(
                           children: [
@@ -141,6 +145,13 @@ class RatingSummaryWidget extends StatelessWidget {
                             ),
                           ],
                         ),
+                      );
+                      // A bar opens the books behind it.
+                      if (onStarTap == null || count == 0) return row;
+                      return InkWell(
+                        onTap: () => onStarTap!(star),
+                        borderRadius: BorderRadius.circular(6),
+                        child: row,
                       );
                     }),
                   ),

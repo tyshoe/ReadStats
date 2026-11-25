@@ -20,6 +20,7 @@ import 'package:read_stats/ui/pages/statistics/widgets/activity_heatmap.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/bar_chart_single.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/habit_bar_chart.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/pie_chart.dart';
+import 'package:read_stats/ui/pages/statistics/widgets/rated_books.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/rating_summary.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stat_card.dart';
 import 'package:read_stats/ui/pages/statistics/widgets/stats_entry_card.dart';
@@ -183,7 +184,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
       title: 'Reading Time',
       subtitleValue: _stats['totalTimeSpent'],
       averageValue: avgMinutes,
-      averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
+      averageLabel: _averageLabel,
       shortFormatter: _shortFormatMinutes,
       tooltipFormatter: StatsData.formatMinutes,
       cumulative: _cumulative,
@@ -205,11 +206,16 @@ class _StatisticsPageState extends State<StatisticsPage> {
       title: 'Pages Read',
       subtitleValue: NumberFormat('#,###').format(_stats['totalPagesRead']),
       averageValue: avgPages,
-      averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
+      averageLabel: _averageLabel,
       cumulative: _cumulative,
       dailyData: _data!.pagesDaily,
     );
   }
+
+  /// The averages skip empty months (or years), so the label says so — "Avg/
+  /// month" read as a straight divide by the calendar.
+  String get _averageLabel =>
+      selectedYear == 0 ? 'Avg/active year' : 'Avg/active month';
 
   String _formatAverage(Map<String, int> data) {
     final active = data.values.where((v) => v > 0).toList();
@@ -226,7 +232,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
       title: 'Books Finished',
       subtitleValue: _stats['booksCompleted'].toString(),
       averageValue: _formatAverage(data),
-      averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
+      averageLabel: _averageLabel,
       cumulative: _cumulative,
       dailyData: _data!.booksDaily,
     );
@@ -247,22 +253,8 @@ class _StatisticsPageState extends State<StatisticsPage> {
   String _habitValue(int value) =>
       _habitsUseMinutes ? _shortFormatMinutes(value) : value.toString();
 
-  String get _peakDayLabel {
-    final source =
-        _habitsUseMinutes ? _data!.weekdayMinutes : _data!.weekdaySessions;
-    final peak = peakBucket(source, kAllWeekdays);
-    return peak == null ? '-' : kWeekdayFull[peak]!;
-  }
-
   List<List<int>> get _clockGrid =>
       _habitsUseMinutes ? _data!.clockMinutes : _data!.clockSessions;
-
-  String get _peakTimeLabel {
-    // Summed from the clock grid, so the card and the charts below it can't
-    // name different times.
-    final peak = peakBucket(daypartTotalsOf(_clockGrid), kDaypartOrder);
-    return peak == null ? '-' : kDaypartLabels[peak];
-  }
 
   Widget _buildWhenYouReadChart() {
     return WhenYouReadChart(
@@ -324,7 +316,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
       title: 'Sessions',
       subtitleValue: _stats['totalSessions'].toString(),
       averageValue: _formatAverage(data),
-      averageLabel: selectedYear == 0 ? 'Avg/year' : 'Avg/month',
+      averageLabel: _averageLabel,
       cumulative: _cumulative,
       dailyData: _data!.sessionsDaily,
     );
@@ -431,7 +423,72 @@ class _StatisticsPageState extends State<StatisticsPage> {
       ratingData: _data!.ratingDist,
       selectedYear: selectedYear,
       title: 'My Ratings',
+      onStarTap: (star) {
+        // The same buckets the bars count: half stars round to the nearest.
+        final books = [
+          for (final b in _ratedBooks)
+            if (ratingOf(b).round().clamp(1, 5) == star) b,
+        ];
+        _openRatedBooks('$star★ books', books);
+      },
     );
+  }
+
+  /// Finished books with a rating, in the selected year — the books behind
+  /// the rating bars.
+  List<Map<String, dynamic>> get _ratedBooks => [
+        for (final b in widget.books)
+          if (b['rating'] != null)
+            if (DateTime.tryParse(b['date_finished'] as String? ?? '')
+                case final finished?
+                when selectedYear == 0 || finished.year == selectedYear)
+              b,
+      ];
+
+  /// The top or bottom of the ratings: every book sharing the highest (or
+  /// lowest) rating, newest finished first. Null when nothing is rated.
+  ({double rating, List<Map<String, dynamic>> books})? _ratingExtreme(
+      {required bool highest}) {
+    final rated = _ratedBooks;
+    if (rated.isEmpty) return null;
+    final ratings = rated.map(ratingOf);
+    final target = highest
+        ? ratings.reduce((a, b) => a > b ? a : b)
+        : ratings.reduce((a, b) => a < b ? a : b);
+    final books = [
+      for (final b in rated)
+        if (ratingOf(b) == target) b,
+    ]..sort((a, b) => (b['date_finished'] as String? ?? '')
+        .compareTo(a['date_finished'] as String? ?? ''));
+    return (rating: target, books: books);
+  }
+
+  Widget _buildRatingExtremes() {
+    final top = _ratingExtreme(highest: true);
+    final bottom = _ratingExtreme(highest: false);
+    if (top == null || bottom == null) return const SizedBox.shrink();
+
+    Widget card(String title, ({double rating, List<Map<String, dynamic>> books}) e) =>
+        RatedBooksCard(
+          title: title,
+          rating: e.rating,
+          books: e.books,
+          onTap: () => e.books.length == 1
+              ? _onStatCardTap(e.books.first['id'] as int?)
+              : _openRatedBooks('${formatRating(e.rating)}★ books', e.books),
+        );
+
+    // Everything rated alike: one card says it all.
+    if (top.rating == bottom.rating) return card('Top Rated', top);
+    return _buildPair(card('Lowest Rated', bottom), card('Top Rated', top));
+  }
+
+  Future<void> _openRatedBooks(
+      String title, List<Map<String, dynamic>> books) async {
+    final picked =
+        await showRatedBooksSheet(context: context, title: title, books: books);
+    if (picked == null || !mounted) return;
+    _onStatCardTap(picked['id'] as int?);
   }
 
   void _onStatCardTap(int? bookId) async {
@@ -813,33 +870,12 @@ class _StatisticsPageState extends State<StatisticsPage> {
                   _buildActivityHeatmap(),
                   _buildTopAuthorsChart(),
                   _buildSectionHeader('Reading Habits'),
-                  _buildPair(
-                    StatCard(title: 'Peak Day', value: _peakDayLabel),
-                    StatCard(title: 'Peak Time', value: _peakTimeLabel),
-                  ),
                   _buildWhenYouReadChart(),
                   _buildWeekdayChart(),
                   _buildDaypartChart(),
                   _buildSectionHeader('Ratings'),
                   _buildRatingSummary(),
-                  _buildPair(
-                    StatCard(
-                      title: 'Lowest Rating',
-                      value: _stats['lowestRating'].toString(),
-                      bookTitle: _stats['lowestRatingBookTitle'],
-                      coverPath: _stats['lowestRatingCoverPath'],
-                      coverShape: _stats['lowestRatingCoverShape'],
-                      onTap: () => _onStatCardTap(_stats['lowestRatingBookId']),
-                    ),
-                    StatCard(
-                      title: 'Highest Rating',
-                      value: _stats['highestRating'].toString(),
-                      bookTitle: _stats['highestRatingBookTitle'],
-                      coverPath: _stats['highestRatingCoverPath'],
-                      coverShape: _stats['highestRatingCoverShape'],
-                      onTap: () => _onStatCardTap(_stats['highestRatingBookId']),
-                    ),
-                  ),
+                  _buildRatingExtremes(),
                   _buildSectionHeader('Reading Time'),
                   _buildReadingTimeChart(),
                   _buildPair(
