@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:read_stats/data/models/book.dart';
+import 'package:read_stats/data/models/book_type.dart';
 import 'package:read_stats/data/models/session.dart';
 import 'package:read_stats/data/repositories/book_repository.dart';
 import 'package:read_stats/data/repositories/session_repository.dart';
@@ -116,12 +117,20 @@ class StatsData {
       bookRepo.getAllBookStats(year),
       bookRepo.getBookCountsPerType(),
       bookRepo.getRatingDistribution(selectedYear: year),
+      // A year's sessions can belong to a book finished in another year, so
+      // the audiobook lookup needs every book, not just this year's.
+      if (year != 0) bookRepo.getBooks(),
     ]);
     final sessions = results[0] as List<Session>;
     final books = results[1] as List<Book>;
     final bookStats = results[2] as Map<String, dynamic>;
     final bookTypeData = results[3] as List<Map<String, dynamic>>;
     final ratingDist = results[4] as Map<double, int>;
+    final allBooks = year != 0 ? results[5] as List<Book> : books;
+    final audiobookIds = {
+      for (final b in allBooks)
+        if (b.bookTypeId == BookType.audiobook && b.id != null) b.id!,
+    };
 
     String periodKey(String date) {
       final d = DateTime.parse(date);
@@ -135,6 +144,11 @@ class StatsData {
 
     int totalPagesRead = 0;
     int totalMinutes = 0;
+    // Reading speed only counts sessions on page-based books where both pages
+    // and time were logged — audiobooks have no pages to turn, and a session
+    // missing either side would skew the rate.
+    int speedPages = 0;
+    int speedMinutes = 0;
     final sessionsDist = <String, int>{};
     final pagesDist = <String, int>{};
     final readingTimeDist = <String, int>{};
@@ -150,6 +164,10 @@ class StatsData {
       final minutes = s.durationMinutes ?? 0;
       totalPagesRead += pages;
       totalMinutes += minutes;
+      if (pages > 0 && minutes > 0 && !audiobookIds.contains(s.bookId)) {
+        speedPages += pages;
+        speedMinutes += minutes;
+      }
       final key = periodKey(s.date);
       sessionsDist[key] = (sessionsDist[key] ?? 0) + 1;
       pagesDist[key] = (pagesDist[key] ?? 0) + pages;
@@ -228,8 +246,8 @@ class StatsData {
       'totalSessions': sessions.length,
       'totalPagesRead': totalPagesRead,
       'totalTimeSpent': formatMinutes(totalMinutes),
-      'avgPagesPerMinute': totalMinutes > 0
-          ? totalPagesRead / totalMinutes
+      'avgPagesPerMinute': speedMinutes > 0
+          ? speedPages / speedMinutes
           : 0.0,
       'highestRating': bookStats['highest_rating'] ?? 0,
       'highestRatingBookTitle': bookStats['highest_rating_book_title'],
