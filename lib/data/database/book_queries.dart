@@ -204,6 +204,31 @@ extension BookQueries on DatabaseHelper {
     return result.map((row) => row['author'] as String).toList();
   }
 
+  /// Narrators on the reader's books whose name contains [query], names
+  /// starting with it first. The column can hold a comma-separated cast, so
+  /// each name is offered on its own.
+  Future<List<String>> getNarratorSuggestions(String query) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT DISTINCT narrator FROM books WHERE narrator LIKE ?',
+      ['%$query%'],
+    );
+    final q = query.toLowerCase();
+    final names = <String>{
+      for (final row in rows)
+        for (final name in (row['narrator'] as String).split(','))
+          if (name.trim().toLowerCase().contains(q)) name.trim(),
+    }.toList();
+    int rank(String n) => n.toLowerCase().startsWith(q) ? 0 : 1;
+    names.sort((a, b) {
+      final byRank = rank(a).compareTo(rank(b));
+      return byRank != 0
+          ? byRank
+          : a.toLowerCase().compareTo(b.toLowerCase());
+    });
+    return names.take(5).toList();
+  }
+
   Future<void> updateBookFavoriteStatus(int bookId, int isFavorite) async {
     final db = await database;
     await db.update(

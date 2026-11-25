@@ -107,6 +107,9 @@ class BookRepository {
     return await _databaseHelper.getAuthorSuggestions(query);
   }
 
+  Future<List<String>> getNarratorSuggestions(String query) =>
+      _databaseHelper.getNarratorSuggestions(query);
+
   Future<void> toggleFavoriteStatus(int bookId, bool isFavorite) async {
     await _databaseHelper.updateBookFavoriteStatus(bookId, isFavorite ? 1 : 0);
   }

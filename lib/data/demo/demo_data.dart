@@ -22,7 +22,8 @@ import 'package:read_stats/data/models/tag.dart';
 ///
 /// * Every shelf: finished, currently reading, want to read, unfinished.
 /// * Every format: paperback, hardback, ebook, audiobook (with narrator and
-///   length, square covers).
+///   length, square covers). Narrators repeat across audiobooks and one has
+///   a two-person cast, so the narrator field has names to suggest.
 /// * ~26 months of sessions on two tracks — print in the evenings and at
 ///   weekends, audio on weekday mornings — with notes on some, and two breaks
 ///   so the longest streak isn't simply "all of it".
@@ -197,7 +198,7 @@ const _audioFinished = [
       minutes: 420, narrator: 'Marcus Webb',
       series: 'Voyages Extraordinaires', position: 2),
   _Title('Strange Case of Dr Jekyll and Mr Hyde', 'Robert Louis Stevenson', 0, _audiobook, ['Horror'],
-      minutes: 170, narrator: 'Eleanor Hale'),
+      minutes: 170, narrator: 'Eleanor Hale, Thomas Reyes'),
   _Title('The Call of the Wild', 'Jack London', 0, _audiobook, ['Adventure'],
       minutes: 190, narrator: 'Thomas Reyes'),
   _Title('Narrative of the Life of Frederick Douglass', 'Frederick Douglass', 0, _audiobook, ['Nonfiction'],

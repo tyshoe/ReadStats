@@ -970,6 +970,8 @@ class _BookFormPageState extends State<BookFormPage> {
                     if (isAudiobook) ...[
                       AudiobookFields(
                         narratorController: _narratorController,
+                        narratorSuggestions:
+                            BookRepository().getNarratorSuggestions,
                         hoursController: _durationHoursController,
                         minutesController: _durationMinutesController,
                         onChanged: () => setState(() {}),
