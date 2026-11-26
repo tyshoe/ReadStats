@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:read_stats/data/utils/money.dart';
+import 'package:read_stats/domain/library_filter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stylish_bottom_bar/stylish_bottom_bar.dart';
 
@@ -14,8 +15,11 @@ class SettingsViewModel {
   final ValueNotifier<String> defaultDateFormatNotifier;
   final ValueNotifier<String> selectedFontNotifier;
   // Library Filters
-  final ValueNotifier<String> librarySortOptionNotifier;
-  final ValueNotifier<bool> isLibrarySortAscendingNotifier;
+  // Library sort, per shelf: each shelf's sort as the reader left it, keyed
+  // by shelf id ('all' for the whole library), as 'option|asc' or
+  // 'option|desc'. A shelf not in here sorts by its default — see
+  // LibraryFilter.defaultSort.
+  final ValueNotifier<Map<String, String>> libraryShelfSortsNotifier;
   final ValueNotifier<List<String>> libraryBookTypeFilterNotifier;
   final ValueNotifier<bool> libraryFavoriteFilterNotifier;
   final ValueNotifier<List<String>> libraryFinishedYearFilterNotifier;
@@ -26,6 +30,11 @@ class SettingsViewModel {
   final ValueNotifier<bool> librarySeriesOnlyNotifier;
   // Cover filter: 'all', 'with' or 'without'.
   final ValueNotifier<String> libraryCoverFilterNotifier;
+  // The measure filters: rating in stars, page count, and listening time in
+  // minutes — each a range with open ends, or "no value" only.
+  final ValueNotifier<MeasureRange> libraryRatingFilterNotifier;
+  final ValueNotifier<MeasureRange> libraryPagesFilterNotifier;
+  final ValueNotifier<MeasureRange> libraryListeningFilterNotifier;
   // Pinned Books
   final ValueNotifier<List<int>> pinnedBookIdsNotifier;
   // Library Shelf Filter
@@ -54,8 +63,6 @@ class SettingsViewModel {
     required int defaultTab,
     required String defaultDateFormat,
     required String selectedFont,
-    required String sortOption,
-    required bool isAscending,
     required List<String> bookTypes,
     required bool isFavorite,
     required List<String> finishedYears,
@@ -68,9 +75,16 @@ class SettingsViewModel {
     bool groupSeries = true,
     bool seriesOnly = false,
     String coverFilter = 'all',
+    Map<String, String> shelfSorts = const {},
+    MeasureRange ratingFilter = MeasureRange.any,
+    MeasureRange pagesFilter = MeasureRange.any,
+    MeasureRange listeningFilter = MeasureRange.any,
   })  : libraryGroupSeriesNotifier = ValueNotifier(groupSeries),
         librarySeriesOnlyNotifier = ValueNotifier(seriesOnly),
         libraryCoverFilterNotifier = ValueNotifier(coverFilter),
+        libraryRatingFilterNotifier = ValueNotifier(ratingFilter),
+        libraryPagesFilterNotifier = ValueNotifier(pagesFilter),
+        libraryListeningFilterNotifier = ValueNotifier(listeningFilter),
         themeModeNotifier = ValueNotifier(themeMode),
         accentColorNotifier = ValueNotifier(accentColor),
         defaultBookTypeNotifier = ValueNotifier(defaultBookType),
@@ -81,8 +95,7 @@ class SettingsViewModel {
         defaultDateFormatNotifier = ValueNotifier(defaultDateFormat),
         selectedFontNotifier = ValueNotifier(selectedFont),
         libraryTagFilterModeNotifier = ValueNotifier(tagFilterMode),
-        librarySortOptionNotifier = ValueNotifier(sortOption),
-        isLibrarySortAscendingNotifier = ValueNotifier(isAscending),
+        libraryShelfSortsNotifier = ValueNotifier(shelfSorts),
         libraryBookTypeFilterNotifier = ValueNotifier(bookTypes),
         libraryFavoriteFilterNotifier = ValueNotifier(isFavorite),
         libraryFinishedYearFilterNotifier = ValueNotifier(finishedYears),
@@ -189,30 +202,41 @@ class SettingsViewModel {
     return prefs.getInt('defaultBookType') ?? 1;
   }
 
-  // Save sort option
-  Future<void> setLibrarySortOption(String sortOption) async {
-    librarySortOptionNotifier.value = sortOption;
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('librarySortOption', sortOption);
+  static String _shelfSortKey(int? shelfId) => shelfId?.toString() ?? 'all';
+
+  /// [shelfId]'s sort as the reader left it (null: the whole library) — the
+  /// option and whether it runs ascending — or null if they never changed it.
+  (String, bool)? libraryShelfSort(int? shelfId) {
+    final saved = libraryShelfSortsNotifier.value[_shelfSortKey(shelfId)];
+    final split = saved?.lastIndexOf('|') ?? -1;
+    if (saved == null || split <= 0) return null;
+    return (saved.substring(0, split), saved.substring(split + 1) == 'asc');
   }
 
-  // Load saved sort option
-  static Future<String> getLibrarySortOption() async {
+  /// Remembers [shelfId]'s sort, leaving every other shelf's as it was.
+  Future<void> setLibraryShelfSort(
+      int? shelfId, String option, bool ascending) async {
+    final sorts = {
+      ...libraryShelfSortsNotifier.value,
+      _shelfSortKey(shelfId): '$option|${ascending ? 'asc' : 'desc'}',
+    };
+    libraryShelfSortsNotifier.value = sorts;
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getString('librarySortOption') ?? 'Title';
+    await prefs.setStringList('libraryShelfSorts',
+        [for (final e in sorts.entries) '${e.key}=${e.value}']);
   }
 
-  // Save ascending/descending order
-  Future<void> setLibrarySortAscending(bool isAscending) async {
-    isLibrarySortAscendingNotifier.value = isAscending;
+  /// Every shelf's remembered sort. The single sort all shelves used to
+  /// share ('librarySortOption') isn't carried over: each shelf starts from
+  /// its own default instead.
+  static Future<Map<String, String>> getLibraryShelfSorts() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setBool('isLibrarySortAscending', isAscending);
-  }
-
-  // Load saved order preference
-  static Future<bool> getLibrarySortAscending() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('isLibrarySortAscending') ?? true;
+    return {
+      for (final entry
+          in prefs.getStringList('libraryShelfSorts') ?? const <String>[])
+        if (entry.indexOf('=') case final split when split > 0)
+          entry.substring(0, split): entry.substring(split + 1),
+    };
   }
 
   Future<void> setLibraryIsFavorite(bool isFavorite) async {
@@ -268,6 +292,48 @@ class SettingsViewModel {
   static Future<String> getLibraryCoverFilter() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('libraryCoverFilter') ?? 'all';
+  }
+
+  // A measure filter is stored as 'min|max|missing', an open end left
+  // empty: '4||0' is four stars and up.
+  static String _encodeMeasure(MeasureRange r) =>
+      '${r.min ?? ''}|${r.max ?? ''}|${r.missing ? 1 : 0}';
+
+  static MeasureRange _decodeMeasure(String? saved) {
+    final parts = saved?.split('|');
+    if (parts == null || parts.length != 3) return MeasureRange.any;
+    return MeasureRange(
+      min: num.tryParse(parts[0]),
+      max: num.tryParse(parts[1]),
+      missing: parts[2] == '1',
+    );
+  }
+
+  Future<void> _saveMeasure(
+      String key, ValueNotifier<MeasureRange> notifier, MeasureRange r) async {
+    notifier.value = r;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(key, _encodeMeasure(r));
+  }
+
+  Future<void> setLibraryRatingFilter(MeasureRange r) =>
+      _saveMeasure('libraryRatingFilter', libraryRatingFilterNotifier, r);
+
+  Future<void> setLibraryPagesFilter(MeasureRange r) =>
+      _saveMeasure('libraryPagesFilter', libraryPagesFilterNotifier, r);
+
+  Future<void> setLibraryListeningFilter(MeasureRange r) =>
+      _saveMeasure('libraryListeningFilter', libraryListeningFilterNotifier, r);
+
+  /// The rating, page and listening filters, in that order.
+  static Future<(MeasureRange, MeasureRange, MeasureRange)>
+      getLibraryMeasureFilters() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return (
+      _decodeMeasure(prefs.getString('libraryRatingFilter')),
+      _decodeMeasure(prefs.getString('libraryPagesFilter')),
+      _decodeMeasure(prefs.getString('libraryListeningFilter')),
+    );
   }
 
   // Save book format filter

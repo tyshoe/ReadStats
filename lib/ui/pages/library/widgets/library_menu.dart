@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 enum LibraryMenuAction { random, shareText, findSeries, viewRows, viewGrid }
 
 /// The library's overflow menu: random book, share, find series, and the
-/// rows/grid switch with the current view ticked.
+/// rows/grid switch with the current view ticked. Grouping series lives in
+/// the Sort & Filter sheet, beside the sort.
 class LibraryMenu extends StatelessWidget {
   /// 'rows' or 'grid'.
   final String view;

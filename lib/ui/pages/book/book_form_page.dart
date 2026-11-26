@@ -583,6 +583,7 @@ class _BookFormPageState extends State<BookFormPage> {
   void _clearFormInputs() {
     _titleController.clear();
     _authorController.clear();
+    _ratingController.clear();
     _wordCountController.clear();
     _pageCountController.clear();
     _isbnController.clear();
@@ -600,7 +601,9 @@ class _BookFormPageState extends State<BookFormPage> {
     _cover.replacedFrom = null;
     setState(() {
       _datePurchased = null;
-      _rating = 0;
+      // No rating, not a rating of 0 stars — the next book hasn't been
+      // rated yet.
+      _rating = null;
       _isFavorite = false;
       _shelfId = Shelf.wantToRead;
       _durationHoursController.clear();

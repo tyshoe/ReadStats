@@ -1,3 +1,55 @@
+import 'package:read_stats/data/models/book_type.dart';
+import 'package:read_stats/data/models/shelf.dart';
+
+/// A filter on one measure of a book — its rating, its page count, or an
+/// audiobook's listening time in minutes. One shape for all three, so they
+/// behave alike: a range whose open ends mean "no limit", or else only the
+/// books with no value at all.
+class MeasureRange {
+  /// Inclusive bounds; null is open.
+  final num? min;
+  final num? max;
+
+  /// Only books without a value: unrated, no page count, no listening time.
+  final bool missing;
+
+  const MeasureRange({this.min, this.max, this.missing = false});
+
+  static const any = MeasureRange();
+
+  /// Whether this narrows anything. With both ends open and [missing] off,
+  /// every book passes — those without a value too.
+  bool get isActive => missing || min != null || max != null;
+
+  /// Whether a book whose value is [value] passes. Null is "no value",
+  /// which only [missing] lets through once a range is set. Zero is a value
+  /// here — a book rated 0 stars has been rated, unlike one with no rating
+  /// — so measures where zero means "not known" (a page count of 0) pass
+  /// null instead; see [known].
+  bool matches(num? value) {
+    if (missing) return value == null;
+    if (min == null && max == null) return true;
+    return value != null &&
+        (min == null || value >= min!) &&
+        (max == null || value <= max!);
+  }
+
+  /// [value] where zero or less stands for "not known" — a page count or a
+  /// listening time — as null.
+  static num? known(Object? value) =>
+      value is num && value > 0 ? value : null;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MeasureRange &&
+      other.min == min &&
+      other.max == max &&
+      other.missing == missing;
+
+  @override
+  int get hashCode => Object.hash(min, max, missing);
+}
+
 /// What narrows the Library's list: the shelf chip and every option in the
 /// sort & filter sheet. An empty list or `false` means "don't filter on it".
 class LibraryFilter {
@@ -16,6 +68,16 @@ class LibraryFilter {
   /// How [tags] combine: 'any', 'all' or 'exclude'.
   final String tagMode;
 
+  /// Stars, half stars included.
+  final MeasureRange rating;
+
+  /// Page count — print books and ebooks. See [apply] for how this and
+  /// [listening] share out the formats.
+  final MeasureRange pages;
+
+  /// Listening time in minutes — audiobooks.
+  final MeasureRange listening;
+
   const LibraryFilter({
     required this.bookTypes,
     required this.favoritesOnly,
@@ -26,7 +88,42 @@ class LibraryFilter {
     required this.finishedYears,
     required this.tags,
     required this.tagMode,
+    this.rating = MeasureRange.any,
+    this.pages = MeasureRange.any,
+    this.listening = MeasureRange.any,
   });
+
+  /// Roughly how many print pages an hour of narration covers — for putting
+  /// audiobooks among print books when sorting by length.
+  static const double pagesPerListeningHour = 32;
+
+  static int _minutesOf(Map<String, dynamic> book) =>
+      (book['duration_minutes'] as num?)?.toInt() ?? 0;
+
+  static int _pagesOf(Map<String, dynamic> book) =>
+      (book['page_count'] as num?)?.toInt() ?? 0;
+
+  /// A book's length in pages, an audiobook's listening time turned into
+  /// pages, so every format sorts by length on one scale. An audiobook with
+  /// no listening time falls back to a page count if it has one (some
+  /// imports carry the print edition's). Null when unknown.
+  static double? pageLengthOf(Map<String, dynamic> book) {
+    final minutes = _minutesOf(book);
+    if (book['book_type_id'] == BookType.audiobook && minutes > 0) {
+      return minutes / 60 * pagesPerListeningHour;
+    }
+    final pages = _pagesOf(book);
+    return pages > 0 ? pages.toDouble() : null;
+  }
+
+  /// The sort a shelf starts with until the reader picks another: the order
+  /// it's naturally read in, newest first. Unfinished books keep the day
+  /// they were started but no finish, so they go by that.
+  static (String, bool) defaultSort(int? shelfId) => switch (shelfId) {
+        Shelf.finished => ('Date finished', false),
+        Shelf.currentlyReading || Shelf.unfinished => ('Date started', false),
+        _ => ('Date added', false),
+      };
 
   static const Map<int, String> bookTypeNames = {
     1: "Paperback",
@@ -96,6 +193,21 @@ class LibraryFilter {
         };
       }
 
+      // Null is no rating; 0 is a rating of no stars.
+      final ratingMatch = rating.matches(book['rating'] as num?);
+
+      // Pages say nothing about an audiobook, and listening time nothing
+      // about print, so each kind is judged by its own measure. With only
+      // one set, the other kind drops out — asking for 300+ pages is asking
+      // about books that have pages. With both set, either kind can match.
+      final isAudio = book['book_type_id'] == BookType.audiobook;
+      final lengthMatch = !(pages.isActive || listening.isActive) ||
+          (isAudio
+              ? listening.isActive &&
+                  listening.matches(MeasureRange.known(book['duration_minutes']))
+              : pages.isActive &&
+                  pages.matches(MeasureRange.known(book['page_count'])));
+
       return typeMatch &&
           favoriteMatch &&
           reviewedMatch &&
@@ -103,13 +215,19 @@ class LibraryFilter {
           seriesMatch &&
           coverMatch &&
           yearMatch &&
-          tagMatch;
+          tagMatch &&
+          ratingMatch &&
+          lengthMatch;
     }).toList();
   }
 
   /// [books] sorted by [option] ('Title', 'Author', 'Rating', 'Pages',
   /// 'Date started', 'Date finished' or 'Date added'), with the pinned ones
   /// first in the order they came.
+  ///
+  /// Books missing the sorted value — unrated, no page count, never finished —
+  /// go last whichever way the sort runs, and ties fall back to title, so the
+  /// order never shuffles between loads.
   static List<Map<String, dynamic>> sort(
     List<Map<String, dynamic>> books,
     String option,
@@ -119,34 +237,58 @@ class LibraryFilter {
     final pinned = books.where((b) => pinnedIds.contains(b['id'])).toList();
     final unpinned = books.where((b) => !pinnedIds.contains(b['id'])).toList();
 
-    DateTime date(Map<String, dynamic> b, String key) =>
-        b[key] != null ? DateTime.tryParse(b[key]) ?? DateTime(0) : DateTime(0);
+    // The value each book is sorted by, worked out once rather than on every
+    // comparison. Null when the book doesn't have one.
+    Comparable<dynamic>? keyOf(Map<String, dynamic> b) {
+      DateTime? date(String key) => DateTime.tryParse(b[key] as String? ?? '');
+      num? positive(String key) {
+        final v = b[key] as num?;
+        return v == null || v <= 0 ? null : v;
+      }
+
+      final Object? key = switch (option) {
+        'Title' => titleSortKey(b['title'] as String?),
+        'Author' => (b['author'] as String? ?? '').trim().toLowerCase(),
+        'Rating' => positive('rating'),
+        // Audiobooks by listening time, on the same scale as pages.
+        'Pages' => pageLengthOf(b),
+        'Date started' => date('date_started'),
+        'Date finished' => date('date_finished'),
+        'Date added' => date('date_added'),
+        _ => null,
+      };
+      if (key is String && key.isEmpty) return null;
+      return key as Comparable<dynamic>?;
+    }
+
+    final keys = {for (final b in unpinned) b['id']: keyOf(b)};
+    final titles = {
+      for (final b in unpinned) b['id']: titleSortKey(b['title'] as String?),
+    };
 
     unpinned.sort((a, b) {
-      final int comparison = switch (option) {
-        'Title' => (a['title'] ?? '').compareTo(b['title'] ?? ''),
-        'Author' => (a['author'] ?? '').compareTo(b['author'] ?? ''),
-        'Rating' => (a['rating'] ?? 0.0).toDouble().compareTo(
-          (b['rating'] ?? 0.0).toDouble(),
-        ),
-        'Pages' => (a['page_count'] ?? 0).toInt().compareTo(
-          (b['page_count'] ?? 0).toInt(),
-        ),
-        'Date started' => date(
-          a,
-          'date_started',
-        ).compareTo(date(b, 'date_started')),
-        'Date finished' => date(
-          a,
-          'date_finished',
-        ).compareTo(date(b, 'date_finished')),
-        'Date added' => date(a, 'date_added').compareTo(date(b, 'date_added')),
-        _ => 0,
-      };
-      return ascending ? comparison : -comparison;
+      final ka = keys[a['id']];
+      final kb = keys[b['id']];
+      if (ka == null || kb == null) {
+        if (ka != kb) return ka == null ? 1 : -1;
+      } else {
+        final c = ka.compareTo(kb);
+        if (c != 0) return ascending ? c : -c;
+      }
+      return titles[a['id']]!.compareTo(titles[b['id']]!);
     });
 
     return [...pinned, ...unpinned];
+  }
+
+  static final _leadingArticle = RegExp(r'^(the|a|an)\s+');
+
+  /// A title as it files on a shelf: lower case, with a leading "The", "A"
+  /// or "An" set aside, so "The Road" sits under R.
+  static String titleSortKey(String? title) {
+    final t = (title ?? '').trim().toLowerCase();
+    final stripped = t.replaceFirst(_leadingArticle, '');
+    return stripped.isEmpty ? t : stripped;
   }
 
   /// Every year a book was finished in, newest first.

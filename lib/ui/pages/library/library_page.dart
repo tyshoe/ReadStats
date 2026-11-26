@@ -11,6 +11,7 @@ import 'package:read_stats/domain/series_progress.dart';
 import 'package:read_stats/ui/pages/book/book_detail_page.dart';
 import 'package:read_stats/ui/pages/book/book_form_page.dart';
 import 'package:read_stats/ui/pages/book_search/book_search_sheet.dart';
+import 'package:read_stats/ui/pages/library/widgets/active_filter_chips.dart';
 import 'package:read_stats/ui/pages/library/widgets/book_grid.dart';
 import 'package:read_stats/ui/pages/library/widgets/book_row.dart';
 import 'package:read_stats/ui/pages/library/widgets/bulk_tag_sheet.dart';
@@ -79,6 +80,9 @@ class _LibraryPageState extends State<LibraryPage> {
   bool _groupSeries = true;
   bool _seriesOnly = false;
   String _coverFilter = 'all';
+  MeasureRange _rating = MeasureRange.any;
+  MeasureRange _pages = MeasureRange.any;
+  MeasureRange _listening = MeasureRange.any;
 
   /// Series rows the reader has opened up, for this visit.
   final Set<int> _expandedSeries = {};
@@ -114,8 +118,6 @@ class _LibraryPageState extends State<LibraryPage> {
     _loadShelves();
     _loadPlaceholders();
 
-    _selectedSortOption = widget.settingsViewModel.librarySortOptionNotifier.value;
-    _isAscending = widget.settingsViewModel.isLibrarySortAscendingNotifier.value;
     _selectedBookTypes = widget.settingsViewModel.libraryBookTypeFilterNotifier.value;
     _isFavorite = widget.settingsViewModel.libraryFavoriteFilterNotifier.value;
     _libraryBookView = widget.settingsViewModel.libraryBookViewNotifier.value;
@@ -124,9 +126,13 @@ class _LibraryPageState extends State<LibraryPage> {
     _isReviewed = widget.settingsViewModel.libraryReviewedFilterNotifier.value;
     _pinnedBookIds = widget.settingsViewModel.pinnedBookIdsNotifier.value.toSet();
     _selectedShelfId = widget.settingsViewModel.libraryShelfFilterNotifier.value;
+    _loadShelfSort();
     _groupSeries = widget.settingsViewModel.libraryGroupSeriesNotifier.value;
     _seriesOnly = widget.settingsViewModel.librarySeriesOnlyNotifier.value;
     _coverFilter = widget.settingsViewModel.libraryCoverFilterNotifier.value;
+    _rating = widget.settingsViewModel.libraryRatingFilterNotifier.value;
+    _pages = widget.settingsViewModel.libraryPagesFilterNotifier.value;
+    _listening = widget.settingsViewModel.libraryListeningFilterNotifier.value;
 
     _filteredBooks = _sortAndFilterBooks();
     _searchController.addListener(_searchBooks);
@@ -251,10 +257,9 @@ class _LibraryPageState extends State<LibraryPage> {
     }
 
     if (_selectedSortOption != 'Title' || placed.isEmpty) return items;
-    String label(Object i) => (i is _SeriesGroup
-            ? i.books.first['series_name'] as String? ?? ''
-            : (i as Map<String, dynamic>)['title'] as String? ?? '')
-        .toLowerCase();
+    String label(Object i) => LibraryFilter.titleSortKey(i is _SeriesGroup
+        ? i.books.first['series_name'] as String?
+        : (i as Map<String, dynamic>)['title'] as String?);
     final pinned = items
         .takeWhile((i) => i is Map && _pinnedBookIds.contains(i['id']))
         .length;
@@ -365,20 +370,13 @@ class _LibraryPageState extends State<LibraryPage> {
 
   void _searchBooks() {
     setState(() {
-      final query = _searchController.text.toLowerCase();
-      final baseFiltered = _filter.apply(widget.books, _bookTagsCache);
-      _filteredBooks = query.isEmpty
-          ? LibraryFilter.sort(
-              baseFiltered, _selectedSortOption, _isAscending, _pinnedBookIds)
-          : baseFiltered.where((book) {
-              final title = (book['title'] as String? ?? '').toLowerCase();
-              final author = (book['author'] as String? ?? '').toLowerCase();
-              final series =
-                  (book['series_name'] as String? ?? '').toLowerCase();
-              return title.contains(query) ||
-                  author.contains(query) ||
-                  series.contains(query);
-            }).toList();
+      // Matches keep the chosen sort, pinned books first, like the full list.
+      final matches = _filter
+          .apply(widget.books, _bookTagsCache)
+          .where(_matchesSearch)
+          .toList();
+      _filteredBooks = LibraryFilter.sort(
+          matches, _selectedSortOption, _isAscending, _pinnedBookIds);
     });
   }
 
@@ -501,17 +499,41 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  LibraryFilter get _filter => LibraryFilter(
-        bookTypes: _selectedBookTypes,
-        favoritesOnly: _isFavorite,
-        reviewedOnly: _isReviewed,
+  /// The filter [o] describes, on the current shelf.
+  LibraryFilter _filterFor(SortFilterOptions o) => LibraryFilter(
+        bookTypes: o.bookTypes,
+        favoritesOnly: o.isFavorite,
+        reviewedOnly: o.isReviewed,
         shelfId: _selectedShelfId,
-        seriesOnly: _seriesOnly,
-        coverFilter: _coverFilter,
-        finishedYears: _selectedFinishedYears,
-        tags: _selectedTags,
-        tagMode: _selectedTagFilterMode,
+        seriesOnly: o.seriesOnly,
+        coverFilter: o.coverFilter,
+        finishedYears: o.finishedYears,
+        tags: o.tags,
+        tagMode: o.tagFilterMode,
+        rating: o.rating,
+        pages: o.pages,
+        listening: o.listening,
       );
+
+  LibraryFilter get _filter => _filterFor(_currentOptions);
+
+  /// Whether [book] matches what's typed in the search bar, if anything.
+  bool _matchesSearch(Map<String, dynamic> book) {
+    if (!_isSearching) return true;
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return true;
+    bool has(String key) =>
+        (book[key] as String? ?? '').toLowerCase().contains(query);
+    return has('title') || has('author') || has('series_name');
+  }
+
+  /// The books [o] would leave on screen — for the filter sheet's live count
+  /// and the bars over its sliders, so the result is known before the sheet
+  /// closes.
+  List<Map<String, dynamic>> _booksFor(SortFilterOptions o) => _filterFor(o)
+      .apply(widget.books, _bookTagsCache)
+      .where(_matchesSearch)
+      .toList();
 
   /// The library with the current filters and sort applied.
   List<Map<String, dynamic>> _sortAndFilterBooks() => LibraryFilter.sort(
@@ -524,10 +546,7 @@ class _LibraryPageState extends State<LibraryPage> {
   List<String> _extractBookTags(Map<String, dynamic> book) =>
       _bookTagsCache[book['id'] as int] ?? [];
 
-  void _showSortFilterModal() {
-    final availableYears = LibraryFilter.finishedYearsOf(widget.books);
-
-    final currentOptions = SortFilterOptions(
+  SortFilterOptions get _currentOptions => SortFilterOptions(
         sortOption: _selectedSortOption,
         isAscending: _isAscending,
         bookTypes: _selectedBookTypes,
@@ -538,40 +557,165 @@ class _LibraryPageState extends State<LibraryPage> {
         isReviewed: _isReviewed,
         groupSeries: _groupSeries,
         seriesOnly: _seriesOnly,
-        coverFilter: _coverFilter);
+        coverFilter: _coverFilter,
+        rating: _rating,
+        pages: _pages,
+        listening: _listening,
+      );
 
+  /// Whether anything in the filter sheet is narrowing the list. The shelf
+  /// chip has its own strip, so it isn't counted.
+  bool get _hasActiveFilters => _currentOptions.activeFilterCount > 0;
+
+  /// The current shelf's sort: as the reader left it, or the shelf's default
+  /// — Finished by date finished, Want to Read by date added, and so on.
+  void _loadShelfSort() {
+    final (option, ascending) =
+        widget.settingsViewModel.libraryShelfSort(_selectedShelfId) ??
+            LibraryFilter.defaultSort(_selectedShelfId);
+    _selectedSortOption = option;
+    _isAscending = ascending;
+  }
+
+  /// The formats on the current shelf, by name.
+  Set<String> get _shelfFormats => {
+        for (final book in widget.books)
+          if (_selectedShelfId == null || book['shelf_id'] == _selectedShelfId)
+            ?LibraryFilter.bookTypeNames[book['book_type_id']],
+      };
+
+  /// Puts [options] in force, refilters, and remembers them for next time —
+  /// the sort for this shelf only, the filters for every shelf.
+  void _applyOptions(SortFilterOptions options) {
+    // Saved only when changed, so a shelf the reader never re-sorted keeps
+    // following its default.
+    if (options.sortOption != _selectedSortOption ||
+        options.isAscending != _isAscending) {
+      widget.settingsViewModel.setLibraryShelfSort(
+          _selectedShelfId, options.sortOption, options.isAscending);
+    }
+    setState(() {
+      _selectedSortOption = options.sortOption;
+      _isAscending = options.isAscending;
+      _selectedBookTypes = options.bookTypes;
+      _isFavorite = options.isFavorite;
+      _selectedFinishedYears = options.finishedYears;
+      _selectedTags = options.tags;
+      _selectedTagFilterMode = options.tagFilterMode;
+      _isReviewed = options.isReviewed;
+      _groupSeries = options.groupSeries;
+      _seriesOnly = options.seriesOnly;
+      _coverFilter = options.coverFilter;
+      _rating = options.rating;
+      _pages = options.pages;
+      _listening = options.listening;
+    });
+    _searchBooks();
+    final settings = widget.settingsViewModel;
+    settings.setLibraryBookTypeFilter(_selectedBookTypes);
+    settings.setLibraryIsFavorite(_isFavorite);
+    settings.setLibraryFinishedYearFilter(_selectedFinishedYears);
+    settings.setLibraryTagFilterMode(_selectedTagFilterMode);
+    settings.setLibraryReviewed(_isReviewed);
+    settings.setLibraryGroupSeries(_groupSeries);
+    settings.setLibrarySeriesOnly(_seriesOnly);
+    settings.setLibraryCoverFilter(_coverFilter);
+    settings.setLibraryRatingFilter(_rating);
+    settings.setLibraryPagesFilter(_pages);
+    settings.setLibraryListeningFilter(_listening);
+  }
+
+  /// Each active filter as a chip that takes just that one off, in the
+  /// order the sheet lists them and by the same names.
+  List<ActiveFilter> get _activeFilters {
+    final o = _currentOptions;
+    void apply(SortFilterOptions next) => _applyOptions(next);
+    List<String> without(List<String> list, String item) =>
+        [...list]..remove(item);
+    return [
+      if (o.isFavorite)
+        ActiveFilter('Favorites',
+            onRemove: () => apply(o.copyWith(isFavorite: false))),
+      if (o.isReviewed)
+        ActiveFilter('Reviewed',
+            onRemove: () => apply(o.copyWith(isReviewed: false))),
+      if (o.seriesOnly)
+        ActiveFilter('In a series',
+            onRemove: () => apply(o.copyWith(seriesOnly: false))),
+      for (final year in o.finishedYears)
+        ActiveFilter('Finished $year',
+            onRemove: () => apply(
+                o.copyWith(finishedYears: without(o.finishedYears, year)))),
+      for (final type in o.bookTypes)
+        ActiveFilter(type,
+            onRemove: () =>
+                apply(o.copyWith(bookTypes: without(o.bookTypes, type)))),
+      for (final tag in o.tags)
+        ActiveFilter(o.tagFilterMode == 'exclude' ? 'Not $tag' : tag,
+            onRemove: () => apply(o.copyWith(tags: without(o.tags, tag)))),
+      // The measures in the words the sheet's headings use: "4★+", "200–400
+      // pages", "8+ hours", "No rating".
+      if (ratingMeasure.readout(o.rating) case final label?)
+        ActiveFilter(label,
+            onRemove: () => apply(o.copyWith(rating: MeasureRange.any))),
+      if (pagesMeasure.readout(o.pages) case final label?)
+        ActiveFilter(label,
+            onRemove: () => apply(o.copyWith(pages: MeasureRange.any))),
+      if (listeningMeasure.readout(o.listening) case final label?)
+        ActiveFilter(label,
+            onRemove: () => apply(o.copyWith(listening: MeasureRange.any))),
+      if (o.coverFilter != 'all')
+        ActiveFilter(o.coverFilter == 'with' ? 'Has cover' : 'No cover',
+            onRemove: () => apply(o.copyWith(coverFilter: 'all'))),
+    ];
+  }
+
+  /// Takes off every filter, keeping the sort and series grouping.
+  void _clearFilters() => _applyOptions(_currentOptions.cleared());
+
+  /// What the filters narrow: the selected shelf, or the whole library.
+  String get _scopeLabel {
+    if (_selectedShelfId == null) return 'All books';
+    for (final shelf in _shelves) {
+      if (shelf['id'] == _selectedShelfId) {
+        return shelf['name'] as String? ?? 'This shelf';
+      }
+    }
+    return 'This shelf';
+  }
+
+  /// Every tag, the ones most used on the current shelf first — the order
+  /// the filter sheet offers them in, so the likely picks come first.
+  List<String> get _tagsByUse {
+    final uses = <String, int>{};
+    for (final book in widget.books) {
+      if (_selectedShelfId != null && book['shelf_id'] != _selectedShelfId) {
+        continue;
+      }
+      for (final tag in _bookTagsCache[book['id'] as int] ?? const <String>[]) {
+        uses[tag] = (uses[tag] ?? 0) + 1;
+      }
+    }
+    return [..._availableTags]..sort((a, b) {
+        final byUse = (uses[b] ?? 0).compareTo(uses[a] ?? 0);
+        return byUse != 0 ? byUse : a.toLowerCase().compareTo(b.toLowerCase());
+      });
+  }
+
+  void _showSortFilterModal() {
     SortFilterPopup.show(
-        context: context,
-        currentOptions: currentOptions,
-        onOptionsChange: (newOptions) {
-          setState(() {
-            _selectedSortOption = newOptions.sortOption;
-            _isAscending = newOptions.isAscending;
-            _selectedBookTypes = newOptions.bookTypes;
-            _isFavorite = newOptions.isFavorite;
-            _selectedFinishedYears = newOptions.finishedYears;
-            _selectedTags = newOptions.tags;
-            _selectedTagFilterMode = newOptions.tagFilterMode;
-            _isReviewed = newOptions.isReviewed;
-            _groupSeries = newOptions.groupSeries;
-            _seriesOnly = newOptions.seriesOnly;
-            _coverFilter = newOptions.coverFilter;
-          });
-          _searchBooks();
-          widget.settingsViewModel.setLibrarySortOption(_selectedSortOption);
-          widget.settingsViewModel.setLibrarySortAscending(_isAscending);
-          widget.settingsViewModel.setLibraryBookTypeFilter(_selectedBookTypes);
-          widget.settingsViewModel.setLibraryIsFavorite(_isFavorite);
-          widget.settingsViewModel.setLibraryFinishedYearFilter(_selectedFinishedYears);
-          widget.settingsViewModel.setLibraryTagFilterMode(_selectedTagFilterMode);
-          widget.settingsViewModel.setLibraryReviewed(_isReviewed);
-          widget.settingsViewModel.setLibraryGroupSeries(_groupSeries);
-          widget.settingsViewModel.setLibrarySeriesOnly(_seriesOnly);
-          widget.settingsViewModel.setLibraryCoverFilter(_coverFilter);
-        },
-        availableYears: availableYears,
-        settingsViewModel: widget.settingsViewModel,
-        availableTags: _availableTags);
+      context: context,
+      currentOptions: _currentOptions,
+      onOptionsChange: _applyOptions,
+      availableYears: LibraryFilter.finishedYearsOf(widget.books),
+      settingsViewModel: widget.settingsViewModel,
+      availableTags: _tagsByUse,
+      booksFor: _booksFor,
+      scopeLabel: _scopeLabel,
+      shelfFormats: _shelfFormats,
+      defaultSortOption: LibraryFilter.defaultSort(_selectedShelfId).$1,
+      shelfId: _selectedShelfId,
+    );
   }
 
   Future<void> _loadAvailableTags() async {
@@ -725,12 +869,7 @@ class _LibraryPageState extends State<LibraryPage> {
           ),
           IconButton(
             icon: Badge(
-              isLabelVisible: _isFavorite ||
-                  _isReviewed ||
-                  _coverFilter != 'all' ||
-                  _selectedBookTypes.isNotEmpty ||
-                  _selectedFinishedYears.isNotEmpty ||
-                  _selectedTags.isNotEmpty,
+              isLabelVisible: _hasActiveFilters,
               smallSize: 8,
               backgroundColor: theme.colorScheme.primary,
               child: const Icon(Icons.filter_list),
@@ -764,19 +903,34 @@ class _LibraryPageState extends State<LibraryPage> {
                         selectedShelfId: _selectedShelfId,
                         selectedKey: _selectedShelfChipKey,
                         onSelected: (id) {
-                          setState(() => _selectedShelfId = id);
+                          setState(() {
+                            _selectedShelfId = id;
+                            _loadShelfSort();
+                          });
                           _searchBooks();
                           widget.settingsViewModel.setLibraryShelfFilter(_selectedShelfId);
                           WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelectedChip());
                         },
                       ),
                       const SizedBox(height: 4),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          '${_filteredBooks.length}/${widget.books.length}',
-                          style: theme.textTheme.bodyLarge,
-                        ),
+                      // The filters in force sit beside the count they
+                      // explain, so a shorter list is never a mystery.
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _hasActiveFilters
+                                ? ActiveFilterChips(
+                                    filters: _activeFilters,
+                                    onClearAll: _clearFilters,
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${_filteredBooks.length}/${widget.books.length}',
+                            style: theme.textTheme.bodyLarge,
+                          ),
+                        ],
                       ),
                       if (_selectedShelfId == Shelf.wantToRead) ...[
                         const SizedBox(height: 8),
@@ -804,13 +958,7 @@ class _LibraryPageState extends State<LibraryPage> {
                                 searching: _isSearching,
                                 shelfEmpty: _selectedShelfId != null &&
                                     !_isSearching &&
-                                    !_isFavorite &&
-                                    !_isReviewed &&
-                                    !_seriesOnly &&
-                                    _coverFilter == 'all' &&
-                                    _selectedBookTypes.isEmpty &&
-                                    _selectedFinishedYears.isEmpty &&
-                                    _selectedTags.isEmpty,
+                                    !_hasActiveFilters,
                               )
                             : Builder(builder: (context) {
                           final items = _libraryItems();

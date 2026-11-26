@@ -24,6 +24,12 @@ import 'package:read_stats/data/models/tag.dart';
 /// * Every format: paperback, hardback, ebook, audiobook (with narrator and
 ///   length, square covers). Narrators repeat across audiobooks and one has
 ///   a two-person cast, so the narrator field has names to suggest.
+/// * Lengths across the Library's Pages and Listening time filters: print
+///   books from 96 pages (Heart of Darkness) to 880 (Twenty Years After),
+///   audiobooks from under 3 hours (Dr Jekyll) to 28 (The Three
+///   Musketeers) — and on Want to Read, a paperback with no page count and
+///   an audiobook with no listening time (Moby-Dick, Sense and Sensibility)
+///   for "No page count" and "No listening time".
 /// * ~26 months of sessions on two tracks — print in the evenings and at
 ///   weekends, audio on weekday mornings — with notes on some, and two breaks
 ///   so the longest streak isn't simply "all of it". The times of day give
@@ -40,7 +46,10 @@ import 'package:read_stats/data/models/tag.dart';
 ///   session opens on the time the last one stopped at; older ones keep a
 ///   bare duration.
 /// * Ratings (halves included), reviews — one long enough to fold behind
-///   the book page's "Read more" — favourites, tags with colours.
+///   the book page's "Read more" — favourites, tags with colours. One book
+///   given up on is rated 0 stars (The Count of Monte Cristo), and some
+///   finished ones aren't rated at all, so the Library's rating filter has
+///   a 0★ that's distinct from "No rating".
 /// * ISBNs on three books in four (made up, valid check digits), so the book
 ///   page's Details shows the row and its absence.
 /// * Series: Sherlock Holmes #1 and #3 (a gap at #2 on purpose), plus #2
@@ -252,6 +261,16 @@ const _wantToRead = [
   // page offers to add it.
   _Title("Anne's House of Dreams", 'L. M. Montgomery', 300, _paperback, ['Classic'],
       series: 'Anne of Green Gables', position: 4),
+];
+
+/// Added to Want to Read with their length still blank — a paperback with
+/// no page count, an audiobook with no listening time — so the Library's
+/// "No page count" and "No listening time" filters have something to find.
+/// Left out of [_openLibrary], so they get drawn covers.
+const _lengthUnknown = [
+  _Title('Moby-Dick', 'Herman Melville', 0, _paperback, ['Adventure', 'Classic']),
+  _Title('Sense and Sensibility', 'Jane Austen', 0, _audiobook, ['Romance', 'Classic'],
+      narrator: 'Eleanor Hale'),
 ];
 
 /// For each title: Open Library cover id, work key, the edition that cover
@@ -669,6 +688,7 @@ class _Generator {
     final planner = _buildWantToRead();
     // Last, so every book and random draw above comes out as it always has.
     _buildFirstYear();
+    _buildLengthUnknown();
 
     sessions.sort((a, b) => a.date.compareTo(b.date));
     final (goals, targets) = _buildGoals();
@@ -766,6 +786,16 @@ class _Generator {
     }
   }
 
+  /// The books still waiting for a length — see [_lengthUnknown]. Built
+  /// after everything else and without random draws, so nothing before them
+  /// moves.
+  void _buildLengthUnknown() {
+    for (final (i, t) in _lengthUnknown.indexed) {
+      _addBook(t, Shelf.wantToRead,
+          added: _at(today.subtract(Duration(days: 4 + i * 5)), 20, 10 + i * 7));
+    }
+  }
+
   void _buildCurrent() {
     final starts = [27, 9, 14];
     final shares = [0.55, 0.3, 0.4];
@@ -801,8 +831,13 @@ class _Generator {
       final readDays = _readDays(start, start.add(Duration(days: window)),
           weekday: 0.6, weekend: 0.7);
       final logged = _logPrint(books.length + 1, pages, readDays);
+      // The first was given up on and rated 0 stars — a verdict, not a
+      // missing rating — so the Library's rating filter has a 0★ to show
+      // apart from its "No rating" books.
       _addBook(t, Shelf.unfinished,
-          added: _addedBefore(logged.first), started: logged.first);
+          added: _addedBefore(logged.first),
+          started: logged.first,
+          fixedRating: i == 0 ? 0 : null);
     }
   }
 
@@ -1054,13 +1089,16 @@ class _Generator {
     DateTime? started,
     DateTime? finished,
     bool rated = false,
+    double? fixedRating,
   }) {
     final id = books.length + 1;
     final finishedIndex = books.where((b) => b.shelfId == Shelf.finished).length;
 
-    double? rating;
+    // A set rating draws nothing from the generator, so the books after it
+    // come out as they always have.
+    double? rating = fixedRating;
     String? review;
-    if (rated && finishedIndex % 9 != 4) {
+    if (rated && fixedRating == null && finishedIndex % 9 != 4) {
       const pool = [4.0, 4.5, 3.5, 5.0, 4.0, 3.0, 4.5, 5.0, 2.5, 4.0];
       rating = pool[rng.nextInt(pool.length)];
       if (finishedIndex % 3 == 0) {
@@ -1084,7 +1122,7 @@ class _Generator {
       datePurchased: _purchased(id, t, added)?.toIso8601String(),
       title: t.title,
       author: t.author,
-      pageCount: t.isAudio ? null : t.pages,
+      pageCount: t.isAudio || t.pages <= 0 ? null : t.pages,
       rating: rating,
       isFavorite: (rating ?? 0) >= 4.5 && finishedIndex % 3 != 1,
       bookTypeId: t.format,
@@ -1092,7 +1130,7 @@ class _Generator {
       dateStarted: started?.toIso8601String(),
       dateFinished: finished?.toIso8601String(),
       userReview: review,
-      durationMinutes: t.isAudio ? t.minutes : null,
+      durationMinutes: t.isAudio && t.minutes > 0 ? t.minutes : null,
       shelfId: shelf,
       coverPath: hasCover ? '$id.jpg' : null,
       openLibraryKey: openLibrary?.$2,

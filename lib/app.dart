@@ -155,8 +155,7 @@ class _ReadStatsAppState extends State<ReadStatsApp> {
     final defaultTab = await SettingsViewModel.getDefaultTab();
     final defaultDateFormat = await SettingsViewModel.getDefaultDateFormat();
     final selectedFont = await SettingsViewModel.getSelectedFont();
-    final sortOption = await SettingsViewModel.getLibrarySortOption();
-    final isAscending = await SettingsViewModel.getLibrarySortAscending();
+    final shelfSorts = await SettingsViewModel.getLibraryShelfSorts();
     final bookTypes = await SettingsViewModel.getLibraryBookTypes();
     final isFavorite = await SettingsViewModel.getLibraryIsFavorite();
     final finishedYears = await SettingsViewModel.getLibraryFinishedYears();
@@ -165,6 +164,8 @@ class _ReadStatsAppState extends State<ReadStatsApp> {
     final groupSeries = await SettingsViewModel.getLibraryGroupSeries();
     final seriesOnly = await SettingsViewModel.getLibrarySeriesOnly();
     final coverFilter = await SettingsViewModel.getLibraryCoverFilter();
+    final (ratingFilter, pagesFilter, listeningFilter) =
+        await SettingsViewModel.getLibraryMeasureFilters();
     final pinnedBookIds = await SettingsViewModel.getPinnedBookIds();
     final shelfId = await SettingsViewModel.getLibraryShelfFilter();
     final statsYearFilter = await SettingsViewModel.getStatsYearFilter();
@@ -187,8 +188,7 @@ class _ReadStatsAppState extends State<ReadStatsApp> {
       
        LIBRARY FILTER SETTINGS
       ───────────────────────────────────────────
-      • Sort Option: "$sortOption"
-      • Sort Direction: ${isAscending ? 'Ascending' : 'Descending'}
+      • Shelf sorts: ${shelfSorts.isEmpty ? 'Defaults' : shelfSorts}
       • Favorite Filter: ${isFavorite ? 'ON' : 'OFF'}
       • Book Types: ${bookTypes.isEmpty ? 'All' : bookTypes.join(', ')}
       • Finished Years: ${finishedYears.isEmpty ? 'All' : finishedYears.join(', ')}
@@ -210,8 +210,6 @@ class _ReadStatsAppState extends State<ReadStatsApp> {
         defaultTab: defaultTab,
         defaultDateFormat: defaultDateFormat,
         selectedFont: selectedFont,
-        sortOption: sortOption,
-        isAscending: isAscending,
         bookTypes: bookTypes,
         isFavorite: isFavorite,
         finishedYears: finishedYears,
@@ -224,6 +222,10 @@ class _ReadStatsAppState extends State<ReadStatsApp> {
         groupSeries: groupSeries,
         seriesOnly: seriesOnly,
         coverFilter: coverFilter,
+        shelfSorts: shelfSorts,
+        ratingFilter: ratingFilter,
+        pagesFilter: pagesFilter,
+        listeningFilter: listeningFilter,
       );
       _isReady = true;
     });

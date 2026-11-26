@@ -78,7 +78,12 @@ extension _GoodreadsImport on ImportExportService {
           author: getString(r, 'Author') ?? 'Unknown',
           wordCount: 0,
           pageCount: int.tryParse(getString(r, 'Number of Pages') ?? '') ?? 0,
-          rating: double.tryParse(getString(r, 'My Rating') ?? '') ?? 0.0,
+          // Goodreads rates 1 to 5 and writes 0 for a book you haven't
+          // rated — which here is no rating, not a rating of 0 stars.
+          rating: switch (double.tryParse(getString(r, 'My Rating') ?? '')) {
+            final stars? when stars > 0 => stars,
+            _ => null,
+          },
           isFavorite: false,
           bookTypeId: _bookTypeIdFromBinding(getString(r, 'Binding') ?? ''),
           dateAdded: parseGoodreadsDate(getString(r, 'Date Added'))
